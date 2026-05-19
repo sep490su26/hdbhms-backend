@@ -5,6 +5,7 @@ import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.ConfirmPaymentIntentPort;
+import com.sep490.hdbhms.occupancy.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
@@ -23,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ConfirmDepositPaymentAdapter implements ConfirmPaymentIntentPort {
     PaymentIntentRepository paymentIntentRepository;
-    LeaseContractRepository leaseContractRepository;
     DepositAgreementRepository depositAgreementRepository;
 
     @Override
@@ -33,7 +33,6 @@ public class ConfirmDepositPaymentAdapter implements ConfirmPaymentIntentPort {
         if (paymentIntent.getStatus() != PaymentIntentStatus.PENDING) {
             throw new AppException(ApiErrorCode.UNDEFINED);
         }
-
         DepositAgreement depositAgreement = depositAgreementRepository
                 .findById(paymentIntent.getDepositAgreementId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
@@ -42,8 +41,7 @@ public class ConfirmDepositPaymentAdapter implements ConfirmPaymentIntentPort {
         }
         paymentIntent.succeedPayment();
         paymentIntentRepository.save(paymentIntent);
-//        LeaseContract leaseContract = LeaseContract.newLeaseContract();
-//        leaseContractRepository.save(leaseContract);
+
         return depositAgreement;
     }
 }

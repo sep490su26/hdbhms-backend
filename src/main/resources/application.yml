@@ -27,6 +27,8 @@ spring:
       - role-permissions
     caffeine:
       spec: maximumSize=500,expireAfterWrite=5m
+  jackson:
+    property-naming-strategy: SNAKE_CASE
 app:
   auth:
     token-secret: ${SIGNER_KEY}

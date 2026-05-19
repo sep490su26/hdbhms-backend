@@ -21,4 +21,20 @@ public class MaintenanceTicketAttachment {
     Integer sortOrder;
     Long createdById;
     LocalDateTime createdAt;
+
+    public static MaintenanceTicketAttachment from(
+            Long ticketId,
+            Long fileId,
+            AttachmentPhase attachmentPhase,
+            Integer sortOrder,
+            Long createdById
+    ) {
+        return MaintenanceTicketAttachment.builder()
+                .ticketId(ticketId)
+                .fileId(fileId)
+                .attachmentPhase(attachmentPhase)
+                .sortOrder(sortOrder)
+                .createdById(createdById)
+                .build();
+    }
 }
