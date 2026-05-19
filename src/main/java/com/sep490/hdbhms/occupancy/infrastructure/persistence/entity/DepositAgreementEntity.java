@@ -57,6 +57,10 @@ public class DepositAgreementEntity {
     @JoinColumn(name = "depositor_person_profile_id", nullable = true)
     PersonProfileEntity depositorPersonProfile;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_hold_id", nullable = true)
+    RoomHoldEntity roomHold;
+
     @Column(nullable = false)
     Long amount;  // VND đồng
 

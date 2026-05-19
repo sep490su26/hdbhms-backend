@@ -21,4 +21,32 @@ public class RoomHold {
     LocalDateTime createdAt;
     LocalDateTime releasedAt;
     Long activeRoomKey;
+
+    public static RoomHold createRoomHoldForGuest(
+            Long roomId,
+            LocalDateTime expiresAt
+    ) {
+        return RoomHold.builder()
+                .roomId(roomId)
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    public void releaseOnAutoExpired() {
+        if (
+                this.getStatus() != RoomHoldStatus.ACTIVE
+                        || this.getExpiresAt().isAfter(LocalDateTime.now())
+        ) {
+            throw new IllegalStateException("Scheduled task is not expired yet");
+        }
+        this.status = RoomHoldStatus.EXPIRED;
+        this.releasedAt = LocalDateTime.now();
+    }
+
+    public void confirm() {
+        if (this.getStatus() != RoomHoldStatus.ACTIVE) {
+            throw new IllegalStateException("Scheduled task is not active");
+        }
+        this.status = RoomHoldStatus.CONFIRMED;
+    }
 }

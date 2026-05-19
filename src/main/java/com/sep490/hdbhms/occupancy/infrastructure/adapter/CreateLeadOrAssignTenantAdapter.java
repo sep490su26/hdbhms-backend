@@ -9,10 +9,7 @@ import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.occupancy.application.port.out.*;
-import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
-import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
-import com.sep490.hdbhms.occupancy.domain.model.Lead;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.occupancy.domain.model.*;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
@@ -21,10 +18,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -40,6 +40,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     TenantRepository tenantRepository;
     DepositFormRepository depositFormRepository;
     PersonProfileRepository personProfileRepository;
+    DepositAgreementRepository depositAgreementRepository;
     IdentityDocumentRepository identityDocumentRepository;
 
     @Override
@@ -49,10 +50,33 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         Room room = roomRepository.findById(depositForm.getRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
 
-        if (tenantRepository.existsByEmailOrPhone(depositForm.getEmail(), depositForm.getPhone())) {
+        Optional<User> existingUser = userRepository
+                .findByPhoneOrEmailAndDeletedAtIsNull(
+                        depositForm.getPhone(),
+                        depositForm.getEmail()
+                );
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            Optional<Tenant> existingTenant = tenantRepository
+                    .findByUserIdAndPropertyId(user.getId(), room.getPropertyId());
+            if (existingTenant.isPresent()) {
+                Tenant tenant = existingTenant.get();
+                PersonProfile tenantProfile = personProfileRepository.findByUserId(tenant.getUserId())
+                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                depositAgreement.setTenantId(tenant.getId());
+                depositAgreement.setDepositorPersonProfileId(tenantProfile.getId());
+                depositAgreementRepository.save(depositAgreement);
+                return;
+            }
+            Lead lead = leadRepository.findByAssignedUserId(user.getId())
+                    .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+            PersonProfile leadProfile = personProfileRepository.findByUserId(lead.getUserId())
+                    .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+            depositAgreement.setLeadId(lead.getId());
+            depositAgreement.setDepositorPersonProfileId(leadProfile.getId());
+            depositAgreementRepository.save(depositAgreement);
             return;
         }
-
 
         String randomPassword = RandomPasswordUtils.generatePassword(
                 6,
@@ -66,9 +90,20 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                 randomPasswordHash,
                 Role.LEAD
         );
-        user = userRepository.save(user);
+        try {
+            user = userRepository.save(user);
+        } catch (DataIntegrityViolationException ex) {
+            if (ex.getMessage().contains("uq_users_phone_active") ||
+                    ex.getMessage().contains("uq_users_email_active")) {
+                user = userRepository.findByPhoneOrEmailAndDeletedAtIsNull(
+                                depositForm.getPhone(), depositForm.getEmail())
+                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+            } else {
+                throw ex;
+            }
+        }
         Lead lead = Lead.newLeadUser(room.getPropertyId(), user.getId());
-        leadRepository.save(lead);
+        lead = leadRepository.save(lead);
         PersonProfile personProfile = PersonProfile.create(
                 user.getId(),
                 depositForm.getFullName(),
@@ -76,6 +111,10 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                 depositForm.getEmail()
         );
         personProfile = personProfileRepository.save(personProfile);
+        if (identityDocumentRepository.existsByDocTypeAndDocNumber(
+                DocumentType.CCCD, depositForm.getIdNumber())) {
+            throw new AppException(ApiErrorCode.UNDEFINED);
+        }
         IdentityDocument identityDocument = IdentityDocument.create(
                 personProfile.getId(),
                 DocumentType.CCCD,
@@ -108,5 +147,9 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                 )
         );
         javaMailSender.send(message);
+
+        depositAgreement.setLeadId(lead.getId());
+        depositAgreement.setDepositorPersonProfileId(personProfile.getId());
+        depositAgreementRepository.save(depositAgreement);
     }
 }

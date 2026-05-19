@@ -12,4 +12,6 @@ public interface TenantRepository {
     Optional<Tenant> findByUserId(Long userId);
 
     boolean existsByEmailOrPhone(String email, String phone);
+
+    Optional<Tenant> findByUserIdAndPropertyId(Long id, Long propertyId);
 }

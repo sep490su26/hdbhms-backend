@@ -20,6 +20,7 @@ public class DepositAgreement {
     Long tenantId;
     Long leadId;
     Long depositorPersonProfileId;
+    Long roomHoldId;
     Long amount;
     LocalDate expectedMoveInDate;
     LocalDate expectedLeaseSignDate;

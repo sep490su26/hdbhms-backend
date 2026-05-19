@@ -37,8 +37,27 @@ public class LeaseContract {
     @Builder.Default
     Long version = 0L;
 
-    public static LeaseContract newLeaseContract() {
+    public static LeaseContract newLeaseContract(
+            Long roomId,
+            Long depositAgreementId,
+            Long primaryTenantProfileId,
+            LocalDate startDate,
+            LocalDate endDate,
+            LocalDate rentStartDate,
+            Long monthlyRent,
+            Integer paymentCycleMonths,
+            Long depositAmount
+    ) {
         return LeaseContract.builder()
+                .roomId(roomId)
+                .depositAgreementId(depositAgreementId)
+                .primaryTenantProfileId(primaryTenantProfileId)
+                .startDate(startDate)
+                .endDate(endDate)
+                .rentStartDate(rentStartDate)
+                .monthlyRent(monthlyRent)
+                .paymentCycleMonths(paymentCycleMonths)
+                .depositAmount(depositAmount)
                 .build();
     }
 
