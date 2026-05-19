@@ -24,7 +24,6 @@ public class RoomController {
 
     @PostMapping("/book")
     public ApiResponse<Void> bookRoom(@ModelAttribute SendDepositFormRequest request) {
-        log.info(request.toString());
         bookRoomUseCase.initDepositForm(roomWebMapper.toCommand(request));
         return ApiResponse.<Void>builder().build();
     }

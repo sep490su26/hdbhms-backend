@@ -19,6 +19,10 @@ public class DepositForm {
     Long roomId;
     String idNumber;
     String fullName;
+    String permanentAddress;
+    LocalDate idIssueDate;
+    String idIssuePlace;
+    LocalDate dob;
     String email;
     String phone;
     LocalDate expectedMoveInDate;
@@ -35,18 +39,26 @@ public class DepositForm {
 
     public static DepositForm newDepositForm(
             Long roomId,
-            String idNumber,
             String fullName,
+            LocalDate dob,
             String email,
             String phone,
+            String permanentAddress,
+            String idNumber,
+            LocalDate idIssueDate,
+            String idIssuePlace,
             LocalDate expectedMoveInDate,
             LocalDate expectedLeaseSignDate
     ) {
         return DepositForm.builder()
                 .roomId(roomId)
+                .dob(dob)
                 .idNumber(idNumber)
                 .fullName(fullName)
                 .email(email)
+                .idIssueDate(idIssueDate)
+                .idIssuePlace(idIssuePlace)
+                .permanentAddress(permanentAddress)
                 .phone(phone)
                 .expectedMoveInDate(expectedMoveInDate)
                 .expectedLeaseSignDate(expectedLeaseSignDate)

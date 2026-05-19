@@ -34,4 +34,10 @@ public class SpringDataTenantRepository implements TenantRepository {
         return jpaTenantRepository.findById(id)
                 .map(tenantPersistenceMapper::toDomain);
     }
+
+    @Override
+    public boolean existsByEmailOrPhone(String email, String phone) {
+        boolean emailResult = jpaTenantRepository.existsByUser_Email(email);
+        return !emailResult && jpaTenantRepository.existsByUser_Phone(phone);
+    }
 }

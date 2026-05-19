@@ -23,7 +23,6 @@ public class VNPaySignatureVerifier {
     VNPayProperties vnPayProperties;
 
     public boolean isValid(Map<String, String> params) {
-        log.info(params.toString());
         String receivedHash = params.remove("vnp_SecureHash");
         params.remove("vnp_SecureHashType");
 
@@ -45,10 +44,7 @@ public class VNPaySignatureVerifier {
             hashData.deleteCharAt(hashData.length() - 1);
         }
 
-        log.info(hashData.toString());
         var calculatedHash = hmacSHA512(vnPayProperties.getHashSecret(), hashData.toString());
-        log.info(calculatedHash);
-        log.info(receivedHash);
         return calculatedHash.equals(receivedHash);
     }
 }

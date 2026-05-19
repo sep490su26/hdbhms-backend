@@ -12,10 +12,14 @@ import java.time.LocalDate;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SendDepositFormRequest {
     Long roomId;
-    String idNumber;
     String fullName;
+    LocalDate dob;
     String email;
     String phone;
+    String permanentAddress;
+    String idNumber;
+    String idIssueDate;
+    String idIssuePlace;
     LocalDate expectedMoveInDate;
     LocalDate expectedLeaseSignDate;
 }

@@ -14,16 +14,16 @@ import java.time.LocalDateTime;
 public class Lead {
     Long id;
     Long propertyId;
-    Long assignedUserId;
+    Long userId;
     LocalDate desiredMoveInDate;
     String note;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 
-    public static Lead newLeadUser(Long propertyId, Long assignedUserId) {
+    public static Lead newLeadUser(Long propertyId, Long userId) {
         return Lead.builder()
                 .propertyId(propertyId)
-                .assignedUserId(assignedUserId)
+                .userId(userId)
                 .build();
     }
 }
