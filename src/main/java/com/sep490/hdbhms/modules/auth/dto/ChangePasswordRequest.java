@@ -4,10 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 
 public record ChangePasswordRequest(
-        @JsonProperty("old_password")
-        @NotBlank(message = "old_password khong duoc rong")
-        String oldPassword,
-
         @JsonProperty("new_password")
         @NotBlank(message = "new_password khong duoc rong")
         String newPassword,

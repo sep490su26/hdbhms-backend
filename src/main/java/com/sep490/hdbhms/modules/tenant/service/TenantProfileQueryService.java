@@ -48,7 +48,7 @@ public class TenantProfileQueryService {
             );
         }
 
-        TenantProfileResponse.IdentityDocumentDto identityDocument = getIdentityDocument(person.id());
+        TenantProfileResponse.IdentityDocumentDto identityDocument = getIdentityDocument(person.id(), tenantId);
         List<TenantProfileResponse.VehicleDto> vehicles = getVehicles(person.id());
         List<TenantProfileResponse.EmergencyContactDto> emergencyContacts = getEmergencyContacts(tenantId);
 
@@ -113,9 +113,14 @@ public class TenantProfileQueryService {
         ), userId, tenantId, tenantId);
     }
 
-    private TenantProfileResponse.IdentityDocumentDto getIdentityDocument(Long personProfileId) {
+    private TenantProfileResponse.IdentityDocumentDto getIdentityDocument(Long personProfileId, Long tenantId) {
         return queryNullable("""
-                SELECT doc_type, doc_number, issued_date, issued_place
+                SELECT doc_type,
+                       doc_number,
+                       issued_date,
+                       issued_place,
+                       front_file_id,
+                       back_file_id
                 FROM identity_documents
                 WHERE profile_id = ?
                   AND status = 'ACTIVE'
@@ -125,7 +130,9 @@ public class TenantProfileQueryService {
                 rs.getString("doc_type"),
                 rs.getString("doc_number"),
                 nullableLocalDate(rs, "issued_date"),
-                rs.getString("issued_place")
+                rs.getString("issued_place"),
+                tenantScopedFileUrl(tenantId, nullableLong(rs, "front_file_id")),
+                tenantScopedFileUrl(tenantId, nullableLong(rs, "back_file_id"))
         ), personProfileId);
     }
 
@@ -165,6 +172,16 @@ public class TenantProfileQueryService {
         return ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path("/api/v1/files/{fileId}")
                 .buildAndExpand(fileId)
+                .toUriString();
+    }
+
+    private String tenantScopedFileUrl(Long tenantId, Long fileId) {
+        if (fileId == null) {
+            return null;
+        }
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/tenants/{tenantId}/me/files/{fileId}")
+                .buildAndExpand(tenantId, fileId)
                 .toUriString();
     }
 

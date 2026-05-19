@@ -46,7 +46,13 @@ public record TenantProfileResponse(
             LocalDate issuedDate,
 
             @JsonProperty("issued_place")
-            String issuedPlace
+            String issuedPlace,
+
+            @JsonProperty("front_file_url")
+            String frontFileUrl,
+
+            @JsonProperty("back_file_url")
+            String backFileUrl
     ) {
     }
 

@@ -101,10 +101,6 @@ public class AuthService {
 
         validateNewPassword(request);
 
-        if (!passwordEncoder.matches(request.oldPassword(), user.getPasswordHash())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "Mật khẩu cũ không đúng");
-        }
-
         if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Mật khẩu mới không được trùng mật khẩu cũ");
         }
