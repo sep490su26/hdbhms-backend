@@ -24,7 +24,7 @@ public class LeadPersistenceMapper {
         return Lead.builder()
                 .id(entity.getId())
                 .propertyId(entity.getProperty() != null ? entity.getProperty().getId() : null)
-                .assignedUserId(entity.getAssignedUser() != null ? entity.getAssignedUser().getId() : null)
+                .userId(entity.getUser() != null ? entity.getUser().getId() : null)
                 .desiredMoveInDate(entity.getDesiredMoveInDate())
                 .note(entity.getNote())
                 .createdAt(entity.getCreatedAt())
@@ -40,8 +40,8 @@ public class LeadPersistenceMapper {
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
                                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
                         : null)
-                .assignedUser(domain.getAssignedUserId() != null
-                        ? jpaUserRepository.findById(domain.getAssignedUserId())
+                .user(domain.getUserId() != null
+                        ? jpaUserRepository.findById(domain.getUserId())
                                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND))
                         : null)
                 .desiredMoveInDate(domain.getDesiredMoveInDate())

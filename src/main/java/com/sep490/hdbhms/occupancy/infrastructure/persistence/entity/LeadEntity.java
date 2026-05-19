@@ -34,8 +34,8 @@ public class LeadEntity {
     PropertyEntity property;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "assigned_user_id", nullable = true)
-    UserEntity assignedUser;
+    @JoinColumn(name = "user_id", nullable = true)
+    UserEntity user;
 
     @Column(name = "desired_move_in_date")
     LocalDate desiredMoveInDate;

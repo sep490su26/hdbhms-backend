@@ -28,6 +28,18 @@ public class DepositFormEntity {
     @Column(name = "id_number", length = 50, nullable = false)
     String idNumber;
 
+    @Column(name = "permanent_address", length = 1000)
+    String permanentAddress;
+
+    @Column(name = "id_issue_date")
+    LocalDate idIssueDate;
+
+    @Column(name = "id_issue_place", length = 255)
+    String idIssuePlace;
+
+    @Column(name = "dob")
+    LocalDate dob;
+
     @Column(name = "full_name", length = 255, nullable = false)
     String fullName;
 

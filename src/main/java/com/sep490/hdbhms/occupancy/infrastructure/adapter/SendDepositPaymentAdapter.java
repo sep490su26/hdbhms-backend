@@ -11,22 +11,22 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentPro
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
-import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeadRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.SendDepositPaymentPort;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
-import com.sep490.hdbhms.occupancy.domain.model.Lead;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.utils.DateUtils;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
@@ -34,46 +34,41 @@ import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Component
 @Transactional
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     JavaMailSender mailSender;
-    LeadRepository leadRepository;
     TemplateEngine templateEngine;
     RoomRepository roomRepository;
     OtpCodeGenerator otpCodeGenerator;
     InvoiceRepository invoiceRepository;
     ExternalPaymentPort externalPaymentPort;
     InvoiceLineRepository invoiceLineRepository;
-    PersonProfileRepository personProfileRepository;
     PaymentIntentRepository paymentIntentRepository;
     DepositAgreementRepository depositAgreementRepository;
 
     @Override
-    public PaymentIntent execute(DepositForm depositForm, Long userId) {
-        Long depositAmount = 10000L;
+    public PaymentIntent execute(DepositForm depositForm) {
+        Long depositAmount = 1000000L;
         Room room = roomRepository.findById(depositForm.getRoomId()).orElseThrow(
                 () -> new AppException(ApiErrorCode.UNDEFINED)
         );
-        Lead lead = leadRepository.findByAssignedUserId(userId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        PersonProfile personProfile = personProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         DepositAgreement depositAgreement = DepositAgreement.newDepositAgreementForLeadUser(
                 otpCodeGenerator.generate(),
                 room.getId(),
-                lead.getId(),
-                personProfile.getId(),
+                depositForm.getId(),
                 depositAmount,
                 depositForm.getExpectedMoveInDate(),
                 depositForm.getExpectedLeaseSignDate()
         );
-        depositAgreementRepository.save(depositAgreement);
+        depositAgreement = depositAgreementRepository.save(depositAgreement);
         Invoice invoice = Invoice.newDepositInvoice(otpCodeGenerator.generate(), room.getPropertyId(), room.getId());
         invoice = invoiceRepository.save(invoice);
         InvoiceLine invoiceLine = InvoiceLine.newDepositInvoiceLine(invoice.getId(), depositAmount);
@@ -91,7 +86,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                         String.valueOf(paymentIntent.getId()),
                         paymentIntent.getAmount(),
                         //Fix tạm webhook url
-                        "localhost:8080/api/v1/webhook/vnpay/ipn"
+                        "https://unaudited-hazy-unnerve.ngrok-free.dev/api/v1/webhook/vnpay/ipn"
                 )
         ).checkOutUrl();
         sendDepositReceiptEmail(depositForm, room, checkoutUrl);
@@ -114,11 +109,19 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     private String generateDepositContractHtml(DepositForm depositForm, Room room, String checkoutUrl) {
         Context context = new Context();
         Map<String, Object> data = new HashMap<>();
+        data.put("issuedAt", DateUtils.toddMMyyyyDateString(LocalDate.now()));
         data.put("fullName", depositForm.getFullName());
         data.put("idNumber", depositForm.getIdNumber());
+        data.put("dob", DateUtils.toddMMyyyyDateString(depositForm.getDob()));
+        data.put("permanentAddress", depositForm.getPermanentAddress());
+        data.put("idIssueDate", DateUtils.toddMMyyyyDateString(depositForm.getIdIssueDate()));
+        data.put("idIssuePlace", depositForm.getIdIssuePlace());
         data.put("phone", depositForm.getPhone());
         data.put("roomNumber", room.getRoomCode());
-        data.put("expectedLeaseSignDate", depositForm.getExpectedLeaseSignDate());
+        data.put("listedPrice", room.getListedPrice());
+        data.put("expectedLeaseSignDate", DateUtils.toddMMyyyyDateString(depositForm.getExpectedLeaseSignDate()));
+        data.put("expectedMoveInDateString", DateUtils.toVietnameseDateString(depositForm.getExpectedMoveInDate()));
+        data.put("depositSignedDateString", DateUtils.toVietnameseDateString(LocalDate.now()));
         data.put("checkoutUrl", checkoutUrl);
         context.setVariables(data);
         return templateEngine.process("deposit-contract-template", context);

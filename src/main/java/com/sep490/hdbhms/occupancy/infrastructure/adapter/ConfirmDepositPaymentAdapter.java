@@ -5,7 +5,9 @@ import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.ConfirmPaymentIntentPort;
+import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
+import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -22,20 +24,26 @@ import org.springframework.transaction.annotation.Transactional;
 public class ConfirmDepositPaymentAdapter implements ConfirmPaymentIntentPort {
     PaymentIntentRepository paymentIntentRepository;
     LeaseContractRepository leaseContractRepository;
+    DepositAgreementRepository depositAgreementRepository;
 
     @Override
-    public void execute(Long paymentIndentId, PaymentStatus paymentStatus) {
+    public DepositAgreement execute(Long paymentIndentId, PaymentStatus paymentStatus) {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIndentId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (paymentIntent.getStatus() != PaymentIntentStatus.PENDING) {
-            return;
+            throw new AppException(ApiErrorCode.UNDEFINED);
         }
+
+        DepositAgreement depositAgreement = depositAgreementRepository
+                .findById(paymentIntent.getDepositAgreementId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (paymentStatus != PaymentStatus.SUCCEEDED) {
             paymentIntent.failPayment();
         }
         paymentIntent.succeedPayment();
         paymentIntentRepository.save(paymentIntent);
-        LeaseContract leaseContract = LeaseContract.newLeaseContract();
-        leaseContractRepository.save(leaseContract);
+//        LeaseContract leaseContract = LeaseContract.newLeaseContract();
+//        leaseContractRepository.save(leaseContract);
+        return depositAgreement;
     }
 }

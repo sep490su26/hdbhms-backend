@@ -88,7 +88,7 @@
       HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG
     </div>
 
-    <p>Hôm nay ngày <span th:text="${issuedAt}"></span></p>
+    <p>Hôm nay <span th:text="${issuedAt}"></span></p>
 
     <p>Chúng tôi những người ký tên dưới đây gồm:</p>
 
@@ -132,9 +132,9 @@
       CMTND/CCCD:
       <span th:text="${idNumber}"></span>
       &nbsp; Cấp ngày:
-      <span th:text="${idIssuedDate}"></span>
+      <span th:text="${idIssueDate}"></span>
       &nbsp; Nơi cấp:
-      <span th:text="${idIssuedPlace}"></span>
+      <span th:text="${idIssuePlace}"></span>
     </p>
 
     <p>
@@ -169,7 +169,7 @@
 
     <p class="indent">
       Hợp đồng có thời hạn: ............. tháng và bắt đầu tính tiền từ
-      ngày....... tháng....... năm............
+      <span th:text="${expectedMoveInDateString}"></span>
     </p>
 
     <p class="indent">
@@ -252,6 +252,6 @@
       </div>
     </div>
 
-    <div th:text="${checkoutUrl}"></div>
+    <div class="mt-20" th:text="${checkoutUrl}"></div>
   </body>
 </html>

@@ -16,6 +16,7 @@ public class DepositAgreement {
     Long id;
     String depositCode;
     Long roomId;
+    Long depositFormId;
     Long tenantId;
     Long leadId;
     Long depositorPersonProfileId;
@@ -41,8 +42,7 @@ public class DepositAgreement {
     public static DepositAgreement newDepositAgreementForLeadUser(
             String depositCode,
             Long roomId,
-            Long leadId,
-            Long depositorPersonProfileId,
+            Long depositFormId,
             Long amount,
             LocalDate expectedMoveInDate,
             LocalDate expectedLeaseSignDate
@@ -50,11 +50,25 @@ public class DepositAgreement {
         return DepositAgreement.builder()
                 .depositCode(depositCode)
                 .roomId(roomId)
-                .leadId(leadId)
-                .depositorPersonProfileId(depositorPersonProfileId)
+                .depositFormId(depositFormId)
                 .amount(amount)
                 .expectedMoveInDate(expectedMoveInDate)
                 .expectedLeaseSignDate(expectedLeaseSignDate)
                 .build();
+    }
+
+    public void setLeadId(Long leadId) {
+        this.leadId = leadId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void setDepositorPersonProfileId(Long depositorPersonProfileId) {
+        this.depositorPersonProfileId = depositorPersonProfileId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void setTenantId(Long tenantId) {
+        this.tenantId = tenantId;
+        this.updatedAt = LocalDateTime.now();
     }
 }

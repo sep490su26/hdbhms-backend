@@ -8,10 +8,8 @@ import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
-import com.sep490.hdbhms.occupancy.application.port.out.CreateLeadUserPort;
-import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.LeadRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.*;
+import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.domain.model.Lead;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
@@ -22,6 +20,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,21 +30,30 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class CreateLeadLeadUserAdapter implements CreateLeadUserPort {
+public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenantPort {
+    JavaMailSender javaMailSender;
     UserRepository userRepository;
     LeadRepository leadRepository;
     RoomRepository roomRepository;
     PasswordEncoder passwordEncoder;
+    TenantRepository tenantRepository;
     DepositFormRepository depositFormRepository;
     PersonProfileRepository personProfileRepository;
+    DepositAgreementRepository depositAgreementRepository;
     IdentityDocumentRepository identityDocumentRepository;
 
     @Override
-    public Lead execute(Long depositFormId) {
-        DepositForm depositForm = depositFormRepository.findById(depositFormId)
+    public void execute(DepositAgreement depositAgreement) {
+        DepositForm depositForm = depositFormRepository.findById(depositAgreement.getDepositFormId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         Room room = roomRepository.findById(depositForm.getRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+
+        if (tenantRepository.existsByEmailOrPhone(depositForm.getEmail(), depositForm.getPhone())) {
+            return;
+        }
+
+
         String randomPassword = RandomPasswordUtils.generatePassword(
                 6,
                 true,
@@ -74,6 +82,5 @@ public class CreateLeadLeadUserAdapter implements CreateLeadUserPort {
                 depositForm.getIdNumber()
         );
         identityDocumentRepository.save(identityDocument);
-        return lead;
     }
 }

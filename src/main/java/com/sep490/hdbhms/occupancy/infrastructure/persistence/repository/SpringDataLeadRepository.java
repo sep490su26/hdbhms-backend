@@ -35,7 +35,7 @@ public class SpringDataLeadRepository implements LeadRepository {
 
     @Override
     public Optional<Lead> findByAssignedUserId(Long assignedUserId) {
-        return jpaLeadRepository.findByAssignedUser_Id(assignedUserId)
+        return jpaLeadRepository.findByUser_Id(assignedUserId)
                 .map(leadPersistenceMapper::toDomain);
     }
 }

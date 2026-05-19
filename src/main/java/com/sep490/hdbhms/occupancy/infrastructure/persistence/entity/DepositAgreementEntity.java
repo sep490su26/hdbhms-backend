@@ -42,6 +42,10 @@ public class DepositAgreementEntity {
     RoomEntity room;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deposit_form_id", nullable = true)
+    DepositFormEntity depositForm;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = true)
     TenantEntity tenant;
 

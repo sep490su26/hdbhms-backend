@@ -7,9 +7,11 @@ import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -21,13 +23,18 @@ public class BookRoomService implements BookRoomUseCase {
     public void initDepositForm(SendDepositFormCommand command) {
         DepositForm depositForm = DepositForm.newDepositForm(
                 command.roomId(),
-                command.idNumber(),
                 command.fullName(),
+                command.dob(),
                 command.email(),
                 command.phone(),
+                command.permanentAddress(),
+                command.idNumber(),
+                command.idIssueDate(),
+                command.idIssuePlace(),
                 command.expectedMoveInDate(),
                 command.expectedLeaseSignDate()
         );
+        log.info(depositForm.toString());
         depositFormRepository.save(depositForm);
     }
 }

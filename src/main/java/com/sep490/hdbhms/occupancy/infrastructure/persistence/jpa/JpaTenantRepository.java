@@ -4,4 +4,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.TenantEntit
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface JpaTenantRepository extends JpaRepository<TenantEntity, Long> {
+    boolean existsByUser_Email(String email);
+
+    boolean existsByUser_Phone(String phone);
 }

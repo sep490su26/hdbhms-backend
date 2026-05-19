@@ -8,4 +8,6 @@ public interface TenantRepository {
     Tenant save(Tenant tenant);
 
     Optional<Tenant> findById(Long id);
+
+    boolean existsByEmailOrPhone(String email, String phone);
 }
