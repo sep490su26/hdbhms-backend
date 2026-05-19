@@ -18,8 +18,9 @@ public interface JpaUserRepository extends JpaRepository<UserEntity, Long>, JpaS
 
     boolean existsByPhoneAndDeletedAtIsNull(String phone);
 
-    Optional<UserEntity> findByEmail(String email);
+    Optional<UserEntity> findByPhoneOrEmailAndDeletedAtIsNull(String phone, String email);
 
+    Optional<UserEntity> findByEmail(String email);
 
     Optional<UserEntity> findByPhone(String phone);
 }

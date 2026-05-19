@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RoomHoldPersistenceMapper {
-
     JpaRoomRepository jpaRoomRepository;
     JpaTenantRepository jpaTenantRepository;
 

@@ -26,4 +26,6 @@ public interface UserRepository {
     Optional<User> findByPhone(String phone);
 
     List<Long> findIdsByFullText(String keyword);
+
+    Optional<User> findByPhoneOrEmailAndDeletedAtIsNull(String phone, String email);
 }

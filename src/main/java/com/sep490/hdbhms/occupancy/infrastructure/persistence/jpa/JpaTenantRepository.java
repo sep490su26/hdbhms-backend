@@ -11,5 +11,7 @@ public interface JpaTenantRepository extends JpaRepository<TenantEntity, Long> {
 
     boolean existsByUser_Phone(String phone);
 
+    Optional<TenantEntity> findByUser_IdAndProperty_IdAndDeletedAtIsNull(Long id, Long propertyId);
+
     Optional<TenantEntity> findByUser_Id(Long userId);
 }

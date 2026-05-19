@@ -2,6 +2,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.repositor
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.IdentityDocumentRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.IdentityDocument;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaIdentityDocumentRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.IdentityDocumentPersistenceMapper;
 import lombok.AccessLevel;
@@ -33,5 +34,10 @@ public class SpringDataIdentityDocumentRepository implements IdentityDocumentRep
     public Optional<IdentityDocument> findById(Long id) {
         return jpaIdentityDocumentRepository.findById(id)
                 .map(identityDocumentPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public boolean existsByDocTypeAndDocNumber(DocumentType documentType, String idNumber) {
+        return jpaIdentityDocumentRepository.existsByDocTypeAndDocNumber(documentType, idNumber);
     }
 }

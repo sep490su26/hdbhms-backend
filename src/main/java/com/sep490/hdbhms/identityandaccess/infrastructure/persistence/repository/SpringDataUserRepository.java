@@ -110,6 +110,12 @@ public class SpringDataUserRepository implements UserRepository {
         return jpaUserRepository.findIdsByFullText(keyword);
     }
 
+    @Override
+    public Optional<User> findByPhoneOrEmailAndDeletedAtIsNull(String phone, String email) {
+        return jpaUserRepository.findByPhoneOrEmailAndDeletedAtIsNull(phone, email)
+                .map(userPersistenceMapper::toDomain);
+    }
+
     private List<Role> toRoleEntityList(List<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return Collections.emptyList();

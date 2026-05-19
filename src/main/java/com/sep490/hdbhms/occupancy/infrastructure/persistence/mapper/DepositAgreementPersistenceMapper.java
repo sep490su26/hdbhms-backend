@@ -4,10 +4,7 @@ import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepo
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPersonProfileRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositFormRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeadRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaTenantRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -22,6 +19,7 @@ public class DepositAgreementPersistenceMapper {
     JpaRoomRepository jpaRoomRepository;
     JpaLeadRepository jpaLeadRepository;
     JpaTenantRepository jpaTenantRepository;
+    JpaRoomHoldRepository jpaRoomHoldRepository;
     JpaDepositFormRepository jpaDepositFormRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
     JpaPersonProfileRepository jpaPersonProfileRepository;
@@ -36,6 +34,7 @@ public class DepositAgreementPersistenceMapper {
                 .tenantId(entity.getTenant() != null ? entity.getTenant().getId() : null)
                 .leadId(entity.getLead() != null ? entity.getLead().getId() : null)
                 .depositorPersonProfileId(entity.getDepositorPersonProfile() != null ? entity.getDepositorPersonProfile().getId() : null)
+                .roomHoldId(entity.getRoomHold().getId())
                 .amount(entity.getAmount())
                 .expectedMoveInDate(entity.getExpectedMoveInDate())
                 .expectedLeaseSignDate(entity.getExpectedLeaseSignDate())
@@ -77,6 +76,10 @@ public class DepositAgreementPersistenceMapper {
                         : null)
                 .depositorPersonProfile(domain.getDepositorPersonProfileId() != null
                         ? jpaPersonProfileRepository.findById(domain.getDepositorPersonProfileId())
+                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        : null)
+                .roomHold(domain.getRoomHoldId() != null
+                        ? jpaRoomHoldRepository.findById(domain.getRoomHoldId())
                         .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
                         : null)
                 .amount(domain.getAmount())
