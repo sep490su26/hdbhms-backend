@@ -1,14 +1,11 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.controller;
 
-import com.sep490.hdbhms.identityandaccess.application.port.in.command.RequestVerifyEmailCommand;
-import com.sep490.hdbhms.identityandaccess.application.port.in.command.VerifyEmailCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.*;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.AuthenticationResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.IntrospectResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AuthenticationWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
@@ -28,8 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthenticationController {
     LoginUseCase loginUseCase;
     LogoutUseCase logoutUseCase;
-    GetAccountUseCase getAccountUseCase;
-    VerifyEmailUseCase verifyEmailUseCase;
     RefreshAccessTokenUseCase refreshAccessTokenUseCase;
     ResetPasswordUseCase resetPasswordUseCase;
     IntrospectTokenUseCase introspectTokenUseCase;
@@ -104,21 +99,4 @@ public class AuthenticationController {
         );
         return ApiResponse.<Void>builder().build();
     }
-//
-//    @PostMapping("/verify-email")
-//    ApiResponse<Void> verifyEmail() {
-//        var username = AuthUtils.getUsernameFromToken();
-//        var account = getAccountUseCase.getByUsername(new GetAccountByUsernameQuery(username));
-//
-//        verifyEmailUseCase.requestEmailVerification(new RequestVerifyEmailCommand(account));
-//        return ApiResponse.<Void>builder().build();
-//    }
-//
-//    @PostMapping("/confirm-otp")
-//    ApiResponse<Void> verifyEmail(@RequestBody AccountEmailVerificationConfirmationRequest request) {
-//        var username = AuthUtils.getUsernameFromToken();
-//        var account = getAccountUseCase.getByUsername(new GetAccountByUsernameQuery(username));
-//        verifyEmailUseCase.verifyEmail(new VerifyEmailCommand(account, request.getOtpCode()));
-//        return ApiResponse.<Void>builder().build();
-//    }
 }
