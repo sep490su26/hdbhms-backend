@@ -20,6 +20,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -39,7 +40,6 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     TenantRepository tenantRepository;
     DepositFormRepository depositFormRepository;
     PersonProfileRepository personProfileRepository;
-    DepositAgreementRepository depositAgreementRepository;
     IdentityDocumentRepository identityDocumentRepository;
 
     @Override
@@ -68,7 +68,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         );
         user = userRepository.save(user);
         Lead lead = Lead.newLeadUser(room.getPropertyId(), user.getId());
-        lead = leadRepository.save(lead);
+        leadRepository.save(lead);
         PersonProfile personProfile = PersonProfile.create(
                 user.getId(),
                 depositForm.getFullName(),
@@ -82,5 +82,31 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                 depositForm.getIdNumber()
         );
         identityDocumentRepository.save(identityDocument);
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setSubject("[Nhà trọ Hải Đăng] Gửi thông tin tài khoản người dùng");
+        message.setTo(depositForm.getEmail());
+        message.setText(
+                String.format(
+                        """
+                                Kính gửi Anh/Chị %s,
+                                
+                                Hệ thống đã tạo tài khoản cho Anh/Chị thành công.
+                                
+                                Thông tin đăng nhập:
+                                
+                                Tên đăng nhập: %s
+                                Mật khẩu tạm thời: %s
+                                
+                                
+                                Vui lòng đăng nhập và đổi mật khẩu sau lần đăng nhập đầu tiên để đảm bảo an toàn tài khoản.
+                                Trân trọng.
+                                """,
+                        depositForm.getFullName(),
+                        depositForm.getPhone(),
+                        randomPassword
+                )
+        );
+        javaMailSender.send(message);
     }
 }

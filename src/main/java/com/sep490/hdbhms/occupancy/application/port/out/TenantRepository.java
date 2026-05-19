@@ -9,5 +9,7 @@ public interface TenantRepository {
 
     Optional<Tenant> findById(Long id);
 
+    Optional<Tenant> findByUserId(Long userId);
+
     boolean existsByEmailOrPhone(String email, String phone);
 }
