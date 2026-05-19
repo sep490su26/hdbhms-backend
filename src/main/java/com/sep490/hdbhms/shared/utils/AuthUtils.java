@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.shared.utils;
 
-import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.nimbusds.jwt.SignedJWT;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import jakarta.servlet.http.Cookie;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -20,19 +20,10 @@ import static com.sep490.hdbhms.shared.utils.SessionUtils.ACCESS_TOKEN_COOKIE_NA
 public class AuthUtils {
     private static final String BEARER_PREFIX = "Bearer ";
 
-    public static String getCurrentAuthenticationUsername() {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (StringUtils.isEmpty(authentication.getName())) {
-            return getUsernameFromToken();
-        }
-        return authentication.getName();
-    }
-
-    public static String getCurrentAuthenticationUuid() {
+    public static Long getCurrentAuthenticationId() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication.getPrincipal() instanceof UserPrincipal userPrincipal) {
-//            return userPrincipal.getUuid();
-            return null;
+            return userPrincipal.getId();
         }
         return null;
     }
@@ -62,20 +53,20 @@ public class AuthUtils {
         return null;
     }
 
-    public static String getUsernameFromToken() {
+    public static Long getIdFromToken() {
         var token = extractToken();
-        log.info("Token: {}", token);
-        return getUsernameFromToken(token);
+        return getIdFromToken(token);
     }
 
-    public static String getUsernameFromToken(String token) {
+    public static Long getIdFromToken(String token) {
         if (token == null) {
             return null;
         }
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
-            return signedJWT.getJWTClaimsSet().getSubject();
-        } catch (ParseException e) {
+            String sub = signedJWT.getJWTClaimsSet().getSubject();
+            return Long.parseLong(sub);
+        } catch (ParseException | NumberFormatException e) {
             log.error("Failed to parse JWT token", e);
             return null;
         }
