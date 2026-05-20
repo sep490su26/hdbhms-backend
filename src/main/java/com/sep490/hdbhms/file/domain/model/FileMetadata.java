@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Getter
 @Builder
@@ -19,14 +19,14 @@ public class FileMetadata {
     final Long ownerUserId;
     String storageKey;
     String originalName;
-    final String contentType;
+    final String mimeType;
     final Long sizeBytes;
     final String sha256Checksum;
     FileCategory category;
     boolean isSensitive;
-    final String url;
 
-    final Instant createdAt;
+    final LocalDateTime createdAt;
+    final LocalDateTime deletedAt;
 
 
     public static FileMetadata of(
@@ -40,7 +40,7 @@ public class FileMetadata {
     ) {
         return FileMetadata.builder()
                 .ownerUserId(ownerUserId)
-                .contentType(contentType)
+                .mimeType(contentType)
                 .sizeBytes(sizeBytes)
                 .sha256Checksum(sha256Checksum)
                 .category(category)

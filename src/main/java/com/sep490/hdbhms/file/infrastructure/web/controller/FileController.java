@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.file.infrastructure.web.controller;
 
 import com.sep490.hdbhms.file.application.port.in.command.UploadBatchFileCommand;
+import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.service.DownloadFileService;
 import com.sep490.hdbhms.file.application.service.UploadBatchFileService;
@@ -36,14 +37,19 @@ public class FileController {
 
     @PostMapping("/upload")
     @ResponseStatus(HttpStatus.CREATED)
-    ApiResponse<FileResponse> upload(@RequestPart("file") MultipartFile file) {
-//        return ApiResponse.<FileResponse>builder()
-//                .data(uploadFileService.execute(new UploadFileCommand(
-//                        AuthUtils.getCurrentAuthenticationUuid(),
-//                        file
-//                )))
-//                .build();
-        return null;
+    ApiResponse<FileResponse> upload(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("category") FileCategory category,
+            @RequestParam(value = "isSensitive", defaultValue = "false") boolean isSensitive
+    ) {
+        return ApiResponse.<FileResponse>builder()
+                .data(uploadFileService.execute(new UploadFileCommand(
+                        AuthUtils.getCurrentAuthenticationId(),
+                        file,
+                        category,
+                        isSensitive
+                )))
+                .build();
     }
 
     @PostMapping("/upload/batch")

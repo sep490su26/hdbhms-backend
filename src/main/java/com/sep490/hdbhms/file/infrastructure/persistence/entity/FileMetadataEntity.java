@@ -11,6 +11,7 @@ import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.Where;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -59,8 +60,8 @@ public class FileMetadataEntity {
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
-    Instant createdAt;
+    LocalDateTime createdAt;
 
     @Column(name = "deleted_at")
-    Instant deletedAt;
+    LocalDateTime deletedAt;
 }
