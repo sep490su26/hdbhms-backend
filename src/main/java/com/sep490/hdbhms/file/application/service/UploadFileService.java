@@ -85,8 +85,7 @@ public class UploadFileService implements UploadFileUseCase {
                     multipartFile.getSize(),
                     sha256Checksum,
                     query.category(),
-                    query.isSensitive(),
-                    FileUtils.buildFileUrl(fileName, urlPrefix, serverInfoUtils)
+                    query.isSensitive()
             );
             log.info(fileMetadata.toString());
 
@@ -105,7 +104,7 @@ public class UploadFileService implements UploadFileUseCase {
             log.info("Successfully uploaded file: {}", multipartFile.getOriginalFilename());
             return FileResponse.builder()
                     .originalFileName(multipartFile.getOriginalFilename())
-                    .url(fileMetadata.getUrl())
+                    .url(FileUtils.buildFileUrl(fileName, urlPrefix, serverInfoUtils))
                     .uploaded(true)
                     .build();
 

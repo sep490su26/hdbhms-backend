@@ -35,8 +35,7 @@ public class FileMetadata {
             Long sizeBytes,
             String sha256Checksum,
             FileCategory category,
-            boolean isSensitive,
-            String url
+            boolean isSensitive
     ) {
         return FileMetadata.builder()
                 .ownerUserId(ownerUserId)
@@ -45,7 +44,6 @@ public class FileMetadata {
                 .sha256Checksum(sha256Checksum)
                 .category(category)
                 .isSensitive(isSensitive)
-                .url(url)
                 .build();
     }
 
