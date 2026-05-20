@@ -13,6 +13,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +25,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ApproveDepositFormService implements ApproveDepositFormUseCase {
-    RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
     DepositFormRepository depositFormRepository;
     SendDepositPaymentPort sendDepositPaymentPort;
@@ -43,7 +43,11 @@ public class ApproveDepositFormService implements ApproveDepositFormUseCase {
                 depositForm.getRoomId(),
                 LocalDateTime.now().plusMinutes(15)
         );
-        roomHold = roomHoldRepository.save(roomHold);
+        try {
+            roomHold = roomHoldRepository.save(roomHold);
+        } catch (DataIntegrityViolationException ex) {
+            throw new RuntimeException("Room is already locked");
+        }
         createRoomHoldTaskPort.execute(roomHold);
 
         sendDepositPaymentPort.execute(depositForm);
@@ -53,8 +57,6 @@ public class ApproveDepositFormService implements ApproveDepositFormUseCase {
     public void confirmPayment(ConfirmDepositPaymentCommand command) {
         DepositAgreement depositAgreement = confirmPaymentIntentPort
                 .execute(command.paymentIntentId(), command.paymentStatus());
-
-
 
         RoomHold roomHold = roomHoldRepository.findById(depositAgreement.getRoomHoldId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
