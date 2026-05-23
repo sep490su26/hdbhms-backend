@@ -17,7 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/tenants/{tenantId}/me")
-@Tag(name = "Tenant Identity", description = "Tenant identity onboarding APIs")
+@Tag(name = "Tenant Identity", description = "Optional tenant identity profile update APIs")
 public class IdentityVerificationController {
 
     private final IdentityVerificationService identityVerificationService;
@@ -30,7 +30,10 @@ public class IdentityVerificationController {
             value = "/identity-verification",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
-    @Operation(summary = "Upload portrait and CCCD images for onboarding")
+    @Operation(
+            summary = "Upload portrait and CCCD images",
+            description = "Optional profile update endpoint. Mobile first-login onboarding no longer requires portrait or CCCD upload before entering Home."
+    )
     public ResponseEntity<IdentityVerificationResponse> uploadIdentity(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long tenantId,

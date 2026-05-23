@@ -41,7 +41,10 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    @Operation(summary = "Change password for first-login onboarding")
+    @Operation(
+            summary = "Change password for first-login onboarding",
+            description = "After a successful first-login password change, mobile onboarding returns next_step=HOME. Identity verification is optional and no longer blocks mobile onboarding."
+    )
     public ResponseEntity<ChangePasswordResponse> changePassword(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChangePasswordRequest request
@@ -50,7 +53,10 @@ public class AuthController {
     }
 
     @GetMapping("/me/onboarding")
-    @Operation(summary = "Get current onboarding state")
+    @Operation(
+            summary = "Get current onboarding state",
+            description = "Mobile onboarding only requires first-login password change when must_change_password=true. Missing portrait or CCCD does not produce next_step=IDENTITY_VERIFICATION."
+    )
     public ResponseEntity<OnboardingStateResponse> getOnboarding(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(authService.getOnboarding(currentUserId(jwt)));
     }

@@ -20,6 +20,7 @@ public class OnboardingService {
     public static final String CHANGE_PASSWORD = "CHANGE_PASSWORD";
     public static final String IDENTITY_VERIFICATION = "IDENTITY_VERIFICATION";
     public static final String HOME = "HOME";
+    private static final boolean MOBILE_IDENTITY_VERIFICATION_REQUIRED = false;
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -33,7 +34,8 @@ public class OnboardingService {
                 user.getId(),
                 user.isMustChangePassword(),
                 identityCompleted,
-                nextStep(user.isMustChangePassword(), identityCompleted)
+                MOBILE_IDENTITY_VERIFICATION_REQUIRED,
+                nextStep(user.isMustChangePassword())
         );
     }
 
@@ -141,12 +143,9 @@ public class OnboardingService {
                 """, Long.class, userId);
     }
 
-    private String nextStep(boolean mustChangePassword, boolean identityCompleted) {
+    private String nextStep(boolean mustChangePassword) {
         if (mustChangePassword) {
             return CHANGE_PASSWORD;
-        }
-        if (!identityCompleted) {
-            return IDENTITY_VERIFICATION;
         }
         return HOME;
     }

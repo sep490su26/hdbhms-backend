@@ -12,6 +12,9 @@ public record OnboardingStateResponse(
         @JsonProperty("identity_completed")
         boolean identityCompleted,
 
+        @JsonProperty("identity_verification_required")
+        boolean identityVerificationRequired,
+
         @JsonProperty("next_step")
         String nextStep
 ) {
