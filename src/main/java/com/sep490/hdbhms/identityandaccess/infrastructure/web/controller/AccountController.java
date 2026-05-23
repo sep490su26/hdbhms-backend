@@ -1,19 +1,15 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.controller;
 
-import com.sep490.hdbhms.identityandaccess.application.port.in.command.*;
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountByIdQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountLoginHistoryQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountsQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.*;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.AccountCreationRequest;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.AccountResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.LoginHistoryResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AccountWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
-import com.sep490.hdbhms.shared.utils.AuthUtils;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -29,12 +25,12 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/accounts")
+@RequestMapping("/api/v1/users")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AccountController {
     AccountWebMapper accountWebMapper;
     GetAccountUseCase getAccountUseCase;
-    GetAccountsUseCase getAccountsUseCase;
+    GetListAccountsUseCase getListAccountsUseCase;
     CreateAccountUseCase createAccountUseCase;
     UpdateAccountUseCase updateAccountUseCase;
     GetAccountLoginHistoryListUseCase getAccountLoginHistoryListUseCase;
@@ -68,7 +64,7 @@ public class AccountController {
         return ApiResponse.<PageResponse<AccountResponse>>builder()
                 .data(
                         PageResponse.fromPageToPageResponse(
-                                getAccountsUseCase.execute(command)
+                                getListAccountsUseCase.execute(command)
                                         .map(accountWebMapper::toAccountResponse)
                         )
                 )

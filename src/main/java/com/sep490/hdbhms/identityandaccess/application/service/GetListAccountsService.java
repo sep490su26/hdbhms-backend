@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountsQuery;
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetAccountsUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetListAccountsUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.shared.utils.StringUtils;
@@ -17,7 +17,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class GetAccountsService implements GetAccountsUseCase {
+public class GetListAccountsService implements GetListAccountsUseCase {
     UserRepository userRepository;
 
     @Override

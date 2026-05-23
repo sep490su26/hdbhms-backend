@@ -83,11 +83,11 @@ public class SpringDataUserRepository implements UserRepository {
 
     @Override
     public Page<User> findAll(List<Long> ids, List<String> roles, List<String> statuses, Pageable pageable) {
-        Specification<UserEntity> accountEntitySpecification =
+        Specification<UserEntity> specification =
                 Specification.where(AccountSpecifications.idIn(ids))
                         .and(AccountSpecifications.roleIn(toRoleEntityList(roles)))
                         .and(AccountSpecifications.statusIn(toAccountStatusList(statuses)));
-        return jpaUserRepository.findAll(accountEntitySpecification, pageable)
+        return jpaUserRepository.findAll(specification, pageable)
                 .map(userPersistenceMapper::toDomain);
     }
 

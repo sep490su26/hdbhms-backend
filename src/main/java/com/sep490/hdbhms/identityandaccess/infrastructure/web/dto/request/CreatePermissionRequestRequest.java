@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionTargetType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -8,7 +9,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class PermissionRequest {
-    String name;
-    String description;
+public class CreatePermissionRequestRequest {
+    PermissionTargetType targetType;
+    Long targetId;
 }
