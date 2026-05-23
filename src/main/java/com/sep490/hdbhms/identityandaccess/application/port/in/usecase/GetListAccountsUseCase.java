@@ -4,6 +4,6 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccounts
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import org.springframework.data.domain.Page;
 
-public interface GetAccountsUseCase {
+public interface GetListAccountsUseCase {
     Page<User> execute(GetAccountsQuery command);
 }
