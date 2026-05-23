@@ -31,8 +31,16 @@ public class Property {
     public static Property newProperty(
             String propertyCode,
             String name,
-            PropertyType type) {
+            PropertyType type,
+            String addressLine,
+            String description
+    ) {
         return Property.builder()
+                .propertyCode(propertyCode)
+                .name(name)
+                .propertyType(type)
+                .addressLine(addressLine)
+                .description(description)
                 .build();
     }
 }
