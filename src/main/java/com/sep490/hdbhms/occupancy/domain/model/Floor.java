@@ -24,8 +24,17 @@ public class Floor {
     LocalDateTime updatedAt;
     LocalDateTime deletedAt;
 
-    public static Floor newFloor() {
+    public static Floor newFloor(
+            Long propertyId,
+            String floorCode,
+            String name,
+            Integer sortOrder
+    ) {
         return Floor.builder()
+                .propertyId(propertyId)
+                .floorCode(floorCode)
+                .name(name)
+                .sortOrder(sortOrder)
                 .build();
     }
 }
