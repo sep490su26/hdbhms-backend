@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.occupancy.infrastructure.web.dto;
+package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

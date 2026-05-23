@@ -1,21 +1,19 @@
-package com.sep490.hdbhms.occupancy.domain.model;
+package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
 
-@Getter
+@Data
 @Builder
-@ToString
+@NoArgsConstructor
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class RoomImages {
+public class RoomImageResponse {
     Long id;
-    Long roomId;
     Long fileId;
+    String url;
     Integer sortOrder;
     LocalDateTime createdAt;
 }
