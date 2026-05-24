@@ -2,12 +2,11 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListVisitRequestsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
+import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetVisitRequestDetailsQuery;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.CreateVisitRequestUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListVisitRequestsUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetPropertyDetailsUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetVisitRequestDetailsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.*;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
+import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateVisitRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestDetailsResponse;
@@ -30,6 +29,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class VisitRequestController {
     VisitRequestWebMapper visitRequestWebMapper;
+    GetRoomDetailsUseCase getRoomDetailsUseCase;
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     CreateVisitRequestUseCase createVisitRequestUseCase;
     GetListVisitRequestsUseCase getListVisitRequestsUseCase;
@@ -45,11 +45,15 @@ public class VisitRequestController {
         Property property = getPropertyDetailsUseCase.execute(
                 new GetPropertyDetailsQuery(visitRequest.getPropertyId())
         );
+        Room room = getRoomDetailsUseCase.execute(
+                new GetRoomDetailsQuery(visitRequest.getRoomId())
+        );
         return ApiResponse.<VisitRequestDetailsResponse>builder()
                 .data(
                         visitRequestWebMapper.toDetailsResponse(
                                 visitRequest,
-                                property
+                                property,
+                                room
                         )
                 )
                 .build();
@@ -93,11 +97,15 @@ public class VisitRequestController {
         Property property = getPropertyDetailsUseCase.execute(
                 new GetPropertyDetailsQuery(visitRequest.getPropertyId())
         );
+        Room room = getRoomDetailsUseCase.execute(
+                new GetRoomDetailsQuery(visitRequest.getRoomId())
+        );
         return ApiResponse.<VisitRequestDetailsResponse>builder()
                 .data(
                         visitRequestWebMapper.toDetailsResponse(
                                 visitRequest,
-                                property
+                                property,
+                                room
                         )
                 )
                 .build();

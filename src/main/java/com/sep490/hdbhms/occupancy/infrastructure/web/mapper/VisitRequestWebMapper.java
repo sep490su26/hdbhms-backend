@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.mapper;
 
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateVisitRequestCommand;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
+import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateVisitRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestDetailsResponse;
@@ -15,7 +16,7 @@ public interface VisitRequestWebMapper {
 
     @Mapping(target = "id", source = "visitRequest.id")
     @Mapping(target = "createdAt", source = "visitRequest.createdAt")
-    VisitRequestDetailsResponse toDetailsResponse(VisitRequest visitRequest, Property property);
+    VisitRequestDetailsResponse toDetailsResponse(VisitRequest visitRequest, Property property, Room room);
 
     VisitRequestResponse toResponse(VisitRequest visitRequest);
 }
