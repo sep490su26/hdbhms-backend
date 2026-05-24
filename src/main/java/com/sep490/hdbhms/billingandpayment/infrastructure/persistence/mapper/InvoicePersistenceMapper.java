@@ -4,6 +4,7 @@ import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaCollectionAccountRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -12,24 +13,23 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-
 @Component
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class InvoicePersistenceMapper {
-    JpaPropertyRepository propertyRepository;
     JpaRoomRepository roomRepository;
-    JpaLeaseContractRepository contractRepository;
-    JpaCollectionAccountRepository collectionAccountRepository;
     JpaUserRepository userRepository;
+    JpaPropertyRepository propertyRepository;
+    JpaLeaseContractRepository leaseContractRepository;
+    JpaDepositAgreementRepository depositAgreementRepository;
+    JpaCollectionAccountRepository collectionAccountRepository;
 
     public Invoice toDomain(InvoiceEntity entity) {
         if (entity == null) return null;
         Long propertyId = entity.getProperty() != null ? entity.getProperty().getId() : null;
         Long roomId = entity.getRoom() != null ? entity.getRoom().getId() : null;
-        Long contractId = entity.getContract() != null ? entity.getContract().getId() : null;
+        Long leaseContractId = entity.getLeastContract() != null ? entity.getLeastContract().getId() : null;
+        Long depositAgreementId = entity.getDepositAgreement() != null ? entity.getDepositAgreement().getId() : null;
         Long collectionAccountId = entity.getCollectionAccount() != null ? entity.getCollectionAccount().getId() : null;
         Long createdBy = entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null;
 
@@ -38,7 +38,8 @@ public class InvoicePersistenceMapper {
                 .invoiceCode(entity.getInvoiceCode())
                 .propertyId(propertyId)
                 .roomId(roomId)
-                .contractId(contractId)
+                .leaseContractId(leaseContractId)
+                .depositAgreementId(depositAgreementId)
                 .invoiceType(entity.getInvoiceType())
                 .revisionNo(entity.getRevisionNo())
                 .billingPeriod(entity.getBillingPeriod())
@@ -52,11 +53,11 @@ public class InvoicePersistenceMapper {
                 .remainingAmount(entity.getRemainingAmount())
                 .collectionAccountId(collectionAccountId)
                 .createdBy(createdBy)
-                .issuedAt(entity.getIssuedAt() != null ? LocalDateTime.ofInstant(entity.getIssuedAt(), ZoneId.systemDefault()) : null)
-                .voidedAt(entity.getVoidedAt() != null ? LocalDateTime.ofInstant(entity.getVoidedAt(), ZoneId.systemDefault()) : null)
+                .issuedAt(entity.getIssuedAt() != null ? entity.getIssuedAt() : null)
+                .voidedAt(entity.getVoidedAt() != null ? entity.getVoidedAt() : null)
                 .voidReason(entity.getVoidReason())
-                .createdAt(entity.getCreatedAt() != null ? LocalDateTime.ofInstant(entity.getCreatedAt(), ZoneId.systemDefault()) : null)
-                .updatedAt(entity.getUpdatedAt() != null ? LocalDateTime.ofInstant(entity.getUpdatedAt(), ZoneId.systemDefault()) : null)
+                .createdAt(entity.getCreatedAt() != null ? entity.getCreatedAt() : null)
+                .updatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt() : null)
                 .version(entity.getVersion())
                 .activeInvoiceKey(entity.getActiveInvoiceKey())
                 .build();
@@ -68,8 +69,10 @@ public class InvoicePersistenceMapper {
                 ? propertyRepository.findById(domain.getPropertyId()).orElse(null) : null;
         var room = domain.getRoomId() != null
                 ? roomRepository.findById(domain.getRoomId()).orElse(null) : null;
-        var contract = domain.getContractId() != null
-                ? contractRepository.findById(domain.getContractId()).orElse(null) : null;
+        var leaseContract = domain.getLeaseContractId() != null
+                ? leaseContractRepository.findById(domain.getLeaseContractId()).orElse(null) : null;
+        var depositAgreement = domain.getDepositAgreementId() != null
+                ? depositAgreementRepository.findById(domain.getDepositAgreementId()).orElse(null) : null;
         var collectionAccount = domain.getCollectionAccountId() != null
                 ? collectionAccountRepository.findById(domain.getCollectionAccountId()).orElse(null) : null;
         var createdBy = domain.getCreatedBy() != null
@@ -80,7 +83,8 @@ public class InvoicePersistenceMapper {
                 .invoiceCode(domain.getInvoiceCode())
                 .property(property)
                 .room(room)
-                .contract(contract)
+                .leastContract(leaseContract)
+                .depositAgreement(depositAgreement)
                 .invoiceType(domain.getInvoiceType())
                 .revisionNo(domain.getRevisionNo())
                 .billingPeriod(domain.getBillingPeriod())
@@ -94,11 +98,11 @@ public class InvoicePersistenceMapper {
                 .remainingAmount(domain.getRemainingAmount())
                 .collectionAccount(collectionAccount)
                 .createdBy(createdBy)
-                .issuedAt(domain.getIssuedAt() != null ? domain.getIssuedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
-                .voidedAt(domain.getVoidedAt() != null ? domain.getVoidedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
+                .issuedAt(domain.getIssuedAt() != null ? domain.getIssuedAt() : null)
+                .voidedAt(domain.getVoidedAt() != null ? domain.getVoidedAt() : null)
                 .voidReason(domain.getVoidReason())
-                .createdAt(domain.getCreatedAt() != null ? domain.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
-                .updatedAt(domain.getUpdatedAt() != null ? domain.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant() : null)
+                .createdAt(domain.getCreatedAt() != null ? domain.getCreatedAt() : null)
+                .updatedAt(domain.getUpdatedAt() != null ? domain.getUpdatedAt() : null)
                 .version(domain.getVersion() != null ? domain.getVersion() : 0)
                 .build();
     }

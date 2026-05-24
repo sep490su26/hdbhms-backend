@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -16,30 +15,26 @@ import java.time.LocalDateTime;
 @ToString
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Invoice {
-    final Long id;
+    Long id;
     String invoiceCode;
     Long propertyId;
     Long roomId;
-    Long contractId;
+    Long leaseContractId;
+    Long depositAgreementId;
     InvoiceType invoiceType;
     @Builder.Default
     Integer revisionNo = 1;
     String billingPeriod;
-    LocalDate issueDate;
-    LocalDate dueDate;
+    LocalDateTime issueDate;
+    LocalDateTime dueDate;
     InvoiceStatus status;
-
-    @Builder.Default
-    Long subtotalAmount = 0L;
+    Long subtotalAmount;
     @Builder.Default
     Long discountAmount = 0L;
-    @Builder.Default
-    Long totalAmount = 0L;
+    Long totalAmount;
     @Builder.Default
     Long paidAmount = 0L;
-    @Builder.Default
-    Long remainingAmount = 0L;
-
+    Long remainingAmount;
     Long collectionAccountId;
     Long createdBy;
     LocalDateTime issuedAt;
@@ -47,21 +42,59 @@ public class Invoice {
     String voidReason;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
-
-    @Builder.Default
-    Integer version = 0;
+    Integer version;
     String activeInvoiceKey;
 
-    public static Invoice newDepositInvoice(String invoiceCode, Long propertyId, Long roomId) {
+    public void applyAmount(long amountInDong) {
+        if (status == InvoiceStatus.VOIDED || status == InvoiceStatus.DRAFT) {
+            throw new IllegalStateException("Invoice cannot be paid in state " + status);
+        }
+        this.paidAmount += amountInDong;
+        this.remainingAmount = this.totalAmount - this.paidAmount;
+
+        if (this.remainingAmount <= 0) {
+            this.status = InvoiceStatus.PAID;
+        } else if (this.paidAmount > 0) {
+            this.status = InvoiceStatus.PARTIALLY_PAID;
+        }
+    }
+
+    public void issue() {
+        if (status != InvoiceStatus.DRAFT) throw new IllegalStateException();
+        this.status = InvoiceStatus.ISSUED;
+        this.issuedAt = LocalDateTime.now();
+    }
+
+    public void voidInvoice(String reason) {
+        if (status == InvoiceStatus.VOIDED) throw new IllegalStateException();
+        this.status = InvoiceStatus.VOIDED;
+        this.voidedAt = LocalDateTime.now();
+        this.voidReason = reason;
+    }
+
+    public static Invoice createDepositInvoice(
+            String invoiceCode,
+            Long propertyId,
+            Long roomId,
+            Long depositAgreementId,
+            Long amount,
+            LocalDateTime issueDate,
+            LocalDateTime dueDate,
+            Long createdBy
+    ) {
         return Invoice.builder()
                 .invoiceCode(invoiceCode)
                 .propertyId(propertyId)
-                .dueDate(LocalDate.now().plusDays(1))
                 .roomId(roomId)
+                .depositAgreementId(depositAgreementId)
                 .invoiceType(InvoiceType.DEPOSIT)
-                .issueDate(LocalDate.now())
-                .issuedAt(LocalDateTime.now())
+                .issueDate(issueDate)
+                .dueDate(dueDate)
+                .totalAmount(amount)
+                .subtotalAmount(amount)
+                .remainingAmount(amount)
                 .status(InvoiceStatus.ISSUED)
+                .createdBy(createdBy)
                 .build();
     }
 }

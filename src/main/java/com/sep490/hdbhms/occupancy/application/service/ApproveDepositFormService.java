@@ -1,10 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.occupancy.application.port.in.command.ApproveDepositFormCommand;
-import com.sep490.hdbhms.occupancy.application.port.in.command.ConfirmDepositPaymentCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ApproveDepositFormUseCase;
-import com.sep490.hdbhms.occupancy.application.port.out.*;
-import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
+import com.sep490.hdbhms.occupancy.application.port.out.CreateRoomHoldTaskPort;
+import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.SendDepositPaymentPort;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -29,14 +30,12 @@ public class ApproveDepositFormService implements ApproveDepositFormUseCase {
     DepositFormRepository depositFormRepository;
     SendDepositPaymentPort sendDepositPaymentPort;
     CreateRoomHoldTaskPort createRoomHoldTaskPort;
-    ConfirmPaymentIntentPort confirmPaymentIntentPort;
-    EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
-    CreateLeadOrAssignTenantPort createLeadOrAssignTenantPort;
 
     @Override
     public void approveAndInitiatePayment(ApproveDepositFormCommand command) {
         DepositForm depositForm = depositFormRepository.findById(command.depositFormId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+
         depositForm.approveDepositForm();
         depositFormRepository.save(depositForm);
         RoomHold roomHold = RoomHold.createRoomHoldForGuest(
@@ -49,21 +48,6 @@ public class ApproveDepositFormService implements ApproveDepositFormUseCase {
             throw new RuntimeException("Room is already locked");
         }
         createRoomHoldTaskPort.execute(roomHold);
-
-        sendDepositPaymentPort.execute(depositForm);
-    }
-
-    @Override
-    public void confirmPayment(ConfirmDepositPaymentCommand command) {
-        DepositAgreement depositAgreement = confirmPaymentIntentPort
-                .execute(command.paymentIntentId(), command.paymentStatus());
-
-        RoomHold roomHold = roomHoldRepository.findById(depositAgreement.getRoomHoldId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        roomHold.confirm();
-        roomHoldRepository.save(roomHold);
-        earlyCancelRoomHoldTaskPort.execute(roomHold.getId());
-
-        createLeadOrAssignTenantPort.execute(depositAgreement);
+        sendDepositPaymentPort.execute(depositForm, roomHold);
     }
 }

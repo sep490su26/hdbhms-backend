@@ -10,14 +10,13 @@ import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
-import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.LeadRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.SendDepositPaymentPort;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.DateUtils;
@@ -55,7 +54,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     DepositAgreementRepository depositAgreementRepository;
 
     @Override
-    public PaymentIntent execute(DepositForm depositForm) {
+    public PaymentIntent execute(DepositForm depositForm, RoomHold roomHold) {
         Long depositAmount = 1000000L;
         Room room = roomRepository.findById(depositForm.getRoomId()).orElseThrow(
                 () -> new AppException(ApiErrorCode.UNDEFINED)
@@ -64,12 +63,23 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 otpCodeGenerator.generate(),
                 room.getId(),
                 depositForm.getId(),
+                roomHold.getId(),
                 depositAmount,
                 depositForm.getExpectedMoveInDate(),
-                depositForm.getExpectedLeaseSignDate()
+                depositForm.getExpectedLeaseSignDate(),
+                roomHold.getExpiresAt()
         );
         depositAgreement = depositAgreementRepository.save(depositAgreement);
-        Invoice invoice = Invoice.newDepositInvoice(otpCodeGenerator.generate(), room.getPropertyId(), room.getId());
+        Invoice invoice = Invoice.createDepositInvoice(
+                otpCodeGenerator.generate(),
+                room.getPropertyId(),
+                room.getId(),
+                depositAgreement.getId(),
+                depositAmount,
+                depositAgreement.getCreatedAt(),
+                depositAgreement.getPaymentDueAt(),
+                null
+        );
         invoice = invoiceRepository.save(invoice);
         InvoiceLine invoiceLine = InvoiceLine.newDepositInvoiceLine(invoice.getId(), depositAmount);
         invoiceLineRepository.save(invoiceLine);
@@ -78,15 +88,14 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 depositAgreement.getId(),
                 depositAmount,
                 PaymentIntentProvider.BANK_TRANSFER,
-                "Hóa đơn đặt cọc phòng " + room.getName()
+                depositAgreement.getDepositCode()
         );
         paymentIntent = paymentIntentRepository.save(paymentIntent);
         String checkoutUrl = externalPaymentPort.createCheckoutRequest(
                 new PaymentRequest(
-                        String.valueOf(paymentIntent.getId()),
+                        paymentIntent.getId(),
                         paymentIntent.getAmount(),
-                        //Fix tạm webhook url
-                        "https://unaudited-hazy-unnerve.ngrok-free.dev/api/v1/webhook/vnpay/ipn"
+                        paymentIntent.getPaymentContent()
                 )
         ).checkOutUrl();
         sendDepositReceiptEmail(depositForm, room, checkoutUrl);
