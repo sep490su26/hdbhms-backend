@@ -1,15 +1,14 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.occupancy.domain.model.Floor;
-import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -68,6 +67,9 @@ public class RoomEntity {
     @Builder.Default
     @Column(name = "sort_order", nullable = false)
     Integer sortOrder = 0;
+
+    @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
+    List<RoomImageEntity> images = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     LocalDateTime createdAt;

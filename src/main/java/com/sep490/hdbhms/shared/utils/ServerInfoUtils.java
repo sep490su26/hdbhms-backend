@@ -43,7 +43,6 @@ public class ServerInfoUtils implements ApplicationListener<WebServerInitialized
         int port = getPort();
         String contextPath = getContextPath();
         String baseUrl = scheme + "://" + host + ":" + port + contextPath;
-        log.info("?   {}", baseUrl);
         cachedBaseUrl = baseUrl;
         return baseUrl;
     }
@@ -88,10 +87,7 @@ public class ServerInfoUtils implements ApplicationListener<WebServerInitialized
      */
     public String getContextPath() {
         log.info("what {}", environment.toString());
-        if (environment != null) {
-            return environment.getProperty("server.servlet.context-path", "");
-        }
-        return "";
+        return environment.getProperty("server.servlet.context-path", "");
     }
 
     // ------------------------------------------------------------------------
