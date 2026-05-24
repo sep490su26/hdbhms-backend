@@ -16,30 +16,20 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Table(
-        name = "visit_requests",
-        indexes = {
-                @Index(name = "idx_visit_status", columnList = "status, preferred_start"),
-                @Index(name = "idx_visit_property", columnList = "property_id")
-        }
-)
+@Table(name = "visit_requests")
 public class VisitRequestEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "property_id", nullable = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "property_id", nullable = false)
     PropertyEntity property;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = true)
     RoomEntity room;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lead_id", nullable = true)
-    LeadEntity lead;
 
     @Column(name = "visitor_name", nullable = false, length = 255)
     String visitorName;
@@ -53,26 +43,10 @@ public class VisitRequestEntity {
     @Column(name = "preferred_start", nullable = false)
     LocalDateTime preferredStart;
 
-    @Column(name = "preferred_end")
-    LocalDateTime preferredEnd;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    @Builder.Default
-    VisitRequestStatus status = VisitRequestStatus.REQUESTED;
-
     @Column(columnDefinition = "TEXT")
     String notes;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by", nullable = false)
-    UserEntity createdBy;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    LocalDateTime updatedAt;
 }
