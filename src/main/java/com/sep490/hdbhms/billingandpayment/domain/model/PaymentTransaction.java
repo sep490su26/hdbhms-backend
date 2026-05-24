@@ -29,4 +29,8 @@ public class PaymentTransaction {
     Long confirmedBy;
     LocalDateTime confirmedAt;
     LocalDateTime createdAt;
+
+    public void setMatched(){
+        this.status = TransactionStatus.MATCHED;
+    }
 }

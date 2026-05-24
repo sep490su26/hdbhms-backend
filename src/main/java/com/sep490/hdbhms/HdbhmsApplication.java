@@ -1,5 +1,6 @@
 package com.sep490.hdbhms;
 
+import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.VNPayProperties;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.ResetPasswordConfig;
@@ -20,7 +21,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         Default.class,
         FileProperties.class,
         ResetPasswordConfig.class,
-        VNPayProperties.class
+        VNPayProperties.class,
+        PayOSProperties.class,
 })
 public class HdbhmsApplication {
 

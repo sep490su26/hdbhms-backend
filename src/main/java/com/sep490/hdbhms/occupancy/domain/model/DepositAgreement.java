@@ -44,17 +44,21 @@ public class DepositAgreement {
             String depositCode,
             Long roomId,
             Long depositFormId,
+            Long roomHoldId,
             Long amount,
             LocalDate expectedMoveInDate,
-            LocalDate expectedLeaseSignDate
+            LocalDate expectedLeaseSignDate,
+            LocalDateTime paymentDueAt
     ) {
         return DepositAgreement.builder()
                 .depositCode(depositCode)
                 .roomId(roomId)
                 .depositFormId(depositFormId)
+                .roomHoldId(roomHoldId)
                 .amount(amount)
                 .expectedMoveInDate(expectedMoveInDate)
                 .expectedLeaseSignDate(expectedLeaseSignDate)
+                .paymentDueAt(paymentDueAt)
                 .build();
     }
 
