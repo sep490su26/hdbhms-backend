@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class VisitRequestDetailsResponse {
     Long id;
     PropertyResponse property;
-    Long roomId;
+    RoomResponse room;
     String visitorName;
     String visitorPhone;
     String visitorEmail;
