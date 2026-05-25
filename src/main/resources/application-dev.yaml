@@ -3,6 +3,9 @@ spring:
     activate:
       on-profile: dev
     import: file:.env.dev[.properties]
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
   datasource:
     url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DB}?serverTimezone=UTC
     username: ${MYSQL_USERNAME}
@@ -21,6 +24,13 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    locations:
-      - classpath:/migration/dev/
+    locations: classpath:migration/dev
     baseline-version: 0
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
