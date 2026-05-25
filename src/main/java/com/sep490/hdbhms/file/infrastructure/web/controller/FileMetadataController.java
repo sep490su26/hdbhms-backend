@@ -30,7 +30,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/resources")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class FileController {
+public class FileMetadataController {
     UploadFileService uploadFileService;
     UploadBatchFileService uploadBatchFileService;
     DownloadFileService downloadFileService;
