@@ -29,6 +29,13 @@ spring:
       spec: maximumSize=500,expireAfterWrite=5m
   jackson:
     property-naming-strategy: SNAKE_CASE
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
 app:
   auth:
     token-secret: ${SIGNER_KEY}

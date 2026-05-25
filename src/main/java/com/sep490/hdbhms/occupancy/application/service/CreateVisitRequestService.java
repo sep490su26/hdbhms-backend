@@ -26,6 +26,7 @@ public class CreateVisitRequestService implements CreateVisitRequestUseCase {
                 command.visitorPhone(),
                 command.visitorEmail(),
                 command.preferredStart(),
+                command.source(),
                 command.notes()
         );
         return visitRequestRepository.save(visitRequest);

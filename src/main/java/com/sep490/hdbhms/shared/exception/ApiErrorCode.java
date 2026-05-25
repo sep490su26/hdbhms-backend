@@ -43,6 +43,13 @@ public enum ApiErrorCode {
     UNAUTHENTICATED(10505, "Unauthenticated", "Session expired", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(10504, "Unauthorized", "You do not have permission", HttpStatus.FORBIDDEN),
     MD5_DIGEST_ERROR(30203, "MD5 digest error", "An error occurs during digesting a file to MD5", HttpStatus.INTERNAL_SERVER_ERROR),
+    VISIT_001(40101, "Visit request not found", "Không tìm thấy lịch xem phòng", HttpStatus.NOT_FOUND),
+    VISIT_002(40102, "Invalid room property", "Phòng không thuộc cơ sở đã chọn", HttpStatus.BAD_REQUEST),
+    VISIT_003(40103, "Invalid phone", "Số điện thoại không hợp lệ", HttpStatus.BAD_REQUEST),
+    VISIT_004(40104, "Invalid visit status", "Trạng thái không hợp lệ", HttpStatus.BAD_REQUEST),
+    VISIT_005(40105, "Visit request access denied", "Không có quyền thao tác", HttpStatus.FORBIDDEN),
+    VISIT_006(40106, "Missing required visit request field", "Thiếu thông tin bắt buộc", HttpStatus.BAD_REQUEST),
+    VISIT_007(40107, "Invalid appointment time", "Ngày giờ hẹn xem phải sau thời gian hiện tại", HttpStatus.BAD_REQUEST),
     ;
     int code;
     String message;

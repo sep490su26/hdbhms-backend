@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestSource;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
@@ -15,19 +16,27 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class CreateVisitRequestRequest {
-    @NotNull(message = "VISIT_006")
-    Long propertyId;
-    Long roomId;
+public class VisitRequestCreateRequest {
     @NotBlank(message = "VISIT_006")
-    String visitorName;
+    @JsonAlias("customerName")
+    String customerName;
+
     @NotBlank(message = "VISIT_006")
     @Pattern(regexp = "^(0|\\+84)(\\d{9,10})$", message = "VISIT_003")
-    String visitorPhone;
-    String visitorEmail;
+    String phone;
+
+    @NotNull(message = "VISIT_006")
+    @JsonAlias("propertyId")
+    Long propertyId;
+
+    @JsonAlias("roomId")
+    Long roomId;
+
     @NotNull(message = "VISIT_006")
     @Future(message = "VISIT_007")
-    LocalDateTime preferredStart;
+    @JsonAlias("appointmentAt")
+    LocalDateTime appointmentAt;
+
     VisitRequestSource source;
-    String notes;
+    String note;
 }

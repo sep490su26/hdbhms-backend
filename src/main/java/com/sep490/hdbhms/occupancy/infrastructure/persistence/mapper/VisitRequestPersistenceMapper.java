@@ -21,13 +21,20 @@ public class VisitRequestPersistenceMapper {
         return VisitRequest.builder()
                 .id(entity.getId())
                 .propertyId(entity.getProperty() != null ? entity.getProperty().getId() : null)
+                .propertyName(entity.getProperty() != null ? entity.getProperty().getName() : null)
                 .roomId(entity.getRoom() != null ? entity.getRoom().getId() : null)
+                .roomCode(entity.getRoom() != null ? entity.getRoom().getRoomCode() : null)
+                .roomName(entity.getRoom() != null ? entity.getRoom().getName() : null)
                 .visitorName(entity.getVisitorName())
                 .visitorPhone(entity.getVisitorPhone())
                 .visitorEmail(entity.getVisitorEmail())
                 .preferredStart(entity.getPreferredStart())
+                .status(entity.getStatus())
+                .source(entity.getSource())
                 .notes(entity.getNotes())
                 .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .deletedAt(entity.getDeletedAt())
                 .build();
     }
 
@@ -45,8 +52,12 @@ public class VisitRequestPersistenceMapper {
                 .visitorPhone(domain.getVisitorPhone())
                 .visitorEmail(domain.getVisitorEmail())
                 .preferredStart(domain.getPreferredStart())
+                .status(domain.getStatus())
+                .source(domain.getSource())
                 .notes(domain.getNotes())
                 .createdAt(domain.getCreatedAt())
+                .updatedAt(domain.getUpdatedAt())
+                .deletedAt(domain.getDeletedAt())
                 .build();
     }
 }

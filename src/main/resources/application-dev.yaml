@@ -3,6 +3,9 @@ spring:
     activate:
       on-profile: dev
     import: file:.env.dev[.properties]
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
   datasource:
     url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DB}?serverTimezone=UTC
     username: ${MYSQL_USERNAME}
