@@ -43,7 +43,7 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasRole('OWNER')")
-    ApiResponse<AccountResponse> createAccount(@Valid @RequestBody AccountCreationRequest request) {
+    ApiResponse<AccountResponse> createAccount(@Valid @RequestBody UserCreationRequest request) {
         return ApiResponse.<AccountResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(

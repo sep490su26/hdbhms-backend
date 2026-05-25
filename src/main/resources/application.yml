@@ -35,10 +35,10 @@ app:
     token-expiration-sec: 3600 #1h
     token-refresh-sec: 2592000 #30d
   default:
-    admin:
-      username: ${ADMIN_USERNAME}
-      email: ${ADMIN_EMAIL}
-      password: ${ADMIN_PASSWORD}
+    owner:
+      email: ${OWNER_EMAIL}
+      phone: ${OWNER_PHONE}
+      password: ${OWNER_PASSWORD}
   reset-password:
     reset-password-confirmation-url: localhost:300/fshs/confirm-reset
   payment:
