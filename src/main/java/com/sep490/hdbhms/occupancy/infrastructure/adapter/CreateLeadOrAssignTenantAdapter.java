@@ -17,8 +17,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -65,6 +66,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                         .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
                 depositAgreement.setTenantId(tenant.getId());
                 depositAgreement.setDepositorPersonProfileId(tenantProfile.getId());
+                depositAgreement.confirmDepositAgreement();
                 depositAgreementRepository.save(depositAgreement);
                 return;
             }
@@ -74,6 +76,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                     .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
             depositAgreement.setLeadId(lead.getId());
             depositAgreement.setDepositorPersonProfileId(leadProfile.getId());
+            depositAgreement.confirmDepositAgreement();
             depositAgreementRepository.save(depositAgreement);
             return;
         }
@@ -122,6 +125,19 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         );
         identityDocumentRepository.save(identityDocument);
 
+        SimpleMailMessage message = createNewAccountMessage(depositForm, randomPassword);
+        javaMailSender.send(message);
+
+        depositAgreement.setLeadId(lead.getId());
+        depositAgreement.setDepositorPersonProfileId(personProfile.getId());
+        depositAgreement.confirmDepositAgreement();
+        depositAgreementRepository.save(depositAgreement);
+    }
+
+    private static @NotNull SimpleMailMessage createNewAccountMessage(
+            DepositForm depositForm,
+            String randomPassword
+    ) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setSubject("[Nhà trọ Hải Đăng] Gửi thông tin tài khoản người dùng");
         message.setTo(depositForm.getEmail());
@@ -146,10 +162,6 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                         randomPassword
                 )
         );
-        javaMailSender.send(message);
-
-        depositAgreement.setLeadId(lead.getId());
-        depositAgreement.setDepositorPersonProfileId(personProfile.getId());
-        depositAgreementRepository.save(depositAgreement);
+        return message;
     }
 }

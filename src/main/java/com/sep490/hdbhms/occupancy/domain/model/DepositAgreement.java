@@ -76,4 +76,10 @@ public class DepositAgreement {
         this.tenantId = tenantId;
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void confirmDepositAgreement() {
+        this.status = DepositAgreementStatus.CONFIRMED;
+        this.confirmedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
 }
