@@ -27,6 +27,8 @@ spring:
       - role-permissions
     caffeine:
       spec: maximumSize=500,expireAfterWrite=5m
+  jackson:
+    property-naming-strategy: SNAKE_CASE
 app:
   jwt:
     secret: ${APP_JWT_SECRET:${SIGNER_KEY}}
@@ -46,12 +48,16 @@ app:
   payment:
     provider: vnpay
     payos:
-      api-key: your-payos-api-key
-      base-url: https://api.payos.vn
+      client-id: ${PAY_OS_CLIENT_ID}
+      api-key: ${PAY_OS_API_KEY}
+      checksum-key: ${PAY_OS_CHECKSUM_KEY}
+      return-url: https://unaudited-hazy-unnerve.ngrok-free.dev/api/v1/webhook/payos
+      cancel-url: https://api.payos.vn
     vnpay:
       tmn-code: ${VNPAY_TMN_CODE}
       hash-secret: ${VNPAY_HASH_SECRET}
       url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      return-url: https://unaudited-hazy-unnerve.ngrok-free.dev/api/v1/webhook/vnpay/ipn
   file:
     download:
       prefix: ${DOWNLOAD_PREFIX}

@@ -1,0 +1,4 @@
+ALTER TABLE invoices
+    MODIFY COLUMN due_date DATETIME(6) NOT NULL;
+ALTER TABLE invoices
+    MODIFY COLUMN issue_date DATETIME(6) NOT NULL;

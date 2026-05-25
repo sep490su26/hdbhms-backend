@@ -1,0 +1,100 @@
+package com.sep490.hdbhms.billingandpayment.domain.model;
+
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.ToString;
+import lombok.experimental.FieldDefaults;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Builder
+@ToString
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class Invoice {
+    Long id;
+    String invoiceCode;
+    Long propertyId;
+    Long roomId;
+    Long leaseContractId;
+    Long depositAgreementId;
+    InvoiceType invoiceType;
+    @Builder.Default
+    Integer revisionNo = 1;
+    String billingPeriod;
+    LocalDateTime issueDate;
+    LocalDateTime dueDate;
+    InvoiceStatus status;
+    Long subtotalAmount;
+    @Builder.Default
+    Long discountAmount = 0L;
+    Long totalAmount;
+    @Builder.Default
+    Long paidAmount = 0L;
+    Long remainingAmount;
+    Long collectionAccountId;
+    Long createdBy;
+    LocalDateTime issuedAt;
+    LocalDateTime voidedAt;
+    String voidReason;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+    Integer version;
+    String activeInvoiceKey;
+
+    public void applyAmount(long amountInDong) {
+        if (status == InvoiceStatus.VOIDED || status == InvoiceStatus.DRAFT) {
+            throw new IllegalStateException("Invoice cannot be paid in state " + status);
+        }
+        this.paidAmount += amountInDong;
+        this.remainingAmount = this.totalAmount - this.paidAmount;
+
+        if (this.remainingAmount <= 0) {
+            this.status = InvoiceStatus.PAID;
+        } else if (this.paidAmount > 0) {
+            this.status = InvoiceStatus.PARTIALLY_PAID;
+        }
+    }
+
+    public void issue() {
+        if (status != InvoiceStatus.DRAFT) throw new IllegalStateException();
+        this.status = InvoiceStatus.ISSUED;
+        this.issuedAt = LocalDateTime.now();
+    }
+
+    public void voidInvoice(String reason) {
+        if (status == InvoiceStatus.VOIDED) throw new IllegalStateException();
+        this.status = InvoiceStatus.VOIDED;
+        this.voidedAt = LocalDateTime.now();
+        this.voidReason = reason;
+    }
+
+    public static Invoice createDepositInvoice(
+            String invoiceCode,
+            Long propertyId,
+            Long roomId,
+            Long depositAgreementId,
+            Long amount,
+            LocalDateTime issueDate,
+            LocalDateTime dueDate,
+            Long createdBy
+    ) {
+        return Invoice.builder()
+                .invoiceCode(invoiceCode)
+                .propertyId(propertyId)
+                .roomId(roomId)
+                .depositAgreementId(depositAgreementId)
+                .invoiceType(InvoiceType.DEPOSIT)
+                .issueDate(issueDate)
+                .dueDate(dueDate)
+                .totalAmount(amount)
+                .subtotalAmount(amount)
+                .remainingAmount(amount)
+                .status(InvoiceStatus.ISSUED)
+                .createdBy(createdBy)
+                .build();
+    }
+}
