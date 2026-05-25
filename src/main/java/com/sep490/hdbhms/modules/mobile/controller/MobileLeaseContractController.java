@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.modules.mobile.controller;
 
+import com.sep490.hdbhms.modules.mobile.dto.MobileContractListItem;
 import com.sep490.hdbhms.modules.mobile.dto.MobileLeaseContractResponse;
 import com.sep490.hdbhms.modules.mobile.service.MobileLeaseContractService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -7,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -24,6 +26,42 @@ public class MobileLeaseContractController {
 
     public MobileLeaseContractController(MobileLeaseContractService mobileLeaseContractService) {
         this.mobileLeaseContractService = mobileLeaseContractService;
+    }
+
+    @GetMapping("/my-list")
+    @Operation(
+            summary = "List all lease contracts for authenticated tenant",
+            description = "Returns all lease contracts (active, expiring, expired, etc.) for the tenant scope.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    public ResponseEntity<List<MobileContractListItem>> listMyContracts(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long tenantId
+    ) {
+        return ResponseEntity.ok(
+                mobileLeaseContractService.listMyContracts(Long.parseLong(jwt.getSubject()), tenantId)
+        );
+    }
+
+    @GetMapping("/{contractId}")
+    @Operation(
+            summary = "Get lease contract detail by ID",
+            description = "Returns full detail of a specific lease contract.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Contract found"),
+            @ApiResponse(responseCode = "403", description = "Tenant does not belong to current user"),
+            @ApiResponse(responseCode = "404", description = "CONTRACT_NOT_FOUND")
+    })
+    public ResponseEntity<MobileLeaseContractResponse> getContractById(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long tenantId,
+            @PathVariable Long contractId
+    ) {
+        return ResponseEntity.ok(
+                mobileLeaseContractService.getContractById(Long.parseLong(jwt.getSubject()), tenantId, contractId)
+        );
     }
 
     @GetMapping("/my-active")
@@ -46,3 +84,4 @@ public class MobileLeaseContractController {
         );
     }
 }
+

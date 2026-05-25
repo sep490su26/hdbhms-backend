@@ -2,6 +2,7 @@ package com.sep490.hdbhms.modules.mobile.service;
 
 import com.sep490.hdbhms.common.exception.ApiException;
 import com.sep490.hdbhms.modules.auth.service.OnboardingService;
+import com.sep490.hdbhms.modules.mobile.dto.MobileContractListItem;
 import com.sep490.hdbhms.modules.mobile.dto.MobileLeaseContractResponse;
 import com.sep490.hdbhms.modules.user.entity.User;
 import com.sep490.hdbhms.modules.user.repository.UserRepository;
@@ -36,14 +37,104 @@ public class MobileLeaseContractService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public MobileLeaseContractResponse getMyActiveContract(Long userId, Long tenantId) {
-        User user = userRepository.findById(userId)
-                .filter(item -> item.getDeletedAt() == null)
-                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ"));
+    public List<MobileContractListItem> listMyContracts(Long userId, Long tenantId) {
+        requireActiveTenant(userId, tenantId);
 
-        if (!onboardingService.hasActiveTenant(user, tenantId)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem hợp đồng này");
+        return jdbcTemplate.query("""
+                SELECT lc.id,
+                       lc.contract_code,
+                       r.room_code,
+                       lc.signed_at,
+                       lc.status
+                FROM contract_occupants co
+                JOIN lease_contracts lc ON lc.id = co.contract_id
+                JOIN rooms r ON r.id = lc.room_id
+                WHERE co.tenant_id = ?
+                  AND co.status = 'ACTIVE'
+                  AND lc.deleted_at IS NULL
+                  AND r.deleted_at IS NULL
+                ORDER BY
+                  CASE lc.status
+                    WHEN 'ACTIVE' THEN 0
+                    WHEN 'EXPIRING_SOON' THEN 1
+                    WHEN 'EXPIRED' THEN 2
+                    ELSE 3
+                  END,
+                  lc.start_date DESC,
+                  lc.id DESC
+                """, (rs, rowNum) -> new MobileContractListItem(
+                rs.getLong("id"),
+                rs.getString("contract_code"),
+                rs.getString("room_code"),
+                rs.getDate("signed_at") != null ? rs.getDate("signed_at").toLocalDate() : null,
+                rs.getString("status")
+        ), tenantId);
+    }
+
+    public MobileLeaseContractResponse getContractById(Long userId, Long tenantId, Long contractId) {
+        requireActiveTenant(userId, tenantId);
+
+        MobileLeaseContractResponse contract = queryNullable("""
+                SELECT lc.id,
+                       lc.contract_code,
+                       lc.status,
+                       lc.start_date,
+                       lc.end_date,
+                       lc.rent_start_date,
+                       lc.monthly_rent,
+                       lc.payment_cycle_months,
+                       lc.deposit_amount,
+                       lc.contract_file_id,
+                       r.id AS room_id,
+                       r.room_code,
+                       r.name AS room_name,
+                       r.area_m2,
+                       (
+                           SELECT ri.file_id
+                           FROM room_images ri
+                           JOIN file_metadata fm ON fm.id = ri.file_id
+                           WHERE ri.room_id = r.id
+                             AND fm.deleted_at IS NULL
+                             AND fm.is_sensitive = FALSE
+                           ORDER BY ri.sort_order ASC, ri.id ASC
+                           LIMIT 1
+                       ) AS room_image_file_id,
+                       (
+                           SELECT ut.unit_price
+                           FROM utility_tariffs ut
+                           WHERE ut.utility_type = 'SERVICE_FEE'
+                             AND (ut.property_id = r.property_id OR ut.property_id IS NULL)
+                             AND ut.effective_from <= CURRENT_DATE
+                             AND (ut.effective_to IS NULL OR ut.effective_to >= CURRENT_DATE)
+                           ORDER BY
+                             CASE WHEN ut.property_id = r.property_id THEN 0 ELSE 1 END,
+                             ut.effective_from DESC,
+                             ut.id DESC
+                           LIMIT 1
+                       ) AS service_fee
+                FROM contract_occupants co
+                JOIN lease_contracts lc ON lc.id = co.contract_id
+                JOIN rooms r ON r.id = lc.room_id
+                WHERE co.tenant_id = ?
+                  AND co.status = 'ACTIVE'
+                  AND lc.id = ?
+                  AND lc.deleted_at IS NULL
+                  AND r.deleted_at IS NULL
+                """, this::mapContract, tenantId, contractId);
+
+        if (contract == null) {
+            throw new ApiException(
+                    HttpStatus.NOT_FOUND,
+                    "CONTRACT_NOT_FOUND",
+                    "Không tìm thấy hợp đồng"
+            );
         }
+
+        return withTerms(contract, buildTerms(contract));
+    }
+
+    public MobileLeaseContractResponse getMyActiveContract(Long userId, Long tenantId) {
+        requireActiveTenant(userId, tenantId);
 
         MobileLeaseContractResponse contract = queryNullable("""
                 SELECT lc.id,
@@ -209,6 +300,16 @@ public class MobileLeaseContractService {
             return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> mapper.map(rs), args);
         } catch (EmptyResultDataAccessException ex) {
             return null;
+        }
+    }
+
+    private void requireActiveTenant(Long userId, Long tenantId) {
+        User user = userRepository.findById(userId)
+                .filter(item -> item.getDeletedAt() == null)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ"));
+
+        if (!onboardingService.hasActiveTenant(user, tenantId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem hợp đồng này");
         }
     }
 
