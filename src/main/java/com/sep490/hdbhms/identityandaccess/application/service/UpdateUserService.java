@@ -1,10 +1,10 @@
 package com.sep490.hdbhms.identityandaccess.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.in.command.*;
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.UpdateAccountUseCase;
-import com.sep490.hdbhms.identityandaccess.application.port.out.AccountModificationHistoryRepository;
-import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.UpdateUserUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodePort;
+import com.sep490.hdbhms.identityandaccess.application.port.out.UserModificationHistoryRepository;
+import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.model.UserModificationHistory;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
@@ -27,15 +27,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Set;
 
 @Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class UpdateAccountService implements UpdateAccountUseCase {
-    AccountModificationHistoryRepository accountModificationHistoryRepository;
+public class UpdateUserService implements UpdateUserUseCase {
+    UserModificationHistoryRepository userModificationHistoryRepository;
     UserRepository userRepository;
     PasswordEncoder passwordEncoder;
     TokenProvider tokenProvider;
@@ -48,7 +50,7 @@ public class UpdateAccountService implements UpdateAccountUseCase {
 //    RBloomFilter<String> emailBloomFilter;
 
     @Override
-    public User updateAccountStatus(UpdateAccountStatusCommand command) {
+    public User updateUserStatus(UpdateAccountStatusCommand command) {
         var account = userRepository.findById(command.id())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         var oldStatus = account.getStatus();
@@ -60,44 +62,44 @@ public class UpdateAccountService implements UpdateAccountUseCase {
         }
         account.changeStatus(newStatus);
         account = userRepository.save(account);
-        var modificationHistory = UserModificationHistory.newAccountModificationHistory(
+        var modificationHistory = UserModificationHistory.newUserModificationHistory(
                 account.getId(),
                 ModificationType.STATUS,
                 oldStatus.getValue(),
                 newStatus.getValue()
         );
-        accountModificationHistoryRepository.save(modificationHistory);
+        userModificationHistoryRepository.save(modificationHistory);
         return account;
     }
 
     @Override
-    public User updateAccountRole(UpdateAccountRoleCommand command) {
+    public User updateUserRole(UpdateAccountRoleCommand command) {
         var account = userRepository.findById(command.id())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         var oldRole = account.getRole();
         var newRole = command.newRole();
         account.assignRole(newRole);
         account = userRepository.save(account);
-        var modificationHistory = UserModificationHistory.newAccountModificationHistory(
+        var modificationHistory = UserModificationHistory.newUserModificationHistory(
                 account.getId(),
                 ModificationType.ROLE,
                 oldRole.toString(),
                 newRole.toString()
         );
-        accountModificationHistoryRepository.save(modificationHistory);
+        userModificationHistoryRepository.save(modificationHistory);
         return account;
     }
 
 
     @Override
-    public void requestUpdateAccountEmail(UpdateAccountEmailCommand command) {
+    public void requestUpdateUserEmail(UpdateAccountEmailCommand command) {
         if (userRepository.existsByEmail(command.newEmail())) {
             throw new AppException(ApiErrorCode.ACCOUNT_EXISTED);
         }
-        var account = userRepository.findById(command.id())
+        var user = userRepository.findById(command.id())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
-        var lastEmailChangedInstant = accountModificationHistoryRepository
-                .getLatestUsernameModificationInstant(account.getId());
+        var lastEmailChangedInstant = userModificationHistoryRepository
+                .getLatestUsernameModificationInstant(user.getId());
         if (lastEmailChangedInstant != null && InstantUtils.isFixedUnitsAgoFromNow(
                 lastEmailChangedInstant,
                 48,
@@ -105,50 +107,52 @@ public class UpdateAccountService implements UpdateAccountUseCase {
         ) {
             throw new AppException(ApiErrorCode.CHANGE_USERNAME_NOT_ALLOWED_YET);
         }
-        if (!passwordEncoder.matches(command.currentPassword(), account.getPasswordHash())) {
+        if (!passwordEncoder.matches(command.currentPassword(), user.getPasswordHash())) {
             throw new AppException(ApiErrorCode.INVALID_CREDENTIALS);
         }
-        otpCodePort.sendOtp(account.getId(), command.newEmail(), OtpType.EMAIL_MODIFICATION, command.newEmail());
+        otpCodePort.sendOtp(user.getId(), command.newEmail(), OtpType.EMAIL_MODIFICATION, command.newEmail());
     }
 
 
     @Override
-    public User confirmUpdateAccountEmail(VerifyUpdateEmailCommand command) {
-        var account = command.user();
-        var newEmail = otpCodePort.verifyOtp(account.getId(), OtpType.EMAIL_MODIFICATION, command.otp());
+    public User confirmUpdateUserEmail(VerifyUpdateEmailCommand command) {
+        User user = userRepository.findById(command.userId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+        String newEmail = otpCodePort.verifyOtp(user.getId(), OtpType.EMAIL_MODIFICATION, command.otp());
         if (userRepository.existsByEmail(newEmail)) {
             throw new AppException(ApiErrorCode.ACCOUNT_EXISTED);
         }
-        var oldEmail = account.getEmail();
-        var lastEmailChangedInstant = accountModificationHistoryRepository
-                .getLatestUsernameModificationInstant(account.getId());
-        account.changeEmail(newEmail, lastEmailChangedInstant);
-        account = userRepository.save(account);
+        String oldEmail = user.getEmail();
+        Instant lastEmailChangedInstant = userModificationHistoryRepository
+                .getLatestUsernameModificationInstant(user.getId());
+        user.changeEmail(newEmail, lastEmailChangedInstant);
+        user = userRepository.save(user);
 
-        var modificationHistory = UserModificationHistory.newAccountModificationHistory(
-                account.getId(),
+        UserModificationHistory modificationHistory = UserModificationHistory.newUserModificationHistory(
+                user.getId(),
                 ModificationType.EMAIL,
                 oldEmail,
                 newEmail
         );
-        accountModificationHistoryRepository.save(modificationHistory);
+        userModificationHistoryRepository.save(modificationHistory);
 
-        invalidateAllSession(account, command.request(), command.response());
+        invalidateAllSession(user, command.request(), command.response());
 //        emailBloomFilter.add(account.getEmail());
-        return account;
+        return user;
     }
 
     @Override
-    public User updateAccountPassword(UpdateAccountPasswordCommand command) {
-        var account = command.user();
-        if (!passwordEncoder.matches(command.currentPassword(), account.getPasswordHash())) {
+    public User updateUserPassword(UpdateUserPasswordCommand command) {
+        User user = userRepository.findById(command.userId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+        if (!passwordEncoder.matches(command.currentPassword(), user.getPasswordHash())) {
             throw new AppException(ApiErrorCode.INVALID_CREDENTIALS);
         }
-        if (passwordEncoder.matches(command.newPassword(), account.getPasswordHash())) {
+        if (passwordEncoder.matches(command.newPassword(), user.getPasswordHash())) {
             throw new AppException(ApiErrorCode.SAME_PASSWORD);
         }
-        var latestPasswordChanges = accountModificationHistoryRepository
-                .getTopLatestPasswordChangeValue(account.getId(), 3);
+        Set<String> latestPasswordChanges = userModificationHistoryRepository
+                .getTopLatestPasswordChangeValue(user.getId(), 3);
 
         latestPasswordChanges.forEach(passwordChange -> {
             if (passwordEncoder.matches(command.newPassword(), passwordChange)) {
@@ -156,19 +160,20 @@ public class UpdateAccountService implements UpdateAccountUseCase {
             }
         });
 
-        var oldPasswordHash = account.getPasswordHash();
-        var newPasswordHash = passwordEncoder.encode(command.newPassword());
-        account.changePassword(newPasswordHash);
-        account = userRepository.save(account);
-        var modificationHistory = UserModificationHistory.newAccountModificationHistory(
-                account.getId(),
-                ModificationType.PASSWORD_CHANGE,
-                oldPasswordHash,
-                newPasswordHash
-        );
-        accountModificationHistoryRepository.save(modificationHistory);
-        invalidateAllSessionExceptCurrent(account, command.request(), command.response());
-        return account;
+        String oldPasswordHash = user.getPasswordHash();
+        String newPasswordHash = passwordEncoder.encode(command.newPassword());
+        user.changePassword(newPasswordHash);
+        user = userRepository.save(user);
+        UserModificationHistory modificationHistory = UserModificationHistory
+                .newUserModificationHistory(
+                        user.getId(),
+                        ModificationType.PASSWORD_CHANGE,
+                        oldPasswordHash,
+                        newPasswordHash
+                );
+        userModificationHistoryRepository.save(modificationHistory);
+        invalidateAllSessionExceptCurrent(user, command.request(), command.response());
+        return user;
     }
 
     private void invalidateAllSession(User user, HttpServletRequest request, HttpServletResponse response) {

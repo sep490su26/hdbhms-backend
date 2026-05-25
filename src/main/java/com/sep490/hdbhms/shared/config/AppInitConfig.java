@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.shared.config;
 
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateAccountUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateUserUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AccountWebMapper;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
 import com.sep490.hdbhms.shared.constant.Default;
 import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
@@ -21,9 +21,9 @@ import org.springframework.stereotype.Controller;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AppInitConfig {
-    CreateAccountUseCase createAccountUseCase;
+    CreateUserUseCase createUserUseCase;
     UserRepository userRepository;
-    AccountWebMapper accountWebMapper;
+    UserWebMapper userWebMapper;
     Default aDefault;
 
     @Bean

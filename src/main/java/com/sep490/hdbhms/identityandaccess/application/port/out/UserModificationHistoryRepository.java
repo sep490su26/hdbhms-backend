@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-public interface AccountModificationHistoryRepository {
+public interface UserModificationHistoryRepository {
     UserModificationHistory save(UserModificationHistory userModificationHistory);
 
     Instant getLatestUsernameModificationInstant(Long accountId);

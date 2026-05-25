@@ -4,7 +4,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountB
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountByIdQuery;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 
-public interface GetAccountUseCase {
+public interface GetUserUseCase {
     User getByEmail(GetAccountByEmailQuery command);
     User getById(GetAccountByIdQuery command);
 }
