@@ -64,6 +64,11 @@ public class SpringDataUserRepository implements UserRepository {
         return jpaUserRepository.existsByPhoneAndDeletedAtIsNull(phone);
     }
 
+    @Override
+    public boolean existsAnOwnerAccount() {
+        return jpaUserRepository.existsByRole(Role.OWNER);
+    }
+
 
     @Override
     public Optional<User> findById(Long id) {

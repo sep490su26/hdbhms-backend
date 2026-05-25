@@ -45,6 +45,11 @@ public class SpringDataRoomRepository implements RoomRepository {
             Long propertyId,
             Long floorId
     ) {
+        if (floorId == null) {
+            return jpaRoomRepository.findAllByProperty_Id(propertyId).stream()
+                    .map(roomPersistenceMapper::toDomain)
+                    .toList();
+        }
         return jpaRoomRepository
                 .findAllByProperty_IdAndFloor_Id(propertyId, floorId).stream()
                 .map(roomPersistenceMapper::toDomain)
@@ -61,8 +66,11 @@ public class SpringDataRoomRepository implements RoomRepository {
     ) {
         Specification<RoomEntity> specification = Specification
                 .where(RoomSpecifications.idIn(ids))
-                .and(RoomSpecifications.statusIn(status))
-                .and(RoomSpecifications.priceBetween(minPrice, maxPrice));
+                .and(RoomSpecifications.statusIn(status));
+        if (minPrice != null || maxPrice != null) {
+            specification = specification
+                    .and(RoomSpecifications.priceBetween(minPrice, maxPrice));
+        }
         return jpaRoomRepository.findAll(specification, pageable)
                 .map(roomPersistenceMapper::toDomain);
     }

@@ -20,4 +20,6 @@ public interface JpaRoomRepository extends JpaRepository<RoomEntity, Long>, JpaS
     Optional<RoomEntity> findByRoomCodeWithDetails(@Param("roomCode") String roomCode);
 
     List<RoomEntity> findAllByProperty_IdAndFloor_Id(Long propertyId, Long floorId);
+
+    List<RoomEntity> findAllByProperty_Id(Long propertyId);
 }

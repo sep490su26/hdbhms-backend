@@ -10,7 +10,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class AccountCreationRequest {
+public class UserCreationRequest {
     String email;
     @NotBlank
     String phone;
