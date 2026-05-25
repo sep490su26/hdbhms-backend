@@ -16,6 +16,7 @@ public interface UserRepository {
 
     boolean existsByPhone(String phone);
 
+    boolean existsAnOwnerAccount();
 
     List<User> findAll();
 

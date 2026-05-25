@@ -10,15 +10,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @ConfigurationProperties(prefix = "app.default")
-public class Default {
-    Admin admin = new Admin();
+public class DefaultConfig {
+    Owner owner = new Owner();
 
     @Getter
     @Setter
     @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class Admin {
-        String username;
+    public static class Owner {
         String email;
+        String phone;
         String password;
     }
 }
