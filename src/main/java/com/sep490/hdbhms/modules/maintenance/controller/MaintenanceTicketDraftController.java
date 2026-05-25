@@ -28,11 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/tenants/{tenantId}/tickets")
 @Tag(name = "Maintenance Tickets", description = "Maintenance ticket APIs for tenant mobile app")
-public class MaintenanceTicketController {
+public class MaintenanceTicketDraftController {
 
     private final MaintenanceTicketQueryService maintenanceTicketQueryService;
 
-    public MaintenanceTicketController(MaintenanceTicketQueryService maintenanceTicketQueryService) {
+    public MaintenanceTicketDraftController(MaintenanceTicketQueryService maintenanceTicketQueryService) {
         this.maintenanceTicketQueryService = maintenanceTicketQueryService;
     }
 
