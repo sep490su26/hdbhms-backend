@@ -27,7 +27,7 @@ public class User {
     String passwordHash;
     Role role;
     @Builder.Default
-    boolean emailVerified = false;
+    boolean mustChangePassword = false;
 
     @Builder.Default
     AccountStatus status = AccountStatus.PENDING_CONTRACT;
@@ -51,9 +51,6 @@ public class User {
         if (!this.status.equals(AccountStatus.ACTIVE)) {
             throw new AppException(ApiErrorCode.ACCOUNT_IS_NOT_ACTIVE);
         }
-        if (!this.emailVerified) {
-            throw new AppException(ApiErrorCode.ACCOUNT_IS_NOT_VERIFIED);
-        }
         if (lastEmailChangedInstant != null && InstantUtils.isFixedUnitsAgoFromNow(
                 lastEmailChangedInstant,
                 48,
@@ -76,9 +73,6 @@ public class User {
         if (!this.status.equals(AccountStatus.ACTIVE)) {
             throw new AppException(ApiErrorCode.ACCOUNT_IS_NOT_ACTIVE);
         }
-        if (!this.emailVerified) {
-            throw new AppException(ApiErrorCode.ACCOUNT_IS_NOT_VERIFIED);
-        }
         if (StringUtils.isEmpty(newPasswordHash)) {
             throw new AppException(ApiErrorCode.NEW_PASSWORD_IS_EMPTY);
         }
@@ -86,15 +80,6 @@ public class User {
             throw new AppException(ApiErrorCode.SAME_PASSWORD);
         }
         this.passwordHash = newPasswordHash;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void verifyEmail() {
-        if (this.emailVerified || this.status != AccountStatus.PENDING_CONTRACT) {
-            throw new AppException(ApiErrorCode.ACCOUNT_IS_ALREADY_VERIFIED);
-        }
-        this.emailVerified = true;
-        this.status = AccountStatus.ACTIVE;
         this.updatedAt = LocalDateTime.now();
     }
 

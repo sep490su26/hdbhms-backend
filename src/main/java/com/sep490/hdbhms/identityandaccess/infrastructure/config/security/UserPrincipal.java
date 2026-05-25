@@ -31,7 +31,7 @@ public class UserPrincipal implements OAuth2User, OidcUser, UserDetails {
     @Getter
     AccountStatus accountStatus;
     @Getter
-    boolean isVerified;
+    boolean mustChangePassword;
 
     transient Collection<? extends GrantedAuthority> authorities;
 
@@ -51,7 +51,7 @@ public class UserPrincipal implements OAuth2User, OidcUser, UserDetails {
                 .email(userEntity.getEmail())
                 .password(userEntity.getPasswordHash())
                 .role(userEntity.getRole())
-                .isVerified(userEntity.isEmailVerified())
+                .mustChangePassword(userEntity.isMustChangePassword())
                 .accountStatus(userEntity.getStatus())
                 .authorities(Set.of(authority))
                 .build();
