@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountLoginHistoryQuery;
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetAccountLoginHistoryListUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetUserLoginHistoryListUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.LoginHistoryRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.LoginHistory;
 import lombok.AccessLevel;
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class GetLoginHistoryListService implements GetAccountLoginHistoryListUseCase {
+public class GetLoginHistoryListService implements GetUserLoginHistoryListUseCase {
     LoginHistoryRepository loginHistoryRepository;
 
     @Override

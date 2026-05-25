@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.in.command.CreateUserCommand;
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateAccountUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateUserUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.UserPersistenceMapper;
@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class CreateAccountService implements CreateAccountUseCase {
+public class CreateUserService implements CreateUserUseCase {
     UserRepository userRepository;
 
     UserPersistenceMapper userPersistenceMapper;

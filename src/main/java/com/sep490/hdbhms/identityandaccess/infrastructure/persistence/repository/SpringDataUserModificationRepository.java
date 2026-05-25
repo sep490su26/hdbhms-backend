@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.repository;
 
-import com.sep490.hdbhms.identityandaccess.application.port.out.AccountModificationHistoryRepository;
+import com.sep490.hdbhms.identityandaccess.application.port.out.UserModificationHistoryRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.UserModificationHistory;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserModificationHistoryRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.UserModificationHistoryPersistenceMapper;
@@ -17,7 +17,7 @@ import java.util.Set;
 @Repository
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class SpringDataUserModificationRepository implements AccountModificationHistoryRepository {
+public class SpringDataUserModificationRepository implements UserModificationHistoryRepository {
     JpaUserModificationHistoryRepository jpaUserModificationHistoryRepository;
     UserModificationHistoryPersistenceMapper userModificationHistoryPersistenceMapper;
 

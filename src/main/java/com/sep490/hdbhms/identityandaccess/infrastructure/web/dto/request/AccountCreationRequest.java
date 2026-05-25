@@ -1,8 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -12,10 +11,10 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AccountCreationRequest {
-    @NotBlank
-    @Size(min = 3, max = 40)
-    @Pattern(regexp = "^[a-zA-Z0-9_.-]{3,40}$")
-    String username;
     String email;
+    @NotBlank
+    String phone;
+    @NotBlank
     String password;
+    Role initialRole;
 }

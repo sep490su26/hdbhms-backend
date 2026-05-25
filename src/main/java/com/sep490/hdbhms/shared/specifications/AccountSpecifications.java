@@ -21,15 +21,15 @@ public class AccountSpecifications {
         };
     }
 
-    public static Specification<UserEntity> statusIn(List<AccountStatus> statuses) {
+    public static Specification<UserEntity> statusIn(AccountStatus status) {
         return (root, query, criteriaBuilder) ->
-                statuses == null || statuses.isEmpty() ? criteriaBuilder.conjunction() :
-                        root.get("status").in(statuses);
+                status == null ? criteriaBuilder.conjunction() :
+                        criteriaBuilder.equal(root.get("status"), status);
     }
 
-    public static Specification<UserEntity> roleIn(List<Role> role) {
+    public static Specification<UserEntity> roleIn(Role role) {
         return (root, query, criteriaBuilder) ->
-                role == null || role.isEmpty() ? criteriaBuilder.conjunction() :
-                        root.get("role").in(role);
+                role == null ? criteriaBuilder.conjunction() :
+                        criteriaBuilder.equal(root.get("role"), role);
     }
 }

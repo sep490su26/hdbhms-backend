@@ -2,7 +2,7 @@ package com.sep490.hdbhms.identityandaccess.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountByEmailQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountByIdQuery;
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetAccountUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetUserUseCase;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.repository.SpringDataUserRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class GetAccountService implements GetAccountUseCase {
+public class GetUserService implements GetUserUseCase {
     SpringDataUserRepository accountRepository;
 
     @Override

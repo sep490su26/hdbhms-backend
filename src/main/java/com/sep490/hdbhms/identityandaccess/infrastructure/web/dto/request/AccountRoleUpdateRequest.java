@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -9,5 +10,5 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AccountRoleUpdateRequest {
-    String roleName;
+    Role role;
 }
