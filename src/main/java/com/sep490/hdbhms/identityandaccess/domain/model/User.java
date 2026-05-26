@@ -27,7 +27,7 @@ public class User {
     String passwordHash;
     Role role;
     @Builder.Default
-    boolean mustChangePassword = false;
+    boolean mustChangePassword = true;
 
     @Builder.Default
     AccountStatus status = AccountStatus.PENDING_CONTRACT;
