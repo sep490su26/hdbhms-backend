@@ -180,7 +180,9 @@ public class UpdateUserService implements UpdateUserUseCase {
     public User updateUserFirstPassword(UpdateUserFirstPasswordCommand command) {
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
-
+        if (!user.isMustChangePassword()) {
+            throw new AppException(ApiErrorCode.INVALID_CREDENTIALS);
+        }
         String oldPasswordHash = user.getPasswordHash();
         String newPasswordHash = passwordEncoder.encode(command.newPassword());
         user.changePassword(newPasswordHash);
