@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.file.infrastructure.utils;
 
-import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileResponse;
+import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
 import com.sep490.hdbhms.shared.utils.ServerInfoUtils;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -22,13 +22,5 @@ public class FileUtils {
 
     public static String buildFileUrl(String fileId, String urlPrefix, ServerInfoUtils serverInfoUtils) {
         return serverInfoUtils.getBaseUrl() + urlPrefix + fileId;
-    }
-
-    public static FileResponse failedResponse(MultipartFile file, String message) {
-        return FileResponse.builder()
-                .originalFileName(file.getOriginalFilename())
-                .uploaded(false)
-                .message(message)
-                .build();
     }
 }
