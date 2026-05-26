@@ -95,6 +95,14 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void activeAccount() {
+        if (this.status == AccountStatus.ACTIVE) {
+            return;
+        }
+        this.status = AccountStatus.ACTIVE;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void assignRole(Role role) {
         if (this.role.equals(role)) {
             throw new AppException(ApiErrorCode.SAME_ROLE);
@@ -105,7 +113,7 @@ public class User {
 
     public void lockAccount() {
         if (this.status == AccountStatus.INACTIVE) {
-            throw new AppException(ApiErrorCode.ACCOUNT_IS_NOT_ACTIVE);
+            return;
         }
         this.status = AccountStatus.INACTIVE;
         this.updatedAt = LocalDateTime.now();

@@ -43,6 +43,7 @@ app:
       email: ${OWNER_EMAIL}
       phone: ${OWNER_PHONE}
       password: ${OWNER_PASSWORD}
+      full-name: ${OWNER_FULL_NAME}
   reset-password:
     reset-password-confirmation-url: localhost:300/fshs/confirm-reset
   payment:

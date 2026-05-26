@@ -1,4 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.domain.model;
 
-public record WebAuthentication(String token, boolean authorized) implements Authentication {
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+
+public record WebAuthentication(String token, Role role, boolean authorized) implements Authentication {
 }

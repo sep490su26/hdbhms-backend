@@ -20,5 +20,6 @@ public class DefaultConfig {
         String email;
         String phone;
         String password;
+        String fullName;
     }
 }

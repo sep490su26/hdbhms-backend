@@ -4,10 +4,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.command.LoginComm
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.LoginUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.LoginHistoryRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
-import com.sep490.hdbhms.identityandaccess.domain.model.Authentication;
-import com.sep490.hdbhms.identityandaccess.domain.model.WebAuthentication;
-import com.sep490.hdbhms.identityandaccess.domain.model.LoginHistory;
-import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.model.*;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
@@ -39,7 +36,6 @@ public class LoginService implements LoginUseCase {
 
     @Override
     public Authentication execute(String clientType, LoginCommand command, HttpServletRequest request, HttpServletResponse response) {
-        log.info(command.phone());
         User user = userRepository.findByPhone(command.phone())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         boolean passwordMatched = passwordEncoder.matches(
@@ -61,13 +57,6 @@ public class LoginService implements LoginUseCase {
             throw new AppException(ApiErrorCode.INVALID_PASSWORD);
         }
 
-        if ("web".equals(clientType) && !isStaff(user)) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
-        }
-        else if ("mobile".equals(clientType) && isStaff(user)) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
-        }
-
         String sessionId = tokenProvider.createRefreshToken(user, request, response);
         String accessToken = tokenProvider.createAccessToken(user, sessionId, response);
         LoginHistory loginHistory = LoginHistory.newAccountModificationHistory(
@@ -80,7 +69,13 @@ public class LoginService implements LoginUseCase {
                 SessionUtils.getOrCreateDeviceId(request, response)
         );
         loginHistoryRepository.save(loginHistory);
-        return new WebAuthentication(accessToken, true);
+        if ("web".equals(clientType) && isStaff(user)) {
+            return new WebAuthentication(accessToken, user.getRole(), true);
+        } else if ("mobile".equals(clientType) && !isStaff(user)) {
+            return new MobileAuthentication(accessToken, sessionId, true);
+        } else {
+            throw new AppException(ApiErrorCode.UNDEFINED);
+        }
     }
 
     private boolean isStaff(User user) {

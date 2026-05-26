@@ -1,14 +1,16 @@
 package com.sep490.hdbhms.identityandaccess.application.service;
 
+import com.nimbusds.jose.JOSEException;
 import com.sep490.hdbhms.identityandaccess.application.port.in.command.RefreshAccessTokenCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.RefreshAccessTokenUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
+import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.model.WebAuthentication;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.TokenProvider;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.CookieUtils;
-import com.nimbusds.jose.JOSEException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
@@ -44,18 +46,18 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN);
         }
 
-        var accessToken = command.token();
+        String accessToken = command.token();
         tokenProvider.clearToken(accessToken, false);
-        var accountId = tokenProvider.getUserId(request);
-        var account = userRepository.findById(accountId)
+        Long userId = tokenProvider.getUserId(request);
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
-        var sessionCookie = CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
+        Cookie sessionCookie = CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNAUTHENTICATED));
-        var newAccessToken = tokenProvider.createAccessToken(
-                account,
+        String newAccessToken = tokenProvider.createAccessToken(
+                user,
                 sessionCookie.getValue(),
                 response
         );
-        return new WebAuthentication(newAccessToken, true);
+        return new WebAuthentication(newAccessToken, user.getRole(), true);
     }
 }
