@@ -4,6 +4,8 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.command.*;
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.IntrospectTokenQuery;
 import com.sep490.hdbhms.identityandaccess.domain.model.Authentication;
 import com.sep490.hdbhms.identityandaccess.domain.model.Introspect;
+import com.sep490.hdbhms.identityandaccess.domain.model.MobileAuthentication;
+import com.sep490.hdbhms.identityandaccess.domain.model.WebAuthentication;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.AuthenticationResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.IntrospectResponse;
@@ -12,7 +14,29 @@ import org.mapstruct.ReportingPolicy;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.WARN)
 public interface AuthenticationWebMapper {
-    AuthenticationResponse toResponse(Authentication authentication);
+    default AuthenticationResponse toResponse(Authentication authentication) {
+        switch (authentication) {
+            case null -> {
+                return null;
+            }
+            case WebAuthentication webAuthentication -> {
+                return AuthenticationResponse.builder()
+                        .token(webAuthentication.token())
+                        .authorized(webAuthentication.authorized())
+                        .build();
+            }
+            case MobileAuthentication mobileAuthentication -> {
+                return AuthenticationResponse.builder()
+                        .token(mobileAuthentication.token())
+                        .sessionId(mobileAuthentication.sessionId())
+                        .authorized(mobileAuthentication.authorized())
+                        .build();
+            }
+            default -> {
+            }
+        }
+        return null;
+    }
 
     IntrospectResponse toResponse(Introspect introspect);
 

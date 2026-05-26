@@ -3,7 +3,7 @@ package com.sep490.hdbhms.identityandaccess.application.service;
 import com.sep490.hdbhms.identityandaccess.application.port.in.command.RefreshAccessTokenCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.RefreshAccessTokenUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
-import com.sep490.hdbhms.identityandaccess.domain.model.Authentication;
+import com.sep490.hdbhms.identityandaccess.domain.model.WebAuthentication;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.TokenProvider;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -32,7 +32,7 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
     UserRepository userRepository;
 
     @Override
-    public Authentication execute(RefreshAccessTokenCommand command, HttpServletRequest request, HttpServletResponse response) {
+    public WebAuthentication execute(RefreshAccessTokenCommand command, HttpServletRequest request, HttpServletResponse response) {
         var refreshToken = tokenProvider.getRefreshToken(request, true);
         log.info("Refresh token: {}", refreshToken);
         try {
@@ -56,6 +56,6 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
                 sessionCookie.getValue(),
                 response
         );
-        return new Authentication(newAccessToken, true);
+        return new WebAuthentication(newAccessToken, true);
     }
 }
