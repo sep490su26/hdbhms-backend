@@ -118,4 +118,9 @@ public class User {
         this.status = AccountStatus.INACTIVE;
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void registerFirstPasswordChange() {
+        this.mustChangePassword = true;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

@@ -5,7 +5,6 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRep
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -45,6 +44,7 @@ public class CreateDefaultOwnerAccountService implements CreateDefaultOwnerAccou
                 Role.OWNER
         );
         user.activeAccount();
+        user.registerFirstPasswordChange();
         user = userRepository.save(user);
         PersonProfile personProfile = PersonProfile.create(
                 user.getId(),

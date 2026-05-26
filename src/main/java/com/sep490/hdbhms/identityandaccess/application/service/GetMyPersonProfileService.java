@@ -27,7 +27,6 @@ public class GetMyPersonProfileService implements GetMyPersonProfileUseCase {
         if (userId == null) {
             throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
-        log.info("{}", userId);
         return personProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
     }
