@@ -41,11 +41,10 @@ public class CreateDefaultOwnerAccountService implements CreateDefaultOwnerAccou
         User user = User.newUser(
                 defaultConfig.getOwner().getPhone(),
                 defaultConfig.getOwner().getEmail(),
-                defaultConfig.getOwner().getPassword(),
+                passwordEncoder.encode(defaultConfig.getOwner().getPassword()),
                 Role.OWNER
         );
         user.activeAccount();
-        user.changePassword(passwordEncoder.encode(defaultConfig.getOwner().getPassword()));
         user = userRepository.save(user);
         PersonProfile personProfile = PersonProfile.create(
                 user.getId(),

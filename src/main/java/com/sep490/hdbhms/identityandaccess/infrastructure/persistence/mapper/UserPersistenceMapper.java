@@ -31,15 +31,6 @@ public class UserPersistenceMapper {
                 .build();
     }
 
-    public User toDomain(CreateUserCommand command) {
-        return User.newUser(
-                command.getPhone(),
-                command.getEmail(),
-                command.getPassword(),
-                command.getInitialRole()
-        );
-    }
-
     public UserEntity toEntity(User domain) {
         if (domain == null) return null;
         return UserEntity.builder()

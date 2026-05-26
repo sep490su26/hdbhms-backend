@@ -37,17 +37,17 @@ public class UserController {
     UserWebMapper userWebMapper;
     GetUserUseCase getUserUseCase;
     GetListUsersUseCase getListUsersUseCase;
-    CreateUserUseCase createUserUseCase;
+    CreateStaffUserUseCase createStaffUserUseCase;
     UpdateUserUseCase updateUserUseCase;
     GetUserLoginHistoryListUseCase getUserLoginHistoryListUseCase;
 
-    @PostMapping
+    @PostMapping("/staff")
     @PreAuthorize("hasRole('OWNER')")
-    ApiResponse<UserResponse> createAccount(@Valid @RequestBody UserCreationRequest request) {
+    ApiResponse<UserResponse> createStaffAccount(@Valid @RequestBody UserCreationRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(
-                                createUserUseCase.execute(userWebMapper.toCommand(request))
+                                createStaffUserUseCase.execute(userWebMapper.toCommand(request))
                         )
                 )
                 .build();
