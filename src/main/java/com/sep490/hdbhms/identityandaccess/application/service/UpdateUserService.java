@@ -186,6 +186,7 @@ public class UpdateUserService implements UpdateUserUseCase {
         String oldPasswordHash = user.getPasswordHash();
         String newPasswordHash = passwordEncoder.encode(command.newPassword());
         user.changePassword(newPasswordHash);
+        user.registerFirstPasswordChange();
         user = userRepository.save(user);
         UserModificationHistory modificationHistory = UserModificationHistory
                 .newUserModificationHistory(
