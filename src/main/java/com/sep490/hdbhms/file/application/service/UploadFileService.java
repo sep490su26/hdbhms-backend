@@ -48,10 +48,10 @@ public class UploadFileService implements UploadFileUseCase {
             if (ownerId == null) {
                 throw new AppException(ApiErrorCode.UNAUTHENTICATED);
             }
-            String urlPrefix = fileProperties.getDownload().getPrefix();
             // Check for duplicate using the unique database constraint
             Optional<FileMetadata> duplicate = fileMetadataRepository.findByChecksum(sha256Checksum);
             if (duplicate.isPresent()) {
+                log.info("{}", duplicate.get());
                 return duplicate.get();
             }
 
@@ -76,6 +76,7 @@ public class UploadFileService implements UploadFileUseCase {
             // Build metadata (without path)
             fileMetadata = FileMetadata.of(
                     ownerId,
+                    multipartFile.getOriginalFilename(),
                     multipartFile.getContentType(),
                     multipartFile.getSize(),
                     sha256Checksum,
@@ -95,6 +96,7 @@ public class UploadFileService implements UploadFileUseCase {
 
             fileMetadata.setStorageKey(finalPath.toString());
             fileMetadata = fileMetadataRepository.save(fileMetadata);
+            log.info("{}", fileMetadata);
             // No need for a second save – the transaction will flush the change automatically
             log.info("Successfully uploaded file: {}", multipartFile.getOriginalFilename());
             return fileMetadata;

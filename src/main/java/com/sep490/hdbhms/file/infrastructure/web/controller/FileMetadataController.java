@@ -29,7 +29,7 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/resources")
+@RequestMapping("/api/v1/files")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class FileMetadataController {
     UploadFileService uploadFileService;
@@ -41,7 +41,7 @@ public class FileMetadataController {
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<FileMetadataResponse> upload(
             @RequestPart("file") MultipartFile file,
-            @RequestParam("category") FileCategory category,
+            @RequestParam(value = "category", defaultValue = "OTHER") FileCategory category,
             @RequestParam(value = "isSensitive", defaultValue = "false") boolean isSensitive
     ) {
         return ApiResponse.<FileMetadataResponse>builder()

@@ -5,11 +5,13 @@ import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.multipart.MultipartFile;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.WARN)
 public abstract class FileMetadataWebMapper {
-    FileProperties fileProperties;
+    @Autowired
+    private FileProperties fileProperties;
 
     public FileMetadataResponse toSuccessResponse(FileMetadata fileMetadata) {
         return FileMetadataResponse.builder()
