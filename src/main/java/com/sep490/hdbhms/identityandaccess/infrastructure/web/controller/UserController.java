@@ -8,8 +8,8 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.*;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.LoginHistoryResponse;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
@@ -126,6 +126,22 @@ public class UserController {
                 .build();
     }
 
+    @PatchMapping(value = "/me/first-password")
+    ApiResponse<UserResponse> setMyFirstPassword(
+            @Valid @RequestBody AccountFirstPasswordUpdateRequest accountFirstPasswordUpdateRequest
+    ) {
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+        return ApiResponse.<UserResponse>builder()
+                .data(userWebMapper.toAccountResponse(
+                        updateUserUseCase.updateUserFirstPassword(
+                                new UpdateUserFirstPasswordCommand(
+                                        userId,
+                                        accountFirstPasswordUpdateRequest.getNewPassword()
+                                ))
+                ))
+                .build();
+    }
+
     @PatchMapping(value = "/me/password")
     ApiResponse<UserResponse> updateMyPassword(
             @Valid @RequestBody AccountPasswordUpdateRequest usernameUpdateRequest,
@@ -146,7 +162,6 @@ public class UserController {
                 .build();
     }
 
-    @PreAuthorize("hasAuthority('ACCOUNT_WRITE')")
     @PutMapping(value = "/{userId}/status")
     ApiResponse<UserResponse> updateAccountStatus(
             @PathVariable Long userId,
@@ -166,7 +181,6 @@ public class UserController {
                 .build();
     }
 
-    @PreAuthorize("hasAuthority('ACCOUNT_WRITE')")
     @PutMapping(value = "/{accountId}/role")
     ApiResponse<UserResponse> updateAccountRole(
             @PathVariable Long accountId,
@@ -186,7 +200,6 @@ public class UserController {
                 .build();
     }
 
-    @PreAuthorize("hasAuthority('ACCOUNT_READ')")
     @GetMapping("/{accountId}/login-history")
     ApiResponse<PageResponse<LoginHistoryResponse>> getLoginHistory(
             @PathVariable Long accountId,
