@@ -120,7 +120,7 @@ public class User {
     }
 
     public void registerFirstPasswordChange() {
-        this.mustChangePassword = true;
+        this.mustChangePassword = false;
         this.updatedAt = LocalDateTime.now();
     }
 }
