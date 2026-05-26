@@ -59,8 +59,8 @@ public class CreateStaffUserService implements CreateStaffUserUseCase {
                 true
         );
         User user = User.newUser(
-                command.getEmail(),
                 command.getPhone(),
+                command.getEmail(),
                 passwordEncoder.encode(randomPassword),
                 command.getInitialRole()
         );
