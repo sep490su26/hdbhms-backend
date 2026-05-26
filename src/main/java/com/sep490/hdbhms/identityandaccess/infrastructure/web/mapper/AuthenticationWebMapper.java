@@ -22,6 +22,7 @@ public interface AuthenticationWebMapper {
             case WebAuthentication webAuthentication -> {
                 return AuthenticationResponse.builder()
                         .token(webAuthentication.token())
+                        .role(webAuthentication.role())
                         .authorized(webAuthentication.authorized())
                         .build();
             }
