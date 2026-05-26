@@ -1,8 +1,11 @@
 package com.sep490.hdbhms.file.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -10,7 +13,8 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class FileResponse {
+public class FileMetadataResponse {
+    Long fileId;
     String originalFileName;
     String url;
     boolean uploaded;

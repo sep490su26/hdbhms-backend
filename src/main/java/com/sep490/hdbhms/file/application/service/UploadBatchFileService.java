@@ -7,7 +7,8 @@ import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.BatchFileResponse;
-import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileResponse;
+import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
+import com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,6 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static com.sep490.hdbhms.file.infrastructure.utils.FileUtils.failedResponse;
 
 @Slf4j
 @Service
@@ -33,6 +33,7 @@ import static com.sep490.hdbhms.file.infrastructure.utils.FileUtils.failedRespon
 public class UploadBatchFileService implements UploadBatchFileUseCase {
     FileProperties fileProperties;
     UploadFileUseCase uploadFileUseCase;
+    FileMetadataWebMapper fileMetadataWebMapper;
 
     @Override
     public BatchFileResponse execute(UploadBatchFileCommand query) {
@@ -50,7 +51,7 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
 
         int maxConcurrent = fileProperties.getStorage().getMaxBatchSize();
         Semaphore semaphore = new Semaphore(maxConcurrent);
-        List<CompletableFuture<FileResponse>> futures = new ArrayList<>();
+        List<CompletableFuture<FileMetadataResponse>> futures = new ArrayList<>();
         var batchInterrupted = new AtomicBoolean(false);
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -58,16 +59,16 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                 if (batchInterrupted.get()) {
                     // If interrupted, don't submit new tasks
                     futures.add(CompletableFuture.completedFuture(
-                            failedResponse(file, "Upload skipped due to batch interruption")));
+                            fileMetadataWebMapper.toFailedResponse(file, "Upload skipped due to batch interruption")));
                     continue;
                 }
 
-                CompletableFuture<FileResponse> future = CompletableFuture.supplyAsync(() -> {
+                CompletableFuture<FileMetadataResponse> future = CompletableFuture.supplyAsync(() -> {
                     try {
                         semaphore.acquire();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        return failedResponse(file, "Upload interrupted while waiting for resources");
+                        return fileMetadataWebMapper.toFailedResponse(file, "Upload interrupted while waiting for resources");
                     }
                     try {
                         return uploadWithRetries(file, ownerId, query.category(), query.isSensitive());
@@ -87,15 +88,15 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                 log.error("Batch upload timed out");
                 futures.forEach(f -> f.cancel(true));
                 // Build response with completed ones only
-                List<FileResponse> completedResponses = futures.stream()
+                List<FileMetadataResponse> completedResponses = futures.stream()
                         .filter(CompletableFuture::isDone)
                         .map(CompletableFuture::join)
                         .toList();
                 return BatchFileResponse.builder()
                         .totalFiles(multipartFiles.size())
-                        .successfulUploads((int) completedResponses.stream().filter(FileResponse::isUploaded).count())
+                        .successfulUploads((int) completedResponses.stream().filter(FileMetadataResponse::isUploaded).count())
                         .failedUploads((int) completedResponses.stream().filter(r -> !r.isUploaded()).count())
-                        .fileResponses(completedResponses)
+                        .fileMetadataResponse(completedResponses)
                         .message("Batch upload timed out. Some files may not have been processed.")
                         .build();
             } catch (InterruptedException e) {
@@ -115,39 +116,47 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
         }
 
         // All futures completed successfully
-        List<FileResponse> responses = futures.stream()
+        List<FileMetadataResponse> responses = futures.stream()
                 .map(CompletableFuture::join)
                 .toList();
-        long successCount = responses.stream().filter(FileResponse::isUploaded).count();
+        long successCount = responses.stream().filter(FileMetadataResponse::isUploaded).count();
         return BatchFileResponse.builder()
                 .totalFiles(multipartFiles.size())
                 .successfulUploads((int) successCount)
                 .failedUploads(multipartFiles.size() - (int) successCount)
-                .fileResponses(responses)
+                .fileMetadataResponse(responses)
                 .message("Upload completed.")
                 .build();
     }
 
-    private FileResponse uploadWithRetries(MultipartFile multipartFile, Long ownerUserId, FileCategory fileCategory, boolean isSensitive) {
+    private FileMetadataResponse uploadWithRetries(MultipartFile multipartFile, Long ownerUserId, FileCategory fileCategory, boolean isSensitive) {
         int attempts = 0;
         long retryDelayMs = fileProperties.getStorage().getRetry().getInitialDelay();
         final int maxAttempts = fileProperties.getStorage().getRetry().getMaxAttempts();
 
         while (attempts < maxAttempts) {
             if (Thread.currentThread().isInterrupted()) {
-                return failedResponse(multipartFile, "Upload interrupted before attempt " + attempts);
+                return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload interrupted before attempt " + attempts);
             }
             try {
-                return uploadFileUseCase.execute(new UploadFileCommand(ownerUserId, multipartFile, fileCategory, isSensitive));
+                return fileMetadataWebMapper.toSuccessResponse(
+                        uploadFileUseCase.execute(
+                                new UploadFileCommand(
+                                        ownerUserId,
+                                        multipartFile,
+                                        fileCategory,
+                                        isSensitive)
+                        )
+                );
             } catch (AppException | IOException e) {
                 attempts++;
                 if (Thread.currentThread().isInterrupted()) {
-                    return failedResponse(multipartFile, "Upload interrupted before attempt " + attempts);
+                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload interrupted before attempt " + attempts);
                 }
                 if (attempts >= maxAttempts) {
                     log.warn("Failed to upload {} after {} attempts: {}",
                             multipartFile.getOriginalFilename(), maxAttempts, e.getMessage());
-                    return failedResponse(multipartFile, "Failed after " + maxAttempts + " attempts: " + e.getMessage());
+                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Failed after " + maxAttempts + " attempts: " + e.getMessage());
                 }
                 log.info("Retrying upload for {} in {} ms (attempt {}/{})",
                         multipartFile.getOriginalFilename(), retryDelayMs, attempts, maxAttempts);
@@ -155,11 +164,11 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                     Thread.sleep(retryDelayMs);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    return failedResponse(multipartFile, "Upload interrupted during retry delay");
+                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload interrupted during retry delay");
                 }
                 retryDelayMs *= 2;
             }
         }
-        return failedResponse(multipartFile, "Upload failed after retries");
+        return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload failed after retries");
     }
 }
