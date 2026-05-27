@@ -4,15 +4,20 @@ import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.scheduling.application.port.out.ExpireRoomHoldPort;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Component
 @Transactional
 @RequiredArgsConstructor
@@ -23,16 +28,20 @@ public class ExpireRoomHoldAdapter implements ExpireRoomHoldPort {
 
     @Override
     public void execute(Long roomHoldId) {
-        RoomHold roomHold = roomHoldRepository.findById(roomHoldId)
-                .orElse(null);
-        if (roomHold == null) {
+        RoomHold roomHold = roomHoldRepository.findById(roomHoldId).orElse(null);
+        if (roomHold == null || roomHold.getStatus() != RoomHoldStatus.ACTIVE) {
             return;
         }
+
+        // Release the hold (idempotent)
         roomHold.releaseOnAutoExpired();
         roomHoldRepository.save(roomHold);
-        Room room = roomRepository.findById(roomHold.getRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        room.releaseRoom();
-        roomRepository.save(room);
+
+        // Try to release the room back to VACANT only if it's still RESERVED
+        roomRepository.updateRoomStatusIfCurrent(
+                roomHold.getRoomId(),
+                RoomStatus.RESERVED,
+                RoomStatus.VACANT
+        );
     }
 }

@@ -77,4 +77,13 @@ public class SpringDataRoomRepository implements RoomRepository {
         return jpaRoomRepository.findByRoomCode(roomCode)
                 .map(roomPersistenceMapper::toDomain);
     }
+
+    @Override
+    public int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus) {
+        return jpaRoomRepository.updateRoomStatusIfCurrent(
+                roomId,
+                expectedStatus,
+                newStatus
+        );
+    }
 }

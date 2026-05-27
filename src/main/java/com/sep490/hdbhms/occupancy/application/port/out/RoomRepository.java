@@ -18,4 +18,6 @@ public interface RoomRepository {
     Page<Room> findAll(List<Long> ids, RoomStatus status, Long minPrice, Long maxPrice, Pageable pageable);
 
     Optional<Room> findByRoomCode(String roomCode);
+
+    int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus);
 }
