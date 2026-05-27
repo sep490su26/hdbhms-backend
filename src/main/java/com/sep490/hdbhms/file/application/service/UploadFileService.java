@@ -45,9 +45,9 @@ public class UploadFileService implements UploadFileUseCase {
 
             MultipartFile multipartFile = query.file();
             Long ownerId = query.ownerUserId();
-            if (ownerId == null) {
-                throw new AppException(ApiErrorCode.UNAUTHENTICATED);
-            }
+//            if (ownerId == null) {
+//                throw new AppException(ApiErrorCode.UNAUTHENTICATED);
+//            }
             // Check for duplicate using the unique database constraint
             Optional<FileMetadata> duplicate = fileMetadataRepository.findByChecksum(sha256Checksum);
             if (duplicate.isPresent()) {

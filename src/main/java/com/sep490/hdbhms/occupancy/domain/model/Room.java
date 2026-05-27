@@ -67,4 +67,9 @@ public class Room {
                 .sortOrder(sortOrder)
                 .build();
     }
+
+    public void reserveRoom() {
+        this.currentStatus = RoomStatus.RESERVED;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

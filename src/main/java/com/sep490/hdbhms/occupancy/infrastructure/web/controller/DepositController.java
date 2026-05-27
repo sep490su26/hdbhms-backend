@@ -17,7 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/deposit/")
+@RequestMapping("/api/v1/deposit")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositController {
     RoomWebMapper roomWebMapper;
@@ -26,10 +26,11 @@ public class DepositController {
     @PostMapping("/checkout")
     public ApiResponse<Void> bookRoom(
             @RequestPart("metadata") SendDepositFormRequest request,
-            @RequestPart("idFrontFile") MultipartFile idFrontFile,
-            @RequestPart("idBackFile") MultipartFile idBackFile,
-            @RequestPart("idPortraitFile") MultipartFile portraitFile
+            @RequestPart("id_front_file") MultipartFile idFrontFile,
+            @RequestPart("id_back_file") MultipartFile idBackFile,
+            @RequestPart("portrait_file") MultipartFile portraitFile
     ) {
+        log.info("{}", request.toString());
         bookRoomUseCase.initDepositForm(
                 roomWebMapper.toCommand(request, idFrontFile, idBackFile, portraitFile)
         );

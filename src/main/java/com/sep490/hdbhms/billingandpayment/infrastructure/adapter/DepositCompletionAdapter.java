@@ -5,6 +5,7 @@ import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.*;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
+import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -19,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositCompletionAdapter implements DepositCompletionPort {
+    RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
-    ConfirmPaymentIntentPort confirmPaymentIntentPort;
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     CreateLeadOrAssignTenantPort createLeadOrAssignTenantPort;
@@ -41,5 +42,9 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
         roomHoldRepository.save(roomHold);
         earlyCancelRoomHoldTaskPort.execute(roomHold.getId());
         createLeadOrAssignTenantPort.execute(depositAgreement);
+        Room room = roomRepository.findById(depositAgreement.getRoomId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+        room.reserveRoom();
+        roomRepository.save(room);
     }
 }
