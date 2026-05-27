@@ -14,6 +14,7 @@ import com.sep490.hdbhms.occupancy.domain.model.*;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
+import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -106,8 +107,11 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         PersonProfile personProfile = PersonProfile.create(
                 user.getId(),
                 depositForm.getFullName(),
+                depositForm.getDob(),
                 depositForm.getPhone(),
-                depositForm.getEmail()
+                depositForm.getEmail(),
+                depositForm.getPermanentAddress(),
+                depositForm.getPortraitFileId()
         );
         personProfile = personProfileRepository.save(personProfile);
         if (identityDocumentRepository.existsByDocTypeAndDocNumber(
@@ -117,16 +121,21 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         IdentityDocument identityDocument = IdentityDocument.create(
                 personProfile.getId(),
                 DocumentType.CCCD,
-                depositForm.getIdNumber()
+                depositForm.getIdNumber(),
+                depositForm.getIdIssueDate(),
+                depositForm.getIdIssuePlace(),
+                depositForm.getIdFrontFileId(),
+                depositForm.getIdBackFileId()
         );
         identityDocumentRepository.save(identityDocument);
-
-        sendPreCreatedAccountPort.sendAccountInformation(
-                depositForm.getEmail(),
-                depositForm.getFullName(),
-                depositForm.getPhone(),
-                randomPassword
-        );
+        if (!StringUtils.isEmpty(depositForm.getEmail())) {
+            sendPreCreatedAccountPort.sendAccountInformation(
+                    depositForm.getEmail(),
+                    depositForm.getFullName(),
+                    depositForm.getPhone(),
+                    randomPassword
+            );
+        }
 
         depositAgreement.setLeadId(lead.getId());
         depositAgreement.setDepositorPersonProfileId(personProfile.getId());

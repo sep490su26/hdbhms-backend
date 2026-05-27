@@ -71,4 +71,10 @@ public class SpringDataRoomRepository implements RoomRepository {
         return jpaRoomRepository.findAll(specification, pageable)
                 .map(roomPersistenceMapper::toDomain);
     }
+
+    @Override
+    public Optional<Room> findByRoomCode(String roomCode) {
+        return jpaRoomRepository.findByRoomCode(roomCode)
+                .map(roomPersistenceMapper::toDomain);
+    }
 }

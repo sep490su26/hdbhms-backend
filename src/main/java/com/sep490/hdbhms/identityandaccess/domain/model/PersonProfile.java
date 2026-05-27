@@ -32,6 +32,26 @@ public class PersonProfile {
     public static PersonProfile create(
             Long userId,
             String fullName,
+            LocalDate dob,
+            String phone,
+            String email,
+            String permanentAddress,
+            Long portraitFileId
+    ) {
+        return PersonProfile.builder()
+                .userId(userId)
+                .fullName(fullName)
+                .dob(dob)
+                .phone(phone)
+                .email(email)
+                .permanentAddress(permanentAddress)
+                .portraitFileId(portraitFileId)
+                .build();
+    }
+
+    public static PersonProfile createForStaff(
+            Long userId,
+            String fullName,
             String phone,
             String email
     ) {

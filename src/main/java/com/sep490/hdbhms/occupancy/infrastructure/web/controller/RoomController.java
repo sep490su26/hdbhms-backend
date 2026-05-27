@@ -2,9 +2,11 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetFloorDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListRoomsQuery;
+import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomImagesByRoomIdQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.*;
 import com.sep490.hdbhms.occupancy.domain.model.Floor;
+import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomImage;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
@@ -23,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -38,6 +41,7 @@ public class RoomController {
     GetListRoomsUseCase getListRoomsUseCase;
     GetRoomByCodeUseCase getRoomByCodeUseCase;
     GetFloorDetailsUseCase getFloorDetailsUseCase;
+    GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     GetRoomImagesByRoomIdUseCase getRoomImagesByRoomIdUseCase;
 
     @GetMapping
@@ -62,7 +66,25 @@ public class RoomController {
                                                         pageable
                                                 )
                                         )
-                                        .map(roomWebMapper::toResponse)
+                                        .map(room -> {
+                                            Floor floor = getFloorDetailsUseCase.execute(
+                                                    new GetFloorDetailsQuery(room.getFloorId())
+                                            );
+                                            Property property = getPropertyDetailsUseCase.execute(
+                                                    new GetPropertyDetailsQuery(floor.getPropertyId())
+                                            );
+                                            return RoomResponse.builder()
+                                                    .id(room.getId())
+                                                    .name(room.getName())
+                                                    .areaM2(room.getAreaM2())
+                                                    .roomCode(room.getRoomCode())
+                                                    .currentStatus(room.getCurrentStatus())
+                                                    .listedPrice(room.getListedPrice())
+                                                    .maxOccupants(room.getMaxOccupants())
+                                                    .floorName(floor.getName())
+                                                    .propertyName(property.getName())
+                                                    .build();
+                                        })
                         )
                 )
                 .build();
@@ -73,7 +95,12 @@ public class RoomController {
             @Valid @RequestBody CreateRoomRequest request
     ) {
         Room room = createRoomUseCase.execute(roomWebMapper.toCommand(request));
-        Floor floor = getFloorDetailsUseCase.execute(new GetFloorDetailsQuery(room.getFloorId()));
+        Floor floor = getFloorDetailsUseCase.execute(
+                new GetFloorDetailsQuery(room.getFloorId())
+        );
+        Property property = getPropertyDetailsUseCase.execute(
+                new GetPropertyDetailsQuery(floor.getPropertyId())
+        );
         List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
                 new GetRoomImagesByRoomIdQuery(room.getId())
         );
@@ -82,6 +109,7 @@ public class RoomController {
                         roomWebMapper.toRoomDetailsResponse(
                                 room,
                                 floor,
+                                property,
                                 roomImages
                         )
                 )
@@ -89,15 +117,27 @@ public class RoomController {
     }
 
     @PostMapping("/book")
-    public ApiResponse<Void> bookRoom(@ModelAttribute SendDepositFormRequest request) {
-        bookRoomUseCase.initDepositForm(roomWebMapper.toCommand(request));
+    public ApiResponse<Void> bookRoom(
+            @RequestPart("metadata") SendDepositFormRequest request,
+            @RequestPart("idFrontFile") MultipartFile idFrontFile,
+            @RequestPart("idBackFile") MultipartFile idBackFile,
+            @RequestPart("idPortraitFile") MultipartFile portraitFile
+    ) {
+        bookRoomUseCase.initDepositForm(
+                roomWebMapper.toCommand(request, idFrontFile, idBackFile, portraitFile)
+        );
         return ApiResponse.<Void>builder().build();
     }
 
     @GetMapping("/{roomCode}")
     public ApiResponse<RoomDetailsResponse> getRoomByCode(@PathVariable String roomCode) {
         Room room = getRoomByCodeUseCase.getRoomByCode(roomCode);
-        Floor floor = getFloorDetailsUseCase.execute(new GetFloorDetailsQuery(room.getFloorId()));
+        Floor floor = getFloorDetailsUseCase.execute(
+                new GetFloorDetailsQuery(room.getFloorId())
+        );
+        Property property = getPropertyDetailsUseCase.execute(
+                new GetPropertyDetailsQuery(floor.getPropertyId())
+        );
         List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
                 new GetRoomImagesByRoomIdQuery(room.getId())
         );
@@ -107,6 +147,7 @@ public class RoomController {
                         roomWebMapper.toRoomDetailsResponse(
                                 room,
                                 floor,
+                                property,
                                 roomImages
                         )
                 )

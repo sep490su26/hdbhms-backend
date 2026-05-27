@@ -62,7 +62,7 @@ public class CreateStaffUserService implements CreateStaffUserUseCase {
         );
         user.activeAccount();
         user = userRepository.save(user);
-        PersonProfile personProfile = PersonProfile.create(
+        PersonProfile personProfile = PersonProfile.createForStaff(
                 user.getId(),
                 command.getFullName(),
                 command.getPhone(),

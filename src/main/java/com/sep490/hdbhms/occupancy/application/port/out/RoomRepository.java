@@ -16,4 +16,6 @@ public interface RoomRepository {
     List<Room> findAllByPropertyIdAndFloorId(Long propertyId, Long floorId);
 
     Page<Room> findAll(List<Long> ids, RoomStatus status, Long minPrice, Long maxPrice, Pageable pageable);
+
+    Optional<Room> findByRoomCode(String roomCode);
 }

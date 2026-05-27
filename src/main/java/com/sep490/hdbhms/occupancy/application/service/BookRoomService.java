@@ -1,12 +1,13 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.file.domain.model.FileMetadata;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.occupancy.application.port.in.command.SendDepositFormCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
-import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.*;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -15,9 +16,12 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -29,6 +33,9 @@ public class BookRoomService implements BookRoomUseCase {
     RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
     DepositFormRepository depositFormRepository;
+    UploadIdentityFilePort uploadIdentityFilePort;
+    SendDepositPaymentPort sendDepositPaymentPort;
+    CreateRoomHoldTaskPort createRoomHoldTaskPort;
 
     @Override
     public void initDepositForm(SendDepositFormCommand command) {
@@ -37,21 +44,43 @@ public class BookRoomService implements BookRoomUseCase {
                     "This room is currently unavailable for booking."
             );
         }
-        DepositForm depositForm = DepositForm.newDepositForm(
-                command.roomId(),
-                command.fullName(),
-                command.dob(),
-                command.email(),
-                command.phone(),
-                command.permanentAddress(),
-                command.idNumber(),
-                command.idIssueDate(),
-                command.idIssuePlace(),
-                command.expectedMoveInDate(),
-                command.expectedLeaseSignDate()
-        );
-        log.info(depositForm.toString());
-        depositFormRepository.save(depositForm);
+        try {
+            FileMetadata idFrontFileMetadata = uploadIdentityFilePort.execute(command.idFrontFile(), FileCategory.ID_CARD);
+            FileMetadata idBackFileMetadata = uploadIdentityFilePort.execute(command.idBackFile(), FileCategory.ID_CARD);
+            FileMetadata portraitFileMetadata = uploadIdentityFilePort.execute(command.portraitFile(), FileCategory.ID_CARD);
+            DepositForm depositForm = DepositForm.newDepositForm(
+                    command.roomId(),
+                    command.fullName(),
+                    command.dob(),
+                    command.email(),
+                    command.phone(),
+                    command.permanentAddress(),
+                    command.idNumber(),
+                    command.idIssueDate(),
+                    command.idIssuePlace(),
+                    idFrontFileMetadata.getId(),
+                    idBackFileMetadata.getId(),
+                    portraitFileMetadata.getId(),
+                    command.expectedMoveInDate(),
+                    command.expectedLeaseSignDate()
+            );
+            depositForm = depositFormRepository.save(depositForm);
+            depositForm.approveDepositForm();
+            depositFormRepository.save(depositForm);
+            RoomHold roomHold = RoomHold.createRoomHoldForGuest(
+                    depositForm.getRoomId(),
+                    LocalDateTime.now().plusMinutes(15)
+            );
+            try {
+                roomHold = roomHoldRepository.save(roomHold);
+            } catch (DataIntegrityViolationException ex) {
+                throw new RuntimeException("Room is already locked");
+            }
+            createRoomHoldTaskPort.execute(roomHold);
+            sendDepositPaymentPort.execute(depositForm, roomHold);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public boolean isRoomAvailableForBooking(Long roomId) {

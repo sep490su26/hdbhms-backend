@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
+import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositFormEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -14,8 +15,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositFormPersistenceMapper {
-
     JpaRoomRepository jpaRoomRepository;
+    JpaFileMetadataRepository jpaFileMetadataRepository;
 
     public DepositForm toDomain(DepositFormEntity entity) {
         if (entity == null) return null;
@@ -30,6 +31,9 @@ public class DepositFormPersistenceMapper {
                 .fullName(entity.getFullName())
                 .email(entity.getEmail())
                 .phone(entity.getPhone())
+                .idFrontFileId(entity.getIdFrontFile() != null ? entity.getIdFrontFile().getId() : null)
+                .idBackFileId(entity.getIdBackFile() != null ? entity.getIdBackFile().getId() : null)
+                .portraitFileId(entity.getPortraitFile() != null ? entity.getPortraitFile().getId() : null)
                 .expectedMoveInDate(entity.getExpectedMoveInDate())
                 .expectedLeaseSignDate(entity.getExpectedLeaseSignDate())
                 .paymentDueAt(entity.getPaymentDueAt())
@@ -47,7 +51,7 @@ public class DepositFormPersistenceMapper {
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
                         : null)
                 .idNumber(domain.getIdNumber())
                 .permanentAddress(domain.getPermanentAddress())
@@ -57,6 +61,15 @@ public class DepositFormPersistenceMapper {
                 .fullName(domain.getFullName())
                 .email(domain.getEmail())
                 .phone(domain.getPhone())
+                .idFrontFile(domain.getIdFrontFileId() != null
+                        ? jpaFileMetadataRepository.getReferenceById(domain.getIdFrontFileId())
+                        : null)
+                .idBackFile(domain.getIdBackFileId() != null
+                        ? jpaFileMetadataRepository.getReferenceById(domain.getIdBackFileId())
+                        : null)
+                .portraitFile(domain.getPortraitFileId() != null
+                        ? jpaFileMetadataRepository.getReferenceById(domain.getPortraitFileId())
+                        : null)
                 .expectedMoveInDate(domain.getExpectedMoveInDate())
                 .expectedLeaseSignDate(domain.getExpectedLeaseSignDate())
                 .paymentDueAt(domain.getPaymentDueAt())

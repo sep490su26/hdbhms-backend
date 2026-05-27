@@ -22,4 +22,6 @@ public interface JpaRoomRepository extends JpaRepository<RoomEntity, Long>, JpaS
     List<RoomEntity> findAllByProperty_IdAndFloor_Id(Long propertyId, Long floorId);
 
     List<RoomEntity> findAllByProperty_Id(Long propertyId);
+
+    Optional<RoomEntity> findByRoomCode(String roomCode);
 }

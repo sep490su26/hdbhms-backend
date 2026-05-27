@@ -46,7 +46,7 @@ public class CreateDefaultOwnerAccountService implements CreateDefaultOwnerAccou
         user.activeAccount();
         user.registerFirstPasswordChange();
         user = userRepository.save(user);
-        PersonProfile personProfile = PersonProfile.create(
+        PersonProfile personProfile = PersonProfile.createForStaff(
                 user.getId(),
                 defaultConfig.getOwner().getFullName(),
                 defaultConfig.getOwner().getPhone(),
