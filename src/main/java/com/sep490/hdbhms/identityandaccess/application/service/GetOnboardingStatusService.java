@@ -17,12 +17,14 @@ import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -122,7 +124,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
     }
 
     private boolean hasCompletedIdentityVerification(User user) {
-        PersonProfile personProfile = personProfileRepository.findById(user.getId())
+        PersonProfile personProfile = personProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         return personProfile.getPortraitFileId() != null
                 && identityDocumentRepository.existsByProfileIdAndDocType(

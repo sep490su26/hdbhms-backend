@@ -18,7 +18,6 @@ public class UserResponse {
     Long id;
     String phone;
     String email;
-    String passwordHash;
     Role role;
     boolean mustChangePassword;
     AccountStatus status;
