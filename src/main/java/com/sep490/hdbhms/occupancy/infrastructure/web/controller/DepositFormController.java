@@ -20,11 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class DepositFormController {
     ApproveDepositFormUseCase approveDepositFormUseCase;
 
-    @PostMapping("/{depositFormId}/approve")
-    public ApiResponse<Void> approveDepositForm(@PathVariable Long depositFormId) {
-        approveDepositFormUseCase.approveAndInitiatePayment(
-                new ApproveDepositFormCommand(depositFormId)
-        );
-        return ApiResponse.<Void>builder().build();
-    }
+//    @PostMapping("/{depositFormId}/approve")
+//    public ApiResponse<Void> approveDepositForm(@PathVariable Long depositFormId) {
+//        approveDepositFormUseCase.approveAndInitiatePayment(
+//                new ApproveDepositFormCommand(depositFormId)
+//        );
+//        return ApiResponse.<Void>builder().build();
+//    }
 }
