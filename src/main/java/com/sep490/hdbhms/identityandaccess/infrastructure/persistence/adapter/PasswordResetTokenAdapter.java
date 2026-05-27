@@ -1,8 +1,13 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.adapter;
 
+import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountByIdQuery;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetUserUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetEmailVerifierSender;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetTokenGenerator;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetTokenPort;
+import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.ResetPasswordConfig;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -19,24 +24,28 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PasswordResetTokenAdapter implements PasswordResetTokenPort {
+    GetUserUseCase getUserUseCase;
+    OtpCodeGenerator otpCodeGenerator;
     ResetPasswordConfig resetPasswordConfig;
     RedisTemplate<String, String> redisTemplate;
     PasswordResetTokenGenerator passwordResetTokenGenerator;
+    private static final Duration OTP_TTL = Duration.ofMinutes(15);
     PasswordResetEmailVerifierSender passwordResetEmailVerifierSender;
-    private static final Duration OTP_TTL = Duration.ofMinutes(5);
 
     @Override
-    public void sendPasswordResetToken(Long accountId, String toEmail) {
-        var passwordResetToken = passwordResetTokenGenerator.generate();
-        var key = buildKey(passwordResetToken);
-        redisTemplate.opsForValue().set(key, String.valueOf(accountId), OTP_TTL.toMillis(), TimeUnit.MILLISECONDS);
-        var resetLink = String.format(
-                "%s?token=%s",
-                resetPasswordConfig.getResetPasswordConfirmationUrl(),
-                passwordResetToken
+    public void sendPasswordResetToken(Long userId, String toEmail) {
+        User user = getUserUseCase.getById(new GetAccountByIdQuery(userId));
+        String passwordResetCode = otpCodeGenerator.generate();
+        String key = buildKey(passwordResetCode);
+        redisTemplate.opsForValue().set(key, String.valueOf(userId), OTP_TTL.toMillis(), TimeUnit.MILLISECONDS);
+        String resetLink = String.format(
+                "%s?code=%s",
+                (user.getRole() == Role.TENANT || user.getRole() == Role.LEAD) ?
+                        resetPasswordConfig.getMobileConfirmationUrl()
+                        : resetPasswordConfig.getWebConfirmationUrl(),
+                passwordResetCode
         );
-        passwordResetEmailVerifierSender.sendResetPasswordVerifier(toEmail, resetLink);
-        log.info("Password reset token sent to {}", toEmail);
+        passwordResetEmailVerifierSender.sendResetPasswordVerifier(toEmail, passwordResetCode, resetLink);
     }
 
     @Override
