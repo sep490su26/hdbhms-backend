@@ -86,4 +86,11 @@ public class SpringDataRoomRepository implements RoomRepository {
                 newStatus
         );
     }
+
+    @Override
+    public List<Room> findAll() {
+        return jpaRoomRepository.findAll().stream()
+                .map(roomPersistenceMapper::toDomain)
+                .toList();
+    }
 }

@@ -78,7 +78,6 @@ public class UserController {
     }
 
     @GetMapping("/{accountId}")
-//    @PreAuthorize("hasAuthority('ACCOUNT_READ')")
     ApiResponse<UserResponse> getAccount(@PathVariable Long accountId) {
         return ApiResponse.<UserResponse>builder()
                 .data(

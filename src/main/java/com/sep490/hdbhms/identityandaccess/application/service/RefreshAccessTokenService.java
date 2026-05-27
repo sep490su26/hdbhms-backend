@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
 
-import static com.sep490.hdbhms.shared.utils.SessionUtils.SESSION_ID_COOKIE_NAME;
+import static com.sep490.hdbhms.shared.utils.SessionUtils.ACCESS_TOKEN_COOKIE_NAME;
 
 @Slf4j
 @Service
@@ -36,26 +36,24 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
     @Override
     public WebAuthentication execute(RefreshAccessTokenCommand command, HttpServletRequest request, HttpServletResponse response) {
         var refreshToken = tokenProvider.getRefreshToken(request, true);
-        log.info("Refresh token: {}", refreshToken);
+        log.info("Refresh sessionId: {}", refreshToken);
         try {
             tokenProvider.verifyToken(refreshToken, true);
         } catch (AppException ignored) {
-            log.info("Refresh token expired: {}", refreshToken);
+            log.info("Refresh sessionId expired: {}", refreshToken);
             throw new AppException(ApiErrorCode.REFRESH_TOKEN_EXPIRED);
         } catch (ParseException | JOSEException e) {
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN);
         }
-
-        String accessToken = command.token();
-        tokenProvider.clearToken(accessToken, false);
+        Cookie accessTokenCookie = CookieUtils.getCookie(request, ACCESS_TOKEN_COOKIE_NAME)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNAUTHENTICATED));
+        tokenProvider.clearToken(accessTokenCookie.getValue(), false);
         Long userId = tokenProvider.getUserId(request);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
-        Cookie sessionCookie = CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNAUTHENTICATED));
         String newAccessToken = tokenProvider.createAccessToken(
                 user,
-                sessionCookie.getValue(),
+                command.sessionId(),
                 response
         );
         return new WebAuthentication(newAccessToken, user.getRole(), true);
