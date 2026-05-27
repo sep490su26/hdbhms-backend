@@ -1,5 +1,5 @@
 -- =========================================================
--- V6__seed_maintenance_ticket_flow.sql
+-- V3__seed_maintenance_ticket_flow.sql
 -- Seed thêm dữ liệu test cho mobile màn Báo cáo sự cố / Phiếu sự cố.
 -- Run AFTER V0__init.sql + V1__seed_5_tenant_accounts_full_test_data.sql
 -- Không sửa cấu trúc bảng; chỉ bổ sung dữ liệu demo cho các trạng thái ticket.

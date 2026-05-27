@@ -76,6 +76,10 @@ public class BookRoomService implements BookRoomUseCase {
             } catch (DataIntegrityViolationException ex) {
                 throw new RuntimeException("Room is already locked");
             }
+            Room room = roomRepository.findById(roomHold.getRoomId())
+                    .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+            room.holdRoom();
+            roomRepository.save(room);
             createRoomHoldTaskPort.execute(roomHold);
             sendDepositPaymentPort.execute(depositForm, roomHold);
         } catch (IOException e) {
