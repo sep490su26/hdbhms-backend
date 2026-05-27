@@ -13,8 +13,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@EnableAsync
-@EnableScheduling
 @SpringBootApplication(scanBasePackages = {"com.sep490.*"}, exclude = {RedisRepositoriesAutoConfiguration.class})
 @EnableConfigurationProperties({
         AuthProperties.class,

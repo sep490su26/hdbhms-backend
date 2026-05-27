@@ -27,7 +27,7 @@ public class VerifyEmailService implements VerifyEmailUseCase {
     @Override
     public void requestEmailVerification(RequestVerifyEmailCommand command) {
         var account = command.user();
-        if (account.isEmailVerified()) {
+        if (account.isMustChangePassword()) {
             throw new AppException(ApiErrorCode.ACCOUNT_IS_ALREADY_VERIFIED);
         }
         otpCodePort.sendOtp(
@@ -41,7 +41,7 @@ public class VerifyEmailService implements VerifyEmailUseCase {
     @Override
     public void verifyEmail(VerifyEmailCommand command) {
         var account = command.user();
-        if (account.isEmailVerified()) {
+        if (account.isMustChangePassword()) {
             throw new AppException(ApiErrorCode.ACCOUNT_IS_ALREADY_VERIFIED);
         }
         otpCodePort.verifyOtp(
@@ -49,7 +49,6 @@ public class VerifyEmailService implements VerifyEmailUseCase {
                 OtpType.EMAIL_VERIFICATION,
                 command.otp()
         );
-        account.verifyEmail();
         userRepository.save(account);
     }
 }

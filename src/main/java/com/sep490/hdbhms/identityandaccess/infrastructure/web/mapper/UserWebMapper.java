@@ -4,7 +4,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.command.CreateUse
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.model.LoginHistory;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.UserCreationRequest;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.AccountResponse;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.LoginHistoryResponse;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
@@ -14,7 +14,7 @@ public interface UserWebMapper {
 
     CreateUserCommand toCommand(UserCreationRequest request);
 
-    AccountResponse toAccountResponse(User user);
+    UserResponse toAccountResponse(User user);
 
     LoginHistoryResponse toLoginHistoryResponse(LoginHistory loginHistory);
 }

@@ -6,4 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface JpaIdentityDocumentRepository extends JpaRepository<IdentityDocumentEntity, Long> {
     boolean existsByDocTypeAndDocNumber(DocumentType documentType, String idNumber);
+
+    boolean existsByProfile_IdAndDocType(Long profileId, DocumentType documentType);
 }

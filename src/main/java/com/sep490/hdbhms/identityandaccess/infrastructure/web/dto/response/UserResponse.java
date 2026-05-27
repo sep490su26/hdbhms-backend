@@ -1,9 +1,12 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -11,9 +14,15 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class AuthenticationResponse {
-    String token;
-    String sessionId;
+public class UserResponse {
+    Long id;
+    String phone;
+    String email;
     Role role;
-    boolean authorized;
+    boolean mustChangePassword;
+    AccountStatus status;
+    LocalDateTime lastLoginAt;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+    LocalDateTime deletedAt;
 }

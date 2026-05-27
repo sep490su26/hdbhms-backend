@@ -1,8 +1,9 @@
 package com.sep490.hdbhms.identityandaccess.application.service;
 
-import com.sep490.hdbhms.identityandaccess.application.port.in.command.CreateUserCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateDefaultOwnerAccountUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
+import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.shared.constant.DefaultConfig;
@@ -23,31 +24,34 @@ public class CreateDefaultOwnerAccountService implements CreateDefaultOwnerAccou
     DefaultConfig defaultConfig;
     UserRepository userRepository;
     PasswordEncoder passwordEncoder;
+    PersonProfileRepository personProfileRepository;
 
     @Override
     public void execute() {
         if (userRepository.existsAnOwnerAccount()) {
             return;
         }
-        CreateUserCommand command = new CreateUserCommand(
-                defaultConfig.getOwner().getEmail(),
-                defaultConfig.getOwner().getPhone(),
-                defaultConfig.getOwner().getPassword(),
-                Role.OWNER
-        );
         if (
-                userRepository.existsByEmail(command.getEmail())
-                        || userRepository.existsByPhone(command.getPhone())
+                userRepository.existsByEmail(defaultConfig.getOwner().getEmail())
+                        || userRepository.existsByPhone(defaultConfig.getOwner().getPhone())
         ) {
             throw new AppException(ApiErrorCode.ACCOUNT_EXISTED);
         }
         User user = User.newUser(
-                command.getEmail(),
-                command.getPhone(),
-                command.getPassword(),
-                command.getInitialRole()
+                defaultConfig.getOwner().getPhone(),
+                defaultConfig.getOwner().getEmail(),
+                passwordEncoder.encode(defaultConfig.getOwner().getPassword()),
+                Role.OWNER
         );
-        user.changePassword(passwordEncoder.encode(command.getPassword()));
-        userRepository.save(user);
+        user.activeAccount();
+        user.registerFirstPasswordChange();
+        user = userRepository.save(user);
+        PersonProfile personProfile = PersonProfile.create(
+                user.getId(),
+                defaultConfig.getOwner().getFullName(),
+                defaultConfig.getOwner().getPhone(),
+                defaultConfig.getOwner().getEmail()
+        );
+        personProfileRepository.save(personProfile);
     }
 }

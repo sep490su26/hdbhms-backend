@@ -2,12 +2,12 @@ package com.sep490.hdbhms.identityandaccess.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.in.command.LoginCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.LoginUseCase;
-import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.LoginHistoryRepository;
-import com.sep490.hdbhms.identityandaccess.domain.model.Authentication;
-import com.sep490.hdbhms.identityandaccess.domain.model.LoginHistory;
+import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
+import com.sep490.hdbhms.identityandaccess.domain.model.*;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.TokenProvider;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -35,18 +35,17 @@ public class LoginService implements LoginUseCase {
     LoginHistoryRepository loginHistoryRepository;
 
     @Override
-    public Authentication execute(LoginCommand command, HttpServletRequest request, HttpServletResponse response) {
-        log.info(command.phone());
-        var account = userRepository.findByPhone(command.phone())
+    public Authentication execute(String clientType, LoginCommand command, HttpServletRequest request, HttpServletResponse response) {
+        User user = userRepository.findByPhone(command.phone())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         boolean passwordMatched = passwordEncoder.matches(
                 command.password(),
-                account.getPasswordHash()
+                user.getPasswordHash()
         );
 
         if (!passwordMatched) {
-            var loginHistory = LoginHistory.newAccountModificationHistory(
-                    account.getId(),
+            LoginHistory loginHistory = LoginHistory.newAccountModificationHistory(
+                    user.getId(),
                     LoginStatus.INVALID_PASSWORD,
                     HttpUtils.getClientIpAddress(request),
                     HttpUtils.getUserAgent(request),
@@ -57,10 +56,11 @@ public class LoginService implements LoginUseCase {
             loginHistoryRepository.save(loginHistory);
             throw new AppException(ApiErrorCode.INVALID_PASSWORD);
         }
-        var sessionId = tokenProvider.createRefreshToken(account, request, response);
-        var accessToken = tokenProvider.createAccessToken(account, sessionId, response);
-        var loginHistory = LoginHistory.newAccountModificationHistory(
-                account.getId(),
+
+        String sessionId = tokenProvider.createRefreshToken(user, request, response);
+        String accessToken = tokenProvider.createAccessToken(user, sessionId, response);
+        LoginHistory loginHistory = LoginHistory.newAccountModificationHistory(
+                user.getId(),
                 LoginStatus.SUCCESS,
                 HttpUtils.getClientIpAddress(request),
                 HttpUtils.getUserAgent(request),
@@ -69,6 +69,18 @@ public class LoginService implements LoginUseCase {
                 SessionUtils.getOrCreateDeviceId(request, response)
         );
         loginHistoryRepository.save(loginHistory);
-        return new Authentication(accessToken, true);
+        if ("web".equals(clientType) && isStaff(user)) {
+            return new WebAuthentication(accessToken, user.getRole(), true);
+        } else if ("mobile".equals(clientType) && !isStaff(user)) {
+            return new MobileAuthentication(accessToken, sessionId, true);
+        } else {
+            throw new AppException(ApiErrorCode.UNDEFINED);
+        }
+    }
+
+    private boolean isStaff(User user) {
+        return user.getRole() == Role.OWNER
+                || user.getRole() == Role.MANAGER
+                || user.getRole() == Role.ACCOUNTANT;
     }
 }

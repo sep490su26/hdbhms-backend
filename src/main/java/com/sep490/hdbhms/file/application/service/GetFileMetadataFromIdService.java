@@ -19,6 +19,9 @@ public class GetFileMetadataFromIdService implements GetFileMetadataFromIdUseCas
 
     @Override
     public FileMetadata execute(GetFileMetadataFromIdQuery query) {
+        if (query.fileMetadataId() == null) {
+            return null;
+        }
         return fileMetadataRepository.findById(query.fileMetadataId())
                 .orElseThrow();
     }

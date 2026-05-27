@@ -1,10 +1,11 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.OnboardingAction;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -12,11 +13,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class AccountResponse {
-    String uuid;
-    String username;
-    String email;
-    Boolean emailVerified;
-    LocalDateTime createdAt;
-    LocalDateTime lastUpdatedAt;
+public class OnboardingStatusResponse {
+    Long userId;
+    boolean onBoardingCompleted;
+    List<OnboardingAction> actions;
 }
