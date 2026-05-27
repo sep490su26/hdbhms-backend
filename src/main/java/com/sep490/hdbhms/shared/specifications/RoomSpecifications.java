@@ -33,11 +33,15 @@ public class RoomSpecifications {
             Long minPrice,
             Long maxPrice
     ) {
-        return (root, query, criteriaBuilder) ->
-                criteriaBuilder.between(
-                        root.get("listedPrice"),
-                        minPrice,
-                        maxPrice
-                );
+        return (root, query, cb) -> {
+            if (minPrice == null && maxPrice == null) return null;
+            if (minPrice != null && maxPrice != null) {
+                return cb.between(root.get("listedPrice"), minPrice, maxPrice);
+            } else if (minPrice != null) {
+                return cb.greaterThanOrEqualTo(root.get("confirmedAt"), minPrice);
+            } else {
+                return cb.lessThanOrEqualTo(root.get("confirmedAt"), maxPrice);
+            }
+        };
     }
 }
