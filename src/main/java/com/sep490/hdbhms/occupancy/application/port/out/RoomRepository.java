@@ -20,4 +20,6 @@ public interface RoomRepository {
     Optional<Room> findByRoomCode(String roomCode);
 
     int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus);
+
+    List<Room> findAll();
 }
