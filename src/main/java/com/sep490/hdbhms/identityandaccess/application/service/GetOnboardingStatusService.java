@@ -65,7 +65,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
             boolean hasCompleted = hasCompletedIdentityVerification(user);
             actions.add(
                     OnboardingAction.builder()
-                            .actionKey("UPLOAD_IDENTITY_DOCUMENTS")
+                            .actionKey("IDENTITY_VERIFICATION")
                             .label("Upload identity documents")
                             .completed(hasCompleted)
                             .priority(priority++)
