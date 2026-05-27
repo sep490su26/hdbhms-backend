@@ -11,7 +11,6 @@ import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomImage;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateRoomRequest;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SendDepositFormRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper;
@@ -25,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -114,19 +112,6 @@ public class RoomController {
                         )
                 )
                 .build();
-    }
-
-    @PostMapping("/book")
-    public ApiResponse<Void> bookRoom(
-            @RequestPart("metadata") SendDepositFormRequest request,
-            @RequestPart("idFrontFile") MultipartFile idFrontFile,
-            @RequestPart("idBackFile") MultipartFile idBackFile,
-            @RequestPart("idPortraitFile") MultipartFile portraitFile
-    ) {
-        bookRoomUseCase.initDepositForm(
-                roomWebMapper.toCommand(request, idFrontFile, idBackFile, portraitFile)
-        );
-        return ApiResponse.<Void>builder().build();
     }
 
     @GetMapping("/{roomCode}")
