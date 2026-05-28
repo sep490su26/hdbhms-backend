@@ -4,6 +4,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SendDepositFormRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -25,7 +26,7 @@ public class DepositController {
 
     @PostMapping("/checkout")
     public ApiResponse<Void> bookRoom(
-            @RequestPart("metadata") SendDepositFormRequest request,
+            @Valid @RequestPart("metadata") SendDepositFormRequest request,
             @RequestPart("id_front_file") MultipartFile idFrontFile,
             @RequestPart("id_back_file") MultipartFile idBackFile,
             @RequestPart("portrait_file") MultipartFile portraitFile

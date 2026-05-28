@@ -36,9 +36,9 @@ import java.util.List;
 public class UserController {
     UserWebMapper userWebMapper;
     GetUserUseCase getUserUseCase;
+    UpdateUserUseCase updateUserUseCase;
     GetListUsersUseCase getListUsersUseCase;
     CreateStaffUserUseCase createStaffUserUseCase;
-    UpdateUserUseCase updateUserUseCase;
     GetUserLoginHistoryListUseCase getUserLoginHistoryListUseCase;
 
     @PostMapping("/staff")
