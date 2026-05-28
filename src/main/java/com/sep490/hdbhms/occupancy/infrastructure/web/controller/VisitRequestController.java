@@ -8,6 +8,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.*;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
+import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateVisitRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestResponse;
@@ -66,6 +67,9 @@ public class VisitRequestController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String propertyCode,
             @RequestParam(required = false) String roomCode,
+            @RequestParam(required = false) Long propertyId,
+            @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) VisitRequestStatus status,
             @RequestParam(required = false) LocalDateTime from,
             @RequestParam(required = false) LocalDateTime to,
             @PageableDefault(size = 20) Pageable pageable
@@ -78,6 +82,9 @@ public class VisitRequestController {
                                                         keyword,
                                                         propertyCode,
                                                         roomCode,
+                                                        propertyId,
+                                                        roomId,
+                                                        status,
                                                         from,
                                                         to,
                                                         pageable

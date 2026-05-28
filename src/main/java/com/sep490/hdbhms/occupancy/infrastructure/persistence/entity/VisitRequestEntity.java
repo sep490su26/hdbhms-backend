@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestSource;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -41,6 +42,10 @@ public class VisitRequestEntity {
 
     @Column(name = "preferred_start", nullable = false)
     LocalDateTime preferredStart;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source", length = 50)
+    VisitRequestSource source;
 
     @Column(columnDefinition = "TEXT")
     String notes;

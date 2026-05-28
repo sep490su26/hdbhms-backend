@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestSource;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +22,7 @@ public class VisitRequest {
     String visitorPhone;
     String visitorEmail;
     LocalDateTime preferredStart;
+    VisitRequestSource source;
     @Builder.Default
     VisitRequestStatus status = VisitRequestStatus.NOT_VIEWED;
     String notes;
@@ -36,6 +38,7 @@ public class VisitRequest {
             String visitorPhone,
             String visitorEmail,
             LocalDateTime preferredStart,
+            VisitRequestSource source,
             String notes
     ) {
         return VisitRequest.builder()
@@ -45,6 +48,7 @@ public class VisitRequest {
                 .visitorPhone(visitorPhone)
                 .visitorEmail(visitorEmail)
                 .preferredStart(preferredStart)
+                .source(source)
                 .notes(notes)
                 .build();
     }
