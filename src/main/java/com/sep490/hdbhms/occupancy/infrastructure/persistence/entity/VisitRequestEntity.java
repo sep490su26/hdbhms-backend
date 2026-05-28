@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestSource;
 import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -43,29 +42,24 @@ public class VisitRequestEntity {
     @Column(name = "preferred_start", nullable = false)
     LocalDateTime preferredStart;
 
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    VisitRequestStatus status = VisitRequestStatus.PENDING;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    VisitRequestSource source;
-
     @Column(columnDefinition = "TEXT")
     String notes;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false, nullable = false)
-    LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    LocalDateTime updatedAt;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 50)
+    VisitRequestStatus status;
 
     @Column(name = "deleted_at")
     LocalDateTime deletedAt;
 
     @Column(name = "deleted_by")
     Long deletedBy;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false, nullable = false)
+    LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    LocalDateTime updatedAt;
 }
