@@ -176,6 +176,29 @@ public class UpdateUserService implements UpdateUserUseCase {
         return user;
     }
 
+    @Override
+    public User updateUserFirstPassword(UpdateUserFirstPasswordCommand command) {
+        User user = userRepository.findById(command.userId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+        if (!user.isMustChangePassword()) {
+            throw new AppException(ApiErrorCode.INVALID_CREDENTIALS);
+        }
+        String oldPasswordHash = user.getPasswordHash();
+        String newPasswordHash = passwordEncoder.encode(command.newPassword());
+        user.changePassword(newPasswordHash);
+        user.registerFirstPasswordChange();
+        user = userRepository.save(user);
+        UserModificationHistory modificationHistory = UserModificationHistory
+                .newUserModificationHistory(
+                        user.getId(),
+                        ModificationType.PASSWORD_CHANGE,
+                        oldPasswordHash,
+                        newPasswordHash
+                );
+        userModificationHistoryRepository.save(modificationHistory);
+        return user;
+    }
+
     private void invalidateAllSession(User user, HttpServletRequest request, HttpServletResponse response) {
         var refreshToken = tokenProvider.getRefreshToken(request);
         if (!StringUtils.isEmpty(refreshToken)) {

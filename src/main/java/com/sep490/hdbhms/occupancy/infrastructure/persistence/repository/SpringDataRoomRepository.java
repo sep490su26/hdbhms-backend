@@ -66,12 +66,31 @@ public class SpringDataRoomRepository implements RoomRepository {
     ) {
         Specification<RoomEntity> specification = Specification
                 .where(RoomSpecifications.idIn(ids))
-                .and(RoomSpecifications.statusIn(status));
-        if (minPrice != null || maxPrice != null) {
-            specification = specification
-                    .and(RoomSpecifications.priceBetween(minPrice, maxPrice));
-        }
+                .and(RoomSpecifications.statusIn(status))
+                .and(RoomSpecifications.priceBetween(minPrice, maxPrice));
         return jpaRoomRepository.findAll(specification, pageable)
                 .map(roomPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<Room> findByRoomCode(String roomCode) {
+        return jpaRoomRepository.findByRoomCode(roomCode)
+                .map(roomPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus) {
+        return jpaRoomRepository.updateRoomStatusIfCurrent(
+                roomId,
+                expectedStatus,
+                newStatus
+        );
+    }
+
+    @Override
+    public List<Room> findAll() {
+        return jpaRoomRepository.findAll().stream()
+                .map(roomPersistenceMapper::toDomain)
+                .toList();
     }
 }

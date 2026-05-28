@@ -13,4 +13,6 @@ public interface UpdateUserUseCase {
     User confirmUpdateUserEmail(VerifyUpdateEmailCommand command);
 
     User updateUserPassword(UpdateUserPasswordCommand command);
+
+    User updateUserFirstPassword(UpdateUserFirstPasswordCommand command);
 }

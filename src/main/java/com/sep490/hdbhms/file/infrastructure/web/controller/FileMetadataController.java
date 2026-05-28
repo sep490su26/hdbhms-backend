@@ -8,7 +8,8 @@ import com.sep490.hdbhms.file.application.service.UploadBatchFileService;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.BatchFileResponse;
-import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileResponse;
+import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
+import com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
@@ -28,27 +29,34 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/resources")
+@RequestMapping("/api/v1/files")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class FileMetadataController {
     UploadFileService uploadFileService;
-    UploadBatchFileService uploadBatchFileService;
     DownloadFileService downloadFileService;
+    FileMetadataWebMapper fileMetadataWebMapper;
+    UploadBatchFileService uploadBatchFileService;
 
     @PostMapping("/upload")
     @ResponseStatus(HttpStatus.CREATED)
-    ApiResponse<FileResponse> upload(
+    ApiResponse<FileMetadataResponse> upload(
             @RequestPart("file") MultipartFile file,
-            @RequestParam("category") FileCategory category,
+            @RequestParam(value = "category", defaultValue = "OTHER") FileCategory category,
             @RequestParam(value = "isSensitive", defaultValue = "false") boolean isSensitive
     ) {
-        return ApiResponse.<FileResponse>builder()
-                .data(uploadFileService.execute(new UploadFileCommand(
-                        AuthUtils.getCurrentAuthenticationId(),
-                        file,
-                        category,
-                        isSensitive
-                )))
+        return ApiResponse.<FileMetadataResponse>builder()
+                .data(
+                        fileMetadataWebMapper.toSuccessResponse(
+                                uploadFileService.execute(
+                                        new UploadFileCommand(
+                                                AuthUtils.getCurrentAuthenticationId(),
+                                                file,
+                                                category,
+                                                isSensitive
+                                        )
+                                )
+                        )
+                )
                 .build();
     }
 

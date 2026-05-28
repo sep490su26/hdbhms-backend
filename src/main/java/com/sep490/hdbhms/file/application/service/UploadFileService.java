@@ -6,7 +6,6 @@ import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.file.infrastructure.utils.FileUtils;
-import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.HashUtils;
@@ -38,7 +37,7 @@ public class UploadFileService implements UploadFileUseCase {
     FileMetadataRepository fileMetadataRepository;
 
     @Override
-    public FileResponse execute(UploadFileCommand query) {
+    public FileMetadata execute(UploadFileCommand query) {
         Path tempFilePath = null;
         FileMetadata fileMetadata = null;
         try {
@@ -46,18 +45,14 @@ public class UploadFileService implements UploadFileUseCase {
 
             MultipartFile multipartFile = query.file();
             Long ownerId = query.ownerUserId();
-            if (ownerId == null) {
-                throw new AppException(ApiErrorCode.UNAUTHENTICATED);
-            }
-            String urlPrefix = fileProperties.getDownload().getPrefix();
+//            if (ownerId == null) {
+//                throw new AppException(ApiErrorCode.UNAUTHENTICATED);
+//            }
             // Check for duplicate using the unique database constraint
             Optional<FileMetadata> duplicate = fileMetadataRepository.findByChecksum(sha256Checksum);
             if (duplicate.isPresent()) {
-                return FileResponse.builder()
-                        .originalFileName(multipartFile.getOriginalFilename())
-                        .url(urlPrefix + duplicate.get().getId())
-                        .uploaded(true)
-                        .build();
+                log.info("{}", duplicate.get());
+                return duplicate.get();
             }
 
             log.info("Uploading file: {}", multipartFile.getOriginalFilename());
@@ -81,6 +76,7 @@ public class UploadFileService implements UploadFileUseCase {
             // Build metadata (without path)
             fileMetadata = FileMetadata.of(
                     ownerId,
+                    multipartFile.getOriginalFilename(),
                     multipartFile.getContentType(),
                     multipartFile.getSize(),
                     sha256Checksum,
@@ -99,14 +95,11 @@ public class UploadFileService implements UploadFileUseCase {
             Files.move(tempFilePath, finalPath, StandardCopyOption.REPLACE_EXISTING);
 
             fileMetadata.setStorageKey(finalPath.toString());
-            fileMetadataRepository.save(fileMetadata);
+            fileMetadata = fileMetadataRepository.save(fileMetadata);
+            log.info("{}", fileMetadata);
             // No need for a second save – the transaction will flush the change automatically
             log.info("Successfully uploaded file: {}", multipartFile.getOriginalFilename());
-            return FileResponse.builder()
-                    .originalFileName(multipartFile.getOriginalFilename())
-                    .url(FileUtils.buildFileUrl(fileName, urlPrefix, serverInfoUtils))
-                    .uploaded(true)
-                    .build();
+            return fileMetadata;
 
         } catch (IOException | AppException | NumberFormatException ex) {
             FileUtils.cleanupTempFile(tempFilePath);

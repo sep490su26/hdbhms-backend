@@ -26,19 +26,28 @@ public class IdentityDocument {
     byte[] rawOcrData;
     Long frontFileId;
     Long backFileId;
-    DocumentStatus status;
+    @Builder.Default
+    DocumentStatus status = DocumentStatus.ACTIVE;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 
     public static IdentityDocument create(
             Long profileId,
             DocumentType docType,
-            String docNumber) {
+            String docNumber,
+            LocalDate issuedDate,
+            String issuedPlace,
+            Long frontFileId,
+            Long backFileId
+    ) {
         return IdentityDocument.builder()
                 .profileId(profileId)
                 .docType(docType)
                 .docNumber(docNumber)
-                .status(DocumentStatus.ACTIVE)
+                .issuedDate(issuedDate)
+                .issuedPlace(issuedPlace)
+                .frontFileId(frontFileId)
+                .backFileId(backFileId)
                 .build();
     }
 

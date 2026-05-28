@@ -11,5 +11,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @ConfigurationProperties(prefix = "app.reset-password")
 public class ResetPasswordConfig {
-    String resetPasswordConfirmationUrl;
+    String webConfirmationUrl;
+    String mobileConfirmationUrl;
 }

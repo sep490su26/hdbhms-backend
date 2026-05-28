@@ -50,8 +50,10 @@ app:
       email: ${OWNER_EMAIL}
       phone: ${OWNER_PHONE}
       password: ${OWNER_PASSWORD}
+      full-name: ${OWNER_FULL_NAME}
   reset-password:
-    reset-password-confirmation-url: localhost:300/fshs/confirm-reset
+    web-confirmation-url: localhost:3000//confirm-reset
+    mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
   payment:
     provider: vnpay
     payos:

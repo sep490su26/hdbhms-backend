@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
+import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.DepositFormStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -48,6 +49,18 @@ public class DepositFormEntity {
 
     @Column(name = "phone", length = 30, nullable = false)
     String phone;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_front_file_id", nullable = true)
+     FileMetadataEntity idFrontFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_back_file_id", nullable = true)
+    FileMetadataEntity idBackFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "portrait_file_id", nullable = true)
+    FileMetadataEntity portraitFile;
 
     @Column(name = "expected_move_in_date", nullable = false)
     LocalDate expectedMoveInDate;

@@ -67,4 +67,24 @@ public class Room {
                 .sortOrder(sortOrder)
                 .build();
     }
+
+    public void reserveRoom() {
+        this.currentStatus = RoomStatus.RESERVED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void holdRoom() {
+        this.currentStatus = RoomStatus.ON_HOLD;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void releaseRoom() {
+        this.currentStatus = RoomStatus.VACANT;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void occupyRoom() {
+        this.currentStatus = RoomStatus.RESERVED;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

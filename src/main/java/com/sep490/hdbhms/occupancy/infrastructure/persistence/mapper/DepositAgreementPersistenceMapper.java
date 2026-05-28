@@ -34,7 +34,7 @@ public class DepositAgreementPersistenceMapper {
                 .tenantId(entity.getTenant() != null ? entity.getTenant().getId() : null)
                 .leadId(entity.getLead() != null ? entity.getLead().getId() : null)
                 .depositorPersonProfileId(entity.getDepositorPersonProfile() != null ? entity.getDepositorPersonProfile().getId() : null)
-                .roomHoldId(entity.getRoomHold().getId())
+                .roomHoldId(entity.getRoomHold() != null ? entity.getRoomHold().getId() : null)
                 .amount(entity.getAmount())
                 .expectedMoveInDate(entity.getExpectedMoveInDate())
                 .expectedLeaseSignDate(entity.getExpectedLeaseSignDate())

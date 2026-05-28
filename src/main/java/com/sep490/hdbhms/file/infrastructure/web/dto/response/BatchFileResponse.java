@@ -18,6 +18,6 @@ public class BatchFileResponse {
     int successfulUploads;
     int failedUploads;
     @Builder.Default
-    List<FileResponse> fileResponses = new ArrayList<>();
+    List<FileMetadataResponse> fileMetadataResponse = new ArrayList<>();
     String message;
 }

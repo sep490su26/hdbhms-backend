@@ -1,10 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestSource;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -16,18 +14,16 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CreateVisitRequestRequest {
-    @NotNull(message = "VISIT_006")
+    @NonNull
     Long propertyId;
     Long roomId;
-    @NotBlank(message = "VISIT_006")
+    @NotBlank
     String visitorName;
-    @NotBlank(message = "VISIT_006")
-    @Pattern(regexp = "^(0|\\+84)(\\d{9,10})$", message = "VISIT_003")
+    @NotBlank
     String visitorPhone;
+    @Email
     String visitorEmail;
-    @NotNull(message = "VISIT_006")
-    @Future(message = "VISIT_007")
+    @Future(message = "Preferred start date must be in the future")
     LocalDateTime preferredStart;
-    VisitRequestSource source;
     String notes;
 }

@@ -8,8 +8,8 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.*;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.AccountResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.LoginHistoryResponse;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
@@ -36,18 +36,18 @@ import java.util.List;
 public class UserController {
     UserWebMapper userWebMapper;
     GetUserUseCase getUserUseCase;
-    GetListUsersUseCase getListUsersUseCase;
-    CreateUserUseCase createUserUseCase;
     UpdateUserUseCase updateUserUseCase;
+    GetListUsersUseCase getListUsersUseCase;
+    CreateStaffUserUseCase createStaffUserUseCase;
     GetUserLoginHistoryListUseCase getUserLoginHistoryListUseCase;
 
-    @PostMapping
+    @PostMapping("/staff")
     @PreAuthorize("hasRole('OWNER')")
-    ApiResponse<AccountResponse> createAccount(@Valid @RequestBody UserCreationRequest request) {
-        return ApiResponse.<AccountResponse>builder()
+    ApiResponse<UserResponse> createStaffAccount(@Valid @RequestBody UserCreationRequest request) {
+        return ApiResponse.<UserResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(
-                                createUserUseCase.execute(userWebMapper.toCommand(request))
+                                createStaffUserUseCase.execute(userWebMapper.toCommand(request))
                         )
                 )
                 .build();
@@ -55,7 +55,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('OWNER')")
-    ApiResponse<PageResponse<AccountResponse>> getAccounts(
+    ApiResponse<PageResponse<UserResponse>> getAccounts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Role role,
             @RequestParam(required = false) AccountStatus status,
@@ -67,7 +67,7 @@ public class UserController {
                 status,
                 pageable
         );
-        return ApiResponse.<PageResponse<AccountResponse>>builder()
+        return ApiResponse.<PageResponse<UserResponse>>builder()
                 .data(
                         PageResponse.fromPageToPageResponse(
                                 getListUsersUseCase.execute(command)
@@ -78,9 +78,8 @@ public class UserController {
     }
 
     @GetMapping("/{accountId}")
-//    @PreAuthorize("hasAuthority('ACCOUNT_READ')")
-    ApiResponse<AccountResponse> getAccount(@PathVariable Long accountId) {
-        return ApiResponse.<AccountResponse>builder()
+    ApiResponse<UserResponse> getAccount(@PathVariable Long accountId) {
+        return ApiResponse.<UserResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(
                                 getUserUseCase.getById(new GetAccountByIdQuery(accountId))
@@ -104,13 +103,13 @@ public class UserController {
     }
 
     @PostMapping(value = "/me/email/confirm")
-    ApiResponse<AccountResponse> confirmMyEmailUpdate(
+    ApiResponse<UserResponse> confirmMyEmailUpdate(
             @Valid @RequestBody AccountEmailUpdateConfirmationRequest emailUpdateConfirmationRequest,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
-        return ApiResponse.<AccountResponse>builder()
+        return ApiResponse.<UserResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(
                                 updateUserUseCase.confirmUpdateUserEmail(
@@ -126,14 +125,30 @@ public class UserController {
                 .build();
     }
 
+    @PatchMapping(value = "/me/first-password")
+    ApiResponse<UserResponse> setMyFirstPassword(
+            @Valid @RequestBody AccountFirstPasswordUpdateRequest accountFirstPasswordUpdateRequest
+    ) {
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+        return ApiResponse.<UserResponse>builder()
+                .data(userWebMapper.toAccountResponse(
+                        updateUserUseCase.updateUserFirstPassword(
+                                new UpdateUserFirstPasswordCommand(
+                                        userId,
+                                        accountFirstPasswordUpdateRequest.getNewPassword()
+                                ))
+                ))
+                .build();
+    }
+
     @PatchMapping(value = "/me/password")
-    ApiResponse<AccountResponse> updateMyPassword(
+    ApiResponse<UserResponse> updateMyPassword(
             @Valid @RequestBody AccountPasswordUpdateRequest usernameUpdateRequest,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
-        return ApiResponse.<AccountResponse>builder()
+        return ApiResponse.<UserResponse>builder()
                 .data(userWebMapper.toAccountResponse(
                         updateUserUseCase.updateUserPassword(new UpdateUserPasswordCommand(
                                 userId,
@@ -146,13 +161,12 @@ public class UserController {
                 .build();
     }
 
-    @PreAuthorize("hasAuthority('ACCOUNT_WRITE')")
     @PutMapping(value = "/{userId}/status")
-    ApiResponse<AccountResponse> updateAccountStatus(
+    ApiResponse<UserResponse> updateAccountStatus(
             @PathVariable Long userId,
             @Valid @RequestBody AccountStatusUpdateRequest request
     ) {
-        return ApiResponse.<AccountResponse>builder()
+        return ApiResponse.<UserResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(
                                 updateUserUseCase.updateUserStatus(
@@ -166,13 +180,12 @@ public class UserController {
                 .build();
     }
 
-    @PreAuthorize("hasAuthority('ACCOUNT_WRITE')")
     @PutMapping(value = "/{accountId}/role")
-    ApiResponse<AccountResponse> updateAccountRole(
+    ApiResponse<UserResponse> updateAccountRole(
             @PathVariable Long accountId,
             @Valid @RequestBody AccountRoleUpdateRequest request
     ) {
-        return ApiResponse.<AccountResponse>builder()
+        return ApiResponse.<UserResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(
                                 updateUserUseCase.updateUserRole(
@@ -186,7 +199,6 @@ public class UserController {
                 .build();
     }
 
-    @PreAuthorize("hasAuthority('ACCOUNT_READ')")
     @GetMapping("/{accountId}/login-history")
     ApiResponse<PageResponse<LoginHistoryResponse>> getLoginHistory(
             @PathVariable Long accountId,

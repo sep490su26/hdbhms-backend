@@ -1,12 +1,6 @@
 package com.sep490.hdbhms.shared.config;
 
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateDefaultOwnerAccountUseCase;
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateUserUseCase;
-import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.UserCreationRequest;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
-import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

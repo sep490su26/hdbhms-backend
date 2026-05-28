@@ -25,6 +25,9 @@ public class DepositForm {
     LocalDate dob;
     String email;
     String phone;
+    Long idFrontFileId;
+    Long idBackFileId;
+    Long portraitFileId;
     LocalDate expectedMoveInDate;
     LocalDate expectedLeaseSignDate;
     LocalDateTime paymentDueAt;
@@ -47,6 +50,9 @@ public class DepositForm {
             String idNumber,
             LocalDate idIssueDate,
             String idIssuePlace,
+            Long idFrontFileId,
+            Long idBackFileId,
+            Long portraitFileId,
             LocalDate expectedMoveInDate,
             LocalDate expectedLeaseSignDate
     ) {
@@ -58,6 +64,9 @@ public class DepositForm {
                 .email(email)
                 .idIssueDate(idIssueDate)
                 .idIssuePlace(idIssuePlace)
+                .idFrontFileId(idFrontFileId)
+                .idBackFileId(idBackFileId)
+                .portraitFileId(portraitFileId)
                 .permanentAddress(permanentAddress)
                 .phone(phone)
                 .expectedMoveInDate(expectedMoveInDate)

@@ -31,6 +31,7 @@ public class FileMetadata {
 
     public static FileMetadata of(
             Long ownerUserId,
+            String originalName,
             String contentType,
             Long sizeBytes,
             String sha256Checksum,
@@ -39,6 +40,7 @@ public class FileMetadata {
     ) {
         return FileMetadata.builder()
                 .ownerUserId(ownerUserId)
+                .originalName(originalName)
                 .mimeType(contentType)
                 .sizeBytes(sizeBytes)
                 .sha256Checksum(sha256Checksum)

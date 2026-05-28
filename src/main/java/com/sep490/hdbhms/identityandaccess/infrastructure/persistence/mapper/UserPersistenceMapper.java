@@ -22,22 +22,13 @@ public class UserPersistenceMapper {
                 .email(entity.getEmail())
                 .passwordHash(entity.getPasswordHash())
                 .role(entity.getRole())
-                .emailVerified(entity.getEmailVerified() != null && entity.getEmailVerified())
+                .mustChangePassword(entity.getMustChangePassword() != null && entity.getMustChangePassword())
                 .status(entity.getStatus())
                 .lastLoginAt(entity.getLastLoginAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .deletedAt(entity.getDeletedAt())
                 .build();
-    }
-
-    public User toDomain(CreateUserCommand command) {
-        return User.newUser(
-                command.getPhone(),
-                command.getEmail(),
-                command.getPassword(),
-                command.getInitialRole()
-        );
     }
 
     public UserEntity toEntity(User domain) {
@@ -48,7 +39,7 @@ public class UserPersistenceMapper {
                 .email(domain.getEmail())
                 .passwordHash(domain.getPasswordHash())
                 .role(domain.getRole())
-                .emailVerified(domain.isEmailVerified())
+                .mustChangePassword(domain.isMustChangePassword())
                 .status(domain.getStatus())
                 .lastLoginAt(domain.getLastLoginAt())
                 .createdAt(domain.getCreatedAt())

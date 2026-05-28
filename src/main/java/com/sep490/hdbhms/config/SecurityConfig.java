@@ -59,7 +59,7 @@ public class SecurityConfig {
 //    }
 //
 //    @Bean
-//    JwtDecoder jwtDecoder(@Value("${app.jwt.secret:${app.auth.token-secret:}}") String secret) {
+//    JwtDecoder jwtDecoder(@Value("${app.jwt.secret:${app.auth.sessionId-secret:}}") String secret) {
 //        return NimbusJwtDecoder.withSecretKey(jwtSecretKey(secret))
 //                .macAlgorithm(MacAlgorithm.HS256)
 //                .build();

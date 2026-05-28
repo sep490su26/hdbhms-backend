@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.adapter;
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.IdentityDocumentRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
+import com.sep490.hdbhms.identityandaccess.application.port.out.SendPreCreatedAccountPort;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.IdentityDocument;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
@@ -13,13 +14,12 @@ import com.sep490.hdbhms.occupancy.domain.model.*;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
+import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +32,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenantPort {
-    JavaMailSender javaMailSender;
     UserRepository userRepository;
     LeadRepository leadRepository;
     RoomRepository roomRepository;
@@ -40,6 +39,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     TenantRepository tenantRepository;
     DepositFormRepository depositFormRepository;
     PersonProfileRepository personProfileRepository;
+    SendPreCreatedAccountPort sendPreCreatedAccountPort;
     DepositAgreementRepository depositAgreementRepository;
     IdentityDocumentRepository identityDocumentRepository;
 
@@ -107,8 +107,11 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         PersonProfile personProfile = PersonProfile.create(
                 user.getId(),
                 depositForm.getFullName(),
+                depositForm.getDob(),
                 depositForm.getPhone(),
-                depositForm.getEmail()
+                depositForm.getEmail(),
+                depositForm.getPermanentAddress(),
+                depositForm.getPortraitFileId()
         );
         personProfile = personProfileRepository.save(personProfile);
         if (identityDocumentRepository.existsByDocTypeAndDocNumber(
@@ -118,35 +121,21 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         IdentityDocument identityDocument = IdentityDocument.create(
                 personProfile.getId(),
                 DocumentType.CCCD,
-                depositForm.getIdNumber()
+                depositForm.getIdNumber(),
+                depositForm.getIdIssueDate(),
+                depositForm.getIdIssuePlace(),
+                depositForm.getIdFrontFileId(),
+                depositForm.getIdBackFileId()
         );
         identityDocumentRepository.save(identityDocument);
-
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setSubject("[Nhà trọ Hải Đăng] Gửi thông tin tài khoản người dùng");
-        message.setTo(depositForm.getEmail());
-        message.setText(
-                String.format(
-                        """
-                                Kính gửi Anh/Chị %s,
-                                
-                                Hệ thống đã tạo tài khoản cho Anh/Chị thành công.
-                                
-                                Thông tin đăng nhập:
-                                
-                                Tên đăng nhập: %s
-                                Mật khẩu tạm thời: %s
-                                
-                                
-                                Vui lòng đăng nhập và đổi mật khẩu sau lần đăng nhập đầu tiên để đảm bảo an toàn tài khoản.
-                                Trân trọng.
-                                """,
-                        depositForm.getFullName(),
-                        depositForm.getPhone(),
-                        randomPassword
-                )
-        );
-        javaMailSender.send(message);
+        if (!StringUtils.isEmpty(depositForm.getEmail())) {
+            sendPreCreatedAccountPort.sendAccountInformation(
+                    depositForm.getEmail(),
+                    depositForm.getFullName(),
+                    depositForm.getPhone(),
+                    randomPassword
+            );
+        }
 
         depositAgreement.setLeadId(lead.getId());
         depositAgreement.setDepositorPersonProfileId(personProfile.getId());
