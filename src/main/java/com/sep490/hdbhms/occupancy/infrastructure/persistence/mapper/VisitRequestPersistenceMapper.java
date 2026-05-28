@@ -28,6 +28,10 @@ public class VisitRequestPersistenceMapper {
                 .preferredStart(entity.getPreferredStart())
                 .notes(entity.getNotes())
                 .createdAt(entity.getCreatedAt())
+                .deletedAt(entity.getDeletedAt())
+                .deletedByUserId(entity.getDeletedBy())
+                .status(entity.getStatus())
+                .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 
@@ -47,6 +51,10 @@ public class VisitRequestPersistenceMapper {
                 .preferredStart(domain.getPreferredStart())
                 .notes(domain.getNotes())
                 .createdAt(domain.getCreatedAt())
+                .deletedAt(domain.getDeletedAt())
+                .deletedBy(domain.getDeletedByUserId())
+                .status(domain.getStatus())
+                .updatedAt(domain.getUpdatedAt())
                 .build();
     }
 }
