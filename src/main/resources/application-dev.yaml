@@ -24,6 +24,13 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    locations:
-      - classpath:/migration/dev/
+    locations: classpath:migration/dev
     baseline-version: 0
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha

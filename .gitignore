@@ -5,6 +5,7 @@
 TODO.md
 HELP.md
 target/
+identity/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

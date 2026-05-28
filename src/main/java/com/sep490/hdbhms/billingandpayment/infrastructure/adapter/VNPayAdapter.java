@@ -10,6 +10,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -21,7 +22,7 @@ import java.util.*;
 
 import static com.sep490.hdbhms.shared.utils.HashUtils.hmacSHA512;
 
-
+@Primary
 @Component
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -37,15 +38,14 @@ public class VNPayAdapter implements ExternalPaymentPort {
         params.put("vnp_TmnCode", vnPayProperties.getTmnCode());
         params.put("vnp_Amount", String.valueOf(new BigDecimal(request.amount()).multiply(new BigDecimal(100)).longValue()));
         params.put("vnp_CurrCode", "VND");
-        params.put("vnp_Locale", "en");
-        params.put("vnp_TxnRef", request.paymentId());   // Use tracking ID as transaction reference
-        params.put("vnp_OrderInfo", "Add balance for user " + request.paymentId());
+        params.put("vnp_Locale", "vn");
+        params.put("vnp_TxnRef", String.valueOf(request.paymentId()));   // Use tracking ID as transaction reference
+        params.put("vnp_OrderInfo", request.description());
         params.put("vnp_OrderType", "other");
-        params.put("vnp_ReturnUrl", request.returnUrl());
+        params.put("vnp_ReturnUrl", vnPayProperties.getReturnUrl());
         params.put("vnp_IpAddr", "8.8.8.8"); // Should be actual client IP
         params.put("vnp_CreateDate", new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(new Date()));
         params.put("vnp_ExpireDate", new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(Date.from(Instant.now().plus(10, ChronoUnit.MINUTES))));
-//        params.put("vnp_SecureHashType", "HmacSHA512");
         var fieldNames = new ArrayList<>(params.keySet());
         Collections.sort(fieldNames);
         var hashData = new StringBuilder();

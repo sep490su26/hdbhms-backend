@@ -3,6 +3,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -12,9 +13,8 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -54,8 +54,12 @@ public class InvoiceEntity {
     RoomEntity room;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "contract_id", nullable = true)
-    LeaseContractEntity contract;
+    @JoinColumn(name = "lease_contract_id", nullable = true)
+    LeaseContractEntity leastContract;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deposit_agreement_id", nullable = true)
+    DepositAgreementEntity depositAgreement;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "invoice_type", nullable = false, length = 50)
@@ -69,10 +73,10 @@ public class InvoiceEntity {
     String billingPeriod;
 
     @Column(name = "issue_date", nullable = false)
-    LocalDate issueDate;
+    LocalDateTime issueDate;
 
     @Column(name = "due_date", nullable = false)
-    LocalDate dueDate;
+    LocalDateTime dueDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -110,21 +114,21 @@ public class InvoiceEntity {
     UserEntity createdBy;
 
     @Column(name = "issued_at")
-    Instant issuedAt;
+    LocalDateTime issuedAt;
 
     @Column(name = "voided_at")
-    Instant voidedAt;
+    LocalDateTime voidedAt;
 
     @Column(name = "void_reason", length = 1000)
     String voidReason;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
-    Instant createdAt;
+    LocalDateTime createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
-    Instant updatedAt;
+    LocalDateTime updatedAt;
 
     @Version
     @Column(nullable = false)

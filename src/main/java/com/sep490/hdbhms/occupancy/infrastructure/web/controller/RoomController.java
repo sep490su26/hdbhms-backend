@@ -42,11 +42,11 @@ public class RoomController {
 
     @GetMapping
     public ApiResponse<PageResponse<RoomResponse>> getRooms(
-            @RequestParam Long propertyId,
-            @RequestParam Long floorId,
-            @RequestParam RoomStatus status,
-            @RequestParam Long minPrice,
-            @RequestParam Long maxPrice,
+            @RequestParam(defaultValue = "1") Long propertyId,
+            @RequestParam(required = false) Long floorId,
+            @RequestParam(required = false) RoomStatus status,
+            @RequestParam(required = false) Long minPrice,
+            @RequestParam(required = false) Long maxPrice,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         return ApiResponse.<PageResponse<RoomResponse>>builder()

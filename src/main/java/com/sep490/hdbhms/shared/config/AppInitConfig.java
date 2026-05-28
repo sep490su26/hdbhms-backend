@@ -1,9 +1,12 @@
 package com.sep490.hdbhms.shared.config;
 
-import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateAccountUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateDefaultOwnerAccountUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.CreateUserUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
-import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AccountWebMapper;
-import com.sep490.hdbhms.shared.constant.Default;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.UserCreationRequest;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
+import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -21,57 +24,13 @@ import org.springframework.stereotype.Controller;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AppInitConfig {
-    CreateAccountUseCase createAccountUseCase;
-    UserRepository userRepository;
-    AccountWebMapper accountWebMapper;
-    Default aDefault;
-
+    CreateDefaultOwnerAccountUseCase createDefaultOwnerAccountUseCase;
     @Bean
     ApplicationRunner init() {
         log.info("Initializing application");
         return args -> {
-//            Role adminRoleEntity = null;
-//            if (roleRepository.findByRoleName(PredefinedRoles.OWNER).isEmpty()) {
-//                adminRoleEntity = roleRepository.save(Role.builder()
-//                        .name(PredefinedRoles.OWNER)
-//                        .description("Administrator role")
-//                        .build()
-//                );
-//            }
-//            if (roleRepository.findByRoleName(PredefinedRoles.MANAGER).isEmpty()) {
-//                roleRepository.save(Role.builder()
-//                        .name(PredefinedRoles.MANAGER)
-//                        .description("Reader role")
-//                        .build()
-//                );
-//            }
-//            if (roleRepository.findByRoleName(PredefinedRoles.ACCOUNTANT).isEmpty()) {
-//                roleRepository.save(Role.builder()
-//                        .name(PredefinedRoles.ACCOUNTANT)
-//                        .description("Content provider role")
-//                        .build()
-//                );
-//            }
-//            if (
-//                    !accountRepository.existsByEmail(aDefault.getAdmin().getEmail())
-//                            && !accountRepository.existsByUsername(aDefault.getAdmin().getUsername())
-//            ) {
-//                var accountCreationRequest = AccountCreationRequest.builder()
-//                        .username(aDefault.getAdmin().getUsername())
-//                        .email(aDefault.getAdmin().getEmail())
-//                        .password(aDefault.getAdmin().getPassword())
-//                        .build();
-//                var createAccountCommand = accountWebMapper.toCommand(accountCreationRequest);
-//
-//                if (accountRepository.existsByUsername(aDefault.getAdmin().getUsername())) {
-//                    return;
-//                }
-//                if (adminRoleEntity != null) {
-//                    createAccountCommand.setInitialRole(adminRoleEntity.getName());
-//                }
-//                createAccountUseCase.execute(createAccountCommand);
-//            }
-//            log.info("Application initialized");
+            createDefaultOwnerAccountUseCase.execute();
+            log.info("Application initialized");
         };
     }
 
