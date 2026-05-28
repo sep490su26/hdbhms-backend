@@ -32,7 +32,7 @@ public class PropertyController {
 
     @GetMapping
     public ApiResponse<PageResponse<PropertyResponse>> getProperties(
-            @RequestParam PropertyStatus status,
+            @RequestParam(required = false) PropertyStatus status,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         return ApiResponse.<PageResponse<PropertyResponse>>builder()

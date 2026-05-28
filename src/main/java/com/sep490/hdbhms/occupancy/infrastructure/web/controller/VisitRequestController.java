@@ -19,6 +19,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -61,12 +62,12 @@ public class VisitRequestController {
 
     @GetMapping
     public ApiResponse<PageResponse<VisitRequestResponse>> getVisitRequests(
-            String keyword,
-            String propertyCode,
-            String roomCode,
-            LocalDateTime from,
-            LocalDateTime to,
-            Pageable pageable
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String propertyCode,
+            @RequestParam(required = false) String roomCode,
+            @RequestParam(required = false) LocalDateTime from,
+            @RequestParam(required = false) LocalDateTime to,
+            @PageableDefault(size = 20) Pageable pageable
     ) {
         return ApiResponse.<PageResponse<VisitRequestResponse>>builder()
                 .data(
@@ -81,7 +82,29 @@ public class VisitRequestController {
                                                         pageable
                                                 )
                                         )
-                                        .map(visitRequestWebMapper::toResponse)
+                                        .map(visitRequest -> {
+                                            return VisitRequestResponse.builder()
+                                                    .visitorName(visitRequest.getVisitorName())
+                                                    .visitorEmail(visitRequest.getVisitorEmail())
+                                                    .visitorPhone(visitRequest.getVisitorPhone())
+                                                    .createdAt(visitRequest.getCreatedAt())
+                                                    .roomName(visitRequest.getRoomId() == null ? null
+                                                                    : getRoomDetailsUseCase.execute(
+                                                                    new GetRoomDetailsQuery(
+                                                                            visitRequest.getRoomId()
+                                                                    )
+                                                            ).getName()
+                                                    )
+                                                    .propertyName(visitRequest.getPropertyId() == null ? null
+                                                                    : getPropertyDetailsUseCase.execute(
+                                                                    new GetPropertyDetailsQuery(
+                                                                            visitRequest.getPropertyId()
+                                                                    )
+                                                            ).getName()
+                                                    )
+                                                    .preferredStart(visitRequest.getPreferredStart())
+                                                    .build();
+                                        })
                         )
                 )
                 .build();

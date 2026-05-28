@@ -14,6 +14,8 @@ public class VisitRequestResponse {
     String visitorName;
     String visitorPhone;
     String visitorEmail;
+    String propertyName;
+    String roomName;
     LocalDateTime preferredStart;
     LocalDateTime createdAt;
 }
