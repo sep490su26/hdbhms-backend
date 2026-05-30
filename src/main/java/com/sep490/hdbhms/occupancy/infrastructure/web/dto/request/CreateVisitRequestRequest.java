@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestSource;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +25,5 @@ public class CreateVisitRequestRequest {
     String visitorEmail;
     @Future(message = "Preferred start date must be in the future")
     LocalDateTime preferredStart;
-    VisitRequestSource source;
     String notes;
 }

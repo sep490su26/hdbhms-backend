@@ -1,7 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestSource;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -37,6 +36,5 @@ public class VisitRequestCreateRequest {
     @JsonAlias("appointmentAt")
     LocalDateTime appointmentAt;
 
-    VisitRequestSource source;
     String note;
 }

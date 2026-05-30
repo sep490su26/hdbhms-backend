@@ -20,7 +20,6 @@ import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.DateUtils;
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +29,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
@@ -88,7 +88,8 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 depositAgreement.getId(),
                 depositAmount,
                 PaymentIntentProvider.BANK_TRANSFER,
-                depositAgreement.getDepositCode()
+                depositAgreement.getDepositCode(),
+                roomHold.getExpiresAt()
         );
         paymentIntent = paymentIntentRepository.save(paymentIntent);
         String checkoutUrl = externalPaymentPort.createCheckoutRequest(
@@ -103,6 +104,11 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     }
 
     private void sendDepositReceiptEmail(DepositForm depositForm, Room room, String checkoutUrl) {
+        if (!StringUtils.hasText(depositForm.getEmail())) {
+            log.info("Skip deposit receipt email because customer email is empty. depositFormId={}", depositForm.getId());
+            return;
+        }
+
         MimeMessage message = mailSender.createMimeMessage();
         try {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -110,8 +116,8 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
             helper.setSubject("[Nhà trọ Hải Đăng] Thanh toán hóa đơn đặt cọc phòng " + room.getRoomCode());
             helper.setText(generateDepositContractHtml(depositForm, room, checkoutUrl), true);
             mailSender.send(message);
-        } catch (MessagingException e) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+        } catch (Exception e) {
+            log.warn("Could not send deposit receipt email. depositFormId={}, email={}", depositForm.getId(), depositForm.getEmail(), e);
         }
     }
 
