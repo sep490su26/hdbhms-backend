@@ -28,7 +28,7 @@ public class DashboardController {
     @GetMapping
     @PreAuthorize("hasRole('OWNER') or hasRole('MANAGER') or hasRole('ACCOUNTANT')")
     public ApiResponse<DashboardResponse> getDashboard(
-            @RequestHeader(name = "X-Client-Type") String clientType
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
     ) {
         if (!"web".equals(clientType)) {
             throw new AppException(ApiErrorCode.UNAUTHORIZED);

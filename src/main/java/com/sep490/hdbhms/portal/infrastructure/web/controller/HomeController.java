@@ -28,7 +28,7 @@ public class HomeController {
     @GetMapping
     @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<HomeResponse> getHome(
-            @RequestHeader(name = "X-Client-Type") String clientType
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
     ) {
         if (!"mobile".equals(clientType)) {
             throw new AppException(ApiErrorCode.UNAUTHORIZED);

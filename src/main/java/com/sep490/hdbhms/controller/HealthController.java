@@ -45,13 +45,13 @@ public class HealthController {
     @Operation(summary = "Check backend, database, and Redis status")
     public Map<String, String> health() {
         String databaseStatus = isDatabaseUp() ? "UP" : "DOWN";
-        String redisStatus = isRedisUp() ? "UP" : "DOWN";
-        String status = "UP".equals(databaseStatus) && "UP".equals(redisStatus) ? "UP" : "DOWN";
+//        String redisStatus = isRedisUp() ? "UP" : "DOWN";
+//        String status = "UP".equals(databaseStatus) && "UP".equals(redisStatus) ? "UP" : "DOWN";
 
         Map<String, String> response = new LinkedHashMap<>();
-        response.put("status", status);
+//        response.put("status", status);
         response.put("database", databaseStatus);
-        response.put("redis", redisStatus);
+//        response.put("redis", redisStatus);
         return response;
     }
 
@@ -63,20 +63,20 @@ public class HealthController {
         }
     }
 
-    private boolean isRedisUp() {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(redisHost, redisPort), 2000);
-            socket.setSoTimeout(2000);
-
-            OutputStream outputStream = socket.getOutputStream();
-            outputStream.write(REDIS_PING);
-            outputStream.flush();
-
-            InputStream inputStream = socket.getInputStream();
-            byte[] response = inputStream.readNBytes(7);
-            return new String(response, StandardCharsets.US_ASCII).startsWith("+PONG");
-        } catch (IOException ex) {
-            return false;
-        }
-    }
+//    private boolean isRedisUp() {
+//        try (Socket socket = new Socket()) {
+//            socket.connect(new InetSocketAddress(redisHost, redisPort), 2000);
+//            socket.setSoTimeout(2000);
+//
+//            OutputStream outputStream = socket.getOutputStream();
+//            outputStream.write(REDIS_PING);
+//            outputStream.flush();
+//
+//            InputStream inputStream = socket.getInputStream();
+//            byte[] response = inputStream.readNBytes(7);
+//            return new String(response, StandardCharsets.US_ASCII).startsWith("+PONG");
+//        } catch (IOException ex) {
+//            return false;
+//        }
+//    }
 }

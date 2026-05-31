@@ -99,7 +99,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                         paymentIntent.getPaymentContent()
                 )
         ).checkOutUrl();
-        sendDepositReceiptEmail(depositForm, room, checkoutUrl);
+//        sendDepositReceiptEmail(depositForm, room, checkoutUrl);
         return paymentIntent;
     }
 

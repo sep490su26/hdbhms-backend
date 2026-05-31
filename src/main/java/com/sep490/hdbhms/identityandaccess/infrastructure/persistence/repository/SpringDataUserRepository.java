@@ -93,7 +93,8 @@ public class SpringDataUserRepository implements UserRepository {
         Specification<UserEntity> specification =
                 Specification.where(AccountSpecifications.idIn(ids))
                         .and(AccountSpecifications.roleIn(role))
-                        .and(AccountSpecifications.statusIn(status));
+                        .and(AccountSpecifications.statusIn(status))
+                        .and((root, query, cb) -> cb.notEqual(root.get("role"), Role.OWNER));
         return jpaUserRepository.findAll(specification, pageable)
                 .map(userPersistenceMapper::toDomain);
     }
