@@ -39,6 +39,7 @@ public class RoomPersistenceMapper {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .deletedAt(entity.getDeletedAt())
+                .version(entity.getVersion())
                 .build();
     }
 

@@ -24,6 +24,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -88,7 +89,7 @@ public class TokenProvider {
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
         JWSObject jwsObject = new JWSObject(jwsHeader, payload);
         try {
-            jwsObject.sign(new MACSigner(authProperties.getTokenSecret().getBytes()));
+            jwsObject.sign(new MACSigner(secretBytes()));
             var accessToken = jwsObject.serialize();
             var expiryMillis = expiryDate.toInstant().toEpochMilli();
             var ttl = expiryMillis - now.toInstant().toEpochMilli();
@@ -162,7 +163,7 @@ public class TokenProvider {
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
         JWSObject jwsObject = new JWSObject(jwsHeader, payload);
         try {
-            jwsObject.sign(new MACSigner(authProperties.getTokenSecret().getBytes()));
+            jwsObject.sign(new MACSigner(secretBytes()));
             var token = jwsObject.serialize();
 
             var key = String.format(refreshTokenKeyFormat, sessionId);
@@ -232,7 +233,7 @@ public class TokenProvider {
     }
 
     public SignedJWT verifyToken(String token, boolean isRefreshToken) throws JOSEException, ParseException {
-        var jwsVerifier = new MACVerifier(authProperties.getTokenSecret().getBytes());
+        var jwsVerifier = new MACVerifier(secretBytes());
         if (StringUtils.isEmpty(token)) {
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN);
         }
@@ -350,5 +351,9 @@ public class TokenProvider {
 
     public boolean hasSession(HttpServletRequest request) {
         return CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME).isPresent();
+    }
+
+    private byte[] secretBytes() {
+        return authProperties.getTokenSecret().getBytes(StandardCharsets.UTF_8);
     }
 }

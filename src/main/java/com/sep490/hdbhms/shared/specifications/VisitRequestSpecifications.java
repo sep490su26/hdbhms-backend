@@ -55,7 +55,13 @@ public class VisitRequestSpecifications {
     }
 
     public static Specification<VisitRequestEntity> hasStatus(VisitRequestStatus status) {
-        return (root, query, cb) -> status == null ? null : cb.equal(root.get("status"), status);
+        return (root, query, cb) -> {
+            if (status == null) return null;
+            if (status == VisitRequestStatus.NOT_VIEWED) {
+                return cb.or(cb.equal(root.get("status"), status), cb.isNull(root.get("status")));
+            }
+            return cb.equal(root.get("status"), status);
+        };
     }
 
     public static Specification<VisitRequestEntity> notDeleted() {

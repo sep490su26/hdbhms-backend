@@ -33,7 +33,8 @@ public class PaymentIntent {
             Long depositAgreementId,
             Long amount,
             PaymentIntentProvider provider,
-            String paymentContent
+            String paymentContent,
+            LocalDateTime expiresAt
     ) {
         return PaymentIntent.builder()
                 .invoiceId(invoiceId)
@@ -42,6 +43,7 @@ public class PaymentIntent {
                 .provider(provider)
                 .paymentContent(paymentContent)
                 .status(PaymentIntentStatus.PENDING)
+                .expiresAt(expiresAt)
                 .build();
     }
 

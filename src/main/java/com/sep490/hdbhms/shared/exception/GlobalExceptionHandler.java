@@ -6,17 +6,31 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Objects;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(value = ResponseStatusException.class)
+    <T> ResponseEntity<ApiResponse<T>> handlingResponseStatusException(
+            final ResponseStatusException e
+    ) {
+        return ResponseEntity.status(e.getStatusCode()).body(
+                ApiResponse.<T>builder()
+                        .code(e.getStatusCode().value())
+                        .message(e.getReason())
+                        .details(e.getMessage())
+                        .build()
+        );
+    }
+
     @ExceptionHandler(value = RuntimeException.class)
     <T> ResponseEntity<ApiResponse<T>> handlingRuntimeException(
             final RuntimeException e
     ) {
-        return ResponseEntity.badRequest().body(
+        return ResponseEntity.status(ApiErrorCode.UNDEFINED.getStatusCode()).body(
                 ApiResponse.<T>builder()
                         .code(ApiErrorCode.UNDEFINED.getCode())
                         .message(ApiErrorCode.UNDEFINED.getMessage())
@@ -30,7 +44,7 @@ public class GlobalExceptionHandler {
             final AppException e
     ) {
         ApiErrorCode apiErrorCode = e.getApiErrorCode();
-        return ResponseEntity.badRequest().body(
+        return ResponseEntity.status(apiErrorCode.getStatusCode()).body(
                 ApiResponse.<T>builder()
                         .code(apiErrorCode.getCode())
                         .message(apiErrorCode.getMessage())
@@ -44,7 +58,7 @@ public class GlobalExceptionHandler {
             final AccessDeniedException e
     ) {
         ApiErrorCode apiErrorCode = ApiErrorCode.UNAUTHORIZED;
-        return ResponseEntity.badRequest().body(
+        return ResponseEntity.status(apiErrorCode.getStatusCode()).body(
                 ApiResponse.<T>builder()
                         .code(apiErrorCode.getCode())
                         .message(apiErrorCode.getMessage())

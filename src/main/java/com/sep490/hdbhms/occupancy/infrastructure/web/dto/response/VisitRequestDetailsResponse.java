@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
+import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -18,6 +19,7 @@ public class VisitRequestDetailsResponse {
     String visitorPhone;
     String visitorEmail;
     LocalDateTime preferredStart;
+    VisitRequestStatus status;
     String notes;
     LocalDateTime createdAt;
 }

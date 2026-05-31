@@ -2,18 +2,14 @@ package com.sep490.hdbhms.scheduling.infrastructure.adapter;
 
 import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.scheduling.application.port.out.ExpireRoomHoldPort;
-import com.sep490.hdbhms.shared.exception.ApiErrorCode;
-import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,11 +33,15 @@ public class ExpireRoomHoldAdapter implements ExpireRoomHoldPort {
         roomHold.releaseOnAutoExpired();
         roomHoldRepository.save(roomHold);
 
-        // Try to release the room back to VACANT only if it's still RESERVED
-        roomRepository.updateRoomStatusIfCurrent(
+        int updatedRows = roomRepository.updateRoomStatusIfCurrent(
                 roomHold.getRoomId(),
-                RoomStatus.RESERVED,
+                RoomStatus.ON_HOLD,
                 RoomStatus.VACANT
         );
+        if (updatedRows == 0) {
+            log.info("Skip releasing room hold because room status changed. roomHoldId={}, roomId={}",
+                    roomHoldId,
+                    roomHold.getRoomId());
+        }
     }
 }

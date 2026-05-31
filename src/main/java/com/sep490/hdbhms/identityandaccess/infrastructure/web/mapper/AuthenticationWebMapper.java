@@ -30,6 +30,9 @@ public interface AuthenticationWebMapper {
                 return AuthenticationResponse.builder()
                         .token(mobileAuthentication.token())
                         .sessionId(mobileAuthentication.sessionId())
+                        .role(mobileAuthentication.role())
+                        .tenantId(mobileAuthentication.tenantId())
+                        .propertyId(mobileAuthentication.propertyId())
                         .authorized(mobileAuthentication.authorized())
                         .build();
             }

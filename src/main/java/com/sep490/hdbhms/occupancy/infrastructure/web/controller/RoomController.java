@@ -3,6 +3,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetFloorDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListRoomsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
+import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomImagesByRoomIdQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.*;
 import com.sep490.hdbhms.occupancy.domain.model.Floor;
@@ -38,6 +39,7 @@ public class RoomController {
     CreateRoomUseCase createRoomUseCase;
     GetListRoomsUseCase getListRoomsUseCase;
     GetRoomByCodeUseCase getRoomByCodeUseCase;
+    GetRoomDetailsUseCase getRoomDetailsUseCase;
     GetFloorDetailsUseCase getFloorDetailsUseCase;
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     GetRoomImagesByRoomIdUseCase getRoomImagesByRoomIdUseCase;
@@ -103,6 +105,31 @@ public class RoomController {
                 new GetRoomImagesByRoomIdQuery(room.getId())
         );
         return ApiResponse.<RoomDetailsResponse>builder()
+                .data(
+                        roomWebMapper.toRoomDetailsResponse(
+                                room,
+                                floor,
+                                property,
+                                roomImages
+                        )
+                )
+                .build();
+    }
+
+    @GetMapping("/id/{roomId}")
+    public ApiResponse<RoomDetailsResponse> getRoomById(@PathVariable Long roomId) {
+        Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(roomId));
+        Floor floor = getFloorDetailsUseCase.execute(
+                new GetFloorDetailsQuery(room.getFloorId())
+        );
+        Property property = getPropertyDetailsUseCase.execute(
+                new GetPropertyDetailsQuery(floor.getPropertyId())
+        );
+        List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
+                new GetRoomImagesByRoomIdQuery(room.getId())
+        );
+        return ApiResponse.<RoomDetailsResponse>builder()
+                .code(0)
                 .data(
                         roomWebMapper.toRoomDetailsResponse(
                                 room,
