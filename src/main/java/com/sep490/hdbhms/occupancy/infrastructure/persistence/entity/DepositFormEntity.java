@@ -62,6 +62,12 @@ public class DepositFormEntity {
     @JoinColumn(name = "portrait_file_id", nullable = true)
     FileMetadataEntity portraitFile;
 
+    @Column(name = "deposit_months", columnDefinition = "INT UNSIGNED")
+    Integer depositMonths;
+
+    @Column(name = "payment_cycle_months", columnDefinition = "TINYINT UNSIGNED")
+    Integer paymentCycleMonths;
+
     @Column(name = "expected_move_in_date", nullable = false)
     LocalDate expectedMoveInDate;
 

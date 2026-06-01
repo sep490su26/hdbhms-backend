@@ -28,6 +28,8 @@ public class DepositForm {
     Long idFrontFileId;
     Long idBackFileId;
     Long portraitFileId;
+    Integer depositMonths;
+    Integer paymentCycleMonths;
     LocalDate expectedMoveInDate;
     LocalDate expectedLeaseSignDate;
     LocalDateTime paymentDueAt;

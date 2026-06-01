@@ -55,10 +55,10 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
 
     @Override
     public PaymentIntent execute(DepositForm depositForm, RoomHold roomHold) {
-        Long depositAmount = 1000000L;
         Room room = roomRepository.findById(depositForm.getRoomId()).orElseThrow(
                 () -> new AppException(ApiErrorCode.UNDEFINED)
         );
+        Long depositAmount = depositForm.getDepositMonths() * room.getListedPrice();
         DepositAgreement depositAgreement = DepositAgreement.newDepositAgreementForLeadUser(
                 otpCodeGenerator.generate(),
                 room.getId(),

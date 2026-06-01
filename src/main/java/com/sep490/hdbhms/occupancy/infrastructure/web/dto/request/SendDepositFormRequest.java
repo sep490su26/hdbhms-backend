@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
 import com.sep490.hdbhms.shared.validator.Age;
+import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
 import com.sep490.hdbhms.shared.validator.VietnamesePhone;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -37,6 +38,11 @@ public class SendDepositFormRequest {
     String idIssueDate;
     @NotBlank
     String idIssuePlace;
+    @NotNull
+    Integer depositMonths;
+    @NotNull
+    @ValidPaymentCycle
+    Integer paymentCycleMonths;
     @NotNull
     @Future(message = "Move-in date must be in the future")
     LocalDate expectedMoveInDate;
