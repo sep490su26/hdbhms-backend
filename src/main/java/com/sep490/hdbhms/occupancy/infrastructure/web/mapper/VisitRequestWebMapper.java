@@ -16,6 +16,7 @@ public interface VisitRequestWebMapper {
 
     @Mapping(target = "id", source = "visitRequest.id")
     @Mapping(target = "createdAt", source = "visitRequest.createdAt")
+    @Mapping(target = "deletedAt", source = "visitRequest.deletedAt")
     @Mapping(target = "status", source = "visitRequest.status")
     VisitRequestDetailsResponse toDetailsResponse(VisitRequest visitRequest, Property property, Room room);
 

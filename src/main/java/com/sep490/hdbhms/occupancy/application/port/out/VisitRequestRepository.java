@@ -27,4 +27,8 @@ public interface VisitRequestRepository {
             LocalDateTime localDateTime,
             Pageable pageable
     );
+
+    Page<VisitRequest> findDeleted(Pageable pageable);
+
+    void deleteById(Long id);
 }
