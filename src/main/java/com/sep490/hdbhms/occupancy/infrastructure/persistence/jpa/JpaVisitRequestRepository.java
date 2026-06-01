@@ -2,6 +2,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.VisitRequestEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -22,6 +24,8 @@ public interface JpaVisitRequestRepository extends JpaRepository<VisitRequestEnt
     long countByDeletedAtIsNullAndStatus(VisitRequestStatus status);
 
     Optional<VisitRequestEntity> findByIdAndDeletedAtIsNotNull(Long id);
+
+    Page<VisitRequestEntity> findAllByDeletedAtIsNotNullOrderByDeletedAtDesc(Pageable pageable);
 
     long deleteByDeletedAtIsNotNullAndDeletedAtLessThanEqual(LocalDateTime cutoff);
 }

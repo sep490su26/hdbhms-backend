@@ -70,4 +70,15 @@ public class SpringDataVisitRequestRepository implements VisitRequestRepository 
         return jpaVisitRequestRepository.findAll(specification, pageable)
                 .map(visitRequestPersistenceMapper::toDomain);
     }
+
+    @Override
+    public Page<VisitRequest> findDeleted(Pageable pageable) {
+        return jpaVisitRequestRepository.findAllByDeletedAtIsNotNullOrderByDeletedAtDesc(pageable)
+                .map(visitRequestPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        jpaVisitRequestRepository.deleteById(id);
+    }
 }
