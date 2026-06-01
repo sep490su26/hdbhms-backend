@@ -1,8 +1,8 @@
-DROP DATABASE IF EXISTS hdbhms;
-CREATE DATABASE hdbhms
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_0900_ai_ci;
-USE hdbhms;
+-- DROP DATABASE IF EXISTS hdbhms;
+-- CREATE DATABASE hdbhms
+--     CHARACTER SET utf8mb4
+--     COLLATE utf8mb4_0900_ai_ci;
+-- USE hdbhms;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -570,7 +570,7 @@ CREATE TABLE contract_occupants
     KEY idx_occupant_contract_status (contract_id, status),
     KEY idx_occupant_profile_status (status),
     CONSTRAINT fk_co_contract FOREIGN KEY (contract_id) REFERENCES lease_contracts (id),
-    CONSTRAINT fk_co_tenant FOREIGN KEY (contract_id) REFERENCES tenants (id)
+    CONSTRAINT fk_co_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id)
 ) ENGINE = InnoDB;
 
 CREATE TABLE contract_events

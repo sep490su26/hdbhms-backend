@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"/>
+
+  <style>
+
+    @page {
+      size: A4;
+      margin: 2cm 2cm 2cm 2cm;
+    }
+
+    body {
+      font-family: "Times New Roman", serif;
+      font-size: 14pt;
+      line-height: 1.5;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+
+    .justify {
+      text-align: justify;
+    }
+
+    .indent {
+      text-indent: 1.27cm;
+    }
+
+    .contract-title {
+      text-align: center;
+      font-size: 18pt;
+      font-weight: bold;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-weight: bold;
+      margin-top: 16px;
+      margin-bottom: 8px;
+    }
+
+    .signature-table {
+      width: 100%;
+      margin-top: 40px;
+    }
+
+    .signature-table td {
+      width: 50%;
+      text-align: center;
+      vertical-align: top;
+    }
+
+    .no-break {
+      page-break-inside: avoid;
+    }
+
+  </style>
+  <title></title>
+
+</head>
+
+<body>
+
+<div class="center bold">
+  CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+</div>
+
+<div class="center bold">
+  Độc Lập – Tự Do – Hạnh Phúc
+</div>
+
+<div class="center">
+  ----------o0o----------
+</div>
+
+<div class="contract-title">
+  HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG
+</div>
+
+<p>
+  Hôm nay ngày
+  <span th:text="${issuedAt}"></span>
+</p>
+
+<p>
+  Chúng tôi những người ký tên dưới đây gồm:
+</p>
+
+<p class="bold">
+  1. BÊN NHẬN TIỀN ĐẶT CỌC (BÊN A)
+</p>
+
+<p>
+  Ông:
+  <span th:text="${ownerFullName}"></span>
+</p>
+
+<p>
+  Ngày sinh:
+  <span th:text="${ownerDob}"></span>
+</p>
+
+<p>
+  CMTND/CCCD số:
+  <span th:text="${ownerIdNumber}"></span>
+  ;
+  Cấp ngày:
+  <span th:text="${ownerIdIssuedDate}"></span>
+  ;
+  Nơi cấp:
+  <span th:text="${ownerIdIssuedPlace}"></span>
+</p>
+
+<p>
+  Điện thoại:
+  <span th:text="${ownerContactPhoneListString}"></span>
+</p>
+
+<p>
+  Là chủ sở hữu và sử dụng hợp pháp của toàn bộ căn nhà nêu tại Điều 1 dưới đây.
+</p>
+
+<p class="bold">
+  2. BÊN GIAO TIỀN ĐẶT CỌC (BÊN B)
+</p>
+
+<p>
+  Ông/Bà:
+  <span th:text="${fullName}"></span>
+</p>
+
+<p>
+  Ngày sinh:
+  <span th:text="${dob}"></span>
+</p>
+
+<p>
+  CMTND/CCCD:
+  <span th:text="${idNumber}"></span>
+  ;
+  Cấp ngày:
+  <span th:text="${idIssuedDate}"></span>
+  ;
+  Nơi cấp:
+  <span th:text="${idIssuedPlace}"></span>
+</p>
+
+<p>
+  Điện thoại:
+  <span th:text="${phone}"></span>
+</p>
+
+<p>
+  Địa chỉ thường trú:
+  <span th:text="${permanentAddress}"></span>
+</p>
+
+<p>
+  Sau khi bàn bạc, hai bên cùng đi đến thống nhất một số điều khoản như sau:
+</p>
+
+<div class="section-title">
+  ĐIỀU 1: TIỀN ĐẶT CỌC, MỤC ĐÍCH ĐẶT CỌC
+</div>
+
+<p class="justify indent">
+  1.1 Bên B đồng ý thuê của bên A phòng số
+  <span th:text="${roomNumber}"></span>.
+  Tòa nhà có địa chỉ: Số 70A1, Thôn 4, xã Thạch Hoà, Thạch Thất, Hà Nội.
+  Do bên A đại diện là Ban Quản Lý tòa nhà với các thỏa thuận trong hợp đồng như sau:
+</p>
+
+<p class="justify">
+  Mục đích thuê:
+  để ở và sinh hoạt với số lượng người đăng ký ở:
+  <span th:text="${occupantNumber}"></span>
+</p>
+
+<p class="justify">
+  Hợp đồng có thời hạn:
+  <span th:text="${contractDuration}"></span>
+  tháng và bắt đầu tính tiền từ
+  <span th:text="${contractStartDate}"></span>
+</p>
+
+<p class="justify">
+  Giá thuê phòng:
+  <span th:text="${listedPrice}"></span>
+  / 01 tháng
+</p>
+
+<p class="justify">
+  Phương thức thanh toán:
+  Đặt cọc
+  <span th:text="${depositMonths}"></span>
+  tháng và thanh toán
+  <span th:text="${paymentCycleMonths}"></span>
+  tháng tiền nhà
+</p>
+
+<p class="justify indent">
+  1.2 Để đảm bảo chắc chắn việc ký hợp đồng thuê phòng và trả tiền thuê phòng muộn nhất vào
+  <span th:text="${expectedLeaseSignDate}"></span>.
+  Nay bên B tự nguyện đóng cho bên A một số tiền là:
+  <span th:text="${depositAmount}"></span>
+  (Bằng chữ:
+  <span th:text="${depositAmountString}"></span>)
+  gọi là tiền đặt cọc.
+</p>
+
+<div class="section-title">
+  ĐIỀU 2: THỎA THUẬN VỀ VIỆC GIẢI QUYẾT TIỀN ĐẶT CỌC
+</div>
+
+<p class="justify indent">
+  2.1 Từ ngày ký hợp đồng này đến ngày
+  <span th:text="${expectedLeaseSignDate}"></span>
+  (là ngày bên B phải ký hợp đồng thuê và trả tiền thuê phòng)
+  mà bên B không liên hệ để ký hợp đồng thuê phòng và trả tiền thuê phòng
+  thì bên B sẽ mất toàn bộ số tiền đã đặt cọc.
+</p>
+
+<p class="justify indent">
+  2.2 Nếu đến hết ngày
+  <span th:text="${expectedLeaseSignDate}"></span>
+  (là ngày bên A phải ký hợp đồng với bên B),
+  mà bên A không ký hợp đồng cho thuê với bên B
+  thì bên A phải trả lại toàn bộ số tiền đặt cọc cho bên B.
+</p>
+
+<div class="section-title">
+  ĐIỀU 3: CAM KẾT CỦA HAI BÊN
+</div>
+
+<p class="justify indent">
+  3.1 Hai bên xác định hoàn toàn tự nguyện khi ký hợp đồng này
+  và cam kết cùng nhau thực hiện nghiêm túc những điều khoản trên đây.
+</p>
+
+<p class="justify indent">
+  3.2 Hợp đồng này có hiệu lực từ ngày ký.
+  Hợp đồng được lập thành 02 bản,
+  mỗi bên giữ 01 bản có giá trị pháp lý như nhau.
+  Sau khi đọc hợp đồng,
+  cả hai bên đã hiểu rõ quyền lợi và nghĩa vụ của mình
+  và cùng ký tên dưới đây.
+</p>
+
+<div class="center" style="margin-top: 20px;">
+  Hà Nội,
+  <span th:text="${depositSignedDateString}"></span>
+</div>
+
+<div class="no-break">
+
+  <table class="signature-table">
+
+    <tr>
+      <td>
+        <b>BÊN NHẬN TIỀN ĐẶT CỌC (BÊN A)</b>
+        <br/>
+        Ký, ghi rõ họ tên
+      </td>
+
+      <td>
+        <b>BÊN GIAO TIỀN ĐẶT CỌC (BÊN B)</b>
+        <br/>
+        Ký, ghi rõ họ tên
+      </td>
+    </tr>
+
+    <tr>
+      <td style="height:100px;"></td>
+      <td></td>
+    </tr>
+
+    <tr>
+      <td>
+        <b th:text="${ownerFullName}"></b>
+      </td>
+
+      <td>
+        <b th:text="${fullName}"></b>
+      </td>
+    </tr>
+
+  </table>
+
+</div>
+
+</body>
+</html>

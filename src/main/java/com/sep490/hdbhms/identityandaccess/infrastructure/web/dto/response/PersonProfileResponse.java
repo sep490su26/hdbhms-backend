@@ -1,0 +1,30 @@
+package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class PersonProfileResponse {
+    Long id;
+    Long userId;
+    String fullName;
+    LocalDate dob;
+    Gender gender;
+    String phone;
+    String email;
+    String permanentAddress;
+    FileMetadataResponse portraitFile;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+    LocalDateTime deletedAt;
+}

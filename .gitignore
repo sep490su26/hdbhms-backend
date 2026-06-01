@@ -5,6 +5,7 @@
 TODO.md
 HELP.md
 target/
+identity/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -36,3 +37,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local CodeX review log
+CodeX.md
