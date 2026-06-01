@@ -85,4 +85,9 @@ public class DepositAgreement {
         this.confirmedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void setContractFileId(Long contractFileId) {
+        this.contractFileId = contractFileId;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

@@ -52,6 +52,8 @@ public class DepositForm {
             String idNumber,
             LocalDate idIssueDate,
             String idIssuePlace,
+            Integer depositMonths,
+            Integer paymentCycleMonths,
             Long idFrontFileId,
             Long idBackFileId,
             Long portraitFileId,
@@ -64,6 +66,8 @@ public class DepositForm {
                 .idNumber(idNumber)
                 .fullName(fullName)
                 .email(email)
+                .depositMonths(depositMonths)
+                .paymentCycleMonths(paymentCycleMonths)
                 .idIssueDate(idIssueDate)
                 .idIssuePlace(idIssuePlace)
                 .idFrontFileId(idFrontFileId)

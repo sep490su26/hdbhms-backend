@@ -123,4 +123,10 @@ public class SpringDataUserRepository implements UserRepository {
         return jpaUserRepository.findByPhoneOrEmailAndDeletedAtIsNull(phone, email)
                 .map(userPersistenceMapper::toDomain);
     }
+
+    @Override
+    public Optional<User> findOwner() {
+        return jpaUserRepository.findByRole(Role.OWNER)
+                .map(userPersistenceMapper::toDomain);
+    }
 }

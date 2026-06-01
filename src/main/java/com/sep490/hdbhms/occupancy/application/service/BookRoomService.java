@@ -57,6 +57,8 @@ public class BookRoomService implements BookRoomUseCase {
                     command.idNumber(),
                     command.idIssueDate(),
                     command.idIssuePlace(),
+                    command.depositMonths(),
+                    command.paymentCycleMonths(),
                     idFrontFileMetadata.getId(),
                     idBackFileMetadata.getId(),
                     portraitFileMetadata.getId(),

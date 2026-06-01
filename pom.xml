@@ -279,6 +279,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>org.xhtmlrenderer</groupId>
+            <artifactId>flying-saucer-pdf-openpdf</artifactId>
+            <version>9.3.1</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -396,28 +402,6 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.flywaydb</groupId>
-                <artifactId>flyway-maven-plugin</artifactId>
-                <version>${flyway.version}</version>
-                <configuration>
-                    <url>jdbc:mysql://${env.MYSQL_HOST}:${env.MYSQL_PORT}/${env.MYSQL_DB}?serverTimezone=UTC</url>
-                    <user>${env.MYSQL_USERNAME}</user>
-                    <password>${env.MYSQL_PASSWORD}</password>
-                    <baselineOnMigrate>true</baselineOnMigrate>
-                    <baselineVersion>0</baselineVersion>
-                    <locations>
-                        <location>filesystem:src/main/resources/migration/dev</location>
-                    </locations>
-                </configuration>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.flywaydb</groupId>
-                        <artifactId>flyway-mysql</artifactId>
-                        <version>${flyway.version}</version>
-                    </dependency>
-                </dependencies>
             </plugin>
         </plugins>
     </build>
