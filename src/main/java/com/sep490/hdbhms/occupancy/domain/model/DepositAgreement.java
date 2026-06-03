@@ -77,6 +77,23 @@ public class DepositAgreement {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void attachContractFile(Long contractFileId) {
+        this.contractFileId = contractFileId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void changeStatus(DepositAgreementStatus nextStatus) {
+        if (nextStatus == null) {
+            throw new IllegalArgumentException("Deposit agreement status is required");
+        }
+        this.status = nextStatus;
+        if ((nextStatus == DepositAgreementStatus.PAID || nextStatus == DepositAgreementStatus.CONVERTED_TO_LEASE)
+                && this.confirmedAt == null) {
+            this.confirmedAt = LocalDateTime.now();
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void markPaid() {
         if (this.status == DepositAgreementStatus.PAID) {
             return;

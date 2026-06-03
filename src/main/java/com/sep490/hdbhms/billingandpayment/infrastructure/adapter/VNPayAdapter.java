@@ -77,7 +77,14 @@ public class VNPayAdapter implements ExternalPaymentPort {
                 request.paymentId(),
                 fullUrl,
                 PaymentIntentProvider.BANK_TRANSFER,
-                PaymentStatus.PENDING
+                PaymentStatus.PENDING,
+                request.amount(),
+                request.description(),
+                null,
+                fullUrl,
+                request.expiresAt(),
+                request.paymentId(),
+                null
         );
     }
 

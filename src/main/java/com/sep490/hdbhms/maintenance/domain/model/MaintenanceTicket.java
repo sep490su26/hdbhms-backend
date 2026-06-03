@@ -13,7 +13,7 @@ import lombok.experimental.FieldDefaults;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @ToString
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MaintenanceTicket {

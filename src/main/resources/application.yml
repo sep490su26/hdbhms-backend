@@ -55,18 +55,24 @@ app:
     web-confirmation-url: localhost:3000//confirm-reset
     mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
   payment:
-    provider: vnpay
+    provider: ${APP_PAYMENT_PROVIDER:vnpay}
     payos:
-      client-id: ${PAY_OS_CLIENT_ID}
-      api-key: ${PAY_OS_API_KEY}
-      checksum-key: ${PAY_OS_CHECKSUM_KEY}
-      return-url: https://unaudited-hazy-unnerve.ngrok-free.dev/api/v1/webhook/payos
-      cancel-url: https://api.payos.vn
+      client-id: ${PAYOS_CLIENT_ID:${PAY_OS_CLIENT_ID:}}
+      api-key: ${PAYOS_API_KEY:${PAY_OS_API_KEY:}}
+      checksum-key: ${PAYOS_CHECKSUM_KEY:${PAY_OS_CHECKSUM_KEY:}}
+      return-url: ${PAYOS_RETURN_URL:}
+      cancel-url: ${PAYOS_CANCEL_URL:}
     vnpay:
       tmn-code: ${VNPAY_TMN_CODE}
       hash-secret: ${VNPAY_HASH_SECRET}
       url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-      return-url: https://unaudited-hazy-unnerve.ngrok-free.dev/api/v1/webhook/vnpay/ipn
+      return-url: ${VNPAY_RETURN_URL:}
+  deposit:
+    amount: ${APP_DEPOSIT_AMOUNT:2000}
+    payment:
+      receiver-name: ${DEPOSIT_PAYMENT_RECEIVER_NAME:HAIDANG}
+      bank-name: ${DEPOSIT_PAYMENT_BANK_NAME:PayOS/VietQR}
+      account-number: ${DEPOSIT_PAYMENT_ACCOUNT_NUMBER:}
   file:
     download:
       prefix: ${DOWNLOAD_PREFIX}

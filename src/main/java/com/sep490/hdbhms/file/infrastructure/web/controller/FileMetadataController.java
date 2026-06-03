@@ -21,6 +21,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -81,6 +82,12 @@ public class FileMetadataController {
     @ResponseStatus(HttpStatus.OK)
     ResponseEntity<Resource> download(@PathVariable Long fileId) {
         var fileData = downloadFileService.execute(new DownloadFileQuery(fileId));
+        if (fileData == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy file");
+        }
+        if (fileData.sensitive()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "File nhạy cảm không được tải qua đường dẫn public");
+        }
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, fileData.contentType())
                 .body(fileData.resource());

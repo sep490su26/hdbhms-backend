@@ -51,6 +51,14 @@ public class RoomHold {
         this.status = RoomHoldStatus.CONFIRMED;
     }
 
+    public void confirmPaidHold() {
+        if (this.status == RoomHoldStatus.CONFIRMED) {
+            return;
+        }
+        this.status = RoomHoldStatus.CONFIRMED;
+        this.releasedAt = null;
+    }
+
     public void cancel() {
         if (this.status == RoomHoldStatus.CONFIRMED) {
             throw new IllegalStateException("Room hold is already confirmed");

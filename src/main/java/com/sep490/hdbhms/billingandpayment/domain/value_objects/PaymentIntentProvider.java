@@ -5,5 +5,6 @@ public enum PaymentIntentProvider {
     MOMO,
     ZALOPAY,
     CASH,
-    BANK_TRANSFER
+    BANK_TRANSFER,
+    PAYOS
 }

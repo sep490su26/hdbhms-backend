@@ -33,6 +33,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class BookRoomService implements BookRoomUseCase {
+    private static final long ROOM_HOLD_DURATION_MINUTES = 5;
+
     RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
     DepositFormRepository depositFormRepository;
@@ -70,7 +72,7 @@ public class BookRoomService implements BookRoomUseCase {
             depositFormRepository.save(depositForm);
             RoomHold roomHold = RoomHold.createRoomHoldForGuest(
                     depositForm.getRoomId(),
-                    LocalDateTime.now().plusMinutes(15)
+                    LocalDateTime.now().plusMinutes(ROOM_HOLD_DURATION_MINUTES)
             );
             try {
                 roomHold = roomHoldRepository.save(roomHold);

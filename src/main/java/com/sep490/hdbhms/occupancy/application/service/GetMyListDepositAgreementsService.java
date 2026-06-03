@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListDepositAgreementsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListDepositAgreementsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
@@ -35,11 +36,21 @@ public class GetMyListDepositAgreementsService implements GetMyListDepositAgreem
         }
         User user = userRepository.findById(query.userId())
                 .orElseThrow(() -> new RuntimeException("User Not Found"));
-        Tenant tenant = tenantRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Tenant Not Found"));
-        List<Long> ids = depositAgreementRepository.findAllByTenantId(tenant.getId()).stream()
-                .map(DepositAgreement::getId)
-                .toList();
+        List<Long> ids;
+        if (user.getRole() == Role.OWNER || user.getRole() == Role.MANAGER) {
+            ids = depositAgreementRepository.findAll().stream()
+                    .map(DepositAgreement::getId)
+                    .toList();
+        } else {
+            Tenant tenant = tenantRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> new RuntimeException("Tenant Not Found"));
+            ids = depositAgreementRepository.findAllByTenantId(tenant.getId()).stream()
+                    .map(DepositAgreement::getId)
+                    .toList();
+        }
+        if (ids.isEmpty()) {
+            return Page.empty(query.pageable());
+        }
 
         return depositAgreementRepository.findAll(
                 ids,

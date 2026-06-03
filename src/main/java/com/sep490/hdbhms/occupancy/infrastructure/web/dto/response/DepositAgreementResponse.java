@@ -15,6 +15,14 @@ public class DepositAgreementResponse {
     Long id;
     String depositCode;
     String roomCode;
+    String propertyName;
+    String depositorFullName;
+    String depositorPhone;
+    String depositorEmail;
+    Long amount;
+    LocalDateTime createdAt;
     DepositAgreementStatus status;
     LocalDateTime confirmedAt;
+    Long contractFileId;
+    String contractDownloadUrl;
 }

@@ -20,6 +20,10 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Objects;
+
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -52,21 +56,30 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
                 .payerAccount(command.getPayerAccount())
                 .content(command.getContent())
                 .status(TransactionStatus.PENDING_RECONCILE)
-                .rawPayload(command.getRawPayload().getBytes())
+                .rawPayload(valueOrEmpty(command.getRawPayload()).getBytes(StandardCharsets.UTF_8))
                 .build();
         paymentTransaction = paymentTransactionRepository.save(paymentTransaction);
 
         PaymentIntent paymentIntent = paymentIntentRepository.findById(command.getPaymentIntentId())
                 .orElse(null);
-        if (paymentIntent == null || paymentIntent.getStatus() != PaymentIntentStatus.PENDING) {
+        if (paymentIntent == null || !canReconcile(paymentIntent)) {
+            paymentTransaction.reject();
+            paymentTransactionRepository.save(paymentTransaction);
             return;
         }
 
-        paymentIntent.succeedPayment();
-        paymentIntent = paymentIntentRepository.save(paymentIntent);
+        if (isExpired(paymentIntent, command.getTransactionTime())) {
+            paymentIntent.expirePayment();
+            paymentIntentRepository.save(paymentIntent);
+            paymentTransaction.reject();
+            paymentTransactionRepository.save(paymentTransaction);
+            return;
+        }
 
         Long invoiceId = paymentIntent.getInvoiceId();
         if (invoiceId == null) {
+            paymentTransaction.reject();
+            paymentTransactionRepository.save(paymentTransaction);
             return;
         }
 
@@ -76,6 +89,14 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
                 invoice.getStatus() != InvoiceStatus.ISSUED
                         && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID
         ) {
+            paymentTransaction.reject();
+            paymentTransactionRepository.save(paymentTransaction);
+            return;
+        }
+
+        if (!isValidFullPayment(command, paymentIntent, invoice)) {
+            paymentTransaction.reject();
+            paymentTransactionRepository.save(paymentTransaction);
             return;
         }
 
@@ -89,8 +110,46 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
         invoice.applyAmount(amountToAllocate);
         invoice = invoiceRepository.save(invoice);
 
+        if (invoice.getStatus() != InvoiceStatus.PAID) {
+            paymentTransaction.reject();
+            paymentTransactionRepository.save(paymentTransaction);
+            return;
+        }
+
+        paymentIntent.succeedPayment();
+        paymentIntent = paymentIntentRepository.save(paymentIntent);
+
         paymentTransaction.setMatched();
         paymentTransactionRepository.save(paymentTransaction);
         completeInvoiceUseCase.execute(invoice, paymentAllocation);
+    }
+
+    private boolean isExpired(PaymentIntent paymentIntent, LocalDateTime transactionTime) {
+        LocalDateTime effectivePaymentTime = transactionTime == null ? LocalDateTime.now() : transactionTime;
+        return paymentIntent.getExpiresAt() != null
+                && paymentIntent.getExpiresAt().isBefore(effectivePaymentTime);
+    }
+
+    private boolean canReconcile(PaymentIntent paymentIntent) {
+        return paymentIntent.getStatus() == PaymentIntentStatus.PENDING
+                || paymentIntent.getStatus() == PaymentIntentStatus.EXPIRED;
+    }
+
+    private boolean isValidFullPayment(
+            ReconcilePaymentCommand command,
+            PaymentIntent paymentIntent,
+            Invoice invoice
+    ) {
+        if (command.getAmount() == null || command.getAmount() <= 0) {
+            return false;
+        }
+        if (!Objects.equals(command.getAmount(), paymentIntent.getAmount())) {
+            return false;
+        }
+        return Objects.equals(command.getAmount(), invoice.getRemainingAmount());
+    }
+
+    private String valueOrEmpty(String value) {
+        return value == null ? "" : value;
     }
 }
