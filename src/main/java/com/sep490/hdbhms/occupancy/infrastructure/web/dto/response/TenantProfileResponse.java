@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.modules.tenant.dto;
+package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDate;

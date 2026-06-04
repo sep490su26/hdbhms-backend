@@ -31,4 +31,6 @@ public interface UserRepository {
     List<Long> findIdsByFullText(String keyword);
 
     Optional<User> findByPhoneOrEmailAndDeletedAtIsNull(String phone, String email);
+
+    Optional<User> findOwner();
 }

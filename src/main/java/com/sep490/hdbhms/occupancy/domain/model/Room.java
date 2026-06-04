@@ -84,7 +84,7 @@ public class Room {
     }
 
     public void occupyRoom() {
-        this.currentStatus = RoomStatus.RESERVED;
+        this.currentStatus = RoomStatus.OCCUPIED;
         this.updatedAt = LocalDateTime.now();
     }
 }

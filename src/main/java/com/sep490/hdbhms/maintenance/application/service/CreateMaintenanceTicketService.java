@@ -10,17 +10,22 @@ import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepos
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicketAttachment;
 import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
+import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -35,31 +40,36 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
     GetLeaseContractOfTenantPort getLeaseContractOfTenantPort;
     GetRoomFromLeaseContractPort getRoomFromLeaseContractPort;
     MaintenanceTicketAttachmentRepository maintenanceTicketAttachmentRepository;
+    RoomRepository roomRepository;
 
     @Override
     public MaintenanceTicket execute(CreateMaintenanceTicketCommand command) {
         Long currentSessionUserId = AuthUtils.getCurrentAuthenticationId();
         Tenant tenant = tenantRepository.findByUserId(currentSessionUserId)
-                .orElseThrow(() -> new RuntimeException("Tenant not found"));
-        List<LeaseContract> activeLeaseContracts = getLeaseContractOfTenantPort.execute(tenant.getId());
-        if (activeLeaseContracts.isEmpty()) {
-            throw new RuntimeException("No active lease contract found");
-        }
-        LeaseContract leaseContract = activeLeaseContracts.getFirst();
-        Room room = getRoomFromLeaseContractPort.execute(leaseContract.getId());
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy thông tin khách thuê."));
+        LeaseRoom leaseRoom = resolveLeaseRoom(tenant, command.roomId());
 
-        //TODO: Modify enum type to match with command
-        MaintenanceTicket maintenanceTicket = MaintenanceTicket.newMaintenanceTicket(
-                room.getPropertyId(),
-                room.getId(),
-                leaseContract.getId(),
-                currentSessionUserId,
-                TicketScope.TENANT_ROOM,
-                command.description()
-        );
+        String category = firstNonBlank(command.category(), command.type(), "OTHER");
+        String title = firstNonBlank(command.title(), category);
+        TicketScope ticketScope = command.ticketScope() == null ? TicketScope.TENANT_ROOM : command.ticketScope();
+        Priority priority = command.priority() == null ? Priority.MEDIUM : command.priority();
+
+        MaintenanceTicket maintenanceTicket = MaintenanceTicket.builder()
+                .ticketCode(String.format("#SC-TMP-%d-%d", currentSessionUserId, System.nanoTime()))
+                .propertyId(leaseRoom.room().getPropertyId())
+                .roomId(leaseRoom.room().getId())
+                .contractId(leaseRoom.leaseContract() == null ? null : leaseRoom.leaseContract().getId())
+                .createdById(currentSessionUserId)
+                .ticketScope(ticketScope)
+                .priority(priority)
+                .category(category)
+                .title(title)
+                .description(command.description())
+                .build();
         maintenanceTicket = maintenanceTicketRepository.save(maintenanceTicket);
         String ticketCode = String.format("#SC-%04d", maintenanceTicket.getId());
         maintenanceTicket.setTicketCode(ticketCode);
+        maintenanceTicket = maintenanceTicketRepository.save(maintenanceTicket);
 
         List<Long> attachmentFileIds = command.attachmentIds();
         if (attachmentFileIds != null && !attachmentFileIds.isEmpty()) {
@@ -71,13 +81,45 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                         .fileId(fileId)
                         .attachmentPhase(AttachmentPhase.BEFORE)
                         .sortOrder(sort++)
-                        .createdById(currentSessionUserId)
+                        .createdById(tenant.getId())
                         .build();
                 maintenanceTicketAttachmentRepository.save(attachment);
             }
         }
 
         return maintenanceTicket;
+    }
+
+    private LeaseRoom resolveLeaseRoom(Tenant tenant, Long requestedRoomId) {
+        try {
+            List<LeaseContract> activeLeaseContracts = getLeaseContractOfTenantPort.execute(tenant.getId());
+            if (!activeLeaseContracts.isEmpty()) {
+                LeaseContract leaseContract = activeLeaseContracts.getFirst();
+                return new LeaseRoom(leaseContract, getRoomFromLeaseContractPort.execute(leaseContract.getId()));
+            }
+        } catch (RuntimeException ignored) {
+            // Some test tenants are created from deposit flow before a lease contract is generated.
+        }
+
+        if (requestedRoomId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng đang thuê để tạo phiếu sự cố.");
+        }
+
+        Room room = roomRepository.findById(requestedRoomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng đang thuê để tạo phiếu sự cố."));
+        if (!tenant.getPropertyId().equals(room.getPropertyId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền tạo phiếu sự cố cho phòng này.");
+        }
+        return new LeaseRoom(null, room);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!StringUtils.isEmpty(value)) {
+                return value.trim();
+            }
+        }
+        return "";
     }
 
     private void validateAttachments(List<Long> fileIds) {
@@ -87,5 +129,8 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                     "One or more attachment files are no longer available. Please re-upload."
             );
         }
+    }
+
+    private record LeaseRoom(LeaseContract leaseContract, Room room) {
     }
 }

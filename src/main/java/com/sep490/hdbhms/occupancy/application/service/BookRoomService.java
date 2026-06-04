@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.occupancy.application.port.in.command.SendDepositFormCommand;
@@ -17,8 +18,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -30,6 +33,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class BookRoomService implements BookRoomUseCase {
+    private static final long ROOM_HOLD_DURATION_MINUTES = 5;
+
     RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
     DepositFormRepository depositFormRepository;
@@ -38,12 +43,8 @@ public class BookRoomService implements BookRoomUseCase {
     CreateRoomHoldTaskPort createRoomHoldTaskPort;
 
     @Override
-    public void initDepositForm(SendDepositFormCommand command) {
-        if (!isRoomAvailableForBooking(command.roomId())) {
-            throw new IllegalArgumentException(
-                    "This room is currently unavailable for booking."
-            );
-        }
+    public PaymentIntent initDepositForm(SendDepositFormCommand command) {
+        ensureRoomAvailableForBooking(command.roomId());
         try {
             FileMetadata idFrontFileMetadata = uploadIdentityFilePort.execute(command.idFrontFile(), FileCategory.ID_CARD);
             FileMetadata idBackFileMetadata = uploadIdentityFilePort.execute(command.idBackFile(), FileCategory.ID_CARD);
@@ -58,6 +59,8 @@ public class BookRoomService implements BookRoomUseCase {
                     command.idNumber(),
                     command.idIssueDate(),
                     command.idIssuePlace(),
+                    command.depositMonths(),
+                    command.paymentCycleMonths(),
                     idFrontFileMetadata.getId(),
                     idBackFileMetadata.getId(),
                     portraitFileMetadata.getId(),
@@ -69,34 +72,63 @@ public class BookRoomService implements BookRoomUseCase {
             depositFormRepository.save(depositForm);
             RoomHold roomHold = RoomHold.createRoomHoldForGuest(
                     depositForm.getRoomId(),
-                    LocalDateTime.now().plusMinutes(15)
+                    LocalDateTime.now().plusMinutes(ROOM_HOLD_DURATION_MINUTES)
             );
             try {
                 roomHold = roomHoldRepository.save(roomHold);
             } catch (DataIntegrityViolationException ex) {
-                throw new RuntimeException("Room is already locked");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, buildActiveHoldMessage(depositForm.getRoomId()));
             }
             Room room = roomRepository.findById(roomHold.getRoomId())
                     .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
             room.holdRoom();
             roomRepository.save(room);
             createRoomHoldTaskPort.execute(roomHold);
-            sendDepositPaymentPort.execute(depositForm, roomHold);
+            return sendDepositPaymentPort.execute(depositForm, roomHold);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     public boolean isRoomAvailableForBooking(Long roomId) {
+        return getUnavailableReason(roomId) == null;
+    }
+
+    private void ensureRoomAvailableForBooking(Long roomId) {
+        String unavailableReason = getUnavailableReason(roomId);
+        if (unavailableReason != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, unavailableReason);
+        }
+    }
+
+    private String getUnavailableReason(Long roomId) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        if (room.getCurrentStatus() != RoomStatus.VACANT) {
-            return false;
+        LocalDateTime now = LocalDateTime.now();
+
+        RoomHold activeHold = roomHoldRepository.findActiveHoldByRoomId(roomId, now).orElse(null);
+        if (activeHold != null) {
+            return buildActiveHoldMessage(activeHold, now);
         }
-        boolean hasActiveHold = roomHoldRepository.existsByRoomIdAndStatusIn(
-                roomId,
-                List.of(RoomHoldStatus.ACTIVE, RoomHoldStatus.PAYMENT_PROCESSING)
-        );
-        return !hasActiveHold;
+
+        if (room.getCurrentStatus() != RoomStatus.VACANT) {
+            if (room.getCurrentStatus() == RoomStatus.RESERVED) {
+                return "Phòng đã được đặt cọc. Vui lòng chọn phòng khác.";
+            }
+            return "Phòng hiện không thể đặt cọc. Vui lòng chọn phòng khác.";
+        }
+        return null;
+    }
+
+    private String buildActiveHoldMessage(Long roomId) {
+        LocalDateTime now = LocalDateTime.now();
+        return roomHoldRepository.findActiveHoldByRoomId(roomId, now)
+                .map(roomHold -> buildActiveHoldMessage(roomHold, now))
+                .orElse("Phòng đang có người đặt cọc. Vui lòng chờ trong giây lát.");
+    }
+
+    private String buildActiveHoldMessage(RoomHold roomHold, LocalDateTime now) {
+        long remainingSeconds = Math.max(1, java.time.Duration.between(now, roomHold.getExpiresAt()).getSeconds());
+        return "Phòng đang có người đặt cọc. Vui lòng chờ " + remainingSeconds + " giây.";
     }
 }

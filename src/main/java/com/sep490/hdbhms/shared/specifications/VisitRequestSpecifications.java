@@ -38,6 +38,36 @@ public class VisitRequestSpecifications {
         };
     }
 
+    public static Specification<VisitRequestEntity> hasPropertyId(Long propertyId) {
+        return (root, query, cb) -> {
+            if (propertyId == null) return null;
+            var propertyJoin = root.join("property", JoinType.INNER);
+            return cb.equal(propertyJoin.get("id"), propertyId);
+        };
+    }
+
+    public static Specification<VisitRequestEntity> hasRoomId(Long roomId) {
+        return (root, query, cb) -> {
+            if (roomId == null) return null;
+            var roomJoin = root.join("room", JoinType.LEFT);
+            return cb.equal(roomJoin.get("id"), roomId);
+        };
+    }
+
+    public static Specification<VisitRequestEntity> hasStatus(VisitRequestStatus status) {
+        return (root, query, cb) -> {
+            if (status == null) return null;
+            if (status == VisitRequestStatus.NOT_VIEWED) {
+                return cb.or(cb.equal(root.get("status"), status), cb.isNull(root.get("status")));
+            }
+            return cb.equal(root.get("status"), status);
+        };
+    }
+
+    public static Specification<VisitRequestEntity> notDeleted() {
+        return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
+    }
+
     public static Specification<VisitRequestEntity> preferredStartBetween(
             LocalDateTime from, LocalDateTime to) {
         return (root, query, cb) -> {

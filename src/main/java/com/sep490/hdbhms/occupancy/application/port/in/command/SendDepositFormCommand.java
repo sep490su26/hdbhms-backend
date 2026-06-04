@@ -14,6 +14,8 @@ public record SendDepositFormCommand(
         String idNumber,
         LocalDate idIssueDate,
         String idIssuePlace,
+        Integer depositMonths,
+        Integer paymentCycleMonths,
         LocalDate expectedMoveInDate,
         LocalDate expectedLeaseSignDate,
         MultipartFile idFrontFile,

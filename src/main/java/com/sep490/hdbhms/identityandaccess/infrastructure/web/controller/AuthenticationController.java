@@ -35,7 +35,7 @@ public class AuthenticationController {
 
     @PostMapping("/login")
     ApiResponse<AuthenticationResponse> login(
-            @RequestHeader("X-Client-Type") String clientType,
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
             @RequestBody AuthenticationRequest authenticationRequest,
             HttpServletRequest request,
             HttpServletResponse response
@@ -118,7 +118,7 @@ public class AuthenticationController {
 
     @GetMapping("/onboarding")
     ApiResponse<OnboardingStatusResponse> getOnboardingStatus(
-            @RequestHeader("X-Client-Type") String clientType
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
 

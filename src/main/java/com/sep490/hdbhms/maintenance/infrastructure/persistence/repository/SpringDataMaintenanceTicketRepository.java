@@ -50,8 +50,12 @@ public class SpringDataMaintenanceTicketRepository implements MaintenanceTicketR
     public Page<MaintenanceTicket> findAll(List<Long> ids, String type, String status, Pageable pageable) {
         Specification<MaintenanceTicketEntity> maintenanceTicketEntitySpecification = Specification
                 .where(MaintenanceTicketSpecifications.idIn(ids));
+        if (!StringUtils.isEmpty(type)) {
+            maintenanceTicketEntitySpecification = maintenanceTicketEntitySpecification
+                    .and(MaintenanceTicketSpecifications.categoryOrScopeEquals(type));
+        }
         if (!StringUtils.isEmpty(status)) {
-            maintenanceTicketEntitySpecification
+            maintenanceTicketEntitySpecification = maintenanceTicketEntitySpecification
                     .and(
                             MaintenanceTicketSpecifications
                                     .statusIn(MaintenanceTicketStatus.valueOf(status))

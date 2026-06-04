@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class PersonProfileResponse {
     Long id;
@@ -24,7 +25,28 @@ public class PersonProfileResponse {
     String email;
     String permanentAddress;
     FileMetadataResponse portraitFile;
+    IdentityDocumentResponse identityDocument;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     LocalDateTime deletedAt;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class IdentityDocumentResponse {
+        Long id;
+        String docType;
+        String docNumber;
+        LocalDate issuedDate;
+        String issuedPlace;
+        LocalDate expiryDate;
+        Long frontFileId;
+        Long backFileId;
+        String frontFileUrl;
+        String backFileUrl;
+        String status;
+    }
 }

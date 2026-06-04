@@ -35,6 +35,7 @@ public class RoomHold {
     public void releaseOnAutoExpired() {
         if (
                 this.getStatus() != RoomHoldStatus.ACTIVE
+                        && this.getStatus() != RoomHoldStatus.PAYMENT_PROCESSING
                         || this.getExpiresAt().isAfter(LocalDateTime.now())
         ) {
             throw new IllegalStateException("Scheduled task is not expired yet");
@@ -48,5 +49,24 @@ public class RoomHold {
             throw new IllegalStateException("Scheduled task is not active");
         }
         this.status = RoomHoldStatus.CONFIRMED;
+    }
+
+    public void confirmPaidHold() {
+        if (this.status == RoomHoldStatus.CONFIRMED) {
+            return;
+        }
+        this.status = RoomHoldStatus.CONFIRMED;
+        this.releasedAt = null;
+    }
+
+    public void cancel() {
+        if (this.status == RoomHoldStatus.CONFIRMED) {
+            throw new IllegalStateException("Room hold is already confirmed");
+        }
+        if (this.status == RoomHoldStatus.CANCELLED || this.status == RoomHoldStatus.EXPIRED) {
+            return;
+        }
+        this.status = RoomHoldStatus.CANCELLED;
+        this.releasedAt = LocalDateTime.now();
     }
 }

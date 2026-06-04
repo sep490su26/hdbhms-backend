@@ -15,5 +15,7 @@ public class AuthenticationResponse {
     String token;
     String sessionId;
     Role role;
+    Long tenantId;
+    Long propertyId;
     boolean authorized;
 }

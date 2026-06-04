@@ -46,6 +46,9 @@ public class GetMyListLeaseContractsService implements GetMyListLeaseContractsUs
         List<Long> ids = leaseContractRepository.findAllByTenantProfileId(tenantPersonProfile.getId()).stream()
                 .map(LeaseContract::getId)
                 .toList();
+        if (ids.isEmpty()) {
+            return Page.empty(query.pageable());
+        }
 
         return leaseContractRepository.findAll(
                 ids,

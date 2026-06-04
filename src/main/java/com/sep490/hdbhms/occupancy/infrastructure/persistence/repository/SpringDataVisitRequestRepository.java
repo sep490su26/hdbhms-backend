@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.VisitRequestRepository;
 import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
+import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.VisitRequestEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaVisitRequestRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.VisitRequestPersistenceMapper;
@@ -46,13 +47,38 @@ public class SpringDataVisitRequestRepository implements VisitRequestRepository 
     }
 
     @Override
-    public Page<VisitRequest> findAll(List<Long> ids, String propertyCode, String roomCode, LocalDateTime from, LocalDateTime localDateTime, Pageable pageable) {
+    public Page<VisitRequest> findAll(
+            List<Long> ids,
+            String propertyCode,
+            String roomCode,
+            Long propertyId,
+            Long roomId,
+            VisitRequestStatus status,
+            LocalDateTime from,
+            LocalDateTime localDateTime,
+            Pageable pageable
+    ) {
         Specification<VisitRequestEntity> specification = Specification
                 .where(VisitRequestSpecifications.idIn(ids))
                 .and(VisitRequestSpecifications.hasPropertyCode(propertyCode))
                 .and(VisitRequestSpecifications.hasRoomCode(roomCode))
-                .and(VisitRequestSpecifications.preferredStartBetween(from, localDateTime));
+                .and(VisitRequestSpecifications.hasPropertyId(propertyId))
+                .and(VisitRequestSpecifications.hasRoomId(roomId))
+                .and(VisitRequestSpecifications.hasStatus(status))
+                .and(VisitRequestSpecifications.preferredStartBetween(from, localDateTime))
+                .and(VisitRequestSpecifications.notDeleted());
         return jpaVisitRequestRepository.findAll(specification, pageable)
                 .map(visitRequestPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Page<VisitRequest> findDeleted(Pageable pageable) {
+        return jpaVisitRequestRepository.findAllByDeletedAtIsNotNullOrderByDeletedAtDesc(pageable)
+                .map(visitRequestPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        jpaVisitRequestRepository.deleteById(id);
     }
 }

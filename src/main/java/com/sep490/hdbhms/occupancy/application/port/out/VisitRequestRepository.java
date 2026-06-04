@@ -16,5 +16,19 @@ public interface VisitRequestRepository {
 
     List<Long> findIdsByFullText(String keyword);
 
-    Page<VisitRequest> findAll(List<Long> ids, String propertyCode, String roomCode, LocalDateTime from, LocalDateTime localDateTime, Pageable pageable);
+    Page<VisitRequest> findAll(
+            List<Long> ids,
+            String propertyCode,
+            String roomCode,
+            Long propertyId,
+            Long roomId,
+            VisitRequestStatus status,
+            LocalDateTime from,
+            LocalDateTime localDateTime,
+            Pageable pageable
+    );
+
+    Page<VisitRequest> findDeleted(Pageable pageable);
+
+    void deleteById(Long id);
 }

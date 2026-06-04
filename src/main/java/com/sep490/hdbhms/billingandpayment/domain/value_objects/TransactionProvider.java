@@ -5,5 +5,6 @@ public enum TransactionProvider {
     MOMO,
     ZALOPAY,
     CASH,
-    MANUAL
+    MANUAL,
+    PAYOS
 }

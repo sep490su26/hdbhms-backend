@@ -9,6 +9,9 @@ public record GetListVisitRequestsQuery(
         String keyword,
         String propertyCode,
         String roomCode,
+        Long propertyId,
+        Long roomId,
+        VisitRequestStatus status,
         LocalDateTime from,
         LocalDateTime to,
         Pageable pageable

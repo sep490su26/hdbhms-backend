@@ -10,6 +10,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring", uses = RoomWebMapper.class)
 public interface DepositAgreementWebMapper {
     @Mapping(target = "id", source = "depositAgreement.id")
+    @Mapping(target = "createdAt", source = "depositAgreement.createdAt")
     DepositAgreementResponse toResponse(DepositAgreement depositAgreement, Room room);
 
     @Mapping(target = "id", source = "depositAgreement.id")

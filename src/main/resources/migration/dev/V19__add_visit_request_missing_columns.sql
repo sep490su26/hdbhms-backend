@@ -1,6 +1,5 @@
 -- V19__add_visit_request_missing_columns.sql
 -- Add missing columns expected by VisitRequest entity.
--- This version intentionally does NOT add source.
 
 SET @sql := (
     SELECT IF(

@@ -16,7 +16,7 @@ public enum ApiErrorCode {
     INVALID_USERNAME(10103, "Invalid newUsername", "Username must have more than 3 characters", HttpStatus.BAD_REQUEST),
     INVALID_EMAIL(10103, "Invalid phone", "Invalid phone format", HttpStatus.BAD_REQUEST),
     INVALID_PASSWORD(10103, "Invalid password", "Password must be at least 8 characters", HttpStatus.BAD_REQUEST),
-    INVALID_CREDENTIALS(10503, "Invalid credentials", "Invalid phone or password, try different phone or password", HttpStatus.BAD_REQUEST),
+    INVALID_CREDENTIALS(10503, "Invalid credentials", "Invalid phone or password, try different phone or password", HttpStatus.UNAUTHORIZED),
     ROLE_NOT_FOUND(10103, "Role not found", "Account's role is not found", HttpStatus.NOT_FOUND),
     ACCOUNT_NOT_FOUND(10201, "Account not found", "Account not found", HttpStatus.NOT_FOUND),
     NEW_PASSWORD_IS_EMPTY(10503, "New password is empty", "Can't change password due to new password being empty", HttpStatus.BAD_REQUEST),
@@ -29,8 +29,8 @@ public enum ApiErrorCode {
     OTP_CODE_NOT_FOUND(10501, "OTP code not found", "OTP code not found", HttpStatus.NOT_FOUND),
     IS_OAUTH2_ACCOUNT(10507, "Is OAuth2 account", "Account is an OAUTH2 account therefore can't change password or verify phone", HttpStatus.CONFLICT),
     REFRESH_TOKEN_EXPIRED(10507, "Refresh sessionId expired", "Refresh sessionId is expired", HttpStatus.CONFLICT),
-    ACCOUNT_IS_NOT_ACTIVE(10507, "Account is not active", "Account is not in an active state, no modifying operations are allowed", HttpStatus.CONFLICT),
-    ACCOUNT_IS_NOT_VERIFIED(10507, "Account is not verified", "Account is not verified, some modifying operations are unavailable", HttpStatus.CONFLICT),
+    ACCOUNT_IS_NOT_ACTIVE(10507, "Account is not active", "Account is not in an active state, no modifying operations are allowed", HttpStatus.FORBIDDEN),
+    ACCOUNT_IS_NOT_VERIFIED(10507, "Account is not verified", "Account is not verified, some modifying operations are unavailable", HttpStatus.FORBIDDEN),
     ACCOUNT_IS_ALREADY_VERIFIED(10507, "Account is already verified", "Account is already verified, can't verify account again", HttpStatus.CONFLICT),
     SAME_USERNAME(10304, "Same newUsername", "Can't assign new newUsername which is identical to the current newUsername", HttpStatus.BAD_REQUEST),
     CHANGE_USERNAME_NOT_ALLOWED_YET(10304, "Change username not allowed yet", "Can't change username until 30 days from the latest change", HttpStatus.BAD_REQUEST),
@@ -43,6 +43,13 @@ public enum ApiErrorCode {
     UNAUTHENTICATED(10505, "Unauthenticated", "Session expired", HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(10504, "Unauthorized", "You do not have permission", HttpStatus.FORBIDDEN),
     MD5_DIGEST_ERROR(30203, "MD5 digest error", "An error occurs during digesting a file to MD5", HttpStatus.INTERNAL_SERVER_ERROR),
+    VISIT_001(40101, "Visit request not found", "Không tìm thấy lịch xem phòng", HttpStatus.NOT_FOUND),
+    VISIT_002(40102, "Invalid room property", "Phòng không thuộc cơ sở đã chọn", HttpStatus.BAD_REQUEST),
+    VISIT_003(40103, "Invalid phone", "Số điện thoại không hợp lệ", HttpStatus.BAD_REQUEST),
+    VISIT_004(40104, "Invalid visit status", "Trạng thái không hợp lệ", HttpStatus.BAD_REQUEST),
+    VISIT_005(40105, "Visit request access denied", "Không có quyền thao tác", HttpStatus.FORBIDDEN),
+    VISIT_006(40106, "Missing required visit request field", "Thiếu thông tin bắt buộc", HttpStatus.BAD_REQUEST),
+    VISIT_007(40107, "Invalid appointment time", "Ngày giờ hẹn xem phải sau thời gian hiện tại", HttpStatus.BAD_REQUEST),
     ;
     int code;
     String message;

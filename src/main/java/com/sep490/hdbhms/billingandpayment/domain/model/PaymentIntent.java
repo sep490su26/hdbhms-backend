@@ -33,7 +33,8 @@ public class PaymentIntent {
             Long depositAgreementId,
             Long amount,
             PaymentIntentProvider provider,
-            String paymentContent
+            String paymentContent,
+            LocalDateTime expiresAt
     ) {
         return PaymentIntent.builder()
                 .invoiceId(invoiceId)
@@ -42,12 +43,14 @@ public class PaymentIntent {
                 .provider(provider)
                 .paymentContent(paymentContent)
                 .status(PaymentIntentStatus.PENDING)
+                .expiresAt(expiresAt)
                 .build();
     }
 
     public void succeedPayment() {
-        if (this.status != PaymentIntentStatus.PENDING) {
-            throw new IllegalStateException("Payment status is not PENDING");
+        if (this.status != PaymentIntentStatus.PENDING
+                && this.status != PaymentIntentStatus.EXPIRED) {
+            throw new IllegalStateException("Payment status is not payable");
         }
         this.status = PaymentIntentStatus.SUCCEEDED;
     }
@@ -57,5 +60,16 @@ public class PaymentIntent {
             throw new IllegalStateException("Payment status is not PENDING");
         }
         this.status = PaymentIntentStatus.FAILED;
+    }
+
+    public void expirePayment() {
+        if (this.status != PaymentIntentStatus.PENDING) {
+            return;
+        }
+        this.status = PaymentIntentStatus.EXPIRED;
+    }
+
+    public void attachQrPayload(String qrPayload) {
+        this.qrPayload = qrPayload;
     }
 }
