@@ -5,10 +5,12 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountB
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountLoginHistoryQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountsQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.*;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.LoginHistoryResponse;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.TenantAccountProvisioningResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
@@ -40,6 +42,7 @@ public class UserController {
     GetListUsersUseCase getListUsersUseCase;
     CreateStaffUserUseCase createStaffUserUseCase;
     GetUserLoginHistoryListUseCase getUserLoginHistoryListUseCase;
+    TenantAccountProvisioningService tenantAccountProvisioningService;
 
     @PostMapping("/staff")
     @PreAuthorize("hasRole('OWNER')")
@@ -74,6 +77,24 @@ public class UserController {
                                         .map(userWebMapper::toAccountResponse)
                         )
                 )
+                .build();
+    }
+
+    @GetMapping("/tenant-account-candidates")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    ApiResponse<List<TenantAccountProvisioningResponse>> getTenantAccountCandidates() {
+        return ApiResponse.<List<TenantAccountProvisioningResponse>>builder()
+                .data(tenantAccountProvisioningService.findProvisioningCandidates())
+                .build();
+    }
+
+    @PostMapping("/tenant-account-candidates/{contractId}/send")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    ApiResponse<TenantAccountProvisioningResponse> sendTenantAccount(
+            @PathVariable Long contractId
+    ) {
+        return ApiResponse.<TenantAccountProvisioningResponse>builder()
+                .data(tenantAccountProvisioningService.provisionPrimaryTenantAccount(contractId))
                 .build();
     }
 

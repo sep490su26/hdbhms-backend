@@ -132,6 +132,30 @@ public class DepositContractDocumentService {
         generateOfficialContractSafely(depositAgreementId);
     }
 
+    public void regenerateOfficialContractAfterCommit(Long depositAgreementId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    regenerateOfficialContractSafely(depositAgreementId);
+                }
+            });
+            return;
+        }
+
+        regenerateOfficialContractSafely(depositAgreementId);
+    }
+
+    private void regenerateOfficialContractSafely(Long depositAgreementId) {
+        try {
+            TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+            transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+            transactionTemplate.executeWithoutResult(status -> regenerateOfficialContractFileInCurrentTransaction(depositAgreementId));
+        } catch (RuntimeException ex) {
+            log.warn("Could not regenerate deposit contract PDF. depositAgreementId={}", depositAgreementId, ex);
+        }
+    }
+
     private void generateOfficialContractSafely(Long depositAgreementId) {
         try {
             TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
@@ -149,6 +173,16 @@ public class DepositContractDocumentService {
             return agreement.getContractFileId();
         }
 
+        return createAndAttachOfficialContract(agreement);
+    }
+
+    private Long regenerateOfficialContractFileInCurrentTransaction(Long depositAgreementId) {
+        DepositAgreement agreement = depositAgreementRepository.findById(depositAgreementId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+        return createAndAttachOfficialContract(agreement);
+    }
+
+    private Long createAndAttachOfficialContract(DepositAgreement agreement) {
         ContractData data = buildOfficialData(agreement);
         byte[] pdfBytes = generatePdf(data);
         String filename = "hop-dong-dat-coc-" + safeFilename(data.depositCode()) + ".pdf";

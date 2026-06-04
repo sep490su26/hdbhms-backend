@@ -10,6 +10,8 @@ import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.BatchFileResponse;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
 import com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
@@ -93,11 +95,37 @@ public class FileMetadataController {
                 .body(fileData.resource());
     }
 
+    @GetMapping("/private/{fileId}")
+    @ResponseStatus(HttpStatus.OK)
+    ResponseEntity<Resource> downloadPrivate(@PathVariable Long fileId) {
+        assertOwnerOrManager();
+        var fileData = downloadFileService.execute(new DownloadFileQuery(fileId));
+        if (fileData == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy file");
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, fileData.contentType())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(fileData.resource());
+    }
+
     @PostMapping("/check")
     @ResponseStatus(HttpStatus.OK)
     ApiResponse<Object> check() {
         return ApiResponse.builder()
                 .data(SecurityContextHolder.getContext().getAuthentication())
                 .build();
+    }
+
+    private void assertOwnerOrManager() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để xem file hồ sơ.");
+        }
+
+        Role role = principal.getRole();
+        if (role != Role.OWNER && role != Role.MANAGER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem file hồ sơ.");
+        }
     }
 }

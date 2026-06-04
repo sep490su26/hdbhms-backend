@@ -87,4 +87,16 @@ public class DepositForm {
         status = DepositFormStatus.APPROVED;
         confirmedAt = LocalDateTime.now();
     }
+
+    public void updateManagerEditableInfo(
+            String phone,
+            String permanentAddress,
+            LocalDate expectedMoveInDate,
+            LocalDate expectedLeaseSignDate
+    ) {
+        this.phone = phone;
+        this.permanentAddress = permanentAddress;
+        this.expectedMoveInDate = expectedMoveInDate;
+        this.expectedLeaseSignDate = expectedLeaseSignDate;
+    }
 }

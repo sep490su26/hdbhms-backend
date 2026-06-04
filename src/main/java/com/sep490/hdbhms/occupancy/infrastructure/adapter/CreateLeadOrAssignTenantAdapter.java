@@ -48,76 +48,18 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     public void execute(DepositAgreement depositAgreement) {
         DepositForm depositForm = depositFormRepository.findById(depositAgreement.getDepositFormId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        Room room = roomRepository.findById(depositForm.getRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
 
-        Optional<User> existingUser = userRepository
-                .findByPhoneOrEmailAndDeletedAtIsNull(
-                        depositForm.getPhone(),
-                        depositForm.getEmail()
-                );
-        if (existingUser.isPresent()) {
-            User user = ensureTenantAccount(existingUser.get());
-            Tenant tenant = ensureTenantMembership(room.getPropertyId(), user.getId());
-            PersonProfile personProfile = ensurePersonProfile(user, depositForm);
-            ensureIdentityDocument(personProfile, depositForm);
-            assignTenantToDepositAgreement(depositAgreement, tenant, personProfile);
-            log.info(
-                    "Skip sending temporary password email because tenant account already exists. userId={}, depositAgreementId={}",
-                    user.getId(),
-                    depositAgreement.getId()
-            );
-            return;
-        }
-
-        String randomPassword = RandomPasswordUtils.generatePassword(
-                6,
-                true,
-                true
-        );
-        String randomPasswordHash = passwordEncoder.encode(randomPassword);
-        User user = User.newUser(
-                depositForm.getPhone(),
-                depositForm.getEmail(),
-                randomPasswordHash,
-                Role.TENANT
-        );
-        user.activeAccount();
-
-        boolean createdNewUser = true;
-        try {
-            user = userRepository.save(user);
-        } catch (DataIntegrityViolationException ex) {
-            if (isActiveUserDuplicate(ex)) {
-                user = userRepository.findByPhoneOrEmailAndDeletedAtIsNull(
-                                depositForm.getPhone(), depositForm.getEmail())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-                user = ensureTenantAccount(user);
-                createdNewUser = false;
-            } else {
-                throw ex;
-            }
-        }
-
-//        Lead lead = Lead.newLeadUser(room.getPropertyId(), user.getId());
-//        lead = leadRepository.save(lead);
-
-        Tenant tenant = ensureTenantMembership(room.getPropertyId(), user.getId());
-        PersonProfile personProfile = ensurePersonProfile(user, depositForm);
+        /*
+         * Flow moi: deposit paid chi giu phong va tao ho so nguoi dat coc.
+         * Khong tao user TENANT, khong tao tenant membership, khong gui email password o buoc nay.
+         * Tai khoan chi duoc cap sau khi hop dong thue offline ACTIVE va quan ly bam gui tai khoan.
+         */
+        PersonProfile personProfile = ensurePersonProfile(depositForm);
         ensureIdentityDocument(personProfile, depositForm);
 
-        if (createdNewUser && !StringUtils.isEmpty(depositForm.getEmail())) {
-            sendPreCreatedAccountPort.sendAccountInformation(
-                    depositForm.getEmail(),
-                    depositForm.getFullName(),
-                    depositForm.getPhone(),
-                    randomPassword
-            );
-            log.info("Sent pre-created tenant account email. userId={}, depositAgreementId={}", user.getId(), depositAgreement.getId());
-        }
-
 //        depositAgreement.setLeadId(lead.getId());
-        assignTenantToDepositAgreement(depositAgreement, tenant, personProfile);
+        depositAgreement.setDepositorPersonProfileId(personProfile.getId());
+        depositAgreementRepository.save(depositAgreement);
     }
 
     private User ensureTenantAccount(User user) {
@@ -154,6 +96,20 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                                 depositForm.getPortraitFileId()
                         )
                 ));
+    }
+
+    private PersonProfile ensurePersonProfile(DepositForm depositForm) {
+        return personProfileRepository.save(
+                PersonProfile.create(
+                        null,
+                        depositForm.getFullName(),
+                        depositForm.getDob(),
+                        depositForm.getPhone(),
+                        depositForm.getEmail(),
+                        depositForm.getPermanentAddress(),
+                        depositForm.getPortraitFileId()
+                )
+        );
     }
 
     private void ensureIdentityDocument(PersonProfile personProfile, DepositForm depositForm) {
