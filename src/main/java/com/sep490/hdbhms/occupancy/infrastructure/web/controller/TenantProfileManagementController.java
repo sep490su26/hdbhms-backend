@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -88,30 +89,38 @@ public class TenantProfileManagementController {
                                    p.address_line AS property_address,
                                    pp.id AS profile_id,
                                    pp.user_id,
-                                   pp.full_name,
+                                   COALESCE(pp.full_name, dco.full_name) AS full_name,
                                    pp.dob,
                                    pp.gender,
-                                   pp.phone,
+                                   COALESCE(pp.phone, dco.phone) AS phone,
                                    pp.email,
                                    pp.permanent_address,
                                    pp.portrait_file_id,
                                    u.status AS app_status,
-                                   co.occupant_role AS room_role,
-                                   co.move_in_date,
-                                   co.move_out_date,
-                                   IF(co.status = 'ACTIVE', 'RENTING', 'MOVED_OUT') AS residence_status
-                            FROM contract_occupants co
-                            JOIN lease_contracts lc ON lc.id = co.contract_id
-                            JOIN tenants t ON t.id = co.tenant_id
-                            JOIN users u ON u.id = t.user_id
-                            JOIN person_profiles pp ON pp.user_id = u.id
+                                   'CO_OCCUPANT' AS room_role,
+                                   COALESCE(lc.start_date, df.expected_move_in_date) AS move_in_date,
+                                   NULL AS move_out_date,
+                                   IF(lc.status IN ('ACTIVE','EXPIRING_SOON'), 'RENTING', 'PENDING') AS residence_status
+                            FROM lease_contracts lc
                             JOIN rooms r ON r.id = lc.room_id
                             JOIN properties p ON p.id = r.property_id
+                            JOIN person_profiles primary_pp ON primary_pp.id = lc.primary_tenant_profile_id
+                            JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
+                            JOIN deposit_forms df ON df.id = da.deposit_form_id
+                            JOIN deposit_form_co_occupants dco ON dco.deposit_form_id = df.id
+                            LEFT JOIN person_profiles pp ON pp.id = (
+                                SELECT pp2.id
+                                FROM person_profiles pp2
+                                WHERE pp2.deleted_at IS NULL
+                                  AND pp2.phone = dco.phone
+                                ORDER BY pp2.user_id IS NULL, pp2.id DESC
+                                LIMIT 1
+                            )
+                            LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
                               AND lc.status NOT IN ('CANCELLED','LIQUIDATED','EXPIRED','AUTO_TERMINATED')
-                              AND co.status = 'ACTIVE'
-                              AND pp.deleted_at IS NULL
-                              AND pp.id <> lc.primary_tenant_profile_id
+                              AND primary_pp.deleted_at IS NULL
+                              AND dco.phone <> primary_pp.phone
                         ) tenant_profiles
                         ORDER BY property_name, room_code, contract_id, room_role DESC, full_name
                         """,
@@ -131,7 +140,8 @@ public class TenantProfileManagementController {
             List<EmergencyContactResponse> emergencyContacts = getEmergencyContacts(row.profileId());
             ProfileStatus profileStatus = resolveProfileStatus(row, identityDocument, emergencyContacts);
             List<RoommateResponse> roommates = roomRows.stream()
-                    .filter(roommate -> !roommate.profileId().equals(row.profileId()))
+                    .filter(roommate -> !Objects.equals(roommate.profileId(), row.profileId())
+                            || !Objects.equals(roommate.phone(), row.phone()))
                     .map(this::toRoommateResponse)
                     .toList();
 
