@@ -1,0 +1,61 @@
+package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record LeaseContractQueryDetailsResponse(
+        Long contractId,
+        String contractCode,
+        RoomInfo room,
+        PropertyInfo property,
+        LocalDate startDate,
+        LocalDate endDate,
+        LocalDate rentStartDate,
+        Long monthlyRent,
+        Integer paymentCycleMonths,
+        Long depositAmount,
+        LeaseStatus status,
+        LocalDateTime signedAt,
+        ContractFileInfo contractFile,
+        TenantProfileInfo primaryTenant,
+        List<OccupantInfo> occupants,
+        List<EventInfo> events
+) {
+    public record RoomInfo(Long id, String roomCode, String name) {
+    }
+
+    public record PropertyInfo(Long id, String name, String address) {
+    }
+
+    public record TenantProfileInfo(Long id, String fullName, String phone) {
+    }
+
+    public record ContractFileInfo(Long id, String fileName) {
+    }
+
+    public record OccupantInfo(
+            Long tenantProfileId,
+            String fullName,
+            String phone,
+            OccupantRole occupantRole,
+            LocalDate moveInDate,
+            LocalDate moveOutDate,
+            OccupantStatus status
+    ) {
+    }
+
+    public record EventInfo(
+            Long id,
+            String eventType,
+            String eventData,
+            LocalDateTime createdAt
+    ) {
+    }
+}

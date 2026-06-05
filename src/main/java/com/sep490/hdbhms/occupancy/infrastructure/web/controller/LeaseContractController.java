@@ -7,12 +7,15 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractD
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomRentalHistoryResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.LeaseContractWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
@@ -41,6 +44,7 @@ public class LeaseContractController {
     GetMyListLeaseContractsUseCase getMyListLeaseContractsUseCase;
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
     LeaseContractManagementService leaseContractManagementService;
+    LeaseContractQueryService leaseContractQueryService;
 
     @GetMapping("/management")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
@@ -50,9 +54,29 @@ public class LeaseContractController {
                 .build();
     }
 
+    @GetMapping("/management/{leaseContractId}")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public ApiResponse<LeaseContractQueryDetailsResponse> getManagementContractDetails(
+            @PathVariable Long leaseContractId
+    ) {
+        return ApiResponse.<LeaseContractQueryDetailsResponse>builder()
+                .data(leaseContractQueryService.getManagementContractDetails(leaseContractId))
+                .build();
+    }
+
+    @GetMapping("/management/rooms/{roomId}/rental-history")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public ApiResponse<RoomRentalHistoryResponse> getManagementRoomRentalHistory(
+            @PathVariable Long roomId
+    ) {
+        return ApiResponse.<RoomRentalHistoryResponse>builder()
+                .data(leaseContractQueryService.getManagementRoomRentalHistory(roomId))
+                .build();
+    }
+
     @PostMapping("/management/deposits/{depositAgreementId}/signed-file")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<LeaseContractManagementResponse> uploadSignedFileForDeposit(
             @PathVariable Long depositAgreementId,
             @RequestPart("file") MultipartFile file
@@ -63,7 +87,7 @@ public class LeaseContractController {
     }
 
     @PostMapping("/management/deposits/{depositAgreementId}/draft")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<LeaseContractManagementResponse> createDraftLeaseContractForDeposit(
             @PathVariable Long depositAgreementId
     ) {
@@ -74,7 +98,7 @@ public class LeaseContractController {
 
     @PostMapping("/{leaseContractId}/signed-file")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<LeaseContractManagementResponse> uploadSignedFile(
             @PathVariable Long leaseContractId,
             @RequestPart("file") MultipartFile file
@@ -85,7 +109,7 @@ public class LeaseContractController {
     }
 
     @PostMapping("/{leaseContractId}/activate")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<LeaseContractManagementResponse> activateLeaseContract(
             @PathVariable Long leaseContractId
     ) {
@@ -95,7 +119,7 @@ public class LeaseContractController {
     }
 
     @PostMapping("/{leaseContractId}/liquidate")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<LeaseContractManagementResponse> liquidateLeaseContract(
             @PathVariable Long leaseContractId,
             @RequestBody(required = false) LeaseContractLiquidationRequest request

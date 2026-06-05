@@ -42,9 +42,11 @@ public class LeaseContractManagementResponse {
     LocalDate expectedMoveInDate;
     LocalDate startDate;
     LocalDate endDate;
+    LocalDate rentStartDate;
     Long monthlyRent;
     Integer paymentCycleMonths;
     Long depositAmount;
+    Integer occupantsCount;
 
     LeaseStatus contractStatus;
     DepositAgreementStatus depositStatus;

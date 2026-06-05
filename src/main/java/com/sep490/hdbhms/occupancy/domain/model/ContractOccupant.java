@@ -17,6 +17,7 @@ public class ContractOccupant {
     Long id;
     Long contractId;
     Long tenantId;
+    Long tenantProfileId;
     @Builder.Default
     OccupantRole occupantRole = OccupantRole.CO_OCCUPANT;
     LocalDate moveInDate;
