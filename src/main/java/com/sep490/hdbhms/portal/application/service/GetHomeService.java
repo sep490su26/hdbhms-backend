@@ -33,8 +33,9 @@ public class GetHomeService implements GetHomeUseCase {
                 .orElseThrow(
                         () -> new RuntimeException("Person profile not found")
                 );
-        FileMetadata portraitFile = fileMetadataRepository.findById(personProfile.getPortraitFileId())
-                .orElse(null);
+        FileMetadata portraitFile = personProfile.getPortraitFileId() == null
+                ? null
+                : fileMetadataRepository.findById(personProfile.getPortraitFileId()).orElse(null);
         return HomeResponse.builder()
                 .user(
                         UserHomeResponse.builder()

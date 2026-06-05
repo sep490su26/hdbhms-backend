@@ -18,6 +18,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
     UserRepository userRepository;
     PersonProfileRepository personProfileRepository;
     IdentityDocumentRepository identityDocumentRepository;
+    JdbcTemplate jdbcTemplate;
 
     @Override
     public OnboardingStatusResponse ofResident(GetResidentOnboardingStatusQuery query) {
@@ -127,9 +129,23 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
         PersonProfile personProfile = personProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         return personProfile.getPortraitFileId() != null
-                && identityDocumentRepository.existsByProfileIdAndDocType(
-                personProfile.getId(),
-                DocumentType.CCCD
+                && hasActiveCccdImages(personProfile.getId());
+    }
+
+    private boolean hasActiveCccdImages(Long profileId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM identity_documents
+                        WHERE profile_id = ?
+                          AND doc_type = ?
+                          AND status = 'ACTIVE'
+                          AND front_file_id IS NOT NULL
+                          AND back_file_id IS NOT NULL
+                        """,
+                Integer.class,
+                profileId,
+                DocumentType.CCCD.name()
         );
+        return count != null && count > 0;
     }
 }

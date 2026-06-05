@@ -31,10 +31,14 @@ public class TenantAccountProvisioningResponse {
     String roomCode;
     RoomStatus roomStatus;
     Long profileId;
+    String roomRole;
+    Integer roomOccupantCount;
+    Integer roomMaxOccupants;
     Long userId;
     String fullName;
     String phone;
     String email;
+    String recipientEmail;
     Role role;
     AccountStatus accountStatus;
     Boolean mustChangePassword;
