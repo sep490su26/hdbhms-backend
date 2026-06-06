@@ -7,6 +7,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent;
+import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -26,12 +27,14 @@ import java.time.ZoneId;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PayOSAdapter implements ExternalPaymentPort {
     PayOSProperties payOSProperties;
+    SnowflakeIdGenerator snowflakeIdGenerator;
 
     @Override
     public PaymentIntent createCheckoutRequest(PaymentRequest request) {
         validatePayOSConfig();
+        Long orderCode = snowflakeIdGenerator.next();
         CreatePaymentLinkRequest createPaymentLinkRequest = CreatePaymentLinkRequest.builder()
-                .orderCode(request.paymentId())
+                .orderCode(orderCode)
                 .amount(request.amount())
                 .description(request.description())
                 .returnUrl(payOSProperties.getReturnUrl())
@@ -48,6 +51,7 @@ public class PayOSAdapter implements ExternalPaymentPort {
                     PaymentIntentProvider.PAYOS,
                     PaymentStatus.PENDING,
                     createPaymentLinkResponse.getAmount(),
+                    String.valueOf(createPaymentLinkResponse.getOrderCode()),
                     createPaymentLinkResponse.getDescription(),
                     createPaymentLinkResponse.getQrCode(),
                     createPaymentLinkResponse.getQrCode(),

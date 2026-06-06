@@ -12,6 +12,7 @@ public record PaymentIntent(
         PaymentIntentProvider paymentIntentProvider,
         PaymentStatus paymentStatus,
         Long amount,
+        String providerOrderCode,
         String paymentContent,
         String qrCode,
         String qrPayload,

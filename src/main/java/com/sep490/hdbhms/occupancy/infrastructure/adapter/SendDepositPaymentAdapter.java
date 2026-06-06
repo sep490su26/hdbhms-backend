@@ -119,6 +119,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 )
         );
         paymentIntent.attachQrPayload(toCheckoutPayload(checkoutResponse, paymentIntent));
+        paymentIntent.attachProviderOrderCode(checkoutResponse.providerOrderCode());
         paymentIntent = paymentIntentRepository.save(paymentIntent);
         sendDepositReceiptEmail(depositForm, room, depositAmount);
         return paymentIntent;

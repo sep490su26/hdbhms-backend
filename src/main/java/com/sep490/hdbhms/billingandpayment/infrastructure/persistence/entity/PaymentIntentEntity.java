@@ -49,6 +49,8 @@ public class PaymentIntentEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     PaymentIntentProvider provider;
+    @Column(name = "provider_order_code", length = 255)
+    String providerOrderCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collection_account_id", nullable = true)
