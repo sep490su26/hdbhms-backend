@@ -53,11 +53,19 @@ public class LeaseContractQueryService {
                     p.id AS property_id,
                     p.name AS property_name,
                     pp.full_name AS primary_tenant_name,
-                    (
-                        SELECT COUNT(*)
-                        FROM contract_occupants co_count
-                        WHERE co_count.contract_id = lc.id
-                          AND co_count.status = 'ACTIVE'
+                    GREATEST(
+                        (
+                            SELECT COUNT(*)
+                            FROM contract_occupants co_count
+                            WHERE co_count.contract_id = lc.id
+                              AND co_count.status = 'ACTIVE'
+                        ),
+                        COALESCE(df.occupant_count, 1),
+                        1 + COALESCE((
+                            SELECT COUNT(*)
+                            FROM deposit_form_co_occupants dco_count
+                            WHERE dco_count.deposit_form_id = df.id
+                        ), 0)
                     ) AS occupants_count,
                     lc.start_date,
                     lc.end_date,
@@ -72,6 +80,8 @@ public class LeaseContractQueryService {
                 JOIN rooms r ON r.id = lc.room_id
                 JOIN properties p ON p.id = r.property_id
                 JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                LEFT JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
+                LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
                 LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
                 WHERE lc.deleted_at IS NULL
                   AND p.id = ?
@@ -150,6 +160,24 @@ public class LeaseContractQueryService {
                             lc.deposit_amount,
                             lc.status,
                             lc.signed_at,
+                            lc.previous_contract_id,
+                            previous_contract.contract_code AS previous_contract_code,
+                            (
+                                SELECT renewed.id
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_id,
+                            (
+                                SELECT renewed.contract_code
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_code,
                             lc.contract_file_id,
                             fm.original_name AS contract_file_name,
                             r.id AS room_id,
@@ -165,6 +193,7 @@ public class LeaseContractQueryService {
                         JOIN rooms r ON r.id = lc.room_id
                         JOIN properties p ON p.id = r.property_id
                         JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
                         LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
                         WHERE lc.deleted_at IS NULL
                           AND lc.id = ?
@@ -304,6 +333,24 @@ public class LeaseContractQueryService {
                             lc.deposit_amount,
                             lc.status,
                             lc.signed_at,
+                            lc.previous_contract_id,
+                            previous_contract.contract_code AS previous_contract_code,
+                            (
+                                SELECT renewed.id
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_id,
+                            (
+                                SELECT renewed.contract_code
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_code,
                             lc.contract_file_id,
                             fm.original_name AS contract_file_name,
                             r.id AS room_id,
@@ -319,6 +366,7 @@ public class LeaseContractQueryService {
                         JOIN rooms r ON r.id = lc.room_id
                         JOIN properties p ON p.id = r.property_id
                         JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
                         LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
                         WHERE lc.deleted_at IS NULL
                           AND lc.id = ?
@@ -471,6 +519,8 @@ public class LeaseContractQueryService {
             List<LeaseContractQueryDetailsResponse.EventInfo> events
     ) throws SQLException {
         Long fileId = getLongOrNull(rs, "contract_file_id");
+        LeaseStatus status = LeaseStatus.valueOf(rs.getString("status"));
+        Long renewedContractId = getLongOrNull(rs, "renewed_contract_id");
         return new LeaseContractQueryDetailsResponse(
                 rs.getLong("contract_id"),
                 rs.getString("contract_code"),
@@ -490,8 +540,24 @@ public class LeaseContractQueryService {
                 getLongOrNull(rs, "monthly_rent"),
                 getIntOrNull(rs, "payment_cycle_months"),
                 getLongOrNull(rs, "deposit_amount"),
-                LeaseStatus.valueOf(rs.getString("status")),
+                status,
                 toLocalDateTime(rs, "signed_at"),
+                getLongOrNull(rs, "previous_contract_id"),
+                rs.getString("previous_contract_code"),
+                renewedContractId,
+                rs.getString("renewed_contract_code"),
+                renewedContractId == null && List.of(
+                        LeaseStatus.ACTIVE,
+                        LeaseStatus.EXPIRING_SOON,
+                        LeaseStatus.EXPIRED
+                ).contains(status),
+                List.of(
+                        LeaseStatus.ACTIVE,
+                        LeaseStatus.EXPIRING_SOON,
+                        LeaseStatus.EXPIRED,
+                        LeaseStatus.TERMINATION_PENDING
+                ).contains(status),
+                status == LeaseStatus.ACTIVE,
                 fileId != null ? new LeaseContractQueryDetailsResponse.ContractFileInfo(fileId, rs.getString("contract_file_name")) : null,
                 new LeaseContractQueryDetailsResponse.TenantProfileInfo(
                         rs.getLong("primary_tenant_profile_id"),
@@ -521,6 +587,13 @@ public class LeaseContractQueryService {
                 details.depositAmount(),
                 details.status(),
                 details.signedAt(),
+                details.previousContractId(),
+                details.previousContractCode(),
+                details.renewedContractId(),
+                details.renewedContractCode(),
+                details.canRenew(),
+                details.canLiquidate(),
+                details.canSendAccount(),
                 details.contractFile(),
                 details.primaryTenant(),
                 occupants,
@@ -531,26 +604,130 @@ public class LeaseContractQueryService {
     private List<LeaseContractQueryDetailsResponse.OccupantInfo> findOccupants(Long contractId) {
         StringBuilder sql = new StringBuilder("""
                 SELECT
-                    COALESCE(pp.id, tenant_pp.id) AS tenant_profile_id,
-                    COALESCE(pp.full_name, tenant_pp.full_name) AS full_name,
-                    COALESCE(pp.phone, tenant_pp.phone) AS phone,
-                    co.occupant_role,
-                    co.move_in_date,
-                    co.move_out_date,
-                    co.status
-                FROM contract_occupants co
-                LEFT JOIN person_profiles pp ON pp.id = co.tenant_profile_id
-                LEFT JOIN tenants t ON t.id = co.tenant_id
-                LEFT JOIN person_profiles tenant_pp ON tenant_pp.user_id = t.user_id AND tenant_pp.deleted_at IS NULL
-                WHERE co.contract_id = ?
+                    tenant_profile_id,
+                    full_name,
+                    phone,
+                    citizen_id,
+                    occupant_role,
+                    move_in_date,
+                    move_out_date,
+                    status
+                FROM (
+                    SELECT
+                        COALESCE(pp.id, tenant_pp.id) AS tenant_profile_id,
+                        COALESCE(pp.full_name, tenant_pp.full_name) AS full_name,
+                        COALESCE(pp.phone, tenant_pp.phone) AS phone,
+                        (
+                            SELECT idoc.doc_number
+                            FROM identity_documents idoc
+                            WHERE idoc.profile_id = COALESCE(pp.id, tenant_pp.id)
+                              AND idoc.status = 'ACTIVE'
+                            ORDER BY idoc.updated_at DESC, idoc.id DESC
+                            LIMIT 1
+                        ) AS citizen_id,
+                        co.occupant_role,
+                        co.move_in_date,
+                        co.move_out_date,
+                        co.status,
+                        CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END AS role_order,
+                        co.id AS source_order
+                    FROM contract_occupants co
+                    LEFT JOIN person_profiles pp ON pp.id = co.tenant_profile_id
+                    LEFT JOIN tenants t ON t.id = co.tenant_id
+                    LEFT JOIN person_profiles tenant_pp ON tenant_pp.user_id = t.user_id AND tenant_pp.deleted_at IS NULL
+                    WHERE co.contract_id = ?
+
+                    UNION ALL
+
+                    SELECT
+                        pp.id AS tenant_profile_id,
+                        pp.full_name,
+                        pp.phone,
+                        (
+                            SELECT idoc.doc_number
+                            FROM identity_documents idoc
+                            WHERE idoc.profile_id = pp.id
+                              AND idoc.status = 'ACTIVE'
+                            ORDER BY idoc.updated_at DESC, idoc.id DESC
+                            LIMIT 1
+                        ) AS citizen_id,
+                        'PRIMARY' AS occupant_role,
+                        lc.start_date AS move_in_date,
+                        NULL AS move_out_date,
+                        'ACTIVE' AS status,
+                        0 AS role_order,
+                        0 AS source_order
+                    FROM lease_contracts lc
+                    JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                    WHERE lc.id = ?
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM contract_occupants co_primary
+                          WHERE co_primary.contract_id = lc.id
+                            AND co_primary.tenant_profile_id = pp.id
+                      )
+
+                    UNION ALL
+
+                    SELECT
+                        pp.id AS tenant_profile_id,
+                        COALESCE(pp.full_name, dco.full_name) AS full_name,
+                        COALESCE(pp.phone, dco.phone) AS phone,
+                        (
+                            SELECT idoc.doc_number
+                            FROM identity_documents idoc
+                            WHERE idoc.profile_id = pp.id
+                              AND idoc.status = 'ACTIVE'
+                            ORDER BY idoc.updated_at DESC, idoc.id DESC
+                            LIMIT 1
+                        ) AS citizen_id,
+                        'CO_OCCUPANT' AS occupant_role,
+                        lc.start_date AS move_in_date,
+                        NULL AS move_out_date,
+                        'ACTIVE' AS status,
+                        1 AS role_order,
+                        dco.display_order AS source_order
+                    FROM lease_contracts lc
+                    JOIN person_profiles primary_pp ON primary_pp.id = lc.primary_tenant_profile_id
+                    JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
+                    JOIN deposit_forms df ON df.id = da.deposit_form_id
+                    JOIN deposit_form_co_occupants dco ON dco.deposit_form_id = df.id
+                    LEFT JOIN person_profiles pp ON pp.id = (
+                        SELECT pp2.id
+                        FROM person_profiles pp2
+                        WHERE pp2.deleted_at IS NULL
+                          AND REPLACE(REPLACE(REPLACE(pp2.phone, ' ', ''), '.', ''), '-', '') =
+                              REPLACE(REPLACE(REPLACE(dco.phone, ' ', ''), '.', ''), '-', '')
+                        ORDER BY pp2.user_id IS NULL, pp2.id DESC
+                        LIMIT 1
+                    )
+                    WHERE lc.id = ?
+                      AND REPLACE(REPLACE(REPLACE(dco.phone, ' ', ''), '.', ''), '-', '') <>
+                          REPLACE(REPLACE(REPLACE(primary_pp.phone, ' ', ''), '.', ''), '-', '')
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM contract_occupants co_existing
+                          LEFT JOIN person_profiles pp_existing ON pp_existing.id = co_existing.tenant_profile_id
+                          LEFT JOIN tenants t_existing ON t_existing.id = co_existing.tenant_id
+                          LEFT JOIN person_profiles tenant_pp_existing
+                              ON tenant_pp_existing.user_id = t_existing.user_id
+                              AND tenant_pp_existing.deleted_at IS NULL
+                          WHERE co_existing.contract_id = lc.id
+                            AND REPLACE(REPLACE(REPLACE(COALESCE(pp_existing.phone, tenant_pp_existing.phone), ' ', ''), '.', ''), '-', '') =
+                                REPLACE(REPLACE(REPLACE(dco.phone, ' ', ''), '.', ''), '-', '')
+                      )
+                ) occupants
                 """);
         List<Object> params = new ArrayList<>();
         params.add(contractId);
-        sql.append(" ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id");
+        params.add(contractId);
+        params.add(contractId);
+        sql.append(" ORDER BY role_order, source_order");
         return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> new LeaseContractQueryDetailsResponse.OccupantInfo(
                 getLongOrNull(rs, "tenant_profile_id"),
                 rs.getString("full_name"),
                 rs.getString("phone"),
+                rs.getString("citizen_id"),
                 OccupantRole.valueOf(rs.getString("occupant_role")),
                 toLocalDate(rs, "move_in_date"),
                 toLocalDate(rs, "move_out_date"),

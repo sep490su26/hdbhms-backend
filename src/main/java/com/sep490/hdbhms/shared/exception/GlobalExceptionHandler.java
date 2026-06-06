@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @ControllerAdvice
@@ -71,17 +73,36 @@ public class GlobalExceptionHandler {
     <T> ResponseEntity<ApiResponse<T>> handlingMethodArgumentNotValidException(
             final MethodArgumentNotValidException e
     ) {
-        ApiErrorCode apiErrorCode = ApiErrorCode.valueOf(
-                Objects
-                        .requireNonNull(e.getBindingResult().getFieldError())
-                        .getDefaultMessage()
-        );
-        return ResponseEntity.badRequest().body(
-                ApiResponse.<T>builder()
-                        .code(apiErrorCode.getCode())
-                        .message(apiErrorCode.getMessage())
-                        .details(apiErrorCode.getDetails())
-                        .build()
-        );
+        String firstMessage = Objects
+                .requireNonNull(e.getBindingResult().getFieldError())
+                .getDefaultMessage();
+
+        try {
+            ApiErrorCode apiErrorCode = ApiErrorCode.valueOf(firstMessage);
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.<T>builder()
+                            .code(apiErrorCode.getCode())
+                            .message(apiErrorCode.getMessage())
+                            .details(apiErrorCode.getDetails())
+                            .build()
+            );
+        } catch (IllegalArgumentException ignored) {
+            Map<String, String> fieldErrors = new LinkedHashMap<>();
+            e.getBindingResult().getFieldErrors().forEach(error ->
+                    fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage())
+            );
+
+            @SuppressWarnings("unchecked")
+            T validationData = (T) Map.of("fieldErrors", fieldErrors);
+
+            return ResponseEntity.badRequest().body(
+                    ApiResponse.<T>builder()
+                            .code(400)
+                            .message("Dữ liệu không hợp lệ.")
+                            .details(firstMessage)
+                            .data(validationData)
+                            .build()
+            );
+        }
     }
 }
