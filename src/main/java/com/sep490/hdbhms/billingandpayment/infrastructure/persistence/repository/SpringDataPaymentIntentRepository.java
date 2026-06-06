@@ -32,4 +32,10 @@ public class SpringDataPaymentIntentRepository implements PaymentIntentRepositor
         return jpaPaymentIntentRepository.findById(id)
                 .map(paymentIntentPersistenceMapper::toDomain);
     }
+
+    @Override
+    public Optional<PaymentIntent> findByProviderOrderCode(String orderCode) {
+        return jpaPaymentIntentRepository.findByProviderOrderCode(orderCode)
+                .map(paymentIntentPersistenceMapper::toDomain);
+    }
 }

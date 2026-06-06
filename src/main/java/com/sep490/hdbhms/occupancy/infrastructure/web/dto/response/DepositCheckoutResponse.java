@@ -22,7 +22,7 @@ public record DepositCheckoutResponse(
         LocalDateTime expiresAt,
         PaymentIntentProvider provider,
         PaymentIntentStatus status,
-        Long orderCode,
+        String orderCode,
         String paymentLinkId,
         String receiverName,
         String bankName,

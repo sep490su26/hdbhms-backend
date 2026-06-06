@@ -153,7 +153,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 ? PaymentStatus.PENDING.name()
                 : checkoutResponse.paymentStatus().name());
         payload.put("paymentIntentId", paymentIntent.getId());
-        payload.put("orderCode", checkoutResponse.orderCode() == null ? paymentIntent.getId() : checkoutResponse.orderCode());
+        payload.put("orderCode", checkoutResponse.orderCode() == null ? paymentIntent.getProviderOrderCode() : checkoutResponse.orderCode());
         payload.put("paymentLinkId", checkoutResponse.paymentLinkId());
         payload.put("amount", checkoutResponse.amount() == null ? paymentIntent.getAmount() : checkoutResponse.amount());
         payload.put("paymentContent", checkoutResponse.paymentContent() == null

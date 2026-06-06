@@ -264,7 +264,7 @@ public class DepositController {
             paymentIntent.failPayment();
             paymentIntentRepository.save(paymentIntent);
         } catch (RuntimeException ex) {
-            log.warn("Skip failing payment intent during hold cancel. paymentIntentId={}", paymentIntent.getId(), ex);
+            log.warn("Skip failing payment intent during hold cancel. orderCode={}", paymentIntent.getId(), ex);
         }
     }
 
@@ -293,7 +293,7 @@ public class DepositController {
                 .expiresAt(paymentIntent.getExpiresAt())
                 .provider(paymentIntent.getProvider())
                 .status(paymentIntent.getStatus())
-                .orderCode(orderCode == null ? paymentIntent.getId() : orderCode)
+                .orderCode(orderCode == null ? paymentIntent.getProviderOrderCode() : String.valueOf(orderCode))
                 .paymentLinkId(textValue(payload, "paymentLinkId"))
                 .receiverName(textValue(payload, "receiverName"))
                 .bankName(textValue(payload, "bankName"))
@@ -308,7 +308,7 @@ public class DepositController {
         }
 
         try {
-            PaymentLink paymentLink = payOSProperties.payOS().paymentRequests().get(paymentIntent.getId());
+            PaymentLink paymentLink = payOSProperties.payOS().paymentRequests().get(paymentIntent.getProviderOrderCode());
             if (paymentLink == null || paymentLink.getStatus() != PaymentLinkStatus.PAID) {
                 return paymentIntent;
             }
@@ -333,7 +333,7 @@ public class DepositController {
 
             return paymentIntentRepository.findById(paymentIntent.getId()).orElse(paymentIntent);
         } catch (Exception ex) {
-            log.warn("Could not sync PayOS payment status. paymentIntentId={}", paymentIntent.getId(), ex);
+            log.warn("Could not sync PayOS payment status. orderCode={}", paymentIntent.getId(), ex);
             return paymentIntent;
         }
     }

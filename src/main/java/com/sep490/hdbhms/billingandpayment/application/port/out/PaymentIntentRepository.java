@@ -8,4 +8,6 @@ public interface PaymentIntentRepository {
     PaymentIntent save(PaymentIntent paymentIntent);
 
     Optional<PaymentIntent> findById(Long id);
+
+    Optional<PaymentIntent> findByProviderOrderCode(String orderCode);
 }

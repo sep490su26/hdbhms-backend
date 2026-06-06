@@ -56,7 +56,7 @@ public class MockPaymentController {
 //        Long amount = Long.parseLong(params.get("vnp_Amount")) / 100;
 //        reconcilePaymentUseCase.execute(
 //                ReconcilePaymentCommand.builder()
-//                        .paymentIntentId(8L)
+//                        .orderCode(8L)
 //                        .provider(TransactionProvider.BANK)
 //                        .providerTransactionId("")
 //                        .amount(1L)
@@ -117,7 +117,7 @@ public class MockPaymentController {
                         .amount(amount)
                         .content("Mock payment success for payment intent " + paymentIntentId)
                         .transactionTime(LocalDateTime.now())
-                        .rawPayload("{\"source\":\"mock-payment\",\"paymentIntentId\":" + paymentIntentId + ",\"amount\":" + amount + "}")
+                        .rawPayload("{\"source\":\"mock-payment\",\"orderCode\":" + paymentIntentId + ",\"amount\":" + amount + "}")
                         .build()
         );
     }
