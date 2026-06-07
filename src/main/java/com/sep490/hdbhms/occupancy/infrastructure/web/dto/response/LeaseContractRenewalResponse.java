@@ -7,6 +7,7 @@ import java.util.List;
 
 public record LeaseContractRenewalResponse(
         Long oldContractId,
+        String oldContractCode,
         LeaseStatus oldContractStatus,
         Long newContractId,
         String newContractCode,
@@ -14,6 +15,7 @@ public record LeaseContractRenewalResponse(
         Long previousContractId,
         Long roomId,
         String roomCode,
+        Integer occupantsCopiedCount,
         List<OccupantInfo> occupants
 ) {
     public record OccupantInfo(

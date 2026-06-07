@@ -97,6 +97,24 @@ public class LeaseContractManagementService {
                             COALESCE(lc.monthly_rent, r.listed_price) AS monthly_rent,
                             COALESCE(lc.payment_cycle_months, df.payment_cycle_months, 1) AS payment_cycle_months,
                             COALESCE(lc.deposit_amount, da.amount) AS deposit_amount,
+                            lc.previous_contract_id,
+                            previous_contract.contract_code AS previous_contract_code,
+                            (
+                                SELECT renewed.id
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_id,
+                            (
+                                SELECT renewed.contract_code
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_code,
                             GREATEST(
                                 CASE
                                     WHEN lc.id IS NOT NULL THEN (
@@ -129,6 +147,7 @@ public class LeaseContractManagementService {
                         LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
                         LEFT JOIN person_profiles pp ON pp.id = da.depositor_person_profile_id
                         LEFT JOIN lease_contracts lc ON lc.deposit_agreement_id = da.id AND lc.deleted_at IS NULL
+                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
                         LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
                         LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                         WHERE da.status IN ('PAID', 'CONFIRMED', 'CONVERTED_TO_LEASE')
@@ -159,6 +178,24 @@ public class LeaseContractManagementService {
                             lc.monthly_rent,
                             lc.payment_cycle_months,
                             lc.deposit_amount,
+                            lc.previous_contract_id,
+                            previous_contract.contract_code AS previous_contract_code,
+                            (
+                                SELECT renewed.id
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_id,
+                            (
+                                SELECT renewed.contract_code
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_code,
                             GREATEST(
                                 (
                                     SELECT COUNT(*)
@@ -188,6 +225,7 @@ public class LeaseContractManagementService {
                         JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
                         LEFT JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
                         LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
+                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
                         LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
                         LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                         WHERE lc.deleted_at IS NULL
@@ -354,9 +392,6 @@ public class LeaseContractManagementService {
         newContract = leaseContractRepository.save(newContract);
         copyContractOccupants(oldContract, newContract);
 
-        oldContract.setStatus(LeaseStatus.RENEWED);
-        leaseContractRepository.save(oldContract);
-
         RoomStatus previousRoomStatus = room.getCurrentStatus();
         if (previousRoomStatus != RoomStatus.OCCUPIED) {
             room.setCurrentStatus(RoomStatus.OCCUPIED);
@@ -371,18 +406,15 @@ public class LeaseContractManagementService {
 
         String eventNote = note == null || note.isBlank() ? "Tao hop dong tai ky" : note.trim();
         appendContractEvent(
-                oldContract.getId(),
-                "RENEWED",
-                eventNote + "; newContractId=" + newContract.getId()
-        );
-        appendContractEvent(
                 newContract.getId(),
                 "CREATED",
-                "Tai ky tu hop dong " + oldContract.getContractCode()
+                "Tai ky tu hop dong " + oldContract.getContractCode() + "; note=" + eventNote
         );
 
+        List<LeaseContractRenewalResponse.OccupantInfo> occupants = findRenewalOccupants(newContract.getId());
         return new LeaseContractRenewalResponse(
                 oldContract.getId(),
+                oldContract.getContractCode(),
                 oldContract.getStatus(),
                 newContract.getId(),
                 newContract.getContractCode(),
@@ -390,7 +422,8 @@ public class LeaseContractManagementService {
                 oldContract.getId(),
                 room.getId(),
                 room.getRoomCode(),
-                findRenewalOccupants(newContract.getId())
+                occupants.size(),
+                occupants
         );
     }
 
@@ -450,11 +483,32 @@ public class LeaseContractManagementService {
                 && room.getCurrentStatus() != RoomStatus.ON_HOLD) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phong phai o trang thai trong hoac da dat coc truoc khi kich hoat hop dong.");
         }
-        if (hasOtherActiveContract(room.getId(), contract.getId())) {
+        Long previousContractId = contract.getPreviousContract() != null
+                ? contract.getPreviousContract().getId()
+                : null;
+        if (hasOtherActiveContract(room.getId(), contract.getId(), previousContractId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phong da co hop dong dang hieu luc.");
         }
 
         ensureContractOccupants(contract, contract.getDepositAgreement());
+        LeaseContractEntity previousContract = contract.getPreviousContract();
+        if (previousContract != null) {
+            copyContractOccupants(previousContract, contract);
+            boolean legacyPrematureRenewal =
+                    previousContract.getStatus() == LeaseStatus.RENEWED
+                            && List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE)
+                            .contains(contract.getStatus());
+            if (!legacyPrematureRenewal
+                    && !List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
+                    .contains(previousContract.getStatus())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Hop dong truoc khong con o trang thai cho phep kich hoat gia han."
+                );
+            }
+            previousContract.setStatus(LeaseStatus.RENEWED);
+            leaseContractRepository.saveAndFlush(previousContract);
+        }
         contract.setStatus(LeaseStatus.ACTIVE);
         contract.setSignedAt(LocalDateTime.now());
         if (contract.getRentStartDate() == null) {
@@ -473,6 +527,13 @@ public class LeaseContractManagementService {
             depositAgreementRepository.save(contract.getDepositAgreement());
         }
         appendContractEvent(contract.getId(), "SIGNED", "Kich hoat hop dong thue");
+        if (previousContract != null) {
+            appendContractEvent(
+                    previousContract.getId(),
+                    "RENEWED",
+                    "Kich hoat hop dong tai ky; newContractId=" + contract.getId()
+            );
+        }
         return findOne(contract.getId());
     }
 
@@ -549,6 +610,24 @@ public class LeaseContractManagementService {
                             lc.monthly_rent,
                             lc.payment_cycle_months,
                             lc.deposit_amount,
+                            lc.previous_contract_id,
+                            previous_contract.contract_code AS previous_contract_code,
+                            (
+                                SELECT renewed.id
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_id,
+                            (
+                                SELECT renewed.contract_code
+                                FROM lease_contracts renewed
+                                WHERE renewed.previous_contract_id = lc.id
+                                  AND renewed.deleted_at IS NULL
+                                ORDER BY renewed.id DESC
+                                LIMIT 1
+                            ) AS renewed_contract_code,
                             GREATEST(
                                 (
                                     SELECT COUNT(*)
@@ -578,6 +657,7 @@ public class LeaseContractManagementService {
                         JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
                         LEFT JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
                         LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
+                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
                         LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
                         LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                         WHERE lc.deleted_at IS NULL AND lc.id = ?
@@ -779,7 +859,7 @@ public class LeaseContractManagementService {
             return;
         }
         jdbcTemplate.update("""
-                        INSERT INTO contract_occupants (
+                        INSERT IGNORE INTO contract_occupants (
                             contract_id,
                             tenant_id,
                             tenant_profile_id,
@@ -819,14 +899,22 @@ public class LeaseContractManagementService {
                             NULL,
                             'ACTIVE',
                             NOW(6)
-                        FROM contract_occupants
-                        WHERE contract_id = ?
-                          AND status = 'ACTIVE'
+                        FROM contract_occupants source_occupant
+                        WHERE source_occupant.contract_id = ?
+                          AND source_occupant.status = 'ACTIVE'
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM contract_occupants existing_occupant
+                              WHERE existing_occupant.contract_id = ?
+                                AND existing_occupant.tenant_profile_id <=> source_occupant.tenant_profile_id
+                          )
                         """,
                 newContract.getId(),
                 newContract.getStartDate(),
-                oldContract.getId()
+                oldContract.getId(),
+                newContract.getId()
         );
+        copyLegacyDepositOccupants(oldContract, newContract);
         insertContractOccupantIfAbsent(
                 newContract.getId(),
                 resolveTenantIdForProfile(
@@ -836,6 +924,62 @@ public class LeaseContractManagementService {
                 newContract.getPrimaryTenantProfile().getId(),
                 "PRIMARY",
                 newContract.getStartDate()
+        );
+    }
+
+    private void copyLegacyDepositOccupants(
+            LeaseContractEntity oldContract,
+            LeaseContractEntity newContract
+    ) {
+        DepositAgreementEntity deposit = oldContract.getDepositAgreement();
+        if (deposit == null
+                || deposit.getDepositForm() == null
+                || deposit.getDepositForm().getCoOccupants() == null) {
+            return;
+        }
+        String primaryPhone = oldContract.getPrimaryTenantProfile() != null
+                ? oldContract.getPrimaryTenantProfile().getPhone()
+                : null;
+        Long propertyId = newContract.getRoom() != null && newContract.getRoom().getProperty() != null
+                ? newContract.getRoom().getProperty().getId()
+                : null;
+
+        for (DepositFormCoOccupantEntity coOccupant : deposit.getDepositForm().getCoOccupants()) {
+            if (coOccupant == null || isSamePhone(primaryPhone, coOccupant.getPhone())) {
+                continue;
+            }
+            Long profileId = findExistingProfileIdByPhone(coOccupant.getPhone());
+            if (profileId == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Nguoi o cung chua co ho so hien huu. Vui long cap nhat ho so truoc khi tai ky."
+                );
+            }
+            insertContractOccupantIfAbsent(
+                    newContract.getId(),
+                    resolveTenantIdForProfile(profileId, propertyId),
+                    profileId,
+                    "CO_OCCUPANT",
+                    newContract.getStartDate()
+            );
+        }
+    }
+
+    private Long findExistingProfileIdByPhone(String phone) {
+        String normalizedPhone = normalizePhone(phone);
+        if (normalizedPhone.isBlank()) {
+            return null;
+        }
+        return jdbcTemplate.query("""
+                        SELECT id
+                        FROM person_profiles
+                        WHERE REPLACE(REPLACE(REPLACE(phone, ' ', ''), '.', ''), '-', '') = ?
+                          AND deleted_at IS NULL
+                        ORDER BY user_id IS NULL, id DESC
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getLong("id") : null,
+                normalizedPhone
         );
     }
 
@@ -960,17 +1104,24 @@ public class LeaseContractManagementService {
     }
 
     private boolean hasOtherActiveContract(Long roomId, Long leaseContractId) {
+        return hasOtherActiveContract(roomId, leaseContractId, null);
+    }
+
+    private boolean hasOtherActiveContract(Long roomId, Long leaseContractId, Long allowedPreviousContractId) {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM lease_contracts
                         WHERE room_id = ?
                           AND id <> ?
+                          AND (? IS NULL OR id <> ?)
                           AND status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
                           AND deleted_at IS NULL
                         """,
                 Integer.class,
                 roomId,
-                leaseContractId
+                leaseContractId,
+                allowedPreviousContractId,
+                allowedPreviousContractId
         );
         return count != null && count > 0;
     }
@@ -1085,6 +1236,10 @@ public class LeaseContractManagementService {
                 .paymentCycleMonths(getIntOrNull(rs, "payment_cycle_months"))
                 .depositAmount(getLongOrNull(rs, "deposit_amount"))
                 .occupantsCount(getIntOrNull(rs, "occupants_count"))
+                .previousContractId(getLongOrNull(rs, "previous_contract_id"))
+                .previousContractCode(rs.getString("previous_contract_code"))
+                .renewedContractId(getLongOrNull(rs, "renewed_contract_id"))
+                .renewedContractCode(rs.getString("renewed_contract_code"))
                 .contractStatus(parseEnum(LeaseStatus.class, contractStatus))
                 .depositStatus(parseEnum(DepositAgreementStatus.class, depositStatus))
                 .workflowStatus(resolveWorkflow(contractStatus, contractFileId))
@@ -1106,6 +1261,7 @@ public class LeaseContractManagementService {
                 "TERMINATION_PENDING",
                 "LIQUIDATED",
                 "RENEWED",
+                "AUTO_TERMINATED",
                 "CANCELLED"
         ).contains(contractStatus)) {
             return contractStatus;

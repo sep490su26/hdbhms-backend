@@ -47,6 +47,10 @@ public class LeaseContractManagementResponse {
     Integer paymentCycleMonths;
     Long depositAmount;
     Integer occupantsCount;
+    Long previousContractId;
+    String previousContractCode;
+    Long renewedContractId;
+    String renewedContractCode;
 
     LeaseStatus contractStatus;
     DepositAgreementStatus depositStatus;

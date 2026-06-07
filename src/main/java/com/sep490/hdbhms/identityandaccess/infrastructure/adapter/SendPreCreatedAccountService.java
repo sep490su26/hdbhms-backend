@@ -55,7 +55,6 @@ public class SendPreCreatedAccountService implements SendPreCreatedAccountPort {
     }
 
     @Override
-    @Async("emailExecutor")
     public void sendAccountInformationBatch(
             String email,
             String recipientFullName,

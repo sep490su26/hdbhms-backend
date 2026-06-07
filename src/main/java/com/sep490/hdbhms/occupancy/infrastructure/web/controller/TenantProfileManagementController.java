@@ -59,17 +59,18 @@ public class TenantProfileManagementController {
                                    pp.permanent_address,
                                    pp.portrait_file_id,
                                    u.status AS app_status,
-                                   'PRIMARY' AS room_role,
-                                   lc.start_date AS move_in_date,
-                                   NULL AS move_out_date,
-                                   IF(lc.status IN ('ACTIVE','EXPIRING_SOON'), 'RENTING', 'PENDING') AS residence_status
+                                   co.occupant_role AS room_role,
+                                   co.move_in_date,
+                                   co.move_out_date,
+                                   'RENTING' AS residence_status
                             FROM lease_contracts lc
                             JOIN rooms r ON r.id = lc.room_id
                             JOIN properties p ON p.id = r.property_id
-                            JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
-                            LEFT JOIN users u ON u.id = pp.user_id
+                            JOIN contract_occupants co ON co.contract_id = lc.id AND co.status = 'ACTIVE'
+                            JOIN person_profiles pp ON pp.id = co.tenant_profile_id
+                            LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
-                              AND lc.status NOT IN ('CANCELLED','LIQUIDATED','EXPIRED','AUTO_TERMINATED')
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
                               AND pp.deleted_at IS NULL
 
                             UNION ALL
@@ -89,38 +90,33 @@ public class TenantProfileManagementController {
                                    p.address_line AS property_address,
                                    pp.id AS profile_id,
                                    pp.user_id,
-                                   COALESCE(pp.full_name, dco.full_name) AS full_name,
+                                   pp.full_name,
                                    pp.dob,
                                    pp.gender,
-                                   COALESCE(pp.phone, dco.phone) AS phone,
+                                   pp.phone,
                                    pp.email,
                                    pp.permanent_address,
                                    pp.portrait_file_id,
                                    u.status AS app_status,
-                                   'CO_OCCUPANT' AS room_role,
-                                   COALESCE(lc.start_date, df.expected_move_in_date) AS move_in_date,
+                                   'PRIMARY' AS room_role,
+                                   lc.start_date AS move_in_date,
                                    NULL AS move_out_date,
-                                   IF(lc.status IN ('ACTIVE','EXPIRING_SOON'), 'RENTING', 'PENDING') AS residence_status
+                                   'RENTING' AS residence_status
                             FROM lease_contracts lc
                             JOIN rooms r ON r.id = lc.room_id
                             JOIN properties p ON p.id = r.property_id
-                            JOIN person_profiles primary_pp ON primary_pp.id = lc.primary_tenant_profile_id
-                            JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
-                            JOIN deposit_forms df ON df.id = da.deposit_form_id
-                            JOIN deposit_form_co_occupants dco ON dco.deposit_form_id = df.id
-                            LEFT JOIN person_profiles pp ON pp.id = (
-                                SELECT pp2.id
-                                FROM person_profiles pp2
-                                WHERE pp2.deleted_at IS NULL
-                                  AND pp2.phone = dco.phone
-                                ORDER BY pp2.user_id IS NULL, pp2.id DESC
-                                LIMIT 1
-                            )
+                            JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
                             LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
-                              AND lc.status NOT IN ('CANCELLED','LIQUIDATED','EXPIRED','AUTO_TERMINATED')
-                              AND primary_pp.deleted_at IS NULL
-                              AND dco.phone <> primary_pp.phone
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND pp.deleted_at IS NULL
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM contract_occupants co_primary
+                                  WHERE co_primary.contract_id = lc.id
+                                    AND co_primary.tenant_profile_id = pp.id
+                                    AND co_primary.status = 'ACTIVE'
+                              )
                         ) tenant_profiles
                         ORDER BY property_name, room_code, contract_id, room_role DESC, full_name
                         """,
@@ -251,7 +247,7 @@ public class TenantProfileManagementController {
                 (rs, rowNum) -> new IdentityDocumentResponse(
                         nullableLong(rs, "id"),
                         rs.getString("doc_type"),
-                        rs.getString("doc_number"),
+                        normalizeIdentityNumber(rs.getString("doc_number")),
                         nullableLocalDate(rs, "issued_date"),
                         rs.getString("issued_place"),
                         nullableLocalDate(rs, "expiry_date"),
@@ -353,6 +349,13 @@ public class TenantProfileManagementController {
 
     private String fileUrl(Long fileId) {
         return fileId == null ? null : "/api/v1/files/private/" + fileId;
+    }
+
+    private String normalizeIdentityNumber(String value) {
+        if (value == null || value.isBlank() || value.startsWith("PENDING-")) {
+            return null;
+        }
+        return value;
     }
 
     private Long nullableLong(ResultSet rs, String column) throws SQLException {

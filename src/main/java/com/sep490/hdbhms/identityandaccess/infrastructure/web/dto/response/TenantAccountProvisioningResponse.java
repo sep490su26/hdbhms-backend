@@ -3,6 +3,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,7 @@ public class TenantAccountProvisioningResponse {
     Long roomId;
     String roomCode;
     RoomStatus roomStatus;
+    Long occupantId;
     Long profileId;
     String roomRole;
     Integer roomOccupantCount;
@@ -46,5 +48,15 @@ public class TenantAccountProvisioningResponse {
     LocalDateTime accountCreatedAt;
     Boolean accountProvisioned;
     Boolean emailAvailable;
+    TenantAccountProvisioningStatus provisioningStatus;
+    LocalDateTime sentAt;
+    LocalDateTime failedAt;
+    String failureReason;
+    Integer attemptCount;
+    LocalDateTime lastAttemptAt;
+    String profileStatus;
+    Boolean missingIdentity;
+    Boolean missingPortrait;
+    Boolean missingEmergencyContact;
     String message;
 }

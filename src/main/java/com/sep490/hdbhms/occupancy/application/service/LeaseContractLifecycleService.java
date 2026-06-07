@@ -50,17 +50,20 @@ public class LeaseContractLifecycleService {
         if (contract.getEndDate() == null) {
             return;
         }
-        boolean hasRenewedContract =
-                leaseContractRepository.existsByPreviousContract_IdAndDeletedAtIsNull(contract.getId());
+        boolean hasActivatedRenewal =
+                leaseContractRepository.existsByPreviousContract_IdAndStatusAndDeletedAtIsNull(
+                        contract.getId(),
+                        LeaseStatus.ACTIVE
+                );
         LeaseStatus targetStatus = resolveTargetStatus(
                 contract.getStatus(),
                 contract.getEndDate(),
                 today,
-                hasRenewedContract
+                hasActivatedRenewal
         );
-        if (today.isAfter(contract.getEndDate()) && hasRenewedContract) {
+        if (today.isAfter(contract.getEndDate()) && hasActivatedRenewal) {
                 log.info(
-                        "Skip contract expiry because renewed contract exists. contractId={}, status={}",
+                        "Skip contract expiry because active renewed contract exists. contractId={}, status={}",
                         contract.getId(),
                         contract.getStatus()
                 );

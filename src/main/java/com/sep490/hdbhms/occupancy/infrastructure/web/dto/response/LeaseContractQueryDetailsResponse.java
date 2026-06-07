@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
@@ -30,6 +31,7 @@ public record LeaseContractQueryDetailsResponse(
         boolean canRenew,
         boolean canLiquidate,
         boolean canSendAccount,
+        String accountProvisioningStatus,
         ContractFileInfo contractFile,
         TenantProfileInfo primaryTenant,
         List<OccupantInfo> occupants,
@@ -51,11 +53,16 @@ public record LeaseContractQueryDetailsResponse(
             Long tenantProfileId,
             String fullName,
             String phone,
+            String email,
             String citizenId,
             OccupantRole occupantRole,
             LocalDate moveInDate,
             LocalDate moveOutDate,
-            OccupantStatus status
+            OccupantStatus status,
+            TenantAccountProvisioningStatus accountStatus,
+            LocalDateTime accountSentAt,
+            LocalDateTime lastLoginAt,
+            Boolean mustChangePassword
     ) {
     }
 
