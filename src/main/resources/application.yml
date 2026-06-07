@@ -36,6 +36,25 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+  kafka:
+    bootstrap-servers: localhost:9092
+    # Producer defaults
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Optional: request acks, retries
+      properties:
+        acks: all
+        retries: 3
+    # Consumer defaults
+    consumer:
+      group-id: hdbhms-notification-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false   # you can commit manually or let auto
+    listener:
+      ack-mode: manual
 app:
   jwt:
     secret: ${APP_JWT_SECRET:${SIGNER_KEY}}
