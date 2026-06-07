@@ -107,6 +107,6 @@ public class PersonProfileController {
     }
 
     private String fileUrl(Long fileId) {
-        return fileId == null ? null : "/api/v1/files/download/" + fileId;
+        return fileId == null ? null : "/api/v1/tenants/profiles/me/files/" + fileId;
     }
 }

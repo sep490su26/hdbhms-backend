@@ -54,7 +54,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
 
         TenantProfileResponse.IdentityDocumentDto identityDocument = getIdentityDocument(person.id(), tenant.id());
         List<TenantProfileResponse.VehicleDto> vehicles = getVehicles(person.id());
-        List<TenantProfileResponse.EmergencyContactDto> emergencyContacts = getEmergencyContacts(tenant.id());
+        List<TenantProfileResponse.EmergencyContactDto> emergencyContacts = getEmergencyContacts(person.id());
 
         return new TenantProfileResponse(
                 tenant.id(),
@@ -156,7 +156,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
         ), personProfileId);
     }
 
-    private List<TenantProfileResponse.EmergencyContactDto> getEmergencyContacts(Long tenantId) {
+    private List<TenantProfileResponse.EmergencyContactDto> getEmergencyContacts(Long personProfileId) {
         return jdbcTemplate.query("""
                 SELECT full_name, relationship, phone
                 FROM emergency_contacts
@@ -166,7 +166,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 rs.getString("full_name"),
                 rs.getString("relationship"),
                 rs.getString("phone")
-        ), tenantId);
+        ), personProfileId);
     }
 
     private String fileUrl(Long fileId) {
@@ -174,7 +174,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
             return null;
         }
         return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/api/v1/files/download/{fileId}")
+                .path("/api/v1/tenants/profiles/me/files/{fileId}")
                 .buildAndExpand(fileId)
                 .toUriString();
     }

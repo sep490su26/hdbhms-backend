@@ -10,4 +10,9 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HomeResponse {
     UserHomeResponse user;
+    TenantHomeResponse tenant;
+    RoomHomeResponse room;
+    ContractHomeResponse contract;
+    InvoiceSummaryHomeResponse invoiceSummary;
+    UtilitySummaryHomeResponse utilitySummary;
 }

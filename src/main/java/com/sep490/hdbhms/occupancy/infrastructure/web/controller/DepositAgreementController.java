@@ -291,7 +291,7 @@ public class DepositAgreementController {
     }
 
     private String fileDownloadUrl(Long fileId) {
-        return fileId == null ? null : "/api/v1/files/download/" + fileId;
+        return fileId == null ? null : "/api/v1/tenants/profiles/me/files/" + fileId;
     }
 
     private java.time.LocalDate resolveExpectedMoveInDate(DepositAgreement depositAgreement, DepositForm depositForm) {
