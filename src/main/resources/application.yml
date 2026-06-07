@@ -67,12 +67,6 @@ app:
       hash-secret: ${VNPAY_HASH_SECRET}
       url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
       return-url: ${VNPAY_RETURN_URL:}
-  deposit:
-    amount: ${APP_DEPOSIT_AMOUNT:2000}
-    payment:
-      receiver-name: ${DEPOSIT_PAYMENT_RECEIVER_NAME:HAIDANG}
-      bank-name: ${DEPOSIT_PAYMENT_BANK_NAME:PayOS/VietQR}
-      account-number: ${DEPOSIT_PAYMENT_ACCOUNT_NUMBER:}
   file:
     download:
       prefix: ${DOWNLOAD_PREFIX}

@@ -85,7 +85,12 @@ public class VNPayAdapter implements ExternalPaymentPort {
                 fullUrl,
                 request.expiresAt(),
                 request.paymentId(),
-                null
+                null,
+                null,
+                null,
+                null,
+                null,
+                request.description()
         );
     }
 

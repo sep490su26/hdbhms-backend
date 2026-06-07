@@ -18,7 +18,12 @@ public record PaymentIntent(
         String qrPayload,
         LocalDateTime expiresAt,
         Long orderCode,
-        String paymentLinkId
+        String paymentLinkId,
+        String bankBin,
+        String bankShortName,
+        String accountNumber,
+        String accountName,
+        String transferDescription
 ) {
 
 }

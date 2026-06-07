@@ -264,7 +264,8 @@ public class DepositController {
             paymentIntent.failPayment();
             paymentIntentRepository.save(paymentIntent);
         } catch (RuntimeException ex) {
-            log.warn("Skip failing payment intent during hold cancel. orderCode={}", paymentIntent.getId(), ex);
+            log.warn("Skip failing payment intent during hold cancel. providerOrderCode={}",
+                    paymentIntent.getProviderOrderCode(), ex);
         }
     }
 
@@ -278,6 +279,22 @@ public class DepositController {
         }
 
         Long orderCode = longValue(payload, "orderCode");
+        String providerOrderCode = valueOrDefault(
+                textValue(payload, "providerOrderCode"),
+                paymentIntent.getProviderOrderCode()
+        );
+        String accountName = valueOrDefault(
+                textValue(payload, "accountName"),
+                textValue(payload, "receiverName")
+        );
+        String bankShortName = valueOrDefault(
+                textValue(payload, "bankShortName"),
+                textValue(payload, "bankName")
+        );
+        String transferDescription = valueOrDefault(
+                textValue(payload, "transferDescription"),
+                textValue(payload, "description")
+        );
         return DepositCheckoutResponse.builder()
                 .id(paymentIntent.getId())
                 .paymentIntentId(paymentIntent.getId())
@@ -293,10 +310,15 @@ public class DepositController {
                 .expiresAt(paymentIntent.getExpiresAt())
                 .provider(paymentIntent.getProvider())
                 .status(paymentIntent.getStatus())
-                .orderCode(orderCode == null ? paymentIntent.getProviderOrderCode() : String.valueOf(orderCode))
+                .orderCode(orderCode == null ? providerOrderCode : String.valueOf(orderCode))
+                .providerOrderCode(providerOrderCode)
                 .paymentLinkId(textValue(payload, "paymentLinkId"))
-                .receiverName(textValue(payload, "receiverName"))
-                .bankName(textValue(payload, "bankName"))
+                .bankBin(textValue(payload, "bankBin"))
+                .bankShortName(bankShortName)
+                .accountName(accountName)
+                .transferDescription(transferDescription)
+                .receiverName(accountName)
+                .bankName(bankShortName)
                 .accountNumber(textValue(payload, "accountNumber"))
                 .build();
     }
@@ -333,7 +355,8 @@ public class DepositController {
 
             return paymentIntentRepository.findById(paymentIntent.getId()).orElse(paymentIntent);
         } catch (Exception ex) {
-            log.warn("Could not sync PayOS payment status. orderCode={}", paymentIntent.getId(), ex);
+            log.warn("Could not sync PayOS payment status. providerOrderCode={}",
+                    paymentIntent.getProviderOrderCode(), ex);
             return paymentIntent;
         }
     }

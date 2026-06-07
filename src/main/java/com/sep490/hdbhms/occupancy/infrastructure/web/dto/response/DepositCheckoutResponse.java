@@ -23,7 +23,12 @@ public record DepositCheckoutResponse(
         PaymentIntentProvider provider,
         PaymentIntentStatus status,
         String orderCode,
+        String providerOrderCode,
         String paymentLinkId,
+        String bankBin,
+        String bankShortName,
+        String accountName,
+        String transferDescription,
         String receiverName,
         String bankName,
         String accountNumber
