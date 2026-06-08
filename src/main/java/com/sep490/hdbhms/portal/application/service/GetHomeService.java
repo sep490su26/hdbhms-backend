@@ -28,10 +28,11 @@ public class GetHomeService implements GetHomeUseCase {
         HomeResponse response = jdbcTemplate.query("""
                 SELECT 
                     u.id AS user_id, u.email, u.phone AS user_phone, u.role,
-                    t.id AS tenant_id, t.name AS tenant_name,
+                    t.id AS tenant_id, prop.name AS tenant_name,
                     p.id AS profile_id, p.full_name, p.phone AS profile_phone, p.portrait_file_id
                 FROM users u
                 LEFT JOIN tenants t ON t.user_id = u.id AND t.deleted_at IS NULL
+                LEFT JOIN properties prop ON prop.id = t.property_id AND prop.deleted_at IS NULL
                 LEFT JOIN person_profiles p ON p.user_id = u.id AND p.deleted_at IS NULL
                 WHERE u.id = ? AND u.deleted_at IS NULL
                 """,
@@ -112,30 +113,30 @@ public class GetHomeService implements GetHomeUseCase {
                 }, userId);
 
         // 3. Invoice Summary
-        jdbcTemplate.query("""
-                SELECT 
-                    COUNT(id) AS unpaid_count,
-                    SUM(amount - paid_amount) AS total_unpaid_amount,
-                    MIN(due_date) AS nearest_due_date
-                FROM invoices
-                WHERE tenant_id = ? 
-                  AND status IN ('UNPAID', 'PARTIALLY_PAID')
-                  AND deleted_at IS NULL
-                """,
-                rs -> {
-                    if (rs.next()) {
-                        response.setInvoiceSummary(InvoiceSummaryHomeResponse.builder()
-                                .unpaidCount(rs.getInt("unpaid_count"))
-                                .totalUnpaidAmount(rs.getDouble("total_unpaid_amount"))
-                                .nearestDueDate(rs.getTimestamp("nearest_due_date") != null ? rs.getTimestamp("nearest_due_date").toLocalDateTime() : null)
-                                .build());
-                    } else {
-                        response.setInvoiceSummary(new InvoiceSummaryHomeResponse(0, 0.0, null));
-                    }
-                    return null;
-                }, tenantId);
-        
-        if (response.getInvoiceSummary() == null) {
+        if (response.getContract() != null) {
+            Long contractId = response.getContract().getId();
+            jdbcTemplate.query("""
+                    SELECT 
+                        COUNT(id) AS unpaid_count,
+                        SUM(remaining_amount) AS total_unpaid_amount,
+                        MIN(due_date) AS nearest_due_date
+                    FROM invoices
+                    WHERE lease_contract_id = ? 
+                      AND status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
+                    """,
+                    rs -> {
+                        if (rs.next()) {
+                            response.setInvoiceSummary(InvoiceSummaryHomeResponse.builder()
+                                    .unpaidCount(rs.getInt("unpaid_count"))
+                                    .totalUnpaidAmount(rs.getDouble("total_unpaid_amount"))
+                                    .nearestDueDate(rs.getTimestamp("nearest_due_date") != null ? rs.getTimestamp("nearest_due_date").toLocalDateTime() : null)
+                                    .build());
+                        } else {
+                            response.setInvoiceSummary(new InvoiceSummaryHomeResponse(0, 0.0, null));
+                        }
+                        return null;
+                    }, contractId);
+        } else {
             response.setInvoiceSummary(new InvoiceSummaryHomeResponse(0, 0.0, null));
         }
 
@@ -149,7 +150,7 @@ public class GetHomeService implements GetHomeUseCase {
                     SELECT mr.usage_amount, mr.status
                     FROM meter_readings mr
                     JOIN meters m ON m.id = mr.meter_id
-                    WHERE mr.room_id = ? AND m.service_type = 'ELECTRICITY' AND mr.status != 'VOIDED'
+                    WHERE mr.room_id = ? AND m.meter_type = 'ELECTRICITY' AND mr.status != 'VOIDED'
                     ORDER BY mr.reading_date DESC
                     LIMIT 1
                     """,
@@ -171,7 +172,7 @@ public class GetHomeService implements GetHomeUseCase {
                     SELECT mr.usage_amount, mr.status
                     FROM meter_readings mr
                     JOIN meters m ON m.id = mr.meter_id
-                    WHERE mr.room_id = ? AND m.service_type = 'WATER' AND mr.status != 'VOIDED'
+                    WHERE mr.room_id = ? AND m.meter_type = 'WATER' AND mr.status != 'VOIDED'
                     ORDER BY mr.reading_date DESC
                     LIMIT 1
                     """,
