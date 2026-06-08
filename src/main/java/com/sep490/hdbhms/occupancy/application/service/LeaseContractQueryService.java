@@ -822,4 +822,61 @@ public class LeaseContractQueryService {
 
     private record AccountProvisioningSummary(String status, boolean canSend) {
     }
+
+    // ── Tenant room switcher ────────────────────────────────────────────────
+
+    public record ActiveRoomItem(
+            Long contractId,
+            String contractCode,
+            Long roomId,
+            String roomCode,
+            String roomName,
+            String propertyName
+    ) {}
+
+    /**
+     * Returns the list of rooms where the authenticated user has an
+     * ACTIVE or EXPIRING_SOON lease contract, for use in the mobile
+     * home-screen room selector.
+     */
+    public List<ActiveRoomItem> getMyActiveRooms() {
+        CurrentUser currentUser = getCurrentUser();
+        return jdbcTemplate.query("""
+                SELECT
+                    lc.id   AS contract_id,
+                    lc.contract_code,
+                    r.id    AS room_id,
+                    r.room_code,
+                    r.name  AS room_name,
+                    p.name  AS property_name
+                FROM lease_contracts lc
+                JOIN rooms r ON r.id = lc.room_id AND r.deleted_at IS NULL
+                JOIN properties p ON p.id = r.property_id
+                LEFT JOIN contract_occupants co
+                    ON co.contract_id = lc.id
+                LEFT JOIN person_profiles pp_scope
+                    ON pp_scope.id = co.tenant_profile_id
+                WHERE lc.deleted_at IS NULL
+                  AND lc.status IN ('ACTIVE', 'EXPIRING_SOON')
+                  AND (
+                      lc.primary_tenant_profile_id IN (SELECT id FROM person_profiles WHERE user_id = ? AND deleted_at IS NULL)
+                      OR co.tenant_id IN (SELECT id FROM tenants WHERE user_id = ? AND deleted_at IS NULL)
+                      OR pp_scope.user_id = ?
+                  )
+                GROUP BY lc.id, lc.contract_code, r.id, r.room_code, r.name, p.name
+                ORDER BY lc.id DESC
+                """,
+                (rs, rowNum) -> new ActiveRoomItem(
+                        rs.getLong("contract_id"),
+                        rs.getString("contract_code"),
+                        rs.getLong("room_id"),
+                        rs.getString("room_code"),
+                        rs.getString("room_name"),
+                        rs.getString("property_name")
+                ),
+                currentUser.userId(),
+                currentUser.userId(),
+                currentUser.userId()
+        );
+    }
 }

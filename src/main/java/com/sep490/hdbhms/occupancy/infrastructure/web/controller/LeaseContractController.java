@@ -220,13 +220,22 @@ public class LeaseContractController {
                                     return LeaseContractResponse.builder()
                                             .id(leaseContract.getId())
                                             .contractCode(leaseContract.getContractCode())
+                                            .roomId(room.getId())
                                             .roomCode(room.getRoomCode())
+                                            .roomName(room.getName())
                                             .status(leaseContract.getStatus())
                                             .signedAt(leaseContract.getSignedAt())
                                             .build();
                                 })
                         )
                 )
+                .build();
+    }
+
+    @GetMapping("/me/active-rooms")
+    public ApiResponse<List<LeaseContractQueryService.ActiveRoomItem>> getMyActiveRooms() {
+        return ApiResponse.<List<LeaseContractQueryService.ActiveRoomItem>>builder()
+                .data(leaseContractQueryService.getMyActiveRooms())
                 .build();
     }
 

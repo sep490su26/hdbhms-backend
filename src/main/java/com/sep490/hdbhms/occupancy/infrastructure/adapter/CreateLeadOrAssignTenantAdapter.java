@@ -99,6 +99,11 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     }
 
     private PersonProfile ensurePersonProfile(DepositForm depositForm) {
+        Optional<PersonProfile> existing = personProfileRepository.findByPhone(depositForm.getPhone());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
         return personProfileRepository.save(
                 PersonProfile.create(
                         null,

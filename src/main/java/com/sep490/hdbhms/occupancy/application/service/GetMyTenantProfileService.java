@@ -61,6 +61,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 tenant.status(),
                 new TenantProfileResponse.PersonProfileDto(
                         person.fullName(),
+                        person.dob(),
                         person.phone(),
                         person.email(),
                         person.permanentAddress(),
@@ -76,6 +77,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
         return queryNullable("""
                 SELECT pp.id,
                        pp.full_name,
+                       pp.dob,
                        pp.phone,
                        pp.email,
                        pp.permanent_address,
@@ -110,6 +112,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 """, rs -> new PersonRow(
                 rs.getLong("id"),
                 rs.getString("full_name"),
+                nullableLocalDate(rs, "dob"),
                 rs.getString("phone"),
                 rs.getString("email"),
                 rs.getString("permanent_address"),
@@ -212,6 +215,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
     private record PersonRow(
             Long id,
             String fullName,
+            LocalDate dob,
             String phone,
             String email,
             String permanentAddress,
