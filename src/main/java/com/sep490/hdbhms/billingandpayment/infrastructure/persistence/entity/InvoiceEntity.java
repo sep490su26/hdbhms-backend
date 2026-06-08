@@ -4,6 +4,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositBatchEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -60,6 +61,10 @@ public class InvoiceEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "deposit_agreement_id", nullable = true)
     DepositAgreementEntity depositAgreement;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deposit_batch_id")
+    DepositBatchEntity depositBatch;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "invoice_type", nullable = false, length = 50)

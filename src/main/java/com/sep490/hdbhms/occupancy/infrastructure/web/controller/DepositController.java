@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
@@ -188,6 +189,8 @@ public class DepositController {
         roomHoldRepository.save(roomHold);
         earlyCancelRoomHoldTaskPort.execute(roomHold.getId());
         markPaymentIntentFailedIfPending(paymentIntent);
+        depositAgreement.changeStatus(DepositAgreementStatus.CANCELLED);
+        depositAgreementRepository.save(depositAgreement);
         roomRepository.updateRoomStatusIfCurrent(depositAgreement.getRoomId(), RoomStatus.ON_HOLD, RoomStatus.VACANT);
 
         return ApiResponse.<DepositRoomHoldStatusResponse>builder()

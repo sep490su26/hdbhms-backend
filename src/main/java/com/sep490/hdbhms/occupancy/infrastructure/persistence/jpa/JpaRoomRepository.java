@@ -5,13 +5,19 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 public interface JpaRoomRepository extends JpaRepository<RoomEntity, Long>, JpaSpecificationExecutor<RoomEntity> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM RoomEntity r JOIN FETCH r.property WHERE r.id IN :roomIds ORDER BY r.id")
+    List<RoomEntity> findAllByIdForUpdate(@Param("roomIds") List<Long> roomIds);
+
     @Query("""
                 SELECT r FROM RoomEntity r
                 JOIN FETCH r.property p

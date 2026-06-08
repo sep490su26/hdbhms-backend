@@ -342,7 +342,6 @@ public class LeaseContractManagementService {
 
     public LeaseContractRenewalResponse renew(
             Long leaseContractId,
-            String requestedContractCode,
             LocalDate newStartDate,
             LocalDate newEndDate,
             Long monthlyRent,
@@ -375,7 +374,7 @@ public class LeaseContractManagementService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong dang co hop dong hieu luc khac.");
         }
 
-        String newContractCode = resolveRenewalContractCode(oldContract, requestedContractCode);
+        String newContractCode = resolveRenewalContractCode(oldContract);
         LeaseContractEntity newContract = LeaseContractEntity.builder()
                 .contractCode(newContractCode)
                 .room(room)
@@ -1006,22 +1005,15 @@ public class LeaseContractManagementService {
         );
     }
 
-    private String resolveRenewalContractCode(
-            LeaseContractEntity oldContract,
-            String requestedContractCode
-    ) {
-        String contractCode = requestedContractCode == null ? "" : requestedContractCode.trim();
-        if (contractCode.isBlank()) {
-            int renewalNumber = jdbcTemplate.queryForObject("""
-                            SELECT COUNT(*)
-                            FROM lease_contracts
-                            WHERE previous_contract_id = ?
-                            """,
-                    Integer.class,
-                    oldContract.getId()
-            ) + 1;
-            contractCode = oldContract.getContractCode() + "-R" + renewalNumber;
+    private String resolveRenewalContractCode(LeaseContractEntity oldContract) {
+        LeaseContractEntity rootContract = oldContract;
+        int renewalNumber = 1;
+        while (rootContract.getPreviousContract() != null) {
+            rootContract = rootContract.getPreviousContract();
+            renewalNumber++;
         }
+
+        String contractCode = rootContract.getContractCode() + "-R" + renewalNumber;
         if (contractCode.length() > 80) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ma hop dong moi khong duoc vuot qua 80 ky tu.");
         }
@@ -1207,9 +1199,7 @@ public class LeaseContractManagementService {
         String depositStatus = rs.getString("deposit_status");
         Long contractFileId = getLongOrNull(rs, "contract_file_id");
         Long userId = getLongOrNull(rs, "user_id");
-        String code = leaseContractId != null
-                ? rs.getString("contract_code")
-                : rs.getString("deposit_code");
+        String code = rs.getString("contract_code");
         return LeaseContractManagementResponse.builder()
                 .sourceType(rs.getString("source_type"))
                 .leaseContractId(leaseContractId)

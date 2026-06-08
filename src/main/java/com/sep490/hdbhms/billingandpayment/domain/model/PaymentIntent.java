@@ -18,6 +18,7 @@ public class PaymentIntent {
     Long id;
     Long invoiceId;
     Long depositAgreementId;
+    Long depositBatchId;
     Long invoicePaymentGroupId;
     Long amount;
     String providerOrderCode;
@@ -76,5 +77,9 @@ public class PaymentIntent {
 
     public void attachProviderOrderCode(String orderCode) {
         this.providerOrderCode = orderCode;
+    }
+
+    public void requireRefund() {
+        this.status = PaymentIntentStatus.REFUND_REQUIRED;
     }
 }

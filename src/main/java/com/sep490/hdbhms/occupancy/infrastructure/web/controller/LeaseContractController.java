@@ -167,7 +167,6 @@ public class LeaseContractController {
         return ApiResponse.<LeaseContractRenewalResponse>builder()
                 .data(leaseContractManagementService.renew(
                         leaseContractId,
-                        request.newContractCode(),
                         request.newStartDate(),
                         request.newEndDate(),
                         request.monthlyRent(),
