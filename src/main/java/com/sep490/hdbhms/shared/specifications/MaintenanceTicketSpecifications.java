@@ -28,6 +28,13 @@ public class MaintenanceTicketSpecifications {
                         : criteriaBuilder.equal(root.get("status"), status);
     }
 
+    public static Specification<MaintenanceTicketEntity> roomIdEquals(Long roomId) {
+        return (root, query, criteriaBuilder) ->
+                roomId == null
+                        ? criteriaBuilder.conjunction()
+                        : criteriaBuilder.equal(root.get("room").get("id"), roomId);
+    }
+
     public static Specification<MaintenanceTicketEntity> categoryOrScopeEquals(String type) {
         return (root, query, criteriaBuilder) -> {
             if (type == null || type.isBlank()) {

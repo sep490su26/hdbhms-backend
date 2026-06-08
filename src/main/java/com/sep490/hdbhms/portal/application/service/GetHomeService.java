@@ -3,16 +3,18 @@ package com.sep490.hdbhms.portal.application.service;
 import com.sep490.hdbhms.portal.application.port.in.query.GetHomeQuery;
 import com.sep490.hdbhms.portal.application.port.in.usecase.GetHomeUseCase;
 import com.sep490.hdbhms.portal.infrastructure.web.dto.response.*;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -22,6 +24,7 @@ import java.util.List;
 public class GetHomeService implements GetHomeUseCase {
 
     JdbcTemplate jdbcTemplate;
+    LeaseContractQueryService leaseContractQueryService;
 
     @Override
     public HomeResponse execute(GetHomeQuery query) {
@@ -80,53 +83,52 @@ public class GetHomeService implements GetHomeUseCase {
 
         Long tenantId = response.getTenant().getId();
 
-        // 2. Fetch All Active Contract Rooms for Tenant
-        List<RoomHomeResponse> rooms = new ArrayList<>();
-        ContractHomeResponse firstContract = null;
-        jdbcTemplate.query("""
-                SELECT DISTINCT
-                    lc.id AS contract_id, lc.contract_code, lc.status AS contract_status, lc.start_date, lc.end_date,
-                    r.id AS room_id, r.room_code, r.name AS room_name, r.current_status AS room_status
-                FROM lease_contracts lc
-                JOIN rooms r ON r.id = lc.room_id
-                LEFT JOIN contract_occupants co ON co.contract_id = lc.id
-                LEFT JOIN person_profiles pp_scope ON pp_scope.id = co.tenant_profile_id
-                WHERE (
-                      lc.primary_tenant_profile_id = (SELECT id FROM person_profiles WHERE user_id = ? AND deleted_at IS NULL LIMIT 1)
-                      OR co.tenant_id IN (SELECT id FROM tenants WHERE user_id = ? AND deleted_at IS NULL)
-                      OR pp_scope.user_id = ?
-                  )
-                  AND lc.status IN ('ACTIVE', 'EXPIRING_SOON')
-                  AND lc.deleted_at IS NULL
-                ORDER BY lc.id DESC
-                """,
-                rs -> {
-                    while (rs.next()) {
-                        ContractHomeResponse contract = ContractHomeResponse.builder()
-                                .id(rs.getLong("contract_id"))
-                                .contractCode(rs.getString("contract_code"))
-                                .status(rs.getString("contract_status"))
-                                .startDate(rs.getTimestamp("start_date") != null ? rs.getTimestamp("start_date").toLocalDateTime() : null)
-                                .endDate(rs.getTimestamp("end_date") != null ? rs.getTimestamp("end_date").toLocalDateTime() : null)
-                                .build();
+        // 2. Resolve every rental context available to this user and select one.
+        List<LeaseContractQueryService.ActiveRoomItem> rentalContexts =
+                leaseContractQueryService.getRentalContexts(userId);
+        LeaseContractQueryService.ActiveRoomItem selectedContext = null;
+        if (query.contractId() != null) {
+            selectedContext = rentalContexts.stream()
+                    .filter(context -> context.contractId().equals(query.contractId()))
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.FORBIDDEN,
+                            "Ban khong co quyen xem phong hoac hop dong nay."
+                    ));
+        } else if (!rentalContexts.isEmpty()) {
+            selectedContext = rentalContexts.getFirst();
+        }
 
-                        RoomHomeResponse room = RoomHomeResponse.builder()
-                                .id(rs.getLong("room_id"))
-                                .roomCode(rs.getString("room_code"))
-                                .name(rs.getString("room_name"))
-                                .currentStatus(rs.getString("room_status"))
-                                .build();
-
-                        rooms.add(room);
-                        if (rooms.size() == 1) {
-                            // Use the first (most recent) active contract for invoice/utility context
-                            response.setContract(contract);
-                            response.setRoom(room);
-                        }
-                    }
-                    return null;
-                }, userId, userId, userId);
+        List<RoomHomeResponse> rooms = rentalContexts.stream()
+                .map(context -> RoomHomeResponse.builder()
+                        .id(context.roomId())
+                        .roomCode(context.roomCode())
+                        .name(context.roomName())
+                        .currentStatus(context.roomStatus())
+                        .build())
+                .toList();
         response.setRooms(rooms.isEmpty() ? null : rooms);
+
+        if (selectedContext != null) {
+            response.setContract(ContractHomeResponse.builder()
+                    .id(selectedContext.contractId())
+                    .contractCode(selectedContext.contractCode())
+                    .status(selectedContext.contractStatus())
+                    .startDate(selectedContext.startDate() == null
+                            ? null
+                            : selectedContext.startDate().atStartOfDay())
+                    .endDate(selectedContext.endDate() == null
+                            ? null
+                            : selectedContext.endDate().atStartOfDay())
+                    .build());
+            response.setRoom(RoomHomeResponse.builder()
+                    .id(selectedContext.roomId())
+                    .roomCode(selectedContext.roomCode())
+                    .name(selectedContext.roomName())
+                    .currentStatus(selectedContext.roomStatus())
+                    .build());
+            response.setTenant(resolveTenant(userId, selectedContext));
+        }
 
         // 3. Invoice Summary
         if (response.getContract() != null) {
@@ -207,5 +209,28 @@ public class GetHomeService implements GetHomeUseCase {
         }
 
         return response;
+    }
+
+    private TenantHomeResponse resolveTenant(
+            Long userId,
+            LeaseContractQueryService.ActiveRoomItem context
+    ) {
+        Long tenantId = jdbcTemplate.query("""
+                        SELECT t.id
+                        FROM tenants t
+                        WHERE t.user_id = ?
+                          AND t.property_id = ?
+                          AND t.deleted_at IS NULL
+                        ORDER BY t.id DESC
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getLong("id") : null,
+                userId,
+                context.propertyId()
+        );
+        return TenantHomeResponse.builder()
+                .id(tenantId)
+                .name(context.propertyName())
+                .build();
     }
 }
