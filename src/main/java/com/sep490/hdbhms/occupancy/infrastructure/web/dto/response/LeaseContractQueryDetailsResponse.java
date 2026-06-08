@@ -43,7 +43,17 @@ public record LeaseContractQueryDetailsResponse(
     public record PropertyInfo(Long id, String name, String address) {
     }
 
-    public record TenantProfileInfo(Long id, String fullName, String phone) {
+    public record TenantProfileInfo(
+            Long id,
+            String fullName,
+            String phone,
+            String email,
+            LocalDate dob,
+            String permanentAddress,
+            String citizenId,
+            LocalDate identityIssuedDate,
+            String identityIssuedPlace
+    ) {
     }
 
     public record ContractFileInfo(Long id, String fileName) {
@@ -54,7 +64,11 @@ public record LeaseContractQueryDetailsResponse(
             String fullName,
             String phone,
             String email,
+            LocalDate dob,
+            String permanentAddress,
             String citizenId,
+            LocalDate identityIssuedDate,
+            String identityIssuedPlace,
             OccupantRole occupantRole,
             LocalDate moveInDate,
             LocalDate moveOutDate,

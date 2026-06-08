@@ -238,10 +238,18 @@ public class LeaseContractController {
                 .build();
     }
 
+    @GetMapping("/me/rental-contexts")
+    public ApiResponse<List<LeaseContractQueryService.ActiveRoomItem>> getMyRentalContexts() {
+        return ApiResponse.<List<LeaseContractQueryService.ActiveRoomItem>>builder()
+                .data(leaseContractQueryService.getMyActiveRooms())
+                .build();
+    }
+
     @GetMapping("/{leaseContractId}")
     public ApiResponse<LeaseContractDetailsResponse> getLeaseContractDetails(
             @PathVariable("leaseContractId") Long leaseContractId
     ) {
+        leaseContractQueryService.assertCurrentUserCanReadContract(leaseContractId);
         LeaseContract leaseContract = getLeaseContractDetailsUseCase.execute(
                 new GetLeaseContractDetailsQuery(leaseContractId)
         );
