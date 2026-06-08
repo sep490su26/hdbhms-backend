@@ -41,6 +41,7 @@ public class UpdateUserService implements UpdateUserUseCase {
     UserRepository userRepository;
     PasswordEncoder passwordEncoder;
     TokenProvider tokenProvider;
+    TenantAccountProvisioningStatusService provisioningStatusService;
 
     OtpCodePort otpCodePort;
 
@@ -196,6 +197,7 @@ public class UpdateUserService implements UpdateUserUseCase {
                         newPasswordHash
                 );
         userModificationHistoryRepository.save(modificationHistory);
+        provisioningStatusService.markActiveByUserId(user.getId());
         return user;
     }
 

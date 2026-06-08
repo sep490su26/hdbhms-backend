@@ -1,0 +1,16 @@
+package com.sep490.hdbhms.occupancy.application.service;
+
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+@Getter
+public class BatchDepositRequestException extends RuntimeException {
+    private final HttpStatus status;
+    private final String code;
+
+    public BatchDepositRequestException(HttpStatus status, String code, String message) {
+        super(message);
+        this.status = status;
+        this.code = code;
+    }
+}

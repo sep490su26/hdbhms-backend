@@ -50,6 +50,7 @@ public enum ApiErrorCode {
     VISIT_005(40105, "Visit request access denied", "Không có quyền thao tác", HttpStatus.FORBIDDEN),
     VISIT_006(40106, "Missing required visit request field", "Thiếu thông tin bắt buộc", HttpStatus.BAD_REQUEST),
     VISIT_007(40107, "Invalid appointment time", "Ngày giờ hẹn xem phải sau thời gian hiện tại", HttpStatus.BAD_REQUEST),
+    DEPOSIT_001(40201, "Invalid deposit occupancy", "Thông tin số người ở không hợp lệ", HttpStatus.BAD_REQUEST),
     ;
     int code;
     String message;

@@ -9,8 +9,6 @@ import com.sep490.hdbhms.identityandaccess.domain.model.WebAuthentication;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.TokenProvider;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
-import com.sep490.hdbhms.shared.utils.CookieUtils;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
@@ -21,8 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.ParseException;
-
-import static com.sep490.hdbhms.shared.utils.SessionUtils.ACCESS_TOKEN_COOKIE_NAME;
 
 @Slf4j
 @Service
@@ -35,6 +31,11 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
 
     @Override
     public WebAuthentication execute(RefreshAccessTokenCommand command, HttpServletRequest request, HttpServletResponse response) {
+        var sessionId = tokenProvider.getSessionIdFromCookie(request);
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
+        }
+
         var refreshToken = tokenProvider.getRefreshToken(request, true);
         log.info("Refresh sessionId: {}", refreshToken);
         try {
@@ -45,15 +46,17 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
         } catch (ParseException | JOSEException e) {
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN);
         }
-        Cookie accessTokenCookie = CookieUtils.getCookie(request, ACCESS_TOKEN_COOKIE_NAME)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNAUTHENTICATED));
-        tokenProvider.clearToken(accessTokenCookie.getValue(), false);
+        var accessToken = tokenProvider.getAccessTokenFromCookie(request);
+        if (accessToken != null && !accessToken.isBlank()) {
+            tokenProvider.clearToken(accessToken, false);
+        }
+
         Long userId = tokenProvider.getUserId(request);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         String newAccessToken = tokenProvider.createAccessToken(
                 user,
-                command.sessionId(),
+                sessionId,
                 response
         );
         return new WebAuthentication(newAccessToken, user.getRole(), true);

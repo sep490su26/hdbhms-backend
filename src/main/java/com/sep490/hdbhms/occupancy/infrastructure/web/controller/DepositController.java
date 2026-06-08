@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
@@ -188,6 +189,8 @@ public class DepositController {
         roomHoldRepository.save(roomHold);
         earlyCancelRoomHoldTaskPort.execute(roomHold.getId());
         markPaymentIntentFailedIfPending(paymentIntent);
+        depositAgreement.changeStatus(DepositAgreementStatus.CANCELLED);
+        depositAgreementRepository.save(depositAgreement);
         roomRepository.updateRoomStatusIfCurrent(depositAgreement.getRoomId(), RoomStatus.ON_HOLD, RoomStatus.VACANT);
 
         return ApiResponse.<DepositRoomHoldStatusResponse>builder()
@@ -264,7 +267,8 @@ public class DepositController {
             paymentIntent.failPayment();
             paymentIntentRepository.save(paymentIntent);
         } catch (RuntimeException ex) {
-            log.warn("Skip failing payment intent during hold cancel. paymentIntentId={}", paymentIntent.getId(), ex);
+            log.warn("Skip failing payment intent during hold cancel. providerOrderCode={}",
+                    paymentIntent.getProviderOrderCode(), ex);
         }
     }
 
@@ -278,6 +282,22 @@ public class DepositController {
         }
 
         Long orderCode = longValue(payload, "orderCode");
+        String providerOrderCode = valueOrDefault(
+                textValue(payload, "providerOrderCode"),
+                paymentIntent.getProviderOrderCode()
+        );
+        String accountName = valueOrDefault(
+                textValue(payload, "accountName"),
+                textValue(payload, "receiverName")
+        );
+        String bankShortName = valueOrDefault(
+                textValue(payload, "bankShortName"),
+                textValue(payload, "bankName")
+        );
+        String transferDescription = valueOrDefault(
+                textValue(payload, "transferDescription"),
+                textValue(payload, "description")
+        );
         return DepositCheckoutResponse.builder()
                 .id(paymentIntent.getId())
                 .paymentIntentId(paymentIntent.getId())
@@ -293,10 +313,15 @@ public class DepositController {
                 .expiresAt(paymentIntent.getExpiresAt())
                 .provider(paymentIntent.getProvider())
                 .status(paymentIntent.getStatus())
-                .orderCode(orderCode == null ? paymentIntent.getId() : orderCode)
+                .orderCode(orderCode == null ? providerOrderCode : String.valueOf(orderCode))
+                .providerOrderCode(providerOrderCode)
                 .paymentLinkId(textValue(payload, "paymentLinkId"))
-                .receiverName(textValue(payload, "receiverName"))
-                .bankName(textValue(payload, "bankName"))
+                .bankBin(textValue(payload, "bankBin"))
+                .bankShortName(bankShortName)
+                .accountName(accountName)
+                .transferDescription(transferDescription)
+                .receiverName(accountName)
+                .bankName(bankShortName)
                 .accountNumber(textValue(payload, "accountNumber"))
                 .build();
     }
@@ -308,7 +333,7 @@ public class DepositController {
         }
 
         try {
-            PaymentLink paymentLink = payOSProperties.payOS().paymentRequests().get(paymentIntent.getId());
+            PaymentLink paymentLink = payOSProperties.payOS().paymentRequests().get(paymentIntent.getProviderOrderCode());
             if (paymentLink == null || paymentLink.getStatus() != PaymentLinkStatus.PAID) {
                 return paymentIntent;
             }
@@ -333,7 +358,8 @@ public class DepositController {
 
             return paymentIntentRepository.findById(paymentIntent.getId()).orElse(paymentIntent);
         } catch (Exception ex) {
-            log.warn("Could not sync PayOS payment status. paymentIntentId={}", paymentIntent.getId(), ex);
+            log.warn("Could not sync PayOS payment status. providerOrderCode={}",
+                    paymentIntent.getProviderOrderCode(), ex);
             return paymentIntent;
         }
     }

@@ -9,6 +9,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -30,6 +31,9 @@ public class DepositForm {
     Long portraitFileId;
     Integer depositMonths;
     Integer paymentCycleMonths;
+    Integer occupantCount;
+    @Builder.Default
+    List<DepositFormCoOccupant> coOccupants = List.of();
     LocalDate expectedMoveInDate;
     LocalDate expectedLeaseSignDate;
     LocalDateTime paymentDueAt;
@@ -54,6 +58,8 @@ public class DepositForm {
             String idIssuePlace,
             Integer depositMonths,
             Integer paymentCycleMonths,
+            Integer occupantCount,
+            List<DepositFormCoOccupant> coOccupants,
             Long idFrontFileId,
             Long idBackFileId,
             Long portraitFileId,
@@ -68,6 +74,8 @@ public class DepositForm {
                 .email(email)
                 .depositMonths(depositMonths)
                 .paymentCycleMonths(paymentCycleMonths)
+                .occupantCount(occupantCount)
+                .coOccupants(coOccupants == null ? List.of() : coOccupants)
                 .idIssueDate(idIssueDate)
                 .idIssuePlace(idIssuePlace)
                 .idFrontFileId(idFrontFileId)

@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -58,17 +59,18 @@ public class TenantProfileManagementController {
                                    pp.permanent_address,
                                    pp.portrait_file_id,
                                    u.status AS app_status,
-                                   'PRIMARY' AS room_role,
-                                   lc.start_date AS move_in_date,
-                                   NULL AS move_out_date,
-                                   IF(lc.status IN ('ACTIVE','EXPIRING_SOON'), 'RENTING', 'PENDING') AS residence_status
+                                   co.occupant_role AS room_role,
+                                   co.move_in_date,
+                                   co.move_out_date,
+                                   'RENTING' AS residence_status
                             FROM lease_contracts lc
                             JOIN rooms r ON r.id = lc.room_id
                             JOIN properties p ON p.id = r.property_id
-                            JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
-                            LEFT JOIN users u ON u.id = pp.user_id
+                            JOIN contract_occupants co ON co.contract_id = lc.id AND co.status = 'ACTIVE'
+                            JOIN person_profiles pp ON pp.id = co.tenant_profile_id
+                            LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
-                              AND lc.status NOT IN ('CANCELLED','LIQUIDATED','EXPIRED','AUTO_TERMINATED')
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
                               AND pp.deleted_at IS NULL
 
                             UNION ALL
@@ -96,22 +98,25 @@ public class TenantProfileManagementController {
                                    pp.permanent_address,
                                    pp.portrait_file_id,
                                    u.status AS app_status,
-                                   co.occupant_role AS room_role,
-                                   co.move_in_date,
-                                   co.move_out_date,
-                                   IF(co.status = 'ACTIVE', 'RENTING', 'MOVED_OUT') AS residence_status
-                            FROM contract_occupants co
-                            JOIN lease_contracts lc ON lc.id = co.contract_id
-                            JOIN tenants t ON t.id = co.tenant_id
-                            JOIN users u ON u.id = t.user_id
-                            JOIN person_profiles pp ON pp.user_id = u.id
+                                   'PRIMARY' AS room_role,
+                                   lc.start_date AS move_in_date,
+                                   NULL AS move_out_date,
+                                   'RENTING' AS residence_status
+                            FROM lease_contracts lc
                             JOIN rooms r ON r.id = lc.room_id
                             JOIN properties p ON p.id = r.property_id
+                            JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                            LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
-                              AND lc.status NOT IN ('CANCELLED','LIQUIDATED','EXPIRED','AUTO_TERMINATED')
-                              AND co.status = 'ACTIVE'
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
                               AND pp.deleted_at IS NULL
-                              AND pp.id <> lc.primary_tenant_profile_id
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM contract_occupants co_primary
+                                  WHERE co_primary.contract_id = lc.id
+                                    AND co_primary.tenant_profile_id = pp.id
+                                    AND co_primary.status = 'ACTIVE'
+                              )
                         ) tenant_profiles
                         ORDER BY property_name, room_code, contract_id, room_role DESC, full_name
                         """,
@@ -131,7 +136,8 @@ public class TenantProfileManagementController {
             List<EmergencyContactResponse> emergencyContacts = getEmergencyContacts(row.profileId());
             ProfileStatus profileStatus = resolveProfileStatus(row, identityDocument, emergencyContacts);
             List<RoommateResponse> roommates = roomRows.stream()
-                    .filter(roommate -> !roommate.profileId().equals(row.profileId()))
+                    .filter(roommate -> !Objects.equals(roommate.profileId(), row.profileId())
+                            || !Objects.equals(roommate.phone(), row.phone()))
                     .map(this::toRoommateResponse)
                     .toList();
 
@@ -241,7 +247,7 @@ public class TenantProfileManagementController {
                 (rs, rowNum) -> new IdentityDocumentResponse(
                         nullableLong(rs, "id"),
                         rs.getString("doc_type"),
-                        rs.getString("doc_number"),
+                        normalizeIdentityNumber(rs.getString("doc_number")),
                         nullableLocalDate(rs, "issued_date"),
                         rs.getString("issued_place"),
                         nullableLocalDate(rs, "expiry_date"),
@@ -343,6 +349,13 @@ public class TenantProfileManagementController {
 
     private String fileUrl(Long fileId) {
         return fileId == null ? null : "/api/v1/files/private/" + fileId;
+    }
+
+    private String normalizeIdentityNumber(String value) {
+        if (value == null || value.isBlank() || value.startsWith("PENDING-")) {
+            return null;
+        }
+        return value;
     }
 
     private Long nullableLong(ResultSet rs, String column) throws SQLException {

@@ -91,10 +91,11 @@ public class UserController {
     @PostMapping("/tenant-account-candidates/{contractId}/send")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     ApiResponse<TenantAccountProvisioningResponse> sendTenantAccount(
-            @PathVariable Long contractId
+            @PathVariable Long contractId,
+            @RequestParam(defaultValue = "false") boolean retry
     ) {
         return ApiResponse.<TenantAccountProvisioningResponse>builder()
-                .data(tenantAccountProvisioningService.provisionPrimaryTenantAccount(contractId))
+                .data(tenantAccountProvisioningService.provisionPrimaryTenantAccount(contractId, retry))
                 .build();
     }
 

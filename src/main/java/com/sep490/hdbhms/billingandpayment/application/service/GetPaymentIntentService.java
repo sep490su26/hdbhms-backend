@@ -19,7 +19,7 @@ public class GetPaymentIntentService implements GetPaymentIntentUseCase {
 
     @Override
     public PaymentIntent execute(GetPaymentIntentQuery query) {
-        return paymentIntentRepository.findById(query.paymentIntentId())
+        return paymentIntentRepository.findByProviderOrderCode(String.valueOf(query.orderCode()))
                 .orElseThrow(() -> new IllegalArgumentException("Invalid payment intent"));
     }
 }

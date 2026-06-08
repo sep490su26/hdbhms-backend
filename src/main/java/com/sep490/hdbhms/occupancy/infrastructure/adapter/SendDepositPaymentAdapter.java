@@ -55,6 +55,7 @@ import java.util.Map;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     static final NumberFormat MONEY_FORMATTER = NumberFormat.getInstance(Locale.forLanguageTag("vi-VN"));
+    static final long DEPOSIT_AMOUNT = 2_000L;
 
     JavaMailSender mailSender;
     TemplateEngine templateEngine;
@@ -119,14 +120,14 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 )
         );
         paymentIntent.attachQrPayload(toCheckoutPayload(checkoutResponse, paymentIntent));
+        paymentIntent.attachProviderOrderCode(checkoutResponse.providerOrderCode());
         paymentIntent = paymentIntentRepository.save(paymentIntent);
         sendDepositReceiptEmail(depositForm, room, depositAmount);
         return paymentIntent;
     }
 
     private Long resolveDepositAmount() {
-        Long amount = environment.getProperty("app.deposit.amount", Long.class, 2000L);
-        return amount == null || amount <= 0 ? 2000L : amount;
+        return DEPOSIT_AMOUNT;
     }
 
     private PaymentIntentProvider resolveDepositPaymentProvider() {
@@ -152,21 +153,24 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 ? PaymentStatus.PENDING.name()
                 : checkoutResponse.paymentStatus().name());
         payload.put("paymentIntentId", paymentIntent.getId());
-        payload.put("orderCode", checkoutResponse.orderCode() == null ? paymentIntent.getId() : checkoutResponse.orderCode());
+        payload.put("orderCode", checkoutResponse.orderCode() == null ? paymentIntent.getProviderOrderCode() : checkoutResponse.orderCode());
         payload.put("paymentLinkId", checkoutResponse.paymentLinkId());
         payload.put("amount", checkoutResponse.amount() == null ? paymentIntent.getAmount() : checkoutResponse.amount());
+        payload.put("providerOrderCode", checkoutResponse.providerOrderCode());
         payload.put("paymentContent", checkoutResponse.paymentContent() == null
                 ? paymentIntent.getPaymentContent()
                 : checkoutResponse.paymentContent());
-        payload.put("description", checkoutResponse.paymentContent() == null
-                ? paymentIntent.getPaymentContent()
-                : checkoutResponse.paymentContent());
+        payload.put("description", checkoutResponse.transferDescription());
+        payload.put("transferDescription", checkoutResponse.transferDescription());
         payload.put("checkoutUrl", checkoutResponse.checkOutUrl());
         payload.put("qrCode", checkoutResponse.qrCode());
         payload.put("qrPayload", checkoutResponse.qrPayload());
-        payload.put("receiverName", environment.getProperty("app.deposit.payment.receiver-name", "HAIDANG"));
-        payload.put("bankName", environment.getProperty("app.deposit.payment.bank-name", "PayOS/VietQR"));
-        payload.put("accountNumber", environment.getProperty("app.deposit.payment.account-number", ""));
+        payload.put("bankBin", checkoutResponse.bankBin());
+        payload.put("bankShortName", checkoutResponse.bankShortName());
+        payload.put("bankName", checkoutResponse.bankShortName());
+        payload.put("accountNumber", checkoutResponse.accountNumber());
+        payload.put("accountName", checkoutResponse.accountName());
+        payload.put("receiverName", checkoutResponse.accountName());
         LocalDateTime expiresAt = checkoutResponse.expiresAt() == null
                 ? paymentIntent.getExpiresAt()
                 : checkoutResponse.expiresAt();
