@@ -39,7 +39,11 @@ public class ConfirmLeaseContractService implements ConfirmLeaseContractUseCase 
                 .orElseThrow(() -> new IllegalArgumentException("Primary tenant profile not found"));
         Room room = roomRepository.findById(leaseContract.getRoomId())
                 .orElseThrow(() -> new IllegalArgumentException("Room not found"));
-        promoteToTenantPort.execute(room.getPropertyId(), personProfile.getUserId());
+        if (personProfile.getUserId() != null) {
+            promoteToTenantPort.execute(room.getPropertyId(), personProfile.getUserId());
+        }
+        room.occupyRoom();
+        roomRepository.save(room);
         
         leaseContract.activateContract();
         leaseContractRepository.save(leaseContract);

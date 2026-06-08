@@ -10,6 +10,8 @@ import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.BatchFileResponse;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
 import com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
@@ -21,9 +23,16 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -83,13 +92,28 @@ public class FileMetadataController {
     ResponseEntity<Resource> download(@PathVariable Long fileId) {
         var fileData = downloadFileService.execute(new DownloadFileQuery(fileId));
         if (fileData == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy file");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
         }
-        if (fileData.sensitive()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "File nhạy cảm không được tải qua đường dẫn public");
+        if (fileData.sensitive() && !canDownloadSensitiveFile(fileData.ownerUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
         }
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, fileData.contentType())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(fileData.resource());
+    }
+
+    @GetMapping("/private/{fileId}")
+    @ResponseStatus(HttpStatus.OK)
+    ResponseEntity<Resource> downloadPrivate(@PathVariable Long fileId) {
+        assertOwnerOrManager();
+        var fileData = downloadFileService.execute(new DownloadFileQuery(fileId));
+        if (fileData == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, fileData.contentType())
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                 .body(fileData.resource());
     }
 
@@ -99,5 +123,31 @@ public class FileMetadataController {
         return ApiResponse.builder()
                 .data(SecurityContextHolder.getContext().getAuthentication())
                 .build();
+    }
+
+    private void assertOwnerOrManager() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please login to view this file");
+        }
+
+        Role role = principal.getRole();
+        if (role != Role.OWNER && role != Role.MANAGER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
+        }
+    }
+
+    private boolean canDownloadSensitiveFile(Long ownerUserId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            return false;
+        }
+
+        Role role = principal.getRole();
+        if (role == Role.OWNER || role == Role.MANAGER) {
+            return true;
+        }
+
+        return ownerUserId != null && ownerUserId.equals(principal.getId());
     }
 }

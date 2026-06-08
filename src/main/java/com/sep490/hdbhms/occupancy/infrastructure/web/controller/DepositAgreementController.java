@@ -20,6 +20,7 @@ import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositAgreementManagementUpdateRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositAgreementStatusUpdateRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementResponse;
@@ -41,9 +42,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.Set;
-import java.time.LocalDateTime;
 
 @RestController
 @RequiredArgsConstructor
@@ -55,6 +57,12 @@ public class DepositAgreementController {
             DepositAgreementStatus.CONVERTED_TO_LEASE,
             DepositAgreementStatus.REFUNDED,
             DepositAgreementStatus.FORFEITED
+    );
+    private static final Set<DepositAgreementStatus> MANAGER_INFO_UPDATEABLE_STATUSES = EnumSet.of(
+            DepositAgreementStatus.PENDING_PAYMENT,
+            DepositAgreementStatus.PAID,
+            DepositAgreementStatus.CONFIRMED,
+            DepositAgreementStatus.EXTENDED
     );
 
     GetRoomDetailsUseCase getRoomDetailsUseCase;
@@ -157,6 +165,49 @@ public class DepositAgreementController {
                 .build();
     }
 
+    @PatchMapping("/{depositAgreementId}/management-info")
+    public ApiResponse<DepositAgreementDetailsResponse> updateDepositAgreementManagementInfo(
+            @PathVariable("depositAgreementId") Long depositAgreementId,
+            @Valid @RequestBody DepositAgreementManagementUpdateRequest request
+    ) {
+        assertOwnerOrManager();
+        validateManagementInfoUpdate(request);
+
+        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
+                new GetDepositAgreementDetailsQuery(depositAgreementId)
+        );
+        if (!MANAGER_INFO_UPDATEABLE_STATUSES.contains(depositAgreement.getStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Chỉ được cập nhật thông tin khi cọc đang chờ thanh toán, đã đặt cọc, đang giữ cọc hoặc chờ ký hợp đồng."
+            );
+        }
+
+        DepositForm depositForm = getDepositForm(depositAgreement);
+        if (depositForm == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy form đặt cọc để cập nhật thông tin khách.");
+        }
+
+        String normalizedPhone = normalizePhone(request.depositorPhone());
+        depositForm.updateManagerEditableInfo(
+                normalizedPhone,
+                request.permanentAddress().trim(),
+                request.expectedMoveInDate(),
+                request.expectedLeaseSignDate()
+        );
+        depositAgreement.updateExpectedDates(request.expectedMoveInDate(), request.expectedLeaseSignDate());
+
+        depositFormRepository.save(depositForm);
+        DepositAgreement savedDepositAgreement = depositAgreementRepository.save(depositAgreement);
+        Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(savedDepositAgreement.getRoomId()));
+
+        depositContractDocumentService.regenerateOfficialContractAfterCommit(savedDepositAgreement.getId());
+
+        return ApiResponse.<DepositAgreementDetailsResponse>builder()
+                .data(toDetailsResponse(savedDepositAgreement, room))
+                .build();
+    }
+
     @GetMapping("/{depositAgreementId}/contract")
     public ResponseEntity<Resource> downloadDepositContract(
             @PathVariable("depositAgreementId") Long depositAgreementId
@@ -190,6 +241,8 @@ public class DepositAgreementController {
                 .depositorPhone(depositForm != null ? depositForm.getPhone() : null)
                 .depositorEmail(depositForm != null ? depositForm.getEmail() : null)
                 .amount(depositAgreement.getAmount())
+                .expectedMoveInDate(resolveExpectedMoveInDate(depositAgreement, depositForm))
+                .expectedLeaseSignDate(resolveExpectedLeaseSignDate(depositAgreement, depositForm))
                 .createdAt(depositAgreement.getCreatedAt())
                 .status(depositAgreement.getStatus())
                 .confirmedAt(depositAgreement.getConfirmedAt())
@@ -210,9 +263,10 @@ public class DepositAgreementController {
                 .depositorFullName(depositForm != null ? depositForm.getFullName() : null)
                 .depositorPhone(depositForm != null ? depositForm.getPhone() : null)
                 .depositorEmail(depositForm != null ? depositForm.getEmail() : null)
+                .depositorPermanentAddress(depositForm != null ? depositForm.getPermanentAddress() : null)
                 .amount(depositAgreement.getAmount())
-                .expectedMoveInDate(depositAgreement.getExpectedMoveInDate())
-                .expectedLeaseSignDate(depositAgreement.getExpectedLeaseSignDate())
+                .expectedMoveInDate(resolveExpectedMoveInDate(depositAgreement, depositForm))
+                .expectedLeaseSignDate(resolveExpectedLeaseSignDate(depositAgreement, depositForm))
                 .depositExpiresAt(depositAgreement.getDepositExpiresAt())
                 .status(depositAgreement.getStatus())
                 .confirmedAt(depositAgreement.getConfirmedAt())
@@ -237,7 +291,46 @@ public class DepositAgreementController {
     }
 
     private String fileDownloadUrl(Long fileId) {
-        return fileId == null ? null : "/api/v1/files/download/" + fileId;
+        return fileId == null ? null : "/api/v1/tenants/profiles/me/files/" + fileId;
+    }
+
+    private java.time.LocalDate resolveExpectedMoveInDate(DepositAgreement depositAgreement, DepositForm depositForm) {
+        if (depositAgreement.getExpectedMoveInDate() != null) {
+            return depositAgreement.getExpectedMoveInDate();
+        }
+        return depositForm != null ? depositForm.getExpectedMoveInDate() : null;
+    }
+
+    private java.time.LocalDate resolveExpectedLeaseSignDate(DepositAgreement depositAgreement, DepositForm depositForm) {
+        if (depositAgreement.getExpectedLeaseSignDate() != null) {
+            return depositAgreement.getExpectedLeaseSignDate();
+        }
+        return depositForm != null ? depositForm.getExpectedLeaseSignDate() : null;
+    }
+
+    private void validateManagementInfoUpdate(DepositAgreementManagementUpdateRequest request) {
+        String normalizedPhone = normalizePhone(request.depositorPhone());
+        if (!normalizedPhone.matches("^0\\d{9}$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại phải bắt đầu bằng 0 và có đúng 10 chữ số.");
+        }
+        if (request.permanentAddress() == null || request.permanentAddress().trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Địa chỉ không được để trống.");
+        }
+
+        LocalDate today = LocalDate.now();
+        if (request.expectedLeaseSignDate().isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày ký hợp đồng dự kiến không được là ngày quá khứ.");
+        }
+        if (request.expectedMoveInDate().isBefore(today)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày vào ở dự kiến không được là ngày quá khứ.");
+        }
+        if (request.expectedMoveInDate().isBefore(request.expectedLeaseSignDate())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày vào ở dự kiến không được trước ngày ký hợp đồng dự kiến.");
+        }
+    }
+
+    private String normalizePhone(String phone) {
+        return phone == null ? "" : phone.replaceAll("[\\s.\\-]", "");
     }
 
     private void updateRoomStatusForDepositStatus(Room room, DepositAgreementStatus nextStatus) {

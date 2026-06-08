@@ -1,7 +1,6 @@
 .env
-.env.dev
-.env.prod
-.env.stag
+.env.*
+firebase-service-account.json
 TODO.md
 HELP.md
 target/

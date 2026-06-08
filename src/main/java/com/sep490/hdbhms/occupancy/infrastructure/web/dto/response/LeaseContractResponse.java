@@ -14,7 +14,10 @@ import java.time.LocalDateTime;
 public class LeaseContractResponse {
     Long id;
     String contractCode;
+    Long roomId;
     String roomCode;
+    String roomName;
+    String propertyName;
     LeaseStatus status;
     LocalDateTime signedAt;
 }

@@ -43,18 +43,14 @@ public class PayOSWebhookController {
             @RequestBody Webhook payload
     ) {
         WebhookData webhookData = properties.payOS().webhooks().verify(payload);
-        Long paymentIntentId = webhookData.getOrderCode();
-        if (paymentIntentId == null) {
-            log.warn("PayOS webhook missing orderCode. paymentLinkId={}", webhookData.getPaymentLinkId());
-            return ResponseEntity.ok().build();
-        }
+        Long orderCode = webhookData.getOrderCode();
 
         PaymentIntent paymentIntent;
         try {
-            paymentIntent = getPaymentIntentUseCase.execute(new GetPaymentIntentQuery(paymentIntentId));
+            paymentIntent = getPaymentIntentUseCase.execute(new GetPaymentIntentQuery(orderCode));
         } catch (RuntimeException ex) {
             log.warn("PayOS webhook references unknown payment intent. orderCode={}, paymentLinkId={}",
-                    paymentIntentId,
+                    orderCode,
                     webhookData.getPaymentLinkId());
             return ResponseEntity.ok().build();
         }
@@ -64,7 +60,7 @@ public class PayOSWebhookController {
         }
         if (StringUtils.hasText(webhookData.getCode()) && !"00".equals(webhookData.getCode())) {
             log.info("Ignore non-success PayOS webhook. orderCode={}, code={}, desc={}",
-                    paymentIntentId,
+                    orderCode,
                     webhookData.getCode(),
                     webhookData.getDesc());
             return ResponseEntity.ok().build();

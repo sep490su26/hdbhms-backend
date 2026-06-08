@@ -54,13 +54,14 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
 
         TenantProfileResponse.IdentityDocumentDto identityDocument = getIdentityDocument(person.id(), tenant.id());
         List<TenantProfileResponse.VehicleDto> vehicles = getVehicles(person.id());
-        List<TenantProfileResponse.EmergencyContactDto> emergencyContacts = getEmergencyContacts(tenant.id());
+        List<TenantProfileResponse.EmergencyContactDto> emergencyContacts = getEmergencyContacts(person.id());
 
         return new TenantProfileResponse(
                 tenant.id(),
                 tenant.status(),
                 new TenantProfileResponse.PersonProfileDto(
                         person.fullName(),
+                        person.dob(),
                         person.phone(),
                         person.email(),
                         person.permanentAddress(),
@@ -76,6 +77,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
         return queryNullable("""
                 SELECT pp.id,
                        pp.full_name,
+                       pp.dob,
                        pp.phone,
                        pp.email,
                        pp.permanent_address,
@@ -110,6 +112,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 """, rs -> new PersonRow(
                 rs.getLong("id"),
                 rs.getString("full_name"),
+                nullableLocalDate(rs, "dob"),
                 rs.getString("phone"),
                 rs.getString("email"),
                 rs.getString("permanent_address"),
@@ -156,7 +159,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
         ), personProfileId);
     }
 
-    private List<TenantProfileResponse.EmergencyContactDto> getEmergencyContacts(Long tenantId) {
+    private List<TenantProfileResponse.EmergencyContactDto> getEmergencyContacts(Long personProfileId) {
         return jdbcTemplate.query("""
                 SELECT full_name, relationship, phone
                 FROM emergency_contacts
@@ -166,7 +169,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 rs.getString("full_name"),
                 rs.getString("relationship"),
                 rs.getString("phone")
-        ), tenantId);
+        ), personProfileId);
     }
 
     private String fileUrl(Long fileId) {
@@ -174,7 +177,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
             return null;
         }
         return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/api/v1/files/download/{fileId}")
+                .path("/api/v1/tenants/profiles/me/files/{fileId}")
                 .buildAndExpand(fileId)
                 .toUriString();
     }
@@ -212,6 +215,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
     private record PersonRow(
             Long id,
             String fullName,
+            LocalDate dob,
             String phone,
             String email,
             String permanentAddress,

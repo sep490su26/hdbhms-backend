@@ -22,7 +22,7 @@ public class PersonProfilePersistenceMapper {
         if (entity == null) return null;
         return PersonProfile.builder()
                 .id(entity.getId())
-                .userId(entity.getUser().getId())
+                .userId(entity.getUser() != null ? entity.getUser().getId() : null)
                 .fullName(entity.getFullName())
                 .dob(entity.getDob())
                 .gender(entity.getGender())

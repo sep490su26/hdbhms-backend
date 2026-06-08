@@ -22,6 +22,7 @@ public class DepositAgreementDetailsResponse {
     String depositorFullName;
     String depositorPhone;
     String depositorEmail;
+    String depositorPermanentAddress;
     Long amount;
     LocalDate expectedMoveInDate;
     LocalDate expectedLeaseSignDate;

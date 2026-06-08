@@ -18,8 +18,10 @@ public class PaymentIntent {
     Long id;
     Long invoiceId;
     Long depositAgreementId;
+    Long depositBatchId;
     Long invoicePaymentGroupId;
     Long amount;
+    String providerOrderCode;
     PaymentIntentProvider provider;
     Long collectionAccountId;
     String paymentContent;
@@ -71,5 +73,13 @@ public class PaymentIntent {
 
     public void attachQrPayload(String qrPayload) {
         this.qrPayload = qrPayload;
+    }
+
+    public void attachProviderOrderCode(String orderCode) {
+        this.providerOrderCode = orderCode;
+    }
+
+    public void requireRefund() {
+        this.status = PaymentIntentStatus.REFUND_REQUIRED;
     }
 }

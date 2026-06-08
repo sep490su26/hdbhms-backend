@@ -28,6 +28,7 @@ import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.Maintenance
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -62,18 +63,29 @@ public class MaintenanceTicketController {
     JpaMaintenanceTicketEventRepository jpaMaintenanceTicketEventRepository;
     JpaMaintenanceReviewRepository jpaMaintenanceReviewRepository;
     JpaMaintenanceTicketAttachmentRepository jpaMaintenanceTicketAttachmentRepository;
+    LeaseContractQueryService leaseContractQueryService;
 
     @GetMapping
     public PageResponse<MaintenanceTicketResponse> getMaintenanceTickets(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long roomId,
             @PageableDefault(size = 20) Pageable pageable
     ) {
+        if (leaseContractQueryService.isCurrentUserTenant()) {
+            if (roomId == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "roomId is required for tenant ticket queries."
+                );
+            }
+            leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
+        }
         return PageResponse.fromPageToPageResponse(
                 getListMaintenanceTicketsUseCase.execute(
                                 new GetListMaintenanceTicketsQuery(
-                                        code, type, status, pageable
+                                        code, type, status, roomId, pageable
                                 )
                         )
                         .map(this::toResponse)
@@ -82,10 +94,13 @@ public class MaintenanceTicketController {
 
     @GetMapping("/{id}")
     public ApiResponse<MaintenanceTicketDetailsResponse> getMaintenanceTicket(@PathVariable Long id) {
+        MaintenanceTicket ticket =
+                getMaintenanceTicketDetailsUseCase.execute(new GetMaintenanceTicketDetailsQuery(id));
+        if (ticket.getRoomId() != null) {
+            leaseContractQueryService.assertCurrentUserCanReadRoom(ticket.getRoomId());
+        }
         return ApiResponse.<MaintenanceTicketDetailsResponse>builder()
-                .data(
-                        toDetailsResponse(getMaintenanceTicketDetailsUseCase.execute(new GetMaintenanceTicketDetailsQuery(id)))
-                )
+                .data(toDetailsResponse(ticket))
                 .build();
     }
 

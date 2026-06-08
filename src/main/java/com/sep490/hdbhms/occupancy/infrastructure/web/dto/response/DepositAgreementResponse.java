@@ -4,6 +4,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreement
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -20,6 +21,8 @@ public class DepositAgreementResponse {
     String depositorPhone;
     String depositorEmail;
     Long amount;
+    LocalDate expectedMoveInDate;
+    LocalDate expectedLeaseSignDate;
     LocalDateTime createdAt;
     DepositAgreementStatus status;
     LocalDateTime confirmedAt;

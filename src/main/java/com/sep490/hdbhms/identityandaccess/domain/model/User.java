@@ -103,6 +103,16 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void issueTemporaryPassword(String temporaryPasswordHash) {
+        if (StringUtils.isEmpty(temporaryPasswordHash)) {
+            throw new AppException(ApiErrorCode.NEW_PASSWORD_IS_EMPTY);
+        }
+        this.passwordHash = temporaryPasswordHash;
+        this.mustChangePassword = true;
+        this.status = AccountStatus.ACTIVE;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void assignRole(Role role) {
         if (this.role.equals(role)) {
             throw new AppException(ApiErrorCode.SAME_ROLE);

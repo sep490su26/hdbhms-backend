@@ -21,6 +21,7 @@ public class Invoice {
     Long roomId;
     Long leaseContractId;
     Long depositAgreementId;
+    Long depositBatchId;
     InvoiceType invoiceType;
     @Builder.Default
     Integer revisionNo = 1;

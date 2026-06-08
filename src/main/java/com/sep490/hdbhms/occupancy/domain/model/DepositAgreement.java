@@ -107,4 +107,10 @@ public class DepositAgreement {
         this.contractFileId = contractFileId;
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void updateExpectedDates(LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        this.expectedMoveInDate = expectedMoveInDate;
+        this.expectedLeaseSignDate = expectedLeaseSignDate;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

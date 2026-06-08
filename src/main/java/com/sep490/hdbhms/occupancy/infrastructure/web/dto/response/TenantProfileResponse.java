@@ -23,6 +23,8 @@ public record TenantProfileResponse(
     public record PersonProfileDto(
             @JsonProperty("full_name")
             String fullName,
+            
+            LocalDate dob,
 
             String phone,
             String email,

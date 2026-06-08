@@ -7,6 +7,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.SendDepositFormCo
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.*;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
+import com.sep490.hdbhms.occupancy.domain.model.DepositFormCoOccupant;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
@@ -61,6 +62,8 @@ public class BookRoomService implements BookRoomUseCase {
                     command.idIssuePlace(),
                     command.depositMonths(),
                     command.paymentCycleMonths(),
+                    command.occupantCount(),
+                    toCoOccupants(command.coOccupants()),
                     idFrontFileMetadata.getId(),
                     idBackFileMetadata.getId(),
                     portraitFileMetadata.getId(),
@@ -130,5 +133,17 @@ public class BookRoomService implements BookRoomUseCase {
     private String buildActiveHoldMessage(RoomHold roomHold, LocalDateTime now) {
         long remainingSeconds = Math.max(1, java.time.Duration.between(now, roomHold.getExpiresAt()).getSeconds());
         return "Phòng đang có người đặt cọc. Vui lòng chờ " + remainingSeconds + " giây.";
+    }
+    private List<DepositFormCoOccupant> toCoOccupants(List<SendDepositFormCommand.CoOccupant> coOccupants) {
+        if (coOccupants == null) {
+            return List.of();
+        }
+        return coOccupants.stream()
+                .map(coOccupant -> DepositFormCoOccupant.builder()
+                        .fullName(coOccupant.fullName())
+                        .phone(coOccupant.phone())
+                        .displayOrder(coOccupant.displayOrder())
+                        .build())
+                .toList();
     }
 }
