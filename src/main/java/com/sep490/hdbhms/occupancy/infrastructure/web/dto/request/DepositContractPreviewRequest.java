@@ -43,4 +43,8 @@ public class DepositContractPreviewRequest {
 
     @NotNull
     LocalDate expectedLeaseSignDate;
+
+    @NotNull
+    @com.fasterxml.jackson.annotation.JsonProperty("payment_cycle_months")
+    Integer paymentCycleMonths;
 }

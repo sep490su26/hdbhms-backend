@@ -25,4 +25,6 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
     Optional<LeaseContractEntity> findFirstByPreviousContract_IdAndDeletedAtIsNullOrderByIdDesc(Long previousContractId);
 
     List<LeaseContractEntity> findAllByStatusInAndDeletedAtIsNull(List<LeaseStatus> statuses);
+
+    Optional<LeaseContractEntity> findByIdAndDeletedAtIsNull(Long id);
 }

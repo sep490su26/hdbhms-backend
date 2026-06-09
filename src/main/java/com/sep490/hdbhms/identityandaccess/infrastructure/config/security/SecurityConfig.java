@@ -57,6 +57,9 @@ public class SecurityConfig {
     static final String[] PUBLIC_GET_URLS = {
             "/api/v1/rooms",
             "/api/v1/rooms/*",
+            "/api/v1/rooms/*/assets",
+            "/api/v1/rooms/*/assets/*",
+            "/api/v1/rooms/*/meter-readings/latest",
             "/api/v1/deposit/rooms/*/hold-status",
             "/api/v1/deposit/payments/*/status",
             "/api/v1/deposit/payments/*/contract",
@@ -134,9 +137,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         var configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://10.0.2.2:*"
+//                "http://localhost:*",
+//                "http://127.0.0.1:*",
+//                "http://10.0.2.2:*"
+                "*"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of(

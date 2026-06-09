@@ -46,6 +46,7 @@ public class SendDepositFormRequest {
     Integer depositMonths;
     @NotNull
     @ValidPaymentCycle
+    @JsonProperty("payment_cycle_months")
     Integer paymentCycleMonths;
     @NotNull(message = "DEPOSIT_001")
     @Min(value = 1, message = "DEPOSIT_001")

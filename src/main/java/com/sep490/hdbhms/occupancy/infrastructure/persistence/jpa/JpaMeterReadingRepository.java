@@ -1,7 +1,51 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
 
 public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEntity, Long> {
+    Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(Long roomId, MeterType meterType);
+    Optional<MeterReadingEntity> findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(Long meterId, String readingPeriod);
+
+    /**
+     * Fetch all readings for a given period, optionally filtered by property.
+     * Eagerly loads room → property so we can group them without N+1.
+     */
+    @Query("""
+        SELECT r FROM MeterReadingEntity r
+        JOIN FETCH r.room rm
+        JOIN FETCH rm.property p
+        LEFT JOIN FETCH r.createdBy u
+        WHERE r.readingPeriod = :period
+          AND (:propertyId IS NULL OR p.id = :propertyId)
+        ORDER BY p.id, rm.roomCode, r.meter.meterType
+    """)
+    List<MeterReadingEntity> findByPeriodAndOptionalProperty(
+            @Param("period") String period,
+            @Param("propertyId") Long propertyId
+    );
+
+    /**
+     * Fetch latest readings per meter across all rooms of a property (no period filter).
+     */
+    @Query("""
+        SELECT r FROM MeterReadingEntity r
+        JOIN FETCH r.room rm
+        JOIN FETCH rm.property p
+        LEFT JOIN FETCH r.createdBy u
+        WHERE p.id = :propertyId
+          AND r.readingDate = (
+              SELECT MAX(r2.readingDate)
+              FROM MeterReadingEntity r2
+              WHERE r2.room.id = rm.id AND r2.meter.meterType = r.meter.meterType
+          )
+        ORDER BY rm.roomCode, r.meter.meterType
+    """)
+    List<MeterReadingEntity> findLatestPerRoomByProperty(@Param("propertyId") Long propertyId);
 }
