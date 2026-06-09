@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.scheduling.infrastructure.adapter;
 
+import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExpireRoomHoldAdapter implements ExpireRoomHoldPort {
     RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Override
     public void execute(Long roomHoldId) {
@@ -36,12 +38,18 @@ public class ExpireRoomHoldAdapter implements ExpireRoomHoldPort {
         int updatedRows = roomRepository.updateRoomStatusIfCurrent(
                 roomHold.getRoomId(),
                 RoomStatus.ON_HOLD,
-                RoomStatus.VACANT
+                roomStatusAfterHoldRelease(roomHold.getRoomId())
         );
         if (updatedRows == 0) {
             log.info("Skip releasing room hold because room status changed. roomHoldId={}, roomId={}",
                     roomHoldId,
                     roomHold.getRoomId());
         }
+    }
+
+    private RoomStatus roomStatusAfterHoldRelease(Long roomId) {
+        return roomCommitmentChecker.findExpectedVacantDateForBooking(roomId).isPresent()
+                ? RoomStatus.SOON_VACANT
+                : RoomStatus.VACANT;
     }
 }
