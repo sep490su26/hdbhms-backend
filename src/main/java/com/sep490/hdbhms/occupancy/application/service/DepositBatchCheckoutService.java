@@ -71,6 +71,7 @@ public class DepositBatchCheckoutService {
     Environment environment;
     ObjectMapper objectMapper;
     JdbcTemplate jdbcTemplate;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Transactional
     public BatchDepositCheckoutResponse checkout(
@@ -341,7 +342,10 @@ public class DepositBatchCheckoutService {
 
             RoomEntity room = item.getRoom();
             if (room != null && room.getCurrentStatus() == RoomStatus.ON_HOLD) {
-                room.setCurrentStatus(RoomStatus.VACANT);
+                RoomStatus restoredStatus = roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId()).isPresent()
+                        ? RoomStatus.SOON_VACANT
+                        : RoomStatus.VACANT;
+                room.setCurrentStatus(restoredStatus);
                 roomRepository.save(room);
             }
             item.setStatus(DepositBatchItemStatus.CANCELLED);
@@ -450,7 +454,7 @@ public class DepositBatchCheckoutService {
                 );
             }
 
-            String reason = unavailableReason(room);
+            String reason = unavailableReason(room, request.getExpectedMoveInDate(), request.getExpectedLeaseSignDate());
             if (reason != null) {
                 unavailable.add(new BatchRoomUnavailableException.UnavailableRoom(
                         room.getId(),
@@ -469,8 +473,30 @@ public class DepositBatchCheckoutService {
         }
     }
 
-    private String unavailableReason(RoomEntity room) {
-        if (room.getCurrentStatus() != RoomStatus.VACANT) {
+    private String unavailableReason(RoomEntity room, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        boolean soonVacant = room.getCurrentStatus() == RoomStatus.SOON_VACANT;
+        if (soonVacant) {
+            LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId())
+                    .orElse(null);
+            if (expectedVacantDate == null) {
+                return "EXPECTED_VACANT_DATE_MISSING";
+            }
+            if (expectedLeaseSignDate.isBefore(expectedVacantDate)) {
+                throw new BatchDepositRequestException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE",
+                        "Ngay den ky hop dong phai sau hoac bang ngay phong du kien trong."
+                );
+            }
+            if (expectedMoveInDate.isBefore(expectedVacantDate)) {
+                throw new BatchDepositRequestException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "EXPECTED_MOVE_IN_BEFORE_VACANT_DATE",
+                        "Ngay du kien vao o phai sau hoac bang ngay phong du kien trong."
+                );
+            }
+        }
+        if (!soonVacant && room.getCurrentStatus() != RoomStatus.VACANT) {
             return "ROOM_NOT_VACANT";
         }
         boolean activeHold = roomHoldRepository
@@ -497,6 +523,9 @@ public class DepositBatchCheckoutService {
                 """, Integer.class, room.getId());
         if (activeDeposit != null && activeDeposit > 0) {
             return "DEPOSIT_ACTIVE";
+        }
+        if (soonVacant) {
+            return null;
         }
         Integer activeContract = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)

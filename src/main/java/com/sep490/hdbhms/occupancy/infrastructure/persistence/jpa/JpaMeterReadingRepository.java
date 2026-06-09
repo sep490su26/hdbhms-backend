@@ -8,6 +8,10 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
 
 public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEntity, Long> {
     Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(Long roomId, MeterType meterType);
@@ -48,4 +52,12 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
         ORDER BY rm.roomCode, r.meter.meterType
     """)
     List<MeterReadingEntity> findLatestPerRoomByProperty(@Param("propertyId") Long propertyId);
+    @Query("""
+            SELECT reading FROM MeterReadingEntity reading
+            JOIN FETCH reading.meter meter
+            WHERE reading.room.id = :roomId
+              AND reading.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
+            ORDER BY reading.readingPeriod DESC, reading.readingDate DESC, reading.createdAt DESC, reading.id DESC
+            """)
+    List<MeterReadingEntity> findActiveByRoomIdLatestFirst(@Param("roomId") Long roomId);
 }

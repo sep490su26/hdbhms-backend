@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -42,10 +43,11 @@ public class BookRoomService implements BookRoomUseCase {
     UploadIdentityFilePort uploadIdentityFilePort;
     SendDepositPaymentPort sendDepositPaymentPort;
     CreateRoomHoldTaskPort createRoomHoldTaskPort;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Override
     public PaymentIntent initDepositForm(SendDepositFormCommand command) {
-        ensureRoomAvailableForBooking(command.roomId());
+        ensureRoomAvailableForBooking(command.roomId(), command.expectedMoveInDate(), command.expectedLeaseSignDate());
         try {
             FileMetadata idFrontFileMetadata = uploadIdentityFilePort.execute(command.idFrontFile(), FileCategory.ID_CARD);
             FileMetadata idBackFileMetadata = uploadIdentityFilePort.execute(command.idBackFile(), FileCategory.ID_CARD);
@@ -94,17 +96,21 @@ public class BookRoomService implements BookRoomUseCase {
     }
 
     public boolean isRoomAvailableForBooking(Long roomId) {
-        return getUnavailableReason(roomId) == null;
+        return getUnavailableReason(roomId, null, null) == null;
     }
 
-    private void ensureRoomAvailableForBooking(Long roomId) {
-        String unavailableReason = getUnavailableReason(roomId);
+    private void ensureRoomAvailableForBooking(Long roomId, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        String unavailableReason = getUnavailableReason(roomId, expectedMoveInDate, expectedLeaseSignDate);
         if (unavailableReason != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, unavailableReason);
+            HttpStatus status = unavailableReason.startsWith("EXPECTED_MOVE_IN_BEFORE_VACANT_DATE")
+                    || unavailableReason.startsWith("EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE")
+                    ? HttpStatus.UNPROCESSABLE_ENTITY
+                    : HttpStatus.CONFLICT;
+            throw new ResponseStatusException(status, unavailableReason);
         }
     }
 
-    private String getUnavailableReason(Long roomId) {
+    private String getUnavailableReason(Long roomId, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         LocalDateTime now = LocalDateTime.now();
@@ -114,11 +120,36 @@ public class BookRoomService implements BookRoomUseCase {
             return buildActiveHoldMessage(activeHold, now);
         }
 
+        if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
+            return validateSoonVacantBooking(roomId, expectedMoveInDate, expectedLeaseSignDate);
+        }
+
         if (room.getCurrentStatus() != RoomStatus.VACANT) {
             if (room.getCurrentStatus() == RoomStatus.RESERVED) {
                 return "Phòng đã được đặt cọc. Vui lòng chọn phòng khác.";
             }
             return "Phòng hiện không thể đặt cọc. Vui lòng chọn phòng khác.";
+        }
+        return null;
+    }
+
+    private String validateSoonVacantBooking(Long roomId, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        if (expectedLeaseSignDate == null) {
+            return "EXPECTED_SIGN_DATE_REQUIRED: Can co ngay du kien ky hop dong.";
+        }
+        if (expectedMoveInDate == null) {
+            return "EXPECTED_MOVE_IN_REQUIRED: Can co ngay du kien vao o.";
+        }
+        LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(roomId)
+                .orElse(null);
+        if (expectedVacantDate == null) {
+            return "EXPECTED_VACANT_DATE_MISSING: Phong sap trong chua co ngay du kien ban giao.";
+        }
+        if (expectedMoveInDate.isBefore(expectedVacantDate)) {
+            return "EXPECTED_MOVE_IN_BEFORE_VACANT_DATE: Ngay du kien vao o phai sau hoac bang ngay phong du kien trong.";
+        }
+        if (expectedLeaseSignDate.isBefore(expectedVacantDate)) {
+            return "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngay den ky hop dong phai sau hoac bang ngay phong du kien trong.";
         }
         return null;
     }

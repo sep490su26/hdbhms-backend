@@ -75,6 +75,15 @@ public class LeaseContractEntity {
     @Builder.Default
     LeaseStatus status = LeaseStatus.DRAFT;
 
+    @Column(name = "tenant_intention", length = 50)
+    String tenantIntention;
+
+    @Column(name = "expected_vacant_date")
+    LocalDate expectedVacantDate;
+
+    @Column(name = "intention_recorded_at")
+    LocalDateTime intentionRecordedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "previous_contract_id", nullable = true)
     LeaseContractEntity previousContract;

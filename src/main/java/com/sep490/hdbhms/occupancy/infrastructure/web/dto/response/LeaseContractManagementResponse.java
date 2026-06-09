@@ -28,6 +28,7 @@ public class LeaseContractManagementResponse {
     Long propertyId;
     String propertyName;
     String propertyAddress;
+    Long tenantId;
 
     Long roomId;
     String roomCode;
@@ -51,6 +52,8 @@ public class LeaseContractManagementResponse {
     String previousContractCode;
     Long renewedContractId;
     String renewedContractCode;
+    String tenantIntention;
+    LocalDate expectedVacantDate;
 
     LeaseStatus contractStatus;
     DepositAgreementStatus depositStatus;

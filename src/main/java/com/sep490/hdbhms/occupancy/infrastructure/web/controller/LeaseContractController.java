@@ -32,6 +32,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -51,6 +52,7 @@ public class LeaseContractController {
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
     LeaseContractManagementService leaseContractManagementService;
     LeaseContractQueryService leaseContractQueryService;
+    JdbcTemplate jdbcTemplate;
 
     @GetMapping("/management")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
@@ -159,7 +161,7 @@ public class LeaseContractController {
 
     @PostMapping("/{leaseContractId}/renew")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LeaseContractRenewalResponse> renewLeaseContract(
             @PathVariable Long leaseContractId,
             @Valid @RequestBody LeaseContractRenewalRequest request
@@ -178,13 +180,13 @@ public class LeaseContractController {
     }
 
     @PostMapping("/{leaseContractId}/tenant-intention")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
     public ApiResponse<LeaseContractManagementResponse> recordTenantIntention(
             @PathVariable Long leaseContractId,
             @Valid @RequestBody TenantIntentionRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.recordTenantIntention(
+                .data(leaseContractManagementService.recordTenantIntentionForCurrentUser(
                         leaseContractId,
                         request.intention(),
                         request.expectedMoveOutDate(),
@@ -256,14 +258,99 @@ public class LeaseContractController {
         Room room = getRoomDetailsUseCase.execute(
                 new GetRoomDetailsQuery(leaseContract.getRoomId())
         );
+        LeaseContractDetailsResponse response = leaseContractWebMapper.toDetailsResponse(
+                leaseContract,
+                room
+        );
+        enrichTenantContractDetails(response, leaseContractId);
         return ApiResponse.<LeaseContractDetailsResponse>builder()
-                .data(
-                        leaseContractWebMapper.toDetailsResponse(
-                                leaseContract,
-                                room
-                        )
-                )
+                .data(response)
                 .build();
+    }
+
+    private void enrichTenantContractDetails(LeaseContractDetailsResponse response, Long leaseContractId) {
+        jdbcTemplate.query("""
+                        SELECT
+                            lc.tenant_intention,
+                            lc.expected_vacant_date,
+                            lc.contract_file_id,
+                            fm.original_name AS contract_file_name
+                        FROM lease_contracts lc
+                        LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
+                        WHERE lc.id = ?
+                        LIMIT 1
+                        """,
+                rs -> {
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    Long fileId = rs.getObject("contract_file_id", Long.class);
+                    response.setTenantIntention(rs.getString("tenant_intention"));
+                    response.setExpectedVacantDate(rs.getObject("expected_vacant_date", LocalDate.class));
+                    response.setContractFileId(fileId);
+                    response.setContractFileName(rs.getString("contract_file_name"));
+                    response.setContractFileUrl(fileId == null ? null : "/api/v1/files/download/" + fileId);
+                    return null;
+                },
+                leaseContractId
+        );
+
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+        if (userId == null) {
+            return;
+        }
+        boolean isPrimary = isCurrentUserPrimarySigner(leaseContractId, userId);
+        boolean isOccupant = isPrimary || isCurrentUserActiveOccupant(leaseContractId, userId);
+        response.setIsPrimary(isPrimary);
+        response.setRoleInContract(isPrimary ? "PRIMARY" : isOccupant ? "CO_OCCUPANT" : null);
+        response.setCanRecordIntention(isPrimary
+                && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(response.getStatus())
+                && response.getEndDate() != null
+                && !LocalDate.now().isBefore(response.getEndDate().minusMonths(3)));
+    }
+
+    private boolean isCurrentUserPrimarySigner(Long leaseContractId, Long userId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM lease_contracts lc
+                        JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                        LEFT JOIN tenant_account_provisionings tap
+                               ON tap.tenant_profile_id = pp.id
+                              AND tap.user_id = ?
+                        WHERE lc.id = ?
+                          AND lc.deleted_at IS NULL
+                          AND pp.deleted_at IS NULL
+                          AND (pp.user_id = ? OR tap.user_id = ?)
+                        """,
+                Integer.class,
+                userId,
+                leaseContractId,
+                userId,
+                userId
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean isCurrentUserActiveOccupant(Long leaseContractId, Long userId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM contract_occupants co
+                        JOIN person_profiles pp ON pp.id = co.tenant_profile_id
+                        LEFT JOIN tenant_account_provisionings tap
+                               ON tap.tenant_profile_id = pp.id
+                              AND tap.user_id = ?
+                        WHERE co.contract_id = ?
+                          AND co.status = 'ACTIVE'
+                          AND pp.deleted_at IS NULL
+                          AND (pp.user_id = ? OR tap.user_id = ?)
+                        """,
+                Integer.class,
+                userId,
+                leaseContractId,
+                userId,
+                userId
+        );
+        return count != null && count > 0;
     }
 
     public record LeaseContractLiquidationRequest(

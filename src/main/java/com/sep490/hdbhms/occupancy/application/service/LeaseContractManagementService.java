@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -57,7 +58,7 @@ public class LeaseContractManagementService {
     static final Set<String> TENANT_INTENTIONS = Set.of(
             "RENEW",
             "MOVE_OUT",
-            "TRANSFER_ROOM",
+            "TRANSFER",
             "UNDECIDED"
     );
 
@@ -68,6 +69,7 @@ public class LeaseContractManagementService {
     JpaLeaseContractRepository leaseContractRepository;
     JpaDepositAgreementRepository depositAgreementRepository;
     JpaContractLiquidationRepository contractLiquidationRepository;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Transactional(readOnly = true)
     public List<LeaseContractManagementResponse> findAllForManagement() {
@@ -82,6 +84,14 @@ public class LeaseContractManagementService {
                             p.id AS property_id,
                             p.name AS property_name,
                             p.address_line AS property_address,
+                            COALESCE((
+                                SELECT co.tenant_id
+                                FROM contract_occupants co
+                                WHERE co.contract_id = lc.id
+                                  AND co.status = 'ACTIVE'
+                                ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                                LIMIT 1
+                            ), da.tenant_id) AS tenant_id,
                             r.id AS room_id,
                             r.room_code,
                             r.current_status AS room_status,
@@ -99,6 +109,8 @@ public class LeaseContractManagementService {
                             COALESCE(lc.deposit_amount, da.amount) AS deposit_amount,
                             lc.previous_contract_id,
                             previous_contract.contract_code AS previous_contract_code,
+                            lc.tenant_intention,
+                            lc.expected_vacant_date,
                             (
                                 SELECT renewed.id
                                 FROM lease_contracts renewed
@@ -163,6 +175,14 @@ public class LeaseContractManagementService {
                             p.id AS property_id,
                             p.name AS property_name,
                             p.address_line AS property_address,
+                            (
+                                SELECT co.tenant_id
+                                FROM contract_occupants co
+                                WHERE co.contract_id = lc.id
+                                  AND co.status = 'ACTIVE'
+                                ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                                LIMIT 1
+                            ) AS tenant_id,
                             r.id AS room_id,
                             r.room_code,
                             r.current_status AS room_status,
@@ -180,6 +200,8 @@ public class LeaseContractManagementService {
                             lc.deposit_amount,
                             lc.previous_contract_id,
                             previous_contract.contract_code AS previous_contract_code,
+                            lc.tenant_intention,
+                            lc.expected_vacant_date,
                             (
                                 SELECT renewed.id
                                 FROM lease_contracts renewed
@@ -349,6 +371,7 @@ public class LeaseContractManagementService {
             Long depositAmount,
             String note
     ) {
+        assertOwnerCanRenew();
         LeaseContractEntity oldContract = leaseContractRepository.findById(leaseContractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
         if (oldContract.getDeletedAt() != null) {
@@ -374,6 +397,32 @@ public class LeaseContractManagementService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong dang co hop dong hieu luc khac.");
         }
 
+        RoomStatus previousRoomStatus = room.getCurrentStatus();
+        if (previousRoomStatus == RoomStatus.SOON_VACANT) {
+            RoomCommitmentChecker.Blocker blocker =
+                    roomCommitmentChecker.checkRenewBlockers(room.getId(), oldContract.getId());
+            if (blocker != RoomCommitmentChecker.Blocker.NONE) {
+                throwRenewBlocked(blocker);
+            }
+            oldContract.setTenantIntention("RENEW");
+            oldContract.setExpectedVacantDate(null);
+            oldContract.setIntentionRecordedAt(LocalDateTime.now());
+            leaseContractRepository.saveAndFlush(oldContract);
+            room.setCurrentStatus(RoomStatus.OCCUPIED);
+            roomRepository.saveAndFlush(room);
+            appendRoomStatusHistory(
+                    room.getId(),
+                    previousRoomStatus,
+                    RoomStatus.OCCUPIED,
+                    "Khach cu doi y tai ky hop dong " + oldContract.getContractCode()
+            );
+            appendContractEvent(
+                    oldContract.getId(),
+                    "RENEWAL_AFTER_MOVE_OUT_INTENT",
+                    "Owner xac nhan tai ky sau khi khach da bao chuyen di"
+            );
+        }
+
         String newContractCode = resolveRenewalContractCode(oldContract);
         LeaseContractEntity newContract = LeaseContractEntity.builder()
                 .contractCode(newContractCode)
@@ -391,13 +440,13 @@ public class LeaseContractManagementService {
         newContract = leaseContractRepository.save(newContract);
         copyContractOccupants(oldContract, newContract);
 
-        RoomStatus previousRoomStatus = room.getCurrentStatus();
-        if (previousRoomStatus != RoomStatus.OCCUPIED) {
+        RoomStatus currentRoomStatus = room.getCurrentStatus();
+        if (currentRoomStatus != RoomStatus.OCCUPIED) {
             room.setCurrentStatus(RoomStatus.OCCUPIED);
             roomRepository.save(room);
             appendRoomStatusHistory(
                     room.getId(),
-                    previousRoomStatus,
+                    currentRoomStatus,
                     RoomStatus.OCCUPIED,
                     "Tao hop dong tai ky " + newContractCode
             );
@@ -434,21 +483,172 @@ public class LeaseContractManagementService {
     ) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+        if (contract.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+        }
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Chi ghi nhan y dinh cho hop dong ACTIVE hoac EXPIRING_SOON."
             );
         }
-        String normalizedIntention = intention == null ? "" : intention.trim().toUpperCase();
+        String normalizedIntention = normalizeTenantIntention(intention);
         if (!TENANT_INTENTIONS.contains(normalizedIntention)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Y dinh khach khong hop le.");
         }
+        LocalDate today = LocalDate.now();
+        boolean withinThreeMonths = isWithinThreeMonths(contract, today);
+        if (List.of("MOVE_OUT", "TRANSFER").contains(normalizedIntention)) {
+            if (!withinThreeMonths) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "INTENTION_TOO_EARLY: Chi ghi nhan MOVE_OUT/TRANSFER khi hop dong con 3 thang tro xuong."
+                );
+            }
+            if (expectedMoveOutDate == null) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "EXPECTED_MOVE_OUT_DATE_REQUIRED: Can co ngay du kien ban giao phong."
+                );
+            }
+            if (expectedMoveOutDate.isBefore(today)) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "EXPECTED_MOVE_OUT_DATE_IN_PAST: Ngay du kien ban giao khong duoc truoc hom nay."
+                );
+            }
+            if (contract.getEndDate() != null && expectedMoveOutDate.isAfter(contract.getEndDate())) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "EXPECTED_MOVE_OUT_DATE_AFTER_CONTRACT_END: Ngay du kien ban giao khong duoc sau ngay ket thuc hop dong."
+                );
+            }
+        }
+
+        RoomEntity room = contract.getRoom();
+        if (room == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        contract.setTenantIntention(normalizedIntention);
+        contract.setIntentionRecordedAt(now);
+
+        if (List.of("MOVE_OUT", "TRANSFER").contains(normalizedIntention)) {
+            contract.setExpectedVacantDate(expectedMoveOutDate);
+            leaseContractRepository.saveAndFlush(contract);
+            RoomStatus fromStatus = room.getCurrentStatus();
+            if (fromStatus != RoomStatus.SOON_VACANT) {
+                room.setCurrentStatus(RoomStatus.SOON_VACANT);
+                roomRepository.saveAndFlush(room);
+                appendRoomStatusHistory(
+                        room.getId(),
+                        fromStatus,
+                        RoomStatus.SOON_VACANT,
+                        "Khach du kien chuyen di theo hop dong " + contract.getContractCode()
+                );
+            }
+        } else {
+            contract.setExpectedVacantDate(null);
+            if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
+                RoomCommitmentChecker.Blocker blocker =
+                        roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
+                if (blocker != RoomCommitmentChecker.Blocker.NONE) {
+                    throwRenewBlocked(blocker);
+                }
+                RoomStatus fromStatus = room.getCurrentStatus();
+                room.setCurrentStatus(RoomStatus.OCCUPIED);
+                roomRepository.saveAndFlush(room);
+                appendRoomStatusHistory(
+                        room.getId(),
+                        fromStatus,
+                        RoomStatus.OCCUPIED,
+                        "Khach doi y tiep tuc thue hop dong " + contract.getContractCode()
+                );
+                if ("RENEW".equals(normalizedIntention)) {
+                    appendContractEvent(
+                            contract.getId(),
+                            "RENEWAL_AFTER_MOVE_OUT_INTENT",
+                            "Khach doi y tiep tuc thue sau khi da bao chuyen di"
+                    );
+                }
+            }
+            leaseContractRepository.saveAndFlush(contract);
+        }
         String eventData = "intention=" + normalizedIntention
-                + "; expectedMoveOutDate=" + (expectedMoveOutDate != null ? expectedMoveOutDate : "")
+                + "; expectedVacantDate=" + (contract.getExpectedVacantDate() != null ? contract.getExpectedVacantDate() : "")
                 + "; note=" + (note == null ? "" : note.trim());
         appendContractEvent(contract.getId(), "INTENTION_RECORDED", eventData);
         return findOne(contract.getId());
+    }
+
+    public LeaseContractManagementResponse recordTenantIntentionForCurrentUser(
+            Long leaseContractId,
+            String intention,
+            LocalDate expectedMoveOutDate,
+            String note
+    ) {
+        if (currentUserHasRole("ROLE_TENANT")) {
+            return recordTenantIntentionForCurrentTenant(leaseContractId, intention, expectedMoveOutDate, note);
+        }
+        return recordTenantIntention(leaseContractId, intention, expectedMoveOutDate, note);
+    }
+
+    public LeaseContractManagementResponse recordTenantIntentionForCurrentTenant(
+            Long leaseContractId,
+            String intention,
+            LocalDate expectedMoveOutDate,
+            String note
+    ) {
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+        }
+        Integer contractExists = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM lease_contracts lc
+                        WHERE lc.id = ?
+                          AND lc.deleted_at IS NULL
+                        """,
+                Integer.class,
+                leaseContractId
+        );
+        if (contractExists == null || contractExists == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+        }
+
+        Integer isPrimarySigner = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM lease_contracts lc
+                        JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                        LEFT JOIN tenant_account_provisionings tap
+                               ON tap.tenant_profile_id = pp.id
+                              AND tap.user_id = ?
+                        WHERE lc.id = ?
+                          AND lc.deleted_at IS NULL
+                          AND pp.deleted_at IS NULL
+                          AND (pp.user_id = ? OR tap.user_id = ?)
+                        """,
+                Integer.class,
+                userId,
+                leaseContractId,
+                userId,
+                userId
+        );
+        if (isPrimarySigner == null || isPrimarySigner == 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "CONTRACT_INTENTION_PRIMARY_ONLY: Chi nguoi ky chinh cua hop dong moi duoc ghi nhan y dinh."
+            );
+        }
+        return recordTenantIntention(leaseContractId, intention, expectedMoveOutDate, note);
+    }
+
+    private boolean currentUserHasRole(String role) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null
+                && authentication.getAuthorities() != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(authority -> role.equals(authority.getAuthority()));
     }
 
     public LeaseContractManagementResponse activate(Long leaseContractId) {
@@ -570,6 +770,7 @@ public class LeaseContractManagementService {
         contract.setPaymentCycleMonths(paymentCycleMonths);
         contract.setMonthlyRent(monthlyRent);
         contract.setDepositAmount(depositAmount);
+        applyLifecycleStatusAfterTermsUpdate(contract, LocalDate.now());
         leaseContractRepository.save(contract);
 
         if (rentChanged) {
@@ -580,6 +781,56 @@ public class LeaseContractManagementService {
             );
         }
         return findOne(contract.getId());
+    }
+
+    private void applyLifecycleStatusAfterTermsUpdate(LeaseContractEntity contract, LocalDate today) {
+        if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())
+                || contract.getEndDate() == null) {
+            return;
+        }
+
+        LeaseStatus oldStatus = contract.getStatus();
+        LeaseStatus newStatus;
+        if (today.isAfter(contract.getEndDate())) {
+            newStatus = LeaseStatus.EXPIRED;
+        } else if (!today.isBefore(contract.getEndDate().minusMonths(3))) {
+            newStatus = LeaseStatus.EXPIRING_SOON;
+        } else {
+            newStatus = LeaseStatus.ACTIVE;
+        }
+
+        if (newStatus == oldStatus) {
+            return;
+        }
+
+        contract.setStatus(newStatus);
+        if (newStatus == LeaseStatus.EXPIRING_SOON) {
+            appendContractEvent(
+                    contract.getId(),
+                    "NOTICE_SENT",
+                    "Cap nhat thoi han hop dong con duoi hoac bang 3 thang"
+            );
+            return;
+        }
+        if (newStatus == LeaseStatus.EXPIRED) {
+            appendContractEvent(
+                    contract.getId(),
+                    "EXPIRED",
+                    "Cap nhat thoi han hop dong da qua ngay ket thuc"
+            );
+            RoomEntity room = contract.getRoom();
+            if (room != null && room.getCurrentStatus() == RoomStatus.OCCUPIED) {
+                RoomStatus fromStatus = room.getCurrentStatus();
+                room.setCurrentStatus(RoomStatus.EXPIRED);
+                roomRepository.save(room);
+                appendRoomStatusHistory(
+                        room.getId(),
+                        fromStatus,
+                        RoomStatus.EXPIRED,
+                        "Hop dong " + contract.getContractCode() + " da het han"
+                );
+            }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -594,6 +845,14 @@ public class LeaseContractManagementService {
                             p.id AS property_id,
                             p.name AS property_name,
                             p.address_line AS property_address,
+                            (
+                                SELECT co.tenant_id
+                                FROM contract_occupants co
+                                WHERE co.contract_id = lc.id
+                                  AND co.status = 'ACTIVE'
+                                ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                                LIMIT 1
+                            ) AS tenant_id,
                             r.id AS room_id,
                             r.room_code,
                             r.current_status AS room_status,
@@ -611,6 +870,8 @@ public class LeaseContractManagementService {
                             lc.deposit_amount,
                             lc.previous_contract_id,
                             previous_contract.contract_code AS previous_contract_code,
+                            lc.tenant_intention,
+                            lc.expected_vacant_date,
                             (
                                 SELECT renewed.id
                                 FROM lease_contracts renewed
@@ -740,15 +1001,40 @@ public class LeaseContractManagementService {
         if (depositAmount == null || depositAmount < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tien coc khong hop le.");
         }
-        if (room.getCurrentStatus() != RoomStatus.RESERVED && room.getCurrentStatus() != RoomStatus.VACANT) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi duoc tao hop dong cho phong trong hoac phong da dat coc.");
+        boolean soonVacantDraft = room.getCurrentStatus() == RoomStatus.SOON_VACANT;
+        if (room.getCurrentStatus() != RoomStatus.RESERVED
+                && room.getCurrentStatus() != RoomStatus.VACANT
+                && !soonVacantDraft) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi duoc tao hop dong cho phong trong, sap trong hoac phong da dat coc.");
         }
-        if (leaseContractRepository.existsByRoom_IdAndStatusInAndDeletedAtIsNull(room.getId(), BLOCKING_ACTIVE_CONTRACT_STATUSES)) {
+        if (soonVacantDraft) {
+            validateSoonVacantMoveInDate(room.getId(), startDate);
+        } else if (leaseContractRepository.existsByRoom_IdAndStatusInAndDeletedAtIsNull(room.getId(), BLOCKING_ACTIVE_CONTRACT_STATUSES)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phong da co hop dong dang hieu luc.");
+        }
+        if (leaseContractRepository.existsByRoom_IdAndStatusInAndDeletedAtIsNull(
+                room.getId(),
+                List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE)
+        )) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "FUTURE_CONTRACT_EXISTS: Phong da co hop dong tuong lai.");
         }
         Integer maxOccupants = room.getMaxOccupants() != null ? room.getMaxOccupants() : 3;
         if (occupantsCount > maxOccupants) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "So nguoi o vuot qua so nguoi toi da cua phong.");
+        }
+    }
+
+    private void validateSoonVacantMoveInDate(Long roomId, LocalDate expectedMoveInDate) {
+        LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(roomId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "EXPECTED_VACANT_DATE_MISSING: Phong sap trong chua co ngay du kien ban giao."
+                ));
+        if (expectedMoveInDate.isBefore(expectedVacantDate)) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "EXPECTED_MOVE_IN_BEFORE_VACANT_DATE: Ngay du kien vao o phai sau hoac bang ngay phong du kien trong."
+            );
         }
     }
 
@@ -1118,6 +1404,42 @@ public class LeaseContractManagementService {
         return count != null && count > 0;
     }
 
+    private String normalizeTenantIntention(String intention) {
+        String normalized = intention == null ? "" : intention.trim().toUpperCase();
+        return "TRANSFER_ROOM".equals(normalized) ? "TRANSFER" : normalized;
+    }
+
+    private boolean isWithinThreeMonths(LeaseContractEntity contract, LocalDate today) {
+        return contract.getEndDate() != null && !today.isBefore(contract.getEndDate().minusMonths(3));
+    }
+
+    private void throwRenewBlocked(RoomCommitmentChecker.Blocker blocker) {
+        if (blocker == RoomCommitmentChecker.Blocker.ROOM_HOLD_IN_PROGRESS) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "ROOM_HOLD_IN_PROGRESS: Phong dang duoc giu cho cho nguoi khac. Vui long thu lai sau."
+            );
+        }
+        throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "ROOM_ALREADY_RESERVED_BY_NEW_TENANT: Phong da co nguoi khac dat coc hoac duoc duyet chuyen vao sau khi ban xac nhan chuyen di. Vui long lien he quan ly neu muon thay doi."
+        );
+    }
+
+    private void assertOwnerCanRenew() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean isOwner = authentication != null
+                && authentication.getAuthorities() != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority()));
+        if (!isOwner) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "OWNER_APPROVAL_REQUIRED: Chi chu tro moi co quyen xac nhan tai ky hop dong. Vui long trinh yeu cau cho chu tro."
+            );
+        }
+    }
+
     private void appendContractEvent(Long contractId, String eventType, String eventData) {
         jdbcTemplate.update("""
                         INSERT INTO contract_events (
@@ -1210,6 +1532,7 @@ public class LeaseContractManagementService {
                 .propertyId(getLongOrNull(rs, "property_id"))
                 .propertyName(rs.getString("property_name"))
                 .propertyAddress(rs.getString("property_address"))
+                .tenantId(getLongOrNull(rs, "tenant_id"))
                 .roomId(getLongOrNull(rs, "room_id"))
                 .roomCode(rs.getString("room_code"))
                 .roomStatus(parseEnum(RoomStatus.class, rs.getString("room_status")))
@@ -1230,6 +1553,8 @@ public class LeaseContractManagementService {
                 .previousContractCode(rs.getString("previous_contract_code"))
                 .renewedContractId(getLongOrNull(rs, "renewed_contract_id"))
                 .renewedContractCode(rs.getString("renewed_contract_code"))
+                .tenantIntention(rs.getString("tenant_intention"))
+                .expectedVacantDate(toLocalDate(rs, "expected_vacant_date"))
                 .contractStatus(parseEnum(LeaseStatus.class, contractStatus))
                 .depositStatus(parseEnum(DepositAgreementStatus.class, depositStatus))
                 .workflowStatus(resolveWorkflow(contractStatus, contractFileId))
