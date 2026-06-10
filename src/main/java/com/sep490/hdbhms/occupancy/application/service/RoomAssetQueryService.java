@@ -42,15 +42,15 @@ public class RoomAssetQueryService implements RoomAssetQueryUseCase {
     }
 
     private RoomAssetResponse toResponse(RoomAsset domain) {
-        return RoomAssetResponse.builder()
-                .id(domain.getId())
-                .roomId(domain.getRoomId())
-                .assetName(domain.getAssetName())
-                .assetCategory(domain.getAssetCategory())
-                .quantity(domain.getQuantity())
-                .currentCondition(domain.getCurrentCondition())
-                .description(domain.getDescription())
-                .fileImageId(domain.getFileImageId())
-                .build();
+        return new RoomAssetResponse(
+                domain.getId(),
+                domain.getRoomId(),
+                domain.getAssetName(),
+                domain.getAssetCategory(),
+                domain.getQuantity(),
+                domain.getCurrentCondition(),
+                domain.getDescription(),
+                domain.getFileImageId()
+        );
     }
 }

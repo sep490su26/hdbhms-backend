@@ -26,10 +26,13 @@ public class HandoverMeterReadingsRequest {
     public static class ReadingInput {
         @NotNull(message = "Current value is required")
         @PositiveOrZero(message = "Value cannot be negative")
+        @com.fasterxml.jackson.annotation.JsonAlias({"current_value", "currentValue"})
         BigDecimal currentValue;
         
+        @com.fasterxml.jackson.annotation.JsonAlias({"photo_file_id", "photoFileId"})
         Long photoFileId;
 
+        @com.fasterxml.jackson.annotation.JsonAlias({"reading_date", "readingDate"})
         java.time.LocalDate readingDate;
     }
 }

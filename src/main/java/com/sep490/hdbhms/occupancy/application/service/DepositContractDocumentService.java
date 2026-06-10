@@ -277,6 +277,9 @@ public class DepositContractDocumentService {
         variables.put("depositAmount", formatMoney(data.depositAmount()));
         variables.put("depositAmountString", data.depositAmountText());
         variables.put("depositSignedDateString", formatVietnameseDate(data.generatedAt().toLocalDate()));
+        variables.put("leaseDurationMonths", "12");
+        variables.put("paymentCycleMonths", data.paymentCycleMonths() != null ? data.paymentCycleMonths() : 1);
+        variables.put("depositMonths", data.depositMonths() != null ? data.depositMonths() : 1);
         return variables;
     }
 
@@ -469,6 +472,8 @@ public class DepositContractDocumentService {
             LocalDate expectedLeaseSignDate,
             LocalDate expectedMoveInDate,
             LocalDateTime generatedAt,
+            Integer paymentCycleMonths,
+            Integer depositMonths,
             OwnerInfo owner
     ) {
         static ContractData fromPreview(
@@ -499,6 +504,8 @@ public class DepositContractDocumentService {
                     request.getExpectedLeaseSignDate(),
                     request.getExpectedMoveInDate(),
                     generatedAt,
+                    request.getPaymentCycleMonths(),
+                    1, // Default depositMonths for preview
                     owner
             );
         }
@@ -531,6 +538,8 @@ public class DepositContractDocumentService {
                     agreement.getExpectedLeaseSignDate(),
                     agreement.getExpectedMoveInDate(),
                     generatedAt,
+                    form != null ? form.getPaymentCycleMonths() : 1,
+                    form != null ? form.getDepositMonths() : 1,
                     owner
             );
         }
