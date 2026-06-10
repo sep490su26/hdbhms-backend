@@ -15,7 +15,7 @@ public class NotificationEventConsumer {
     SendNotificationUseCase sendNotificationUseCase;
 
     @KafkaListener(topics = {
-        "lease.confirmed"
+        "notification-events"
     }, groupId = "hdbhms-notification-group")
     public void handle(NotificationEvent event) {
         sendNotificationUseCase.queueNotification(event);
