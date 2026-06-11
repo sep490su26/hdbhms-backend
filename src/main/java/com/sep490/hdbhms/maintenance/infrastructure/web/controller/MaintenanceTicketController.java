@@ -1,10 +1,19 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.controller;
 
+import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceCostRepository;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepository;
@@ -39,8 +48,11 @@ import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.UpdateMainte
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketDetailsResponse;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketResponse;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
@@ -96,12 +108,20 @@ public class MaintenanceTicketController {
             "EXPIRING_SOON",
             "TERMINATION_PENDING"
     );
+    private static final List<LeaseStatus> INVOICEABLE_CONTRACT_STATUSES = List.of(
+            LeaseStatus.ACTIVE,
+            LeaseStatus.EXPIRING_SOON,
+            LeaseStatus.TERMINATION_PENDING
+    );
 
     MaintenanceTicketRepository maintenanceTicketRepository;
     MaintenanceCostRepository maintenanceCostRepository;
+    JpaRolePromotionRepository jpaRolePromotionRepository;
     JpaRoomRepository jpaRoomRepository;
     JpaPropertyRepository jpaPropertyRepository;
+    JpaLeaseContractRepository jpaLeaseContractRepository;
     JpaUserRepository jpaUserRepository;
+    JpaInvoiceLineRepository jpaInvoiceLineRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
     JpaMaintenanceTicketRepository jpaMaintenanceTicketRepository;
     JpaMaintenanceTicketEventRepository jpaMaintenanceTicketEventRepository;
@@ -110,6 +130,7 @@ public class MaintenanceTicketController {
     JpaMaintenanceCostRepository jpaMaintenanceCostRepository;
     MaintenanceTicketPersistenceMapper maintenanceTicketPersistenceMapper;
     LeaseContractQueryService leaseContractQueryService;
+    IssuedInvoiceChargeService issuedInvoiceChargeService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -134,7 +155,14 @@ public class MaintenanceTicketController {
             return searchTicketsForTenant(code, status, roomId, category, severity, priority, scope, fromDate, toDate, pageable);
         }
         assertManagerOrOwner(role);
-        return searchTickets(code, status, roomId, propertyId, firstNonBlank(category, type), severity, priority, scope, fromDate, toDate, pageable, null);
+        List<Long> restrictedPropertyIds = restrictedPropertyIdsForCurrentManager(role);
+        if (restrictedPropertyIds != null && restrictedPropertyIds.isEmpty()) {
+            return emptyTicketPage(pageable);
+        }
+        if (propertyId != null && restrictedPropertyIds != null && !restrictedPropertyIds.contains(propertyId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem phiếu sự cố của cơ sở này.");
+        }
+        return searchTickets(code, status, roomId, propertyId, firstNonBlank(category, type), severity, priority, scope, fromDate, toDate, pageable, null, restrictedPropertyIds);
     }
 
     @GetMapping("/my")
@@ -185,6 +213,7 @@ public class MaintenanceTicketController {
     public ApiResponse<MaintenanceTicketDetailsResponse> approveMaintenanceTicket(@PathVariable Long id) {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
+        assertManagerCanAccessTicket(ticket);
         requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE, "Chỉ tiếp nhận phiếu đang chờ tiếp nhận.");
         MaintenanceTicket saved = maintenanceTicketRepository.save(ticket.toBuilder()
                 .status(MaintenanceTicketStatus.ACCEPTED)
@@ -203,6 +232,7 @@ public class MaintenanceTicketController {
     ) {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
+        assertManagerCanAccessTicket(ticket);
         requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE, "Chỉ từ chối phiếu đang chờ tiếp nhận.");
         String reason = firstNonBlank(request == null ? null : request.getReason());
         if (reason.isBlank()) {
@@ -225,6 +255,7 @@ public class MaintenanceTicketController {
     ) {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
+        assertManagerCanAccessTicket(ticket);
         if (ticket.getStatus() != MaintenanceTicketStatus.ACCEPTED
                 && ticket.getStatus() != MaintenanceTicketStatus.IN_PROGRESS) {
             throw invalidTransition(ticket.getStatus(), MaintenanceTicketStatus.IN_PROGRESS);
@@ -259,6 +290,7 @@ public class MaintenanceTicketController {
         Role role = requireRole();
         assertManagerOrOwner(role);
         MaintenanceTicket ticket = findTicket(id);
+        assertManagerCanAccessTicket(ticket);
         if (ticket.getStatus() == MaintenanceTicketStatus.COMPLETED && role != Role.OWNER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ chủ trọ được sửa chi phí của ticket đã hoàn tất.");
         }
@@ -286,19 +318,23 @@ public class MaintenanceTicketController {
     ) {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
+        assertManagerCanAccessTicket(ticket);
         requireStatus(ticket, MaintenanceTicketStatus.IN_PROGRESS, "Chỉ chuyển chờ xác nhận khi phiếu đang xử lý.");
         Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
         if (amount != null && amount < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí thực tế không được âm.");
         }
-        MaintenanceTicket saved = saveRepairInformation(ticket, request, MaintenanceTicketStatus.WAITING_CONFIRMATION);
+        MaintenanceTicket saved = saveRepairInformation(ticket, request, MaintenanceTicketStatus.COMPLETED);
         saveCost(saved.getId(), request);
+        if (shouldChargeTenant(request)) {
+            issueMaintenanceCompensationInvoice(saved, request);
+        }
         if (request != null && request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
             attachFiles(saved, request.getAttachmentIds(), AttachmentPhase.AFTER, "Upload ảnh sau sửa");
         }
-        recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(), MaintenanceTicketAction.REQUEST_CONFIRMATION,
+        recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(), MaintenanceTicketAction.CONFIRM_COMPLETED,
                 firstNonBlank(request == null ? null : request.getCompletionNote(),
-                        "Đã xử lý xong, chờ xác nhận"));
+                        "Đã hoàn tất xử lý phiếu sự cố"));
         return response(saved);
     }
 
@@ -309,6 +345,7 @@ public class MaintenanceTicketController {
         requireStatus(ticket, MaintenanceTicketStatus.WAITING_CONFIRMATION, "Chỉ xác nhận phiếu đang chờ xác nhận.");
         if (ticket.getTicketScope() == TicketScope.COMMON_AREA || ticket.getTicketScope() == TicketScope.PROPERTY_OPERATION) {
             assertManagerOrOwner(requireRole());
+            assertManagerCanAccessTicket(ticket);
         } else {
             assertTenantCanActOnRoomTicket(ticket);
         }
@@ -388,6 +425,7 @@ public class MaintenanceTicketController {
                     "Chỉ bổ sung ảnh trước sửa khi phiếu đang chờ tiếp nhận.");
         } else {
             assertManagerOrOwner(requireRole());
+            assertManagerCanAccessTicket(ticket);
             if (phase == AttachmentPhase.BEFORE && ticket.getStatus() != MaintenanceTicketStatus.PENDING_ACCEPTANCE) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ bổ sung ảnh trước sửa khi phiếu đang chờ tiếp nhận.");
             }
@@ -430,7 +468,7 @@ public class MaintenanceTicketController {
         }
         List<Long> restrictedRoomIds = roomId == null ? activeRoomIds : List.of(roomId);
         return searchTickets(code, status, null, null, category, severity, priority,
-                firstNonBlank(scope, "ROOM"), fromDate, toDate, pageable, restrictedRoomIds);
+                firstNonBlank(scope, "ROOM"), fromDate, toDate, pageable, restrictedRoomIds, null);
     }
 
     private PageResponse<MaintenanceTicketResponse> searchTickets(
@@ -445,7 +483,8 @@ public class MaintenanceTicketController {
             LocalDate fromDate,
             LocalDate toDate,
             Pageable pageable,
-            List<Long> restrictedRoomIds
+            List<Long> restrictedRoomIds,
+            List<Long> restrictedPropertyIds
     ) {
         Specification<MaintenanceTicketEntity> spec = Specification.where(null);
         if (!firstNonBlank(code).isBlank()) {
@@ -462,6 +501,9 @@ public class MaintenanceTicketController {
         }
         if (propertyId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("property").get("id"), propertyId));
+        }
+        if (restrictedPropertyIds != null) {
+            spec = spec.and((root, query, cb) -> root.get("property").get("id").in(restrictedPropertyIds));
         }
         if (restrictedRoomIds != null) {
             spec = spec.and((root, query, cb) -> root.get("room").get("id").in(restrictedRoomIds));
@@ -542,6 +584,7 @@ public class MaintenanceTicketController {
         if (!jpaPropertyRepository.existsById(propertyId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy cơ sở/property.");
         }
+        assertManagerCanAccessProperty(propertyId);
         TicketScope scope = firstNonNull(request.getTicketScope(), request.getScope());
         if (scope == null) {
             scope = roomId == null ? TicketScope.COMMON_AREA : TicketScope.TENANT_ROOM;
@@ -606,7 +649,8 @@ public class MaintenanceTicketController {
                 .workerName(repairmanName)
                 .repairmanPhone(firstNonBlank(request == null ? null : request.getRepairmanPhone(), ticket.getRepairmanPhone()))
                 .repairItems(encodeRepairItems(repairItems, rootCause))
-                .completedAt(targetStatus == MaintenanceTicketStatus.WAITING_CONFIRMATION && ticket.getCompletedAt() == null
+                .completedAt((targetStatus == MaintenanceTicketStatus.WAITING_CONFIRMATION
+                        || targetStatus == MaintenanceTicketStatus.COMPLETED) && ticket.getCompletedAt() == null
                         ? LocalDateTime.now()
                         : ticket.getCompletedAt())
                 .build());
@@ -638,12 +682,62 @@ public class MaintenanceTicketController {
         cost.setCostType(request.getCostType() == null ? CostType.OTHER : request.getCostType());
         cost.setDescription(description);
         cost.setAmount(amount);
-        CostResponsibility responsibility = request.getCostResponsibility() == null
+        CostResponsibility responsibility = Boolean.TRUE.equals(request.getChargeToTenant())
+                ? CostResponsibility.TENANT
+                : request.getCostResponsibility() == null
                 ? mapPaidByToResponsibility(request.getPaidBy())
                 : request.getCostResponsibility();
         cost.setCostResponsibility(responsibility);
         cost.setPaidBy(mapResponsibilityToPaidBy(responsibility));
         jpaMaintenanceCostRepository.save(cost);
+    }
+
+    private boolean shouldChargeTenant(CompleteMaintenanceTicketRequest request) {
+        if (request == null) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(request.getChargeToTenant())) {
+            return true;
+        }
+        return request.getPaidBy() == PaidBy.TENANT
+                || request.getCostResponsibility() == CostResponsibility.TENANT;
+    }
+
+    private void issueMaintenanceCompensationInvoice(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
+        Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
+        if (amount == null || amount <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí bồi thường phải lớn hơn 0.");
+        }
+        RoomEntity room = ticket.getRoomId() == null
+                ? null
+                : jpaRoomRepository.findById(ticket.getRoomId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng để xuất hóa đơn."));
+        LeaseContractEntity contract = resolveInvoiceableContract(ticket);
+        issuedInvoiceChargeService.issueMaintenanceCharge(
+                room,
+                contract,
+                InvoiceLineType.MAINTENANCE_COMPENSATION,
+                firstNonBlank(request.getCostDescription(), request.getCompletionNote(), "Bồi thường chi phí bảo trì"),
+                amount,
+                ticket.getId(),
+                jpaUserRepository.getReferenceById(currentUserId())
+        );
+    }
+
+    private LeaseContractEntity resolveInvoiceableContract(MaintenanceTicket ticket) {
+        if (ticket.getContractId() != null) {
+            return jpaLeaseContractRepository.findById(ticket.getContractId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy hợp đồng của phiếu sự cố."));
+        }
+        if (ticket.getRoomId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phiếu khu vực chung không thể xuất hóa đơn cho khách.");
+        }
+        return jpaLeaseContractRepository
+                .findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(ticket.getRoomId(), INVOICEABLE_CONTRACT_STATUSES)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Phòng chưa có hợp đồng đang hiệu lực, không thể xuất hóa đơn cho khách."
+                ));
     }
 
     private void attachFiles(MaintenanceTicket ticket, List<Long> fileIds, AttachmentPhase phase, String note) {
@@ -691,6 +785,8 @@ public class MaintenanceTicketController {
     private MaintenanceTicketResponse toResponse(MaintenanceTicket ticket) {
         RoomInfo room = findRoomInfo(ticket);
         CostInfo cost = summarizeCosts(ticket.getId());
+        BillingInfo billing = summarizeBilling(ticket.getId(), cost);
+        Long displayCost = cost.amount() > 0 ? cost.amount() : billing.chargeAmount();
         MaintenanceTicketResponse.UserSummary createdBy = userSummary(ticket.getCreatedById());
         return MaintenanceTicketResponse.builder()
                 .id(ticket.getId())
@@ -708,17 +804,26 @@ public class MaintenanceTicketController {
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
                 .status(toBusinessStatus(ticket.getStatus()))
+                .ticketStatus(toBusinessStatus(ticket.getStatus()))
+                .ticketStatusLabel(ticketStatusLabel(ticket))
                 .createdBy(createdBy)
                 .workerName(ticket.getWorkerName())
                 .repairmanName(ticket.getWorkerName())
                 .repairmanPhone(ticket.getRepairmanPhone())
                 .repairItems(readRepairItems(ticket.getRepairItems()))
                 .rootCause(readRootCause(ticket.getRepairItems()))
-                .costAmount(cost.amount())
-                .actualCost(cost.amount())
+                .costAmount(displayCost)
+                .actualCost(displayCost)
                 .costDescription(cost.description())
                 .paidBy(cost.paidBy())
                 .costResponsibility(cost.costResponsibility())
+                .billingStatus(billing.status())
+                .billingStatusLabel(billing.label())
+                .invoiceId(billing.invoiceId())
+                .invoiceCode(billing.invoiceCode())
+                .invoiceStatus(billing.invoiceStatus())
+                .lineType(billing.lineType())
+                .chargeAmount(billing.chargeAmount())
                 .completedAt(ticket.getCompletedAt())
                 .updatedAt(ticket.getUpdatedAt())
                 .createdAt(ticket.getCreatedAt())
@@ -728,6 +833,8 @@ public class MaintenanceTicketController {
     private MaintenanceTicketDetailsResponse toDetailsResponse(MaintenanceTicket ticket) {
         RoomInfo room = findRoomInfo(ticket);
         CostInfo cost = summarizeCosts(ticket.getId());
+        BillingInfo billing = summarizeBilling(ticket.getId(), cost);
+        Long displayCost = cost.amount() > 0 ? cost.amount() : billing.chargeAmount();
         List<MaintenanceTicketDetailsResponse.AttachmentResponse> attachments = jpaMaintenanceTicketAttachmentRepository
                 .findAllByTicket_IdOrderBySortOrderAsc(ticket.getId())
                 .stream()
@@ -754,6 +861,8 @@ public class MaintenanceTicketController {
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
                 .status(toBusinessStatus(ticket.getStatus()))
+                .ticketStatus(toBusinessStatus(ticket.getStatus()))
+                .ticketStatusLabel(ticketStatusLabel(ticket))
                 .createdBy(detailUserSummary(ticket.getCreatedById()))
                 .assignedTo(detailUserSummary(ticket.getAssignedToId()))
                 .workerName(ticket.getWorkerName())
@@ -762,11 +871,18 @@ public class MaintenanceTicketController {
                 .repairItems(readRepairItems(ticket.getRepairItems()))
                 .rootCause(readRootCause(ticket.getRepairItems()))
                 .rejectionReason(ticket.getRejectionReason())
-                .costAmount(cost.amount())
-                .actualCost(cost.amount())
+                .costAmount(displayCost)
+                .actualCost(displayCost)
                 .costDescription(cost.description())
                 .paidBy(cost.paidBy())
                 .costResponsibility(cost.costResponsibility())
+                .billingStatus(billing.status())
+                .billingStatusLabel(billing.label())
+                .invoiceId(billing.invoiceId())
+                .invoiceCode(billing.invoiceCode())
+                .invoiceStatus(billing.invoiceStatus())
+                .lineType(billing.lineType())
+                .chargeAmount(billing.chargeAmount())
                 .completedAt(ticket.getCompletedAt())
                 .createdAt(ticket.getCreatedAt())
                 .updatedAt(ticket.getUpdatedAt())
@@ -859,6 +975,44 @@ public class MaintenanceTicketController {
             return;
         }
         assertManagerOrOwner(role);
+        assertManagerCanAccessTicket(ticket);
+    }
+
+    private void assertManagerCanAccessTicket(MaintenanceTicket ticket) {
+        assertManagerCanAccessProperty(ticket == null ? null : ticket.getPropertyId());
+    }
+
+    private void assertManagerCanAccessProperty(Long propertyId) {
+        Role role = requireRole();
+        if (role != Role.MANAGER) {
+            return;
+        }
+        if (propertyId == null || !managerPropertyIds().contains(propertyId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xử lý phiếu sự cố của cơ sở này.");
+        }
+    }
+
+    private List<Long> restrictedPropertyIdsForCurrentManager(Role role) {
+        return role == Role.MANAGER ? managerPropertyIds() : null;
+    }
+
+    private List<Long> managerPropertyIds() {
+        return jpaRolePromotionRepository
+                .findActivePropertyIds(currentUserId(), PromotionRole.MANAGER, RolePromotionStatus.ACTIVE)
+                .stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
+    private PageResponse<MaintenanceTicketResponse> emptyTicketPage(Pageable pageable) {
+        return PageResponse.<MaintenanceTicketResponse>builder()
+                .data(List.of())
+                .pageSize(pageable.getPageSize())
+                .currentPage(pageable.getPageNumber() + 1)
+                .totalPages(0)
+                .totalElements(0)
+                .build();
     }
 
     private void assertTenantCanRead(MaintenanceTicket ticket) {
@@ -1001,6 +1155,75 @@ public class MaintenanceTicketController {
                 first.getCostResponsibility() == null
                         ? mapPaidByToResponsibility(first.getPaidBy())
                         : first.getCostResponsibility());
+    }
+
+    private BillingInfo summarizeBilling(Long ticketId, CostInfo cost) {
+        return jpaInvoiceLineRepository
+                .findFirstBySourceTypeAndSourceIdOrderByIdDesc(
+                        IssuedInvoiceChargeService.SOURCE_MAINTENANCE_TICKET,
+                        ticketId
+                )
+                .map(line -> {
+                    InvoiceEntity invoice = line.getInvoice();
+                    String invoiceStatus = invoice == null || invoice.getStatus() == null ? null : invoice.getStatus().name();
+                    String status = billingStatus(invoice == null ? null : invoice.getStatus());
+                    long chargeAmount = line.getAmount() == null
+                            ? (long) line.getQuantity() * line.getUnitPrice()
+                            : line.getAmount();
+                    return new BillingInfo(
+                            status,
+                            billingStatusLabel(status),
+                            invoice == null ? null : invoice.getId(),
+                            invoice == null ? null : invoice.getInvoiceCode(),
+                            invoiceStatus,
+                            line.getLineType() == null ? null : line.getLineType().name(),
+                            chargeAmount
+                    );
+                })
+                .orElseGet(() -> {
+                    if (cost.paidBy() == PaidBy.TENANT || cost.costResponsibility() == CostResponsibility.TENANT) {
+                        return new BillingInfo("NOT_INVOICED", "Chưa tạo hóa đơn", null, null, null, null, cost.amount());
+                    }
+                    return new BillingInfo("NO_CHARGE", "Không thu khách", null, null, null, null, 0L);
+                });
+    }
+
+    private String billingStatus(InvoiceStatus invoiceStatus) {
+        if (invoiceStatus == null) {
+            return "NO_CHARGE";
+        }
+        return switch (invoiceStatus) {
+            case PAID -> "PAID";
+            case OVERDUE -> "OVERDUE";
+            case VOIDED -> "FAILED";
+            default -> "PENDING_PAYMENT";
+        };
+    }
+
+    private String billingStatusLabel(String status) {
+        return switch (firstNonBlank(status)) {
+            case "PAID" -> "Đã thanh toán";
+            case "OVERDUE" -> "Quá hạn";
+            case "FAILED" -> "Thanh toán thất bại";
+            case "NOT_INVOICED" -> "Chưa tạo hóa đơn";
+            case "PENDING_PAYMENT" -> "Chờ thanh toán";
+            default -> "Không thu khách";
+        };
+    }
+
+    private String ticketStatusLabel(MaintenanceTicket ticket) {
+        if ("RULE_VIOLATION".equalsIgnoreCase(ticket.getCategory()) && ticket.getStatus() == MaintenanceTicketStatus.COMPLETED) {
+            return "Đã ghi nhận";
+        }
+        return switch (ticket.getStatus()) {
+            case PENDING_ACCEPTANCE -> "Chờ tiếp nhận";
+            case ACCEPTED -> "Đã tiếp nhận";
+            case IN_PROGRESS -> "Đang xử lý";
+            case WAITING_CONFIRMATION -> "Chờ xác nhận";
+            case COMPLETED -> "Hoàn tất xử lý";
+            case REJECTED -> "Từ chối";
+            case CANCELLED -> "Đã hủy";
+        };
     }
 
     private String encodeRepairItems(String repairItems, String rootCause) {
@@ -1180,5 +1403,16 @@ public class MaintenanceTicketController {
     }
 
     private record CostInfo(Long amount, PaidBy paidBy, String description, CostResponsibility costResponsibility) {
+    }
+
+    private record BillingInfo(
+            String status,
+            String label,
+            Long invoiceId,
+            String invoiceCode,
+            String invoiceStatus,
+            String lineType,
+            Long chargeAmount
+    ) {
     }
 }

@@ -45,10 +45,17 @@ public class CompleteMaintenanceTicketRequest {
     @JsonAlias({"actualCost", "actual_cost"})
     Long actualCost;
 
+    @JsonAlias({"paidBy", "paid_by", "payer"})
     PaidBy paidBy;
 
     @JsonAlias({"costResponsibility", "cost_responsibility"})
     CostResponsibility costResponsibility;
+
+    @JsonAlias({"chargeToTenant", "charge_to_tenant"})
+    Boolean chargeToTenant;
+
+    @JsonAlias({"lineType", "line_type"})
+    String lineType;
 
     @JsonAlias({"attachmentIds", "attachment_ids"})
     List<Long> attachmentIds;
@@ -56,6 +63,6 @@ public class CompleteMaintenanceTicketRequest {
     @JsonAlias({"attachmentPhase", "attachment_phase"})
     AttachmentPhase attachmentPhase;
 
-    @JsonAlias({"completionNote", "completion_note"})
+    @JsonAlias({"completionNote", "completion_note", "resolutionNote", "resolution_note"})
     String completionNote;
 }

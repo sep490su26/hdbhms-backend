@@ -63,6 +63,16 @@ public class MaintenanceTicketDetailsResponse {
     PaidBy paidBy;
     @JsonProperty("cost_responsibility")
     CostResponsibility costResponsibility;
+    String ticketStatus;
+    String ticketStatusLabel;
+    String billingStatus;
+    String billingStatusLabel;
+    Long invoiceId;
+    String invoiceCode;
+    String invoiceStatus;
+    String lineType;
+    Long chargeAmount;
+    String checkoutUrl;
     @JsonProperty("completed_at")
     LocalDateTime completedAt;
     @JsonProperty("created_at")
