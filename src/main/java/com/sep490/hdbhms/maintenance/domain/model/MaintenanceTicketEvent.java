@@ -17,6 +17,7 @@ public class MaintenanceTicketEvent {
     Long ticketId;
     String fromStatus;
     String toStatus;
+    String action;
     String note;
     Long createdById;
     LocalDateTime createdAt;
