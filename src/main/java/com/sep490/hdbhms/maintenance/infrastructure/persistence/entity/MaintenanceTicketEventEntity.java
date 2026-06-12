@@ -36,6 +36,9 @@ public class MaintenanceTicketEventEntity {
     @Column(name = "to_status", nullable = false, length = 50)
     String toStatus;
 
+    @Column(length = 50)
+    String action;
+
     @Column(columnDefinition = "TEXT")
     String note;
 

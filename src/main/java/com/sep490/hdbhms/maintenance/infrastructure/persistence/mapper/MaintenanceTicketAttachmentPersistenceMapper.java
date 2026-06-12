@@ -1,10 +1,10 @@
 package com.sep490.hdbhms.maintenance.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicketAttachment;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceTicketAttachmentEntity;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.jpa.JpaMaintenanceTicketRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaTenantRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class MaintenanceTicketAttachmentPersistenceMapper {
     JpaMaintenanceTicketRepository jpaMaintenanceTicketRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
-    JpaTenantRepository jpaTenantRepository;
+    JpaUserRepository jpaUserRepository;
 
     public MaintenanceTicketAttachment toDomain(MaintenanceTicketAttachmentEntity entity) {
         if (entity == null) return null;
@@ -26,7 +26,9 @@ public class MaintenanceTicketAttachmentPersistenceMapper {
                 .fileId(entity.getFile() != null ? entity.getFile().getId() : null)
                 .attachmentPhase(entity.getAttachmentPhase())
                 .sortOrder(entity.getSortOrder())
-                .createdById(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
+                .createdById(entity.getCreatedByUser() != null
+                        ? entity.getCreatedByUser().getId()
+                        : entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
@@ -43,8 +45,8 @@ public class MaintenanceTicketAttachmentPersistenceMapper {
                         : null)
                 .attachmentPhase(domain.getAttachmentPhase())
                 .sortOrder(domain.getSortOrder())
-                .createdBy(domain.getCreatedById() != null
-                        ? jpaTenantRepository.getReferenceById(domain.getCreatedById())
+                .createdByUser(domain.getCreatedById() != null
+                        ? jpaUserRepository.getReferenceById(domain.getCreatedById())
                         : null)
                 .createdAt(domain.getCreatedAt())
                 .build();

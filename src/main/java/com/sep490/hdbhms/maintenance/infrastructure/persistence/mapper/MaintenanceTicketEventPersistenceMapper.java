@@ -23,6 +23,7 @@ public class MaintenanceTicketEventPersistenceMapper {
                 .ticketId(entity.getTicket() != null ? entity.getTicket().getId() : null)
                 .fromStatus(entity.getFromStatus())
                 .toStatus(entity.getToStatus())
+                .action(entity.getAction())
                 .note(entity.getNote())
                 .createdById(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
                 .createdAt(entity.getCreatedAt())
@@ -38,6 +39,7 @@ public class MaintenanceTicketEventPersistenceMapper {
                         : null)
                 .fromStatus(domain.getFromStatus())
                 .toStatus(domain.getToStatus())
+                .action(domain.getAction())
                 .note(domain.getNote())
                 .createdBy(domain.getCreatedById() != null
                         ? jpaUserRepository.getReferenceById(domain.getCreatedById())

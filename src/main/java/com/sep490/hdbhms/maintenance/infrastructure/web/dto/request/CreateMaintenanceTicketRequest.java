@@ -16,12 +16,18 @@ import java.util.List;
 public class CreateMaintenanceTicketRequest {
     @JsonAlias({"roomId", "room_id"})
     Long roomId;
+    @JsonAlias({"propertyId", "property_id"})
+    Long propertyId;
     String type;
     String category;
     String title;
     @JsonAlias({"ticketScope", "ticket_scope"})
     TicketScope ticketScope;
+    @JsonAlias({"scope"})
+    TicketScope scope;
     Priority priority;
+    @JsonAlias({"severity"})
+    Priority severity;
     String description;
     @JsonAlias({"attachmentIds", "attachment_ids"})
     List<Long> attachmentIds;

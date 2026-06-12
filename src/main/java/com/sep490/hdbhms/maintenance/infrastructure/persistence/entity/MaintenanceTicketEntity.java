@@ -90,6 +90,9 @@ public class MaintenanceTicketEntity {
     @Column(name = "worker_name", length = 255)
     String workerName;
 
+    @Column(name = "repairman_phone", length = 30)
+    String repairmanPhone;
+
     @Column(name = "repair_items", columnDefinition = "TEXT")
     String repairItems;
 

@@ -14,6 +14,12 @@ public class UpdateMaintenanceTicketProgressRequest {
     @JsonAlias({"workerName", "worker_name"})
     String workerName;
 
+    @JsonAlias({"repairmanName", "repairman_name"})
+    String repairmanName;
+
+    @JsonAlias({"repairmanPhone", "repairman_phone"})
+    String repairmanPhone;
+
     @JsonAlias({"repairItems", "repair_items"})
     String repairItems;
 

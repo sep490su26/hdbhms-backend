@@ -1,0 +1,632 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.4)
+
+2026-06-08T12:45:25.126+07:00  INFO 11692 --- [hdbhms] [  restartedMain] com.sep490.hdbhms.HdbhmsApplication      : Starting HdbhmsApplication using Java 21.0.11 with PID 11692 (D:\Web_Source\hdbhms-backend\target\classes started by Admin in D:\Web_Source\hdbhms-backend)
+2026-06-08T12:45:25.130+07:00  INFO 11692 --- [hdbhms] [  restartedMain] com.sep490.hdbhms.HdbhmsApplication      : The following 1 profile is active: "dev"
+2026-06-08T12:45:25.198+07:00  INFO 11692 --- [hdbhms] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-06-08T12:45:25.199+07:00  INFO 11692 --- [hdbhms] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-06-08T12:45:28.502+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.s.b.c.c.annotation.BatchRegistrar      : Finished Spring Batch infrastructure beans configuration in 12 ms.
+2026-06-08T12:45:28.516+07:00  INFO 11692 --- [hdbhms] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-06-08T12:45:28.518+07:00  INFO 11692 --- [hdbhms] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-06-08T12:45:29.483+07:00  INFO 11692 --- [hdbhms] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 947 ms. Found 52 JPA repository interfaces.
+2026-06-08T12:45:31.876+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8081 (http)
+2026-06-08T12:45:31.899+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-08T12:45:31.900+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.39]
+2026-06-08T12:45:31.980+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-08T12:45:31.982+07:00  INFO 11692 --- [hdbhms] [  restartedMain] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 6782 ms
+2026-06-08T12:45:33.105+07:00  INFO 11692 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-06-08T12:45:33.665+07:00  INFO 11692 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@35e42993
+2026-06-08T12:45:33.667+07:00  INFO 11692 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-06-08T12:45:33.728+07:00  INFO 11692 --- [hdbhms] [  restartedMain] org.flywaydb.core.FlywayExecutor         : Database: jdbc:mysql://127.0.0.1:3308/hdbhms_web?serverTimezone=UTC (MySQL 8.0)
+2026-06-08T12:45:33.868+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.f.core.internal.command.DbValidate     : Successfully validated 32 migrations (execution time 00:00.087s)
+2026-06-08T12:45:33.914+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.f.core.internal.command.DbMigrate      : Current version of schema `hdbhms_web`: 31
+2026-06-08T12:45:33.922+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.f.core.internal.command.DbMigrate      : Schema `hdbhms_web` is up to date. No migration necessary.
+2026-06-08T12:45:34.164+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-06-08T12:45:34.273+07:00  INFO 11692 --- [hdbhms] [  restartedMain] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.11.Final
+2026-06-08T12:45:34.336+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-06-08T12:45:34.739+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-06-08T12:45:34.857+07:00  INFO 11692 --- [hdbhms] [  restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 8.0.46
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-06-08T12:45:38.133+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-06-08T12:45:38.239+07:00  INFO 11692 --- [hdbhms] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-06-08T12:45:38.988+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+Controllers: 32
+2026-06-08T12:45:45.268+07:00  INFO 11692 --- [hdbhms] [  restartedMain] org.redisson.Version                     : Redisson 3.45.1
+2026-06-08T12:45:45.733+07:00  INFO 11692 --- [hdbhms] [isson-netty-4-5] o.redisson.connection.ConnectionsHolder  : 1 connections initialized for localhost/127.0.0.1:6379
+2026-06-08T12:45:45.925+07:00  INFO 11692 --- [hdbhms] [sson-netty-4-20] o.redisson.connection.ConnectionsHolder  : 24 connections initialized for localhost/127.0.0.1:6379
+2026-06-08T12:45:46.482+07:00  WARN 11692 --- [hdbhms] [  restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-06-08T12:45:46.624+07:00  INFO 11692 --- [hdbhms] [  restartedMain] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name customUserDetailsService
+2026-06-08T12:45:47.637+07:00  INFO 11692 --- [hdbhms] [  restartedMain] c.s.hdbhms.shared.config.AppInitConfig   : Initializing application
+2026-06-08T12:45:47.664+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.s.b.c.r.s.JobRepositoryFactoryBean     : No database type set, using meta data indicating: MYSQL
+2026-06-08T12:45:47.717+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.s.b.c.l.s.TaskExecutorJobLauncher      : No TaskExecutor has been set, defaulting to synchronous executor.
+2026-06-08T12:45:48.913+07:00  WARN 11692 --- [hdbhms] [  restartedMain] o.s.b.d.a.OptionalLiveReloadServer       : Unable to start LiveReload server
+2026-06-08T12:45:49.284+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.k.clients.admin.AdminClientConfig    : AdminClientConfig values: 
+	auto.include.jmx.reporter = true
+	bootstrap.controllers = []
+	bootstrap.servers = [localhost:9092]
+	client.dns.lookup = use_all_dns_ips
+	client.id = hdbhms-admin-0
+	connections.max.idle.ms = 300000
+	default.api.timeout.ms = 60000
+	enable.metrics.push = true
+	metadata.max.age.ms = 300000
+	metadata.recovery.strategy = none
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retries = 2147483647
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+
+2026-06-08T12:45:49.565+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.8.1
+2026-06-08T12:45:49.567+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 70d6ff42debf7e17
+2026-06-08T12:45:49.567+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1780897549564
+2026-06-08T12:45:49.584+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:49.586+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:49.695+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:49.695+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:49.802+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:49.803+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:50.023+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:50.023+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:50.434+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:50.435+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:51.404+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:51.404+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:52.398+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:52.400+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:53.428+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:53.431+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:54.289+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:54.292+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:55.361+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:55.362+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:56.326+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:56.326+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:57.391+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:57.392+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:58.357+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:58.357+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:45:59.423+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:45:59.427+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:00.520+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:00.525+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:01.589+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:01.589+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:02.660+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:02.663+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:03.759+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:03.760+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:04.762+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:04.763+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:05.858+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:05.858+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:06.743+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:06.748+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:07.620+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:07.622+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:08.698+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:08.699+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:09.668+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:09.671+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:10.657+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:10.660+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:11.658+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:11.659+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:12.621+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:12.622+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:13.620+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:13.621+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:14.684+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:14.685+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:15.817+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:15.826+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:16.795+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:16.795+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:17.867+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:17.868+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:18.727+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:18.728+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:19.581+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.a.k.c.a.i.AdminMetadataManager         : [AdminClient clientId=hdbhms-admin-0] Metadata update failed
+
+org.apache.kafka.common.errors.TimeoutException: Timed out waiting for a node assignment. Call: fetchMetadata
+
+2026-06-08T12:46:19.581+07:00 ERROR 11692 --- [hdbhms] [  restartedMain] o.springframework.kafka.core.KafkaAdmin  : Could not configure topics
+
+org.springframework.kafka.KafkaException: Timed out waiting to get existing topics
+	at org.springframework.kafka.core.KafkaAdmin.lambda$checkPartitions$13(KafkaAdmin.java:571) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at java.base/java.util.HashMap.forEach(HashMap.java:1429) ~[na:na]
+	at java.base/java.util.Collections$UnmodifiableMap.forEach(Collections.java:1708) ~[na:na]
+	at org.springframework.kafka.core.KafkaAdmin.checkPartitions(KafkaAdmin.java:550) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.kafka.core.KafkaAdmin.addOrModifyTopicsIfNeeded(KafkaAdmin.java:443) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.kafka.core.KafkaAdmin.initialize(KafkaAdmin.java:276) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.kafka.core.KafkaAdmin.afterSingletonsInstantiated(KafkaAdmin.java:245) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1083) ~[spring-beans-6.2.5.jar:6.2.5]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.5.jar:6.2.5]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627) ~[spring-context-6.2.5.jar:6.2.5]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:318) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1361) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1350) ~[spring-boot-3.4.4.jar:3.4.4]
+	at com.sep490.hdbhms.HdbhmsApplication.main(HdbhmsApplication.java:28) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.boot.devtools.restart.RestartLauncher.run(RestartLauncher.java:50) ~[spring-boot-devtools-3.4.4.jar:3.4.4]
+Caused by: java.util.concurrent.TimeoutException: null
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095) ~[na:na]
+	at org.apache.kafka.common.internals.KafkaFutureImpl.get(KafkaFutureImpl.java:180) ~[kafka-clients-3.8.1.jar:na]
+	at org.springframework.kafka.core.KafkaAdmin.lambda$checkPartitions$13(KafkaAdmin.java:553) ~[spring-kafka-3.3.4.jar:3.3.4]
+	... 19 common frames omitted
+
+2026-06-08T12:46:19.809+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:19.809+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:20.902+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:20.903+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:21.981+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:21.982+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:22.963+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:22.966+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:23.839+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:23.840+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:24.920+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:24.920+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:26.008+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:26.009+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:27.013+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:27.014+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:28.074+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:28.074+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:29.052+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T12:46:29.052+07:00  WARN 11692 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:29.605+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.a.k.clients.admin.KafkaAdminClient     : [AdminClient clientId=hdbhms-admin-0] Forcing a hard I/O thread shutdown. Requests in progress will be aborted.
+2026-06-08T12:46:29.607+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.a.kafka.common.utils.AppInfoParser     : App info kafka.admin.client for hdbhms-admin-0 unregistered
+2026-06-08T12:46:29.609+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.a.k.c.a.i.AdminMetadataManager         : [AdminClient clientId=hdbhms-admin-0] Metadata update failed
+
+org.apache.kafka.common.errors.TimeoutException: The AdminClient thread has exited. Call: fetchMetadata
+
+2026-06-08T12:46:29.610+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.a.k.clients.admin.KafkaAdminClient     : [AdminClient clientId=hdbhms-admin-0] Timed out 2 remaining operation(s) during close.
+2026-06-08T12:46:29.613+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-06-08T12:46:29.615+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-06-08T12:46:29.615+07:00  INFO 11692 --- [hdbhms] [ hdbhms-admin-0] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-06-08T12:46:29.638+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8081 (http) with context path '/'
+2026-06-08T12:46:29.661+07:00  INFO 11692 --- [hdbhms] [  restartedMain] c.s.hdbhms.shared.utils.ServerInfoUtils  : what ApplicationServletEnvironment {activeProfiles=[dev], defaultProfiles=[default], propertySources=[MapPropertySource {name='server.ports'}, ConfigurationPropertySourcesPropertySource {name='configurationProperties'}, SimpleCommandLinePropertySource {name='commandLineArgs'}, StubPropertySource {name='servletConfigInitParams'}, ServletContextPropertySource {name='servletContextInitParams'}, PropertiesPropertySource {name='systemProperties'}, OriginAwareSystemEnvironmentPropertySource {name='systemEnvironment'}, RandomValuePropertySource {name='random'}, OriginTrackedMapPropertySource {name='Config resource 'file [.env.dev]' via location 'file:.env.dev[.properties]''}, OriginTrackedMapPropertySource {name='Config resource 'class path resource [application-dev.yaml]' via location 'optional:classpath:/''}, OriginTrackedMapPropertySource {name='Config resource 'class path resource [application.yml]' via location 'optional:classpath:/''}, MapPropertySource {name='devtools'}, ApplicationInfoPropertySource {name='applicationInfo'}]}
+2026-06-08T12:46:29.665+07:00  INFO 11692 --- [hdbhms] [  restartedMain] c.s.hdbhms.shared.utils.ServerInfoUtils  : 8081 - http://localhost:8081
+2026-06-08T12:46:29.686+07:00  INFO 11692 --- [hdbhms] [  restartedMain] c.s.hdbhms.shared.utils.ServerInfoUtils  : what ApplicationServletEnvironment {activeProfiles=[dev], defaultProfiles=[default], propertySources=[MapPropertySource {name='server.ports'}, ConfigurationPropertySourcesPropertySource {name='configurationProperties'}, SimpleCommandLinePropertySource {name='commandLineArgs'}, StubPropertySource {name='servletConfigInitParams'}, ServletContextPropertySource {name='servletContextInitParams'}, PropertiesPropertySource {name='systemProperties'}, OriginAwareSystemEnvironmentPropertySource {name='systemEnvironment'}, RandomValuePropertySource {name='random'}, OriginTrackedMapPropertySource {name='Config resource 'file [.env.dev]' via location 'file:.env.dev[.properties]''}, OriginTrackedMapPropertySource {name='Config resource 'class path resource [application-dev.yaml]' via location 'optional:classpath:/''}, OriginTrackedMapPropertySource {name='Config resource 'class path resource [application.yml]' via location 'optional:classpath:/''}, MapPropertySource {name='devtools'}, ApplicationInfoPropertySource {name='applicationInfo'}]}
+2026-06-08T12:46:29.687+07:00  INFO 11692 --- [hdbhms] [  restartedMain] c.s.hdbhms.shared.utils.ServerInfoUtils  : 8081 - http://localhost:8081
+2026-06-08T12:46:29.779+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = latest
+	bootstrap.servers = [localhost:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-hdbhms-notification-group-1
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	enable.metrics.push = true
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = hdbhms-notification-group
+	group.instance.id = null
+	group.protocol = classic
+	group.remote.assignor = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metadata.recovery.strategy = none
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
+
+2026-06-08T12:46:29.891+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
+2026-06-08T12:46:30.015+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.8.1
+2026-06-08T12:46:30.016+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 70d6ff42debf7e17
+2026-06-08T12:46:30.016+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1780897590015
+2026-06-08T12:46:30.021+07:00  INFO 11692 --- [hdbhms] [  restartedMain] o.a.k.c.c.internals.LegacyKafkaConsumer  : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Subscribed to topic(s): lease.confirmed
+2026-06-08T12:46:30.069+07:00  INFO 11692 --- [hdbhms] [  restartedMain] com.sep490.hdbhms.HdbhmsApplication      : Started HdbhmsApplication in 65.728 seconds (process running for 67.328)
+2026-06-08T12:46:30.317+07:00  INFO 11692 --- [hdbhms] [  restartedMain] c.s.hdbhms.shared.config.AppInitConfig   : Application initialized
+2026-06-08T12:46:30.805+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:30.805+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:30.805+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:30.919+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:30.935+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:30.936+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:31.046+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:31.048+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:31.048+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:31.286+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:31.286+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:31.286+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:31.661+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:31.661+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:31.664+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:32.387+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:32.387+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:32.388+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:33.395+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:33.395+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:33.396+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:34.401+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:34.404+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:34.405+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:35.405+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:35.406+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:35.407+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:36.394+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:36.394+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:36.396+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:37.412+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:37.412+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:37.414+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:38.300+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:38.301+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:38.302+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:39.303+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:39.303+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:39.303+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:40.309+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:40.309+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:40.309+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:41.325+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:41.326+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:41.326+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:42.329+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:42.331+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:42.331+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:43.245+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:43.245+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:43.245+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:44.261+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:44.263+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:44.263+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:45.267+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:45.267+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:45.267+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:46.320+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:46.320+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:46.320+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:47.322+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:47.322+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:47.322+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:47.831+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-08T12:46:47.833+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-08T12:46:47.845+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 11 ms
+2026-06-08T12:46:47.900+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-2] c.s.h.shared.config.DebugInterceptor     : Before controller: /api/v1/auth/login
+2026-06-08T12:46:48.361+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:48.361+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:48.361+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:49.131+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-1] c.s.h.shared.config.DebugInterceptor     : Before controller: /api/v1/users/tenant-account-candidates/22/send
+2026-06-08T12:46:49.348+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-1] h.i.a.s.TenantAccountProvisioningService : Skip duplicate person profile link during tenant account provisioning. profileId=15, existingProfileId=8, userId=6
+2026-06-08T12:46:49.361+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:49.364+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:49.364+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:50.196+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:50.199+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:50.200+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:51.229+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:51.229+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:51.229+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:52.267+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:52.269+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:52.269+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:53.276+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:53.278+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:53.279+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:54.317+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:54.317+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:54.317+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:55.317+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:55.317+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:55.317+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:56.317+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:56.317+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:56.317+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:57.318+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:57.320+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:57.320+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:58.351+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:58.351+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:58.351+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:46:59.352+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:46:59.354+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:46:59.354+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:00.395+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:00.395+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:00.395+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:01.428+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:01.428+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:01.430+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:02.429+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:02.429+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:02.431+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:03.429+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:03.429+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:03.429+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:04.434+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:04.434+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:04.434+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:05.435+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:05.435+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:05.435+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:06.462+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:06.463+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:06.463+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:07.420+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:07.420+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:07.420+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:08.471+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:08.472+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:08.472+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:09.444+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:09.444+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:09.446+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:10.483+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:10.485+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:10.485+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:10.831+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-4] c.s.h.shared.config.DebugInterceptor     : Before controller: /api/v1/auth/login
+2026-06-08T12:47:11.109+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-5] c.s.h.shared.config.DebugInterceptor     : Before controller: /api/v1/users/tenant-account-candidates/22/send
+2026-06-08T12:47:11.199+07:00  INFO 11692 --- [hdbhms] [nio-8081-exec-5] h.i.a.s.TenantAccountProvisioningService : Skip duplicate person profile link during tenant account provisioning. profileId=15, existingProfileId=8, userId=6
+2026-06-08T12:47:11.360+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:11.362+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:11.363+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:12.294+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:12.295+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:12.295+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:13.302+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:13.303+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:13.304+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:14.213+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:14.213+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:14.214+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:15.254+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:15.254+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:15.254+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:16.119+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:16.119+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:16.119+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:17.034+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:17.036+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:17.036+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:17.970+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:17.970+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:17.970+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:18.984+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:18.987+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:18.987+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:19.859+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:19.859+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:19.859+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:20.817+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:20.817+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:20.817+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:21.818+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:21.818+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:21.818+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:22.811+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:22.811+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:22.811+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:23.861+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:23.861+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:23.863+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:24.870+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:24.870+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:24.870+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:25.874+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:25.875+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:25.876+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:26.777+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:26.779+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:26.779+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:27.621+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:27.621+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:27.621+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:28.577+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:28.577+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:28.577+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:29.611+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:29.611+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:29.611+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:30.518+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:30.518+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:30.518+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:31.537+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:31.537+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:31.539+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:32.537+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:32.537+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:32.537+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:33.588+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:33.589+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:33.589+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:34.596+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:34.598+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:34.598+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:35.602+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:35.603+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:35.603+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:36.609+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:36.609+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:36.609+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:37.568+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:37.570+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:37.570+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:38.576+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:38.577+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:38.578+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:39.429+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:39.429+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:39.429+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:40.253+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:40.253+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:40.253+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:41.261+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:41.261+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:41.261+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:42.322+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:42.323+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:42.324+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:43.353+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:43.353+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:43.353+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:44.305+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:44.307+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:44.307+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:45.253+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:45.253+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:45.253+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:46.110+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:46.110+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:46.110+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:47.126+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:47.126+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:47.128+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected
+2026-06-08T12:47:48.163+07:00  INFO 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Node -1 disconnected.
+2026-06-08T12:47:48.163+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T12:47:48.163+07:00  WARN 11692 --- [hdbhms] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-hdbhms-notification-group-1, groupId=hdbhms-notification-group] Bootstrap broker localhost:9092 (id: -1 rack: null) disconnected

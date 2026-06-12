@@ -83,7 +83,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                         .fileId(fileId)
                         .attachmentPhase(AttachmentPhase.BEFORE)
                         .sortOrder(sort++)
-                        .createdById(tenant.getId())
+                        .createdById(currentSessionUserId)
                         .build();
                 maintenanceTicketAttachmentRepository.save(attachment);
             }
