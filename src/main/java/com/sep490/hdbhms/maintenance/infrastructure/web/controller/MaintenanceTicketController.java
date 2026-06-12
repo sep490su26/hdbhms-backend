@@ -1,11 +1,15 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.controller;
 
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
+import com.sep490.hdbhms.billingandpayment.application.service.ScheduledBillingChargeService;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PendingBillingChargeStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PendingBillingChargeEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPendingBillingChargeRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
@@ -128,9 +132,11 @@ public class MaintenanceTicketController {
     JpaMaintenanceReviewRepository jpaMaintenanceReviewRepository;
     JpaMaintenanceTicketAttachmentRepository jpaMaintenanceTicketAttachmentRepository;
     JpaMaintenanceCostRepository jpaMaintenanceCostRepository;
+    JpaPendingBillingChargeRepository jpaPendingBillingChargeRepository;
     MaintenanceTicketPersistenceMapper maintenanceTicketPersistenceMapper;
     LeaseContractQueryService leaseContractQueryService;
     IssuedInvoiceChargeService issuedInvoiceChargeService;
+    ScheduledBillingChargeService scheduledBillingChargeService;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -327,7 +333,7 @@ public class MaintenanceTicketController {
         MaintenanceTicket saved = saveRepairInformation(ticket, request, MaintenanceTicketStatus.COMPLETED);
         saveCost(saved.getId(), request);
         if (shouldChargeTenant(request)) {
-            issueMaintenanceCompensationInvoice(saved, request);
+            collectMaintenanceCompensation(saved, request);
         }
         if (request != null && request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
             attachFiles(saved, request.getAttachmentIds(), AttachmentPhase.AFTER, "Upload ảnh sau sửa");
@@ -703,7 +709,69 @@ public class MaintenanceTicketController {
                 || request.getCostResponsibility() == CostResponsibility.TENANT;
     }
 
-    private void issueMaintenanceCompensationInvoice(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
+    @PostMapping("/{id}/invoice/issue")
+    @Transactional
+    public ApiResponse<MaintenanceTicketDetailsResponse> issueMaintenanceInvoice(@PathVariable Long id) {
+        assertManagerOrOwner(requireRole());
+        MaintenanceTicket ticket = findTicket(id);
+        assertManagerCanAccessTicket(ticket);
+        BillingInfo billing = summarizeBilling(ticket.getId(), summarizeCosts(ticket.getId()));
+        if (billing.invoiceId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phiếu chưa có hóa đơn nháp để phát hành.");
+        }
+        issuedInvoiceChargeService.issueDraftInvoice(billing.invoiceId());
+        recordEvent(ticket.getId(), ticket.getStatus(), ticket.getStatus(), MaintenanceTicketAction.UPDATE_REPAIR_INFO,
+                "Phát hành hóa đơn phát sinh cho khách thuê");
+        return response(findTicket(id));
+    }
+
+    private void collectMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
+        String method = normalizeCollectionMethod(request == null ? null : request.getCollectionMethod());
+        if ("BILL_NOW".equals(method)) {
+            createMaintenanceCompensationDraft(ticket, request);
+            return;
+        }
+        scheduleMaintenanceCompensation(ticket, request);
+    }
+
+    private String normalizeCollectionMethod(String value) {
+        String method = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (method.isBlank()) {
+            return "MONTHLY_SCHEDULED";
+        }
+        if (Set.of("MONTHLY_SCHEDULED", "MONTHLY_DRAFT", "SCHEDULED", "SCHEDULED_MONTHLY").contains(method)) {
+            return "MONTHLY_SCHEDULED";
+        }
+        if (Set.of("BILL_NOW", "IMMEDIATE_DRAFT", "CREATE_DRAFT").contains(method)) {
+            return "BILL_NOW";
+        }
+        return "MONTHLY_SCHEDULED";
+    }
+
+    private void scheduleMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
+        Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
+        if (amount == null || amount <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phi boi thuong phai lon hon 0.");
+        }
+        RoomEntity room = ticket.getRoomId() == null
+                ? null
+                : jpaRoomRepository.findById(ticket.getRoomId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khong tim thay phong de len lich thu khach."));
+        LeaseContractEntity contract = resolveInvoiceableContract(ticket);
+        scheduledBillingChargeService.scheduleCharge(
+                room,
+                contract,
+                InvoiceLineType.MAINTENANCE_COMPENSATION,
+                firstNonBlank(request.getCostDescription(), request.getCompletionNote(), "Boi thuong chi phi bao tri"),
+                amount,
+                IssuedInvoiceChargeService.SOURCE_MAINTENANCE_TICKET,
+                ticket.getId(),
+                request.getBillingPeriod(),
+                jpaUserRepository.getReferenceById(currentUserId())
+        );
+    }
+
+    private void createMaintenanceCompensationDraft(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
         Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
         if (amount == null || amount <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí bồi thường phải lớn hơn 0.");
@@ -713,7 +781,7 @@ public class MaintenanceTicketController {
                 : jpaRoomRepository.findById(ticket.getRoomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng để xuất hóa đơn."));
         LeaseContractEntity contract = resolveInvoiceableContract(ticket);
-        issuedInvoiceChargeService.issueMaintenanceCharge(
+        issuedInvoiceChargeService.createMaintenanceChargeDraft(
                 room,
                 contract,
                 InvoiceLineType.MAINTENANCE_COMPENSATION,
@@ -819,6 +887,7 @@ public class MaintenanceTicketController {
                 .costResponsibility(cost.costResponsibility())
                 .billingStatus(billing.status())
                 .billingStatusLabel(billing.label())
+                .billingPeriod(billing.billingPeriod())
                 .invoiceId(billing.invoiceId())
                 .invoiceCode(billing.invoiceCode())
                 .invoiceStatus(billing.invoiceStatus())
@@ -878,6 +947,7 @@ public class MaintenanceTicketController {
                 .costResponsibility(cost.costResponsibility())
                 .billingStatus(billing.status())
                 .billingStatusLabel(billing.label())
+                .billingPeriod(billing.billingPeriod())
                 .invoiceId(billing.invoiceId())
                 .invoiceCode(billing.invoiceCode())
                 .invoiceStatus(billing.invoiceStatus())
@@ -1176,15 +1246,37 @@ public class MaintenanceTicketController {
                             invoice == null ? null : invoice.getId(),
                             invoice == null ? null : invoice.getInvoiceCode(),
                             invoiceStatus,
+                            invoice == null ? null : invoice.getBillingPeriod(),
                             line.getLineType() == null ? null : line.getLineType().name(),
                             chargeAmount
                     );
                 })
                 .orElseGet(() -> {
-                    if (cost.paidBy() == PaidBy.TENANT || cost.costResponsibility() == CostResponsibility.TENANT) {
-                        return new BillingInfo("NOT_INVOICED", "Chưa tạo hóa đơn", null, null, null, null, cost.amount());
+                    Optional<PendingBillingChargeEntity> pendingCharge = jpaPendingBillingChargeRepository
+                            .findFirstBySourceTypeAndSourceIdAndStatusInOrderByIdDesc(
+                                    IssuedInvoiceChargeService.SOURCE_MAINTENANCE_TICKET,
+                                    ticketId,
+                                    List.of(PendingBillingChargeStatus.SCHEDULED, PendingBillingChargeStatus.FAILED)
+                            );
+                    if (pendingCharge.isPresent()) {
+                        PendingBillingChargeEntity charge = pendingCharge.get();
+                        return new BillingInfo(
+                                charge.getStatus() == PendingBillingChargeStatus.FAILED ? "SCHEDULE_FAILED" : "SCHEDULED",
+                                charge.getStatus() == PendingBillingChargeStatus.FAILED
+                                        ? "Loi len lich hoa don"
+                                        : "Da len lich gop hoa don dau thang",
+                                null,
+                                null,
+                                null,
+                                charge.getBillingPeriod(),
+                                charge.getLineType() == null ? null : charge.getLineType().name(),
+                                charge.getAmount()
+                        );
                     }
-                    return new BillingInfo("NO_CHARGE", "Không thu khách", null, null, null, null, 0L);
+                    if (cost.paidBy() == PaidBy.TENANT || cost.costResponsibility() == CostResponsibility.TENANT) {
+                        return new BillingInfo("NOT_INVOICED", "Chưa tạo hóa đơn", null, null, null, null, null, cost.amount());
+                    }
+                    return new BillingInfo("NO_CHARGE", "Không thu khách", null, null, null, null, null, 0L);
                 });
     }
 
@@ -1193,19 +1285,23 @@ public class MaintenanceTicketController {
             return "NO_CHARGE";
         }
         return switch (invoiceStatus) {
+            case DRAFT -> "DRAFT";
+            case ISSUED -> "PENDING_PAYMENT";
+            case PARTIALLY_PAID -> "PARTIALLY_PAID";
             case PAID -> "PAID";
             case OVERDUE -> "OVERDUE";
-            case VOIDED -> "FAILED";
-            default -> "PENDING_PAYMENT";
+            case VOIDED -> "VOIDED";
         };
     }
 
     private String billingStatusLabel(String status) {
         return switch (firstNonBlank(status)) {
+            case "DRAFT" -> "Chờ phát hành";
+            case "PARTIALLY_PAID" -> "Thanh toán một phần";
             case "PAID" -> "Đã thanh toán";
             case "OVERDUE" -> "Quá hạn";
-            case "FAILED" -> "Thanh toán thất bại";
-            case "NOT_INVOICED" -> "Chưa tạo hóa đơn";
+            case "VOIDED" -> "Đã hủy";
+            case "NOT_INVOICED" -> "Chưa lập hóa đơn";
             case "PENDING_PAYMENT" -> "Chờ thanh toán";
             default -> "Không thu khách";
         };
@@ -1411,6 +1507,7 @@ public class MaintenanceTicketController {
             Long invoiceId,
             String invoiceCode,
             String invoiceStatus,
+            String billingPeriod,
             String lineType,
             Long chargeAmount
     ) {

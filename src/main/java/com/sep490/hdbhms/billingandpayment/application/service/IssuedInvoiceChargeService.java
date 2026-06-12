@@ -69,7 +69,7 @@ public class IssuedInvoiceChargeService {
                 .property(room.getProperty())
                 .room(room)
                 .leastContract(contract)
-                .invoiceType(InvoiceType.COMPENSATION)
+                .invoiceType(InvoiceType.OTHER)
                 .billingPeriod(null)
                 .issueDate(now)
                 .dueDate(expiresAt)
@@ -120,6 +120,103 @@ public class IssuedInvoiceChargeService {
         return new IssuedChargeResult(invoice, line, paymentIntent, checkout);
     }
 
+    @Transactional
+    public DraftChargeResult createMaintenanceChargeDraft(
+            RoomEntity room,
+            LeaseContractEntity contract,
+            InvoiceLineType lineType,
+            String description,
+            long amount,
+            Long ticketId,
+            UserEntity createdBy
+    ) {
+        if (room == null || contract == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có hợp đồng/phòng đang hiệu lực để tạo hóa đơn nháp cho khách.");
+        }
+        if (amount <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền phát sinh phải lớn hơn 0.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        InvoiceEntity invoice = invoiceRepository.save(InvoiceEntity.builder()
+                .invoiceCode(buildInvoiceCode(ticketId, now))
+                .property(room.getProperty())
+                .room(room)
+                .leastContract(contract)
+                .invoiceType(InvoiceType.OTHER)
+                .billingPeriod(null)
+                .issueDate(now)
+                .dueDate(now)
+                .status(InvoiceStatus.DRAFT)
+                .subtotalAmount(amount)
+                .discountAmount(0L)
+                .totalAmount(amount)
+                .paidAmount(0L)
+                .remainingAmount(amount)
+                .createdBy(createdBy)
+                .build());
+
+        InvoiceLineEntity line = invoiceLineRepository.save(InvoiceLineEntity.builder()
+                .invoice(invoice)
+                .lineType(lineType)
+                .description(description)
+                .quantity(1)
+                .unitPrice(amount)
+                .sourceType(SOURCE_MAINTENANCE_TICKET)
+                .sourceId(ticketId)
+                .build());
+
+        return new DraftChargeResult(invoice, line);
+    }
+
+    @Transactional
+    public IssuedChargeResult issueDraftInvoice(Long invoiceId) {
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+        if (invoice.getStatus() != InvoiceStatus.DRAFT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể phát hành hóa đơn nháp.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime paymentExpiresAt = now.plusDays(7);
+        invoice.setStatus(InvoiceStatus.ISSUED);
+        invoice.setIssuedAt(now);
+        invoice.setIssueDate(now);
+        invoice = invoiceRepository.save(invoice);
+        InvoiceEntity issuedInvoice = invoice;
+
+        InvoiceLineEntity line = invoiceLineRepository.findByInvoice_IdOrderByIdAsc(issuedInvoice.getId())
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        PaymentIntentEntity paymentIntent = paymentIntentRepository
+                .findFirstByInvoice_IdAndStatusOrderByIdDesc(issuedInvoice.getId(), PaymentIntentStatus.PENDING)
+                .orElseGet(() -> paymentIntentRepository.save(PaymentIntentEntity.builder()
+                        .invoice(issuedInvoice)
+                        .amount(issuedInvoice.getRemainingAmount())
+                        .provider(resolveProvider())
+                        .paymentContent(issuedInvoice.getInvoiceCode())
+                        .status(PaymentIntentStatus.PENDING)
+                        .expiresAt(paymentExpiresAt)
+                        .build()));
+
+        com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkout;
+        try {
+            checkout = externalPaymentPort.createCheckoutRequest(new PaymentRequest(
+                    paymentIntent.getId(),
+                    paymentIntent.getAmount(),
+                    issuedInvoice.getInvoiceCode(),
+                    paymentExpiresAt
+            ));
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Không thể khởi tạo thanh toán PayOS. Vui lòng thử lại.");
+        }
+        paymentIntent.setProviderOrderCode(checkout.providerOrderCode());
+        paymentIntent.setQrPayload(toCheckoutPayload(checkout, paymentIntent));
+        paymentIntent = paymentIntentRepository.save(paymentIntent);
+
+        return new IssuedChargeResult(issuedInvoice, line, paymentIntent, checkout);
+    }
+
     private PaymentIntentProvider resolveProvider() {
         return "payos".equalsIgnoreCase(environment.getProperty("app.payment.provider", "vnpay"))
                 ? PaymentIntentProvider.PAYOS
@@ -158,6 +255,12 @@ public class IssuedInvoiceChargeService {
             InvoiceLineEntity invoiceLine,
             PaymentIntentEntity paymentIntent,
             com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkout
+    ) {
+    }
+
+    public record DraftChargeResult(
+            InvoiceEntity invoice,
+            InvoiceLineEntity invoiceLine
     ) {
     }
 }

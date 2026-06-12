@@ -25,6 +25,10 @@ public class CreateRuleViolationRequest {
     String description;
     @JsonAlias({"includeInMonthlyInvoice", "include_in_monthly_invoice"})
     Boolean includeInMonthlyInvoice;
+    @JsonAlias({"collectionMethod", "collection_method", "billingMode", "billing_mode"})
+    String collectionMethod;
+    @JsonAlias({"billingPeriod", "billing_period", "billingMonth", "billing_month"})
+    String billingPeriod;
     @JsonAlias({"occurredAt", "occurred_at", "violationDate", "violation_date"})
     LocalDate occurredAt;
     @JsonAlias({"attachmentIds", "attachment_ids", "evidenceFileIds", "evidence_file_ids"})

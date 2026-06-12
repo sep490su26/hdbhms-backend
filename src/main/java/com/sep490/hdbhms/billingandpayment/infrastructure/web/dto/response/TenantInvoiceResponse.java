@@ -26,6 +26,7 @@ public class TenantInvoiceResponse {
     LocalDateTime issueDate;
     LocalDateTime dueDate;
     LocalDateTime issuedAt;
+    LocalDateTime paidAt;
     Long subtotalAmount;
     Long discountAmount;
     Long totalAmount;

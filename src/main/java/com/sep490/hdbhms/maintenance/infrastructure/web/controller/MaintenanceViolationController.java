@@ -2,8 +2,10 @@ package com.sep490.hdbhms.maintenance.infrastructure.web.controller;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
+import com.sep490.hdbhms.billingandpayment.application.service.ScheduledBillingChargeService;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PendingBillingChargeEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
@@ -92,6 +94,7 @@ public class MaintenanceViolationController {
     JpaUserRepository jpaUserRepository;
     JpaRolePromotionRepository jpaRolePromotionRepository;
     IssuedInvoiceChargeService issuedInvoiceChargeService;
+    ScheduledBillingChargeService scheduledBillingChargeService;
 
     @PostMapping
     @Transactional
@@ -149,10 +152,13 @@ public class MaintenanceViolationController {
 
         InvoiceLineEntity invoiceLine = null;
         InvoiceEntity invoice = null;
-        IssuedInvoiceChargeService.IssuedChargeResult chargeResult = null;
-        boolean includeInMonthlyInvoice = request.getIncludeInMonthlyInvoice() == null || request.getIncludeInMonthlyInvoice();
-        if (includeInMonthlyInvoice) {
-            chargeResult = issuedInvoiceChargeService.issueMaintenanceCharge(
+        String collectionMethod = normalizeCollectionMethod(request.getCollectionMethod());
+        boolean billNow = "BILL_NOW".equals(collectionMethod);
+        boolean monthlyScheduled = "MONTHLY_SCHEDULED".equals(collectionMethod);
+        boolean createDraftInvoice = billNow;
+        PendingBillingChargeEntity pendingCharge = null;
+        if (billNow) {
+            IssuedInvoiceChargeService.DraftChargeResult chargeResult = issuedInvoiceChargeService.createMaintenanceChargeDraft(
                     room,
                     contract,
                     InvoiceLineType.VIOLATION_FINE,
@@ -165,6 +171,18 @@ public class MaintenanceViolationController {
             invoiceLine = chargeResult.invoiceLine();
             violation.setInvoice(invoice);
             violation = jpaRuleViolationRepository.save(violation);
+        } else if (monthlyScheduled) {
+            pendingCharge = scheduledBillingChargeService.scheduleCharge(
+                    room,
+                    contract,
+                    InvoiceLineType.VIOLATION_FINE,
+                    "Phat vi pham noi quy: Tu y reset mat khau modem/wifi",
+                    fineAmount,
+                    IssuedInvoiceChargeService.SOURCE_MAINTENANCE_TICKET,
+                    ticket.getId(),
+                    request.getBillingPeriod(),
+                    jpaUserRepository.getReferenceById(currentUserId())
+            );
         }
 
         return ApiResponse.<RuleViolationResponse>builder()
@@ -173,22 +191,50 @@ public class MaintenanceViolationController {
                         .ticketId(ticket.getId())
                         .ticketCode(ticket.getTicketCode())
                         .violationType(violationType)
-                        .lineType(includeInMonthlyInvoice ? InvoiceLineType.VIOLATION_FINE.name() : null)
+                        .lineType(billNow || monthlyScheduled ? InvoiceLineType.VIOLATION_FINE.name() : null)
                         .amount(fineAmount)
                         .status(ticket.getStatus().name())
-                        .billingStatus(includeInMonthlyInvoice ? "PENDING_PAYMENT" : "NO_CHARGE")
-                        .billingStatusLabel(includeInMonthlyInvoice ? "Chờ thanh toán" : "Không thu khách")
+                        .billingStatus(billNow ? "DRAFT" : monthlyScheduled ? "SCHEDULED" : "NO_CHARGE")
+                        .billingStatusLabel(createDraftInvoice ? "Chờ phát hành" : "Không thu khách")
                         .invoiceId(invoice == null ? null : invoice.getId())
                         .invoiceCode(invoice == null ? null : invoice.getInvoiceCode())
                         .invoiceStatus(invoice == null ? null : invoice.getStatus().name())
                         .invoiceLineId(invoiceLine == null ? null : invoiceLine.getId())
-                        .checkoutUrl(chargeResult == null ? null : chargeResult.checkout().checkOutUrl())
-                        .providerOrderCode(chargeResult == null ? null : chargeResult.paymentIntent().getProviderOrderCode())
-                        .message(includeInMonthlyInvoice
-                                ? "Đã ghi nhận vi phạm reset wifi 200.000đ và phát hành hóa đơn cho khách thanh toán."
-                                : "Đã ghi nhận vi phạm reset wifi 200.000đ.")
+                        .checkoutUrl(null)
+                        .providerOrderCode(null)
+                        .message(createDraftInvoice
+                                ? "Đã ghi nhận vi phạm reset wifi 200.000đ và tạo hóa đơn nháp. Khách thuê chỉ thấy sau khi phát hành."
+                                : "Đã ghi nhận vi phạm reset wifi 200.000đ, chưa thu khách.")
                         .build())
                 .build();
+    }
+
+    private String normalizeCollectionMethod(String value) {
+        String method = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+        if (method.isBlank()) {
+            return "MONTHLY_SCHEDULED";
+        }
+        if (Set.of("MONTHLY_SCHEDULED", "MONTHLY_DRAFT", "SCHEDULED", "SCHEDULED_MONTHLY").contains(method)) {
+            return "MONTHLY_SCHEDULED";
+        }
+        if (Set.of("BILL_NOW", "IMMEDIATE_DRAFT", "CREATE_DRAFT").contains(method)) {
+            return "BILL_NOW";
+        }
+        return "MONTHLY_SCHEDULED";
+    }
+
+    @SuppressWarnings("unused")
+    private boolean shouldCreateDraftInvoice(CreateRuleViolationRequest request) {
+        String method = request.getCollectionMethod() == null
+                ? ""
+                : request.getCollectionMethod().trim().toUpperCase(Locale.ROOT);
+        if (Set.of("RECORD_ONLY", "NO_CHARGE", "NONE").contains(method)) {
+            return false;
+        }
+        if (Set.of("MONTHLY_DRAFT", "BILL_NOW", "IMMEDIATE_DRAFT", "CREATE_DRAFT").contains(method)) {
+            return true;
+        }
+        return request.getIncludeInMonthlyInvoice() == null || request.getIncludeInMonthlyInvoice();
     }
 
     private void validateRequest(CreateRuleViolationRequest request) {

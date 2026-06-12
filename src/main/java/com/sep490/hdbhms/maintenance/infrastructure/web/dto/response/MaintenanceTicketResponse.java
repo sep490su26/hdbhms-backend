@@ -64,6 +64,7 @@ public class MaintenanceTicketResponse {
     String ticketStatusLabel;
     String billingStatus;
     String billingStatusLabel;
+    String billingPeriod;
     Long invoiceId;
     String invoiceCode;
     String invoiceStatus;

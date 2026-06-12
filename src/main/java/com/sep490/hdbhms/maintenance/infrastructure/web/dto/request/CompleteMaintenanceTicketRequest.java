@@ -57,6 +57,12 @@ public class CompleteMaintenanceTicketRequest {
     @JsonAlias({"lineType", "line_type"})
     String lineType;
 
+    @JsonAlias({"collectionMethod", "collection_method", "billingMode", "billing_mode"})
+    String collectionMethod;
+
+    @JsonAlias({"billingPeriod", "billing_period", "billingMonth", "billing_month"})
+    String billingPeriod;
+
     @JsonAlias({"attachmentIds", "attachment_ids"})
     List<Long> attachmentIds;
 
