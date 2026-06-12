@@ -112,13 +112,13 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
         paymentIntent = paymentIntentRepository.save(paymentIntent);
         com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkoutResponse =
                 externalPaymentPort.createCheckoutRequest(
-                new PaymentRequest(
-                        paymentIntent.getId(),
-                        paymentIntent.getAmount(),
-                        paymentIntent.getPaymentContent(),
-                        paymentIntent.getExpiresAt()
-                )
-        );
+                        new PaymentRequest(
+                                paymentIntent.getId(),
+                                paymentIntent.getAmount(),
+                                paymentIntent.getPaymentContent(),
+                                paymentIntent.getExpiresAt()
+                        )
+                );
         paymentIntent.attachQrPayload(toCheckoutPayload(checkoutResponse, paymentIntent));
         paymentIntent.attachProviderOrderCode(checkoutResponse.providerOrderCode());
         paymentIntent = paymentIntentRepository.save(paymentIntent);
