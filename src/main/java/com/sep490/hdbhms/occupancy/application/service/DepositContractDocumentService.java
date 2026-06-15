@@ -278,6 +278,7 @@ public class DepositContractDocumentService {
         variables.put("depositAmountString", data.depositAmountText());
         variables.put("depositSignedDateString", formatVietnameseDate(data.generatedAt().toLocalDate()));
         variables.put("leaseDurationMonths", "12");
+        variables.put("currentYear", data.generatedAt().getYear());
         variables.put("paymentCycleMonths", data.paymentCycleMonths() != null ? data.paymentCycleMonths() : 1);
         variables.put("depositMonths", data.depositMonths() != null ? data.depositMonths() : 1);
         return variables;
@@ -318,8 +319,8 @@ public class DepositContractDocumentService {
                     + ". Do bên A đại diện là Ban Quản Lý tòa nhà với các thỏa thuận trong hợp đồng như sau:", 11);
             writer.paragraph("Mục đích thuê: để ở và sinh hoạt với số lượng người đăng kí ở: "
                     + (data.maxOccupants() == null ? "............" : data.maxOccupants()), 11);
-            writer.paragraph("Hợp đồng có thời hạn: .............tháng và bắt đầu tính tiền từ "
-                    + formatVietnameseDate(data.expectedMoveInDate()), 11);
+            writer.paragraph("Hợp đồng có thời hạn: ... tháng và bắt đầu tính tiền từ ngày .., tháng ..., năm "
+                    + data.generatedAt().getYear() + ".", 11);
             writer.paragraph("Giá thuê phòng: " + formatMoney(data.listedPrice()) + " / 01 tháng", 11);
             writer.paragraph("Phương thức thanh toán: Đặt cọc ………. tháng và thanh toán ……………. tháng tiền nhà", 11);
             writer.paragraph("1.2 Để đảm bảo chắc chắn việc ký hợp đồng thuê phòng và trả tiền thuê phòng muộn nhất vào "
@@ -505,7 +506,7 @@ public class DepositContractDocumentService {
                     request.getExpectedMoveInDate(),
                     generatedAt,
                     request.getPaymentCycleMonths(),
-                    1, // Default depositMonths for preview
+                    1,
                     owner
             );
         }
@@ -538,8 +539,8 @@ public class DepositContractDocumentService {
                     agreement.getExpectedLeaseSignDate(),
                     agreement.getExpectedMoveInDate(),
                     generatedAt,
-                    form != null ? form.getPaymentCycleMonths() : 1,
-                    form != null ? form.getDepositMonths() : 1,
+                    form != null && form.getPaymentCycleMonths() != null ? form.getPaymentCycleMonths() : 1,
+                    form != null && form.getDepositMonths() != null ? form.getDepositMonths() : 1,
                     owner
             );
         }
