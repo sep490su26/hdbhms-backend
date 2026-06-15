@@ -325,7 +325,7 @@ public class MaintenanceTicketController {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
         assertManagerCanAccessTicket(ticket);
-        requireStatus(ticket, MaintenanceTicketStatus.IN_PROGRESS, "Chỉ chuyển chờ xác nhận khi phiếu đang xử lý.");
+        requireStatus(ticket, MaintenanceTicketStatus.IN_PROGRESS, "Chỉ hoàn tất khi phiếu đang xử lý.");
         Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
         if (amount != null && amount < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí thực tế không được âm.");
@@ -556,7 +556,7 @@ public class MaintenanceTicketController {
                         "Bạn không có quyền tạo phiếu sự cố cho phòng này."));
         RoomEntity room = jpaRoomRepository.findById(request.getRoomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
-        List<Long> attachmentIds = safeIds(request.getAttachmentIds());
+        List<Long> attachmentIds = attachmentIdsPreservingOrder(request.getAttachmentIds());
         validateImageFileIds(attachmentIds);
         if (attachmentIds.size() > MAX_BEFORE_ATTACHMENTS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh trước sửa.");
@@ -598,7 +598,7 @@ public class MaintenanceTicketController {
         if (roomId == null && scope == TicketScope.TENANT_ROOM) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ticket phòng cần có roomId.");
         }
-        List<Long> attachmentIds = safeIds(request.getAttachmentIds());
+        List<Long> attachmentIds = attachmentIdsPreservingOrder(request.getAttachmentIds());
         validateImageFileIds(attachmentIds);
         if (attachmentIds.size() > MAX_BEFORE_ATTACHMENTS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh trước sửa.");
@@ -728,7 +728,7 @@ public class MaintenanceTicketController {
     private void collectMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
         String method = normalizeCollectionMethod(request == null ? null : request.getCollectionMethod());
         if ("BILL_NOW".equals(method)) {
-            createMaintenanceCompensationDraft(ticket, request);
+            issueMaintenanceCompensation(ticket, request);
             return;
         }
         scheduleMaintenanceCompensation(ticket, request);
@@ -771,7 +771,7 @@ public class MaintenanceTicketController {
         );
     }
 
-    private void createMaintenanceCompensationDraft(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
+    private void issueMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
         Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
         if (amount == null || amount <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí bồi thường phải lớn hơn 0.");
@@ -781,7 +781,7 @@ public class MaintenanceTicketController {
                 : jpaRoomRepository.findById(ticket.getRoomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng để xuất hóa đơn."));
         LeaseContractEntity contract = resolveInvoiceableContract(ticket);
-        issuedInvoiceChargeService.createMaintenanceChargeDraft(
+        issuedInvoiceChargeService.issueMaintenanceCharge(
                 room,
                 contract,
                 InvoiceLineType.MAINTENANCE_COMPENSATION,
@@ -809,7 +809,7 @@ public class MaintenanceTicketController {
     }
 
     private void attachFiles(MaintenanceTicket ticket, List<Long> fileIds, AttachmentPhase phase, String note) {
-        List<Long> normalizedIds = safeIds(fileIds);
+        List<Long> normalizedIds = attachmentIdsPreservingOrder(fileIds);
         if (normalizedIds.isEmpty()) {
             return;
         }
@@ -1151,7 +1151,7 @@ public class MaintenanceTicketController {
             return;
         }
         List<FileMetadataEntity> files = jpaFileMetadataRepository.findAllById(fileIds);
-        if (files.size() != safeIds(fileIds).size()) {
+        if (files.size() != uniqueIds(fileIds).size()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Một hoặc nhiều file không tồn tại.");
         }
         for (FileMetadataEntity file : files) {
@@ -1457,17 +1457,21 @@ public class MaintenanceTicketController {
         );
     }
 
-    private List<Long> safeIds(List<Long> values) {
+    static List<Long> attachmentIdsPreservingOrder(List<Long> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
         }
         List<Long> ids = new ArrayList<>();
         for (Long value : values) {
-            if (value != null && !ids.contains(value)) {
+            if (value != null) {
                 ids.add(value);
             }
         }
         return ids;
+    }
+
+    private List<Long> uniqueIds(List<Long> values) {
+        return attachmentIdsPreservingOrder(values).stream().distinct().toList();
     }
 
     @SafeVarargs

@@ -35,6 +35,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUseCase {
+    private static final int MAX_ATTACHMENTS = 3;
+
     TenantRepository tenantRepository;
     FileMetadataRepository fileMetadataRepository;
     MaintenanceTicketRepository maintenanceTicketRepository;
@@ -75,6 +77,15 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
 
         List<Long> attachmentFileIds = command.attachmentIds();
         if (attachmentFileIds != null && !attachmentFileIds.isEmpty()) {
+            attachmentFileIds = attachmentFileIds.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (attachmentFileIds.size() > MAX_ATTACHMENTS) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Chỉ được upload tối đa 3 ảnh trước sửa."
+                );
+            }
             validateAttachments(attachmentFileIds);
             int sort = 0;
             for (Long fileId : attachmentFileIds) {
@@ -127,8 +138,9 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
     }
 
     private void validateAttachments(List<Long> fileIds) {
-        long count = fileMetadataRepository.countByIdInAndDeletedAtIsNull(fileIds);
-        if (count != fileIds.size()) {
+        List<Long> uniqueFileIds = fileIds.stream().distinct().toList();
+        long count = fileMetadataRepository.countByIdInAndDeletedAtIsNull(uniqueFileIds);
+        if (count != uniqueFileIds.size()) {
             throw new IllegalArgumentException(
                     "One or more attachment files are no longer available. Please re-upload."
             );
