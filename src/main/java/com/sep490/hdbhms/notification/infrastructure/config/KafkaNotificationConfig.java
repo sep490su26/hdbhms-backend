@@ -8,8 +8,8 @@ import org.springframework.kafka.config.TopicBuilder;
 @Configuration
 public class KafkaNotificationConfig {
     @Bean
-    public NewTopic leaseContractConfirmed() {
-        return TopicBuilder.name("lease.confirmed")
+    public NewTopic notificationEvents() {
+        return TopicBuilder.name("notification-events")
                 .build();
     }
 }

@@ -2,9 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.sep490.hdbhms.shared.validator.Age;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
-import com.sep490.hdbhms.shared.validator.VietnamesePhone;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -34,11 +32,14 @@ public class BatchDepositCheckoutRequest {
     String fullName;
 
     @NotNull
-    @Age
+    @PastOrPresent(message = "Ngày sinh không được lớn hơn ngày hiện tại")
     LocalDate dob;
 
     @NotBlank
-    @VietnamesePhone
+    @Pattern(
+            regexp = "^0\\d{9}$",
+            message = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0"
+    )
     String phone;
 
     @Email
@@ -62,11 +63,11 @@ public class BatchDepositCheckoutRequest {
     String permanentAddress;
 
     @NotNull
-    @Future
+    @FutureOrPresent(message = "Ngày dự kiến vào ở không được là ngày trong quá khứ")
     LocalDate expectedMoveInDate;
 
     @NotNull
-    @Future
+    @FutureOrPresent(message = "Ngày hẹn ký hợp đồng không được là ngày trong quá khứ")
     LocalDate expectedLeaseSignDate;
 
     @NotNull
@@ -76,6 +77,16 @@ public class BatchDepositCheckoutRequest {
     @NotNull
     @ValidPaymentCycle
     Integer paymentCycleMonths;
+
+    @AssertTrue(message = "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay")
+    public boolean isExpectedMoveInDateWithinAllowedRange() {
+        return expectedMoveInDate == null || !expectedMoveInDate.isAfter(LocalDate.now().plusDays(14));
+    }
+
+    @AssertTrue(message = "Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ hôm nay")
+    public boolean isExpectedLeaseSignDateWithinAllowedRange() {
+        return expectedLeaseSignDate == null || !expectedLeaseSignDate.isAfter(LocalDate.now().plusDays(14));
+    }
 
     @AssertTrue(message = "Thông tin người ở cùng không hợp lệ.")
     public boolean isCoOccupantInformationValid() {
@@ -133,12 +144,11 @@ public class BatchDepositCheckoutRequest {
         if (value == null) {
             return "";
         }
-        String cleaned = value.replaceAll("[\\s.\\-()]", "");
-        return cleaned.startsWith("+84") ? "0" + cleaned.substring(3) : cleaned;
+        return value.replaceAll("[\\s.\\-()]", "");
     }
 
     private static boolean isVietnamesePhone(String value) {
-        return value.matches("0[35789]\\d{8}");
+        return value.matches("0\\d{9}");
     }
 
     @Data
@@ -171,7 +181,10 @@ public class BatchDepositCheckoutRequest {
         String fullName;
 
         @NotBlank
-        @VietnamesePhone
+        @Pattern(
+                regexp = "^0\\d{9}$",
+                message = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0"
+        )
         String phone;
 
         @NotNull

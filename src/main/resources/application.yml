@@ -36,25 +36,6 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
-  kafka:
-    bootstrap-servers: localhost:9092
-    # Producer defaults
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      # Optional: request acks, retries
-      properties:
-        acks: all
-        retries: 3
-    # Consumer defaults
-    consumer:
-      group-id: hdbhms-notification-group
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      auto-offset-reset: earliest
-      enable-auto-commit: false   # you can commit manually or let auto
-    listener:
-      ack-mode: manual
 app:
   jwt:
     secret: ${APP_JWT_SECRET:${SIGNER_KEY}}
@@ -70,9 +51,6 @@ app:
       phone: ${OWNER_PHONE}
       password: ${OWNER_PASSWORD}
       full-name: ${OWNER_FULL_NAME}
-  reset-password:
-    web-confirmation-url: localhost:3000//confirm-reset
-    mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
   payment:
     provider: ${APP_PAYMENT_PROVIDER:vnpay}
     payos:
@@ -86,22 +64,3 @@ app:
       hash-secret: ${VNPAY_HASH_SECRET}
       url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
       return-url: ${VNPAY_RETURN_URL:}
-  file:
-    download:
-      prefix: ${DOWNLOAD_PREFIX}
-    temp:
-      directory: ${TEMP_PATH}
-    storage:
-      directory: ${INTERNAL_STORAGE_PATH}
-      max-concurrency: 20
-      max-batch-size: 100
-      retry:
-        max_attempts: 3
-        initial-delay: 500
-        multiplier: 2
-        timeout: 300
-redisson:
-  bloom-filter:
-    redis-url: redis://${REDIS_HOST}:${REDIS_PORT}
-  cache:
-    duration-mins: 30

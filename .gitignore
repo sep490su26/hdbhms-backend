@@ -5,6 +5,10 @@ TODO.md
 HELP.md
 target/
 identity/
+*.jks
+*.p12
+*.key
+*.cert
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

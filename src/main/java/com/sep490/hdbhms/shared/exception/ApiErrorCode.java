@@ -51,6 +51,11 @@ public enum ApiErrorCode {
     VISIT_006(40106, "Missing required visit request field", "Thiếu thông tin bắt buộc", HttpStatus.BAD_REQUEST),
     VISIT_007(40107, "Invalid appointment time", "Ngày giờ hẹn xem phải sau thời gian hiện tại", HttpStatus.BAD_REQUEST),
     DEPOSIT_001(40201, "Invalid deposit occupancy", "Thông tin số người ở không hợp lệ", HttpStatus.BAD_REQUEST),
+    HANDOVER_001(40301, "Handover already confirmed", "Biên bản bàn giao đã được xác nhận", HttpStatus.BAD_REQUEST),
+    METER_NOT_FOUND(40401, "Meter not found", "Không tìm thấy đồng hồ điện/nước hoạt động cho phòng này", HttpStatus.NOT_FOUND),
+    ROOM_ASSET_NOT_FOUND(40402, "Room asset not found", "Không tìm thấy thiết bị phòng", HttpStatus.NOT_FOUND),
+    CONTRACT_NOT_FOUND(40403, "Contract not found", "Không tìm thấy hợp đồng", HttpStatus.NOT_FOUND),
+    HANDOVER_RECORD_NOT_FOUND(40404, "Handover record not found", "Không tìm thấy bản ghi bàn giao", HttpStatus.NOT_FOUND),
     ;
     int code;
     String message;

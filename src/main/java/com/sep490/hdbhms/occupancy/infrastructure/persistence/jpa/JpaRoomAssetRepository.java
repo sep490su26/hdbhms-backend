@@ -8,7 +8,12 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
+import java.util.List;
+import java.util.Optional;
+
 public interface JpaRoomAssetRepository extends JpaRepository<RoomAssetEntity, Long> {
+    List<RoomAssetEntity> findByRoom_IdAndDeletedAtIsNull(Long roomId);
+    Optional<RoomAssetEntity> findByIdAndRoom_IdAndDeletedAtIsNull(Long id, Long roomId);
     @Query("""
             SELECT asset FROM RoomAssetEntity asset
             LEFT JOIN FETCH asset.imageFile

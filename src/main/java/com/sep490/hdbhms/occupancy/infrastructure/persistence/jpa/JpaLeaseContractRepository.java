@@ -30,4 +30,6 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
             Long roomId,
             List<LeaseStatus> statuses
     );
+
+    Optional<LeaseContractEntity> findByIdAndDeletedAtIsNull(Long id);
 }

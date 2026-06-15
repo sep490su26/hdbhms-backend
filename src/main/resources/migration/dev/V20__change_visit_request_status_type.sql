@@ -16,8 +16,8 @@ SET @col_type := (
 );
 
 SET @sql := IF(
-        @col_type != "enum('NOT_VIEWED','VIEWED','DISMISSED')",
-        'ALTER TABLE visit_requests MODIFY COLUMN status ENUM(''NOT_VIEWED'',''VIEWED'',''DISMISSED'') NOT NULL DEFAULT ''NOT_VIEWED''',
+        @col_type IS NULL OR @col_type != 'enum(\'NOT_VIEWED\',\'VIEWED\',\'DISMISSED\')',
+        'ALTER TABLE visit_requests MODIFY COLUMN status ENUM(\'NOT_VIEWED\',\'VIEWED\',\'DISMISSED\') NOT NULL DEFAULT \'NOT_VIEWED\'',
         'SELECT 1'
             );
 
