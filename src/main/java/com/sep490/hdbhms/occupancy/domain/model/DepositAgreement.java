@@ -34,6 +34,9 @@ public class DepositAgreement {
     DepositAgreementStatus status = DepositAgreementStatus.PENDING_PAYMENT;
     LocalDateTime confirmedAt;
     Long contractFileId;
+    Long signedFileId;
+    LocalDateTime signedAt;
+    Long signedUploadedById;
     String note;
     String forfeitureReason;
     Long refundedAmount;
@@ -79,6 +82,13 @@ public class DepositAgreement {
 
     public void attachContractFile(Long contractFileId) {
         this.contractFileId = contractFileId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void attachSignedFile(Long signedFileId, Long signedUploadedById, LocalDateTime signedAt) {
+        this.signedFileId = signedFileId;
+        this.signedUploadedById = signedUploadedById;
+        this.signedAt = signedAt != null ? signedAt : LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 

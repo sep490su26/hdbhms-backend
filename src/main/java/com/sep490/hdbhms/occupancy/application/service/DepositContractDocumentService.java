@@ -113,6 +113,20 @@ public class DepositContractDocumentService {
         return amount == null || amount <= 0 ? DEFAULT_DEPOSIT_AMOUNT : amount;
     }
 
+    @Transactional(readOnly = true)
+    public DepositContractPreviewResponse previewDraft(Long depositAgreementId) {
+        DepositAgreement agreement = depositAgreementRepository.findById(depositAgreementId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+        ContractData data = buildOfficialData(agreement);
+        return DepositContractPreviewResponse.builder()
+                .html(buildTemplateHtml(data))
+                .depositCode(data.depositCode())
+                .depositAmount(data.depositAmount())
+                .depositAmountText(data.depositAmountText())
+                .generatedAt(formatDateTime(data.generatedAt()))
+                .build();
+    }
+
     @Transactional
     public Long ensureOfficialContractFile(Long depositAgreementId) {
         return ensureOfficialContractFileInCurrentTransaction(depositAgreementId);
@@ -254,6 +268,8 @@ public class DepositContractDocumentService {
 
     private Map<String, Object> buildTemplateVariables(ContractData data) {
         Map<String, Object> variables = new HashMap<>();
+        variables.put("draftNotice", "BẢN NHÁP - CHƯA CÓ CHỮ KÝ");
+        variables.put("draftDescription", "Bản dùng để in và ký trực tiếp, chưa phải bản hợp đồng đặt cọc chính thức.");
         variables.put("issuedAt", formatDate(data.generatedAt().toLocalDate()));
         variables.put("ownerFullName", data.owner().fullName());
         variables.put("ownerDob", data.owner().dob());
@@ -293,6 +309,8 @@ public class DepositContractDocumentService {
             writer.center("--------o0o--------", 12);
             writer.gap(16);
             writer.center("HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG", 17);
+            writer.center("BAN NHAP - CHUA CO CHU KY", 11);
+            writer.center("Ban dung de in va ky truc tiep, chua phai ban chinh thuc.", 10);
             writer.center("Mã cọc: " + data.depositCode(), 11);
             writer.gap(14);
             writer.paragraph("Hôm nay ngày " + formatDate(data.generatedAt().toLocalDate()), 11);
