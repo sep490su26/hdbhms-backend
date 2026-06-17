@@ -116,6 +116,11 @@
     HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG
   </div>
 
+  <p class="text-center bold uppercase" th:text="${draftNotice}">BẢN NHÁP - CHƯA CÓ CHỮ KÝ</p>
+  <p class="text-center" th:text="${draftDescription}">
+    Bản dùng để in và ký trực tiếp, chưa phải bản hợp đồng đặt cọc chính thức.
+  </p>
+
   <p>Hôm nay, ngày <span th:text="${issuedAt}"></span>; chúng tôi những người ký tên dưới đây gồm:</p>
 
   <p class="bold">1. BÊN NHẬN TIỀN ĐẶT CỌC (BÊN A)</p>
@@ -186,8 +191,8 @@
   </p>
 
   <p class="indent">
-    Hợp đồng có thời hạn: <span class="bold" th:text="${leaseDurationMonths}"></span> tháng và bắt đầu tính tiền từ
-    <span th:text="${expectedMoveInDateString}"></span>
+    Hợp đồng có thời hạn: ... tháng và bắt đầu tính tiền từ ngày .., tháng ..., năm
+    <span th:text="${currentYear}"></span>.
   </p>
 
   <p class="indent">

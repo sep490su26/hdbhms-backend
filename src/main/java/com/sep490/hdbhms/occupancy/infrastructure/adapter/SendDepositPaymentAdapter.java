@@ -229,6 +229,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
         data.put("depositAmount", formatMoney(depositAmount));
         data.put("depositAmountString", amountText(depositAmount));
         data.put("depositSignedDateString", DateUtils.toVietnameseDateString(LocalDate.now()));
+        data.put("currentYear", LocalDate.now().getYear());
         context.setVariables(data);
         return templateEngine.process("deposit-contract-template", context);
     }

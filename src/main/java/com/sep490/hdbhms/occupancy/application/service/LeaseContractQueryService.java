@@ -164,6 +164,9 @@ public class LeaseContractQueryService {
                             lc.signed_at,
                             lc.previous_contract_id,
                             previous_contract.contract_code AS previous_contract_code,
+                            lc.tenant_intention,
+                            lc.expected_vacant_date,
+                            lc.intention_recorded_at,
                             (
                                 SELECT renewed.id
                                 FROM lease_contracts renewed
@@ -661,6 +664,9 @@ public class LeaseContractQueryService {
                 rs.getString("previous_contract_code"),
                 renewedContractId,
                 rs.getString("renewed_contract_code"),
+                rs.getString("tenant_intention"),
+                toLocalDate(rs, "expected_vacant_date"),
+                toLocalDateTime(rs, "intention_recorded_at"),
                 renewedContractId == null && List.of(
                         LeaseStatus.ACTIVE,
                         LeaseStatus.EXPIRING_SOON,
@@ -715,6 +721,9 @@ public class LeaseContractQueryService {
                 details.previousContractCode(),
                 details.renewedContractId(),
                 details.renewedContractCode(),
+                details.tenantIntention(),
+                details.expectedVacantDate(),
+                details.intentionRecordedAt(),
                 details.canRenew(),
                 details.canLiquidate(),
                 accountProvisioning.canSend(),

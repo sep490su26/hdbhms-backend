@@ -31,6 +31,17 @@ public class DepositAgreementDetailsResponse {
     LocalDateTime confirmedAt;
     Long contractFileId;
     String contractDownloadUrl;
+    String signatureStatus;
+    String signatureStatusLabel;
+    Long signedFileId;
+    String signedFileName;
+    LocalDateTime signedAt;
+    Long signedUploadedById;
+    String signedFileDownloadUrl;
+    Boolean canPreviewDraft;
+    Boolean canDownloadDraft;
+    Boolean canUploadSignedFile;
+    Boolean canViewSignedFile;
     Long idFrontFileId;
     String idFrontFileUrl;
     Long idBackFileId;

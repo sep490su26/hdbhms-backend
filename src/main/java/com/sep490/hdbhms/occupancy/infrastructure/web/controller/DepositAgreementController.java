@@ -1,6 +1,12 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
+import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
+import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
+import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
+import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
@@ -14,7 +20,6 @@ import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementReposito
 import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
@@ -24,6 +29,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositAgreeme
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositAgreementStatusUpdateRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementSignedFileResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositContractPreviewResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -41,7 +48,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
@@ -64,9 +73,20 @@ public class DepositAgreementController {
             DepositAgreementStatus.CONFIRMED,
             DepositAgreementStatus.EXTENDED
     );
+    private static final Set<DepositAgreementStatus> SIGNED_FILE_UPLOADABLE_STATUSES = EnumSet.of(
+            DepositAgreementStatus.PAID,
+            DepositAgreementStatus.CONFIRMED,
+            DepositAgreementStatus.CONVERTED_TO_LEASE,
+            DepositAgreementStatus.EXTENDED
+    );
+    private static final Set<String> SIGNED_FILE_CONTENT_TYPES = Set.of(
+            MediaType.APPLICATION_PDF_VALUE,
+            MediaType.IMAGE_JPEG_VALUE,
+            MediaType.IMAGE_PNG_VALUE,
+            "image/webp"
+    );
 
     GetRoomDetailsUseCase getRoomDetailsUseCase;
-    TenantRepository tenantRepository;
     PropertyRepository propertyRepository;
     DepositFormRepository depositFormRepository;
     DepositAgreementRepository depositAgreementRepository;
@@ -74,6 +94,9 @@ public class DepositAgreementController {
     GetMyListDepositAgreementsUseCase getMyListDepositAgreementsUseCase;
     GetDepositAgreementDetailsUseCase getDepositAgreementDetailsUseCase;
     DepositContractDocumentService depositContractDocumentService;
+    UploadFileUseCase uploadFileUseCase;
+    DownloadFileUseCase downloadFileUseCase;
+    JpaFileMetadataRepository fileMetadataRepository;
 
     @GetMapping
     public ApiResponse<PageResponse<DepositAgreementResponse>> getDepositAgreements(
@@ -212,6 +235,26 @@ public class DepositAgreementController {
     public ResponseEntity<Resource> downloadDepositContract(
             @PathVariable("depositAgreementId") Long depositAgreementId
     ) {
+        return downloadDepositDraftPdf(depositAgreementId);
+    }
+
+    @GetMapping("/{depositAgreementId}/draft-preview")
+    public ApiResponse<DepositContractPreviewResponse> previewDepositDraftContract(
+            @PathVariable("depositAgreementId") Long depositAgreementId
+    ) {
+        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
+                new GetDepositAgreementDetailsQuery(depositAgreementId)
+        );
+        assertCanAccessContract(depositAgreement);
+        return ApiResponse.<DepositContractPreviewResponse>builder()
+                .data(depositContractDocumentService.previewDraft(depositAgreementId))
+                .build();
+    }
+
+    @GetMapping("/{depositAgreementId}/draft-pdf")
+    public ResponseEntity<Resource> downloadDepositDraftPdf(
+            @PathVariable("depositAgreementId") Long depositAgreementId
+    ) {
         DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
                 new GetDepositAgreementDetailsQuery(depositAgreementId)
         );
@@ -221,7 +264,85 @@ public class DepositAgreementController {
         String contentType = fileData.contentType() == null
                 ? MediaType.APPLICATION_PDF_VALUE
                 : fileData.contentType();
-        String filename = "deposit-contract-" + depositAgreement.getDepositCode() + ".pdf";
+        String filename = "deposit-contract-draft-" + depositAgreement.getDepositCode() + ".pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, contentType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .body(fileData.resource());
+    }
+
+    @PostMapping(value = "/{depositAgreementId}/signed-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<DepositAgreementSignedFileResponse> uploadSignedDepositFile(
+            @PathVariable("depositAgreementId") Long depositAgreementId,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(value = "signedAt", required = false) LocalDateTime signedAt,
+            @RequestParam(value = "note", required = false) String note
+    ) {
+        assertOwnerOrManager();
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn file hợp đồng đặt cọc đã ký.");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !SIGNED_FILE_CONTENT_TYPES.contains(contentType)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ hỗ trợ PDF hoặc ảnh JPG/PNG/WEBP.");
+        }
+
+        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
+                new GetDepositAgreementDetailsQuery(depositAgreementId)
+        );
+        if (!SIGNED_FILE_UPLOADABLE_STATUSES.contains(depositAgreement.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ upload bản đã ký sau khi tiền cọc đã được thanh toán/xác nhận.");
+        }
+
+        Long currentUserId = AuthUtils.getCurrentAuthenticationId();
+        com.sep490.hdbhms.file.domain.model.FileMetadata uploaded;
+        try {
+            uploaded = uploadFileUseCase.execute(
+                    new UploadFileCommand(currentUserId, file, FileCategory.DEPOSIT_CONTRACT, true)
+            );
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu file hợp đồng đặt cọc đã ký.");
+        }
+
+        depositAgreement.attachSignedFile(uploaded.getId(), currentUserId, signedAt);
+        DepositAgreement saved = depositAgreementRepository.save(depositAgreement);
+
+        return ApiResponse.<DepositAgreementSignedFileResponse>builder()
+                .data(DepositAgreementSignedFileResponse.builder()
+                        .depositAgreementId(saved.getId())
+                        .depositCode(saved.getDepositCode())
+                        .signatureStatus(signatureStatus(saved))
+                        .signedFileId(saved.getSignedFileId())
+                        .signedFileName(signedFileName(saved.getSignedFileId()))
+                        .signedAt(saved.getSignedAt())
+                        .message("Tải lên bản hợp đồng đặt cọc đã ký thành công.")
+                        .build())
+                .build();
+    }
+
+    @GetMapping("/{depositAgreementId}/signed-file")
+    public ResponseEntity<Resource> downloadSignedDepositFile(
+            @PathVariable("depositAgreementId") Long depositAgreementId
+    ) {
+        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
+                new GetDepositAgreementDetailsQuery(depositAgreementId)
+        );
+        assertCanAccessContract(depositAgreement);
+        if (depositAgreement.getSignedFileId() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chưa có bản hợp đồng đặt cọc đã ký.");
+        }
+
+        FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(depositAgreement.getSignedFileId()));
+        if (fileData == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy file hợp đồng đặt cọc đã ký.");
+        }
+        String contentType = fileData.contentType() == null
+                ? MediaType.APPLICATION_OCTET_STREAM_VALUE
+                : fileData.contentType();
+        String filename = signedFileName(depositAgreement.getSignedFileId());
+        if (filename == null || filename.isBlank()) {
+            filename = "deposit-contract-signed-" + depositAgreement.getDepositCode();
+        }
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
@@ -247,7 +368,18 @@ public class DepositAgreementController {
                 .status(depositAgreement.getStatus())
                 .confirmedAt(depositAgreement.getConfirmedAt())
                 .contractFileId(depositAgreement.getContractFileId())
-                .contractDownloadUrl("/api/v1/deposit-agreements/" + depositAgreement.getId() + "/contract")
+                .contractDownloadUrl("/api/v1/deposit-agreements/" + depositAgreement.getId() + "/draft-pdf")
+                .signatureStatus(signatureStatus(depositAgreement))
+                .signatureStatusLabel(signatureStatusLabel(depositAgreement))
+                .signedFileId(depositAgreement.getSignedFileId())
+                .signedFileName(signedFileName(depositAgreement.getSignedFileId()))
+                .signedAt(depositAgreement.getSignedAt())
+                .signedUploadedById(depositAgreement.getSignedUploadedById())
+                .signedFileDownloadUrl(signedFileDownloadUrl(depositAgreement))
+                .canPreviewDraft(true)
+                .canDownloadDraft(true)
+                .canUploadSignedFile(canUploadSignedFile(depositAgreement))
+                .canViewSignedFile(depositAgreement.getSignedFileId() != null)
                 .build();
     }
 
@@ -271,7 +403,18 @@ public class DepositAgreementController {
                 .status(depositAgreement.getStatus())
                 .confirmedAt(depositAgreement.getConfirmedAt())
                 .contractFileId(depositAgreement.getContractFileId())
-                .contractDownloadUrl("/api/v1/deposit-agreements/" + depositAgreement.getId() + "/contract")
+                .contractDownloadUrl("/api/v1/deposit-agreements/" + depositAgreement.getId() + "/draft-pdf")
+                .signatureStatus(signatureStatus(depositAgreement))
+                .signatureStatusLabel(signatureStatusLabel(depositAgreement))
+                .signedFileId(depositAgreement.getSignedFileId())
+                .signedFileName(signedFileName(depositAgreement.getSignedFileId()))
+                .signedAt(depositAgreement.getSignedAt())
+                .signedUploadedById(depositAgreement.getSignedUploadedById())
+                .signedFileDownloadUrl(signedFileDownloadUrl(depositAgreement))
+                .canPreviewDraft(true)
+                .canDownloadDraft(true)
+                .canUploadSignedFile(canUploadSignedFile(depositAgreement))
+                .canViewSignedFile(depositAgreement.getSignedFileId() != null)
                 .idFrontFileId(depositForm != null ? depositForm.getIdFrontFileId() : null)
                 .idFrontFileUrl(fileDownloadUrl(depositForm != null ? depositForm.getIdFrontFileId() : null))
                 .idBackFileId(depositForm != null ? depositForm.getIdBackFileId() : null)
@@ -291,7 +434,34 @@ public class DepositAgreementController {
     }
 
     private String fileDownloadUrl(Long fileId) {
-        return fileId == null ? null : "/api/v1/tenants/profiles/me/files/" + fileId;
+        return fileId == null ? null : "/api/v1/files/private/" + fileId;
+    }
+
+    private String signedFileDownloadUrl(DepositAgreement depositAgreement) {
+        return depositAgreement.getSignedFileId() == null
+                ? null
+                : "/api/v1/deposit-agreements/" + depositAgreement.getId() + "/signed-file";
+    }
+
+    private String signatureStatus(DepositAgreement depositAgreement) {
+        return depositAgreement.getSignedFileId() == null ? "PENDING_SIGNATURE" : "SIGNED";
+    }
+
+    private String signatureStatusLabel(DepositAgreement depositAgreement) {
+        return depositAgreement.getSignedFileId() == null ? "Chờ ký" : "Đã ký";
+    }
+
+    private boolean canUploadSignedFile(DepositAgreement depositAgreement) {
+        return SIGNED_FILE_UPLOADABLE_STATUSES.contains(depositAgreement.getStatus());
+    }
+
+    private String signedFileName(Long fileId) {
+        if (fileId == null) {
+            return null;
+        }
+        return fileMetadataRepository.findById(fileId)
+                .map(file -> file.getOriginalName() != null ? file.getOriginalName() : "deposit-contract-signed-" + fileId)
+                .orElse(null);
     }
 
     private java.time.LocalDate resolveExpectedMoveInDate(DepositAgreement depositAgreement, DepositForm depositForm) {
@@ -368,9 +538,10 @@ public class DepositAgreementController {
             return;
         }
 
-        if (role == Role.TENANT && depositAgreement.getTenantId() != null) {
-            var tenant = tenantRepository.findByUserId(principal.getId()).orElse(null);
-            if (tenant != null && tenant.getId().equals(depositAgreement.getTenantId())) {
+        if (role == Role.TENANT) {
+            boolean canAccess = depositAgreementRepository.findAllAccessibleByUserId(principal.getId()).stream()
+                    .anyMatch(agreement -> agreement.getId().equals(depositAgreement.getId()));
+            if (canAccess) {
                 return;
             }
         }
@@ -378,3 +549,4 @@ public class DepositAgreementController {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem hợp đồng đặt cọc này.");
     }
 }
+

@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPersonProfileRepository;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
@@ -23,6 +24,7 @@ public class DepositAgreementPersistenceMapper {
     JpaDepositFormRepository jpaDepositFormRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
     JpaPersonProfileRepository jpaPersonProfileRepository;
+    JpaUserRepository jpaUserRepository;
 
     public DepositAgreement toDomain(DepositAgreementEntity entity) {
         if (entity == null) return null;
@@ -45,6 +47,9 @@ public class DepositAgreementPersistenceMapper {
                 .status(entity.getStatus())
                 .confirmedAt(entity.getConfirmedAt())
                 .contractFileId(entity.getContractFile() != null ? entity.getContractFile().getId() : null)
+                .signedFileId(entity.getSignedFile() != null ? entity.getSignedFile().getId() : null)
+                .signedAt(entity.getSignedAt())
+                .signedUploadedById(entity.getSignedUploadedBy() != null ? entity.getSignedUploadedBy().getId() : null)
                 .note(entity.getNote())
                 .forfeitureReason(entity.getForfeitureReason())
                 .refundedAmount(entity.getRefundedAmount())
@@ -94,6 +99,15 @@ public class DepositAgreementPersistenceMapper {
                 .contractFile(domain.getContractFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getContractFileId())
                         .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
+                        : null)
+                .signedFile(domain.getSignedFileId() != null
+                        ? jpaFileMetadataRepository.findById(domain.getSignedFileId())
+                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        : null)
+                .signedAt(domain.getSignedAt())
+                .signedUploadedBy(domain.getSignedUploadedById() != null
+                        ? jpaUserRepository.findById(domain.getSignedUploadedById())
+                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
                         : null)
                 .note(domain.getNote())
                 .forfeitureReason(domain.getForfeitureReason())

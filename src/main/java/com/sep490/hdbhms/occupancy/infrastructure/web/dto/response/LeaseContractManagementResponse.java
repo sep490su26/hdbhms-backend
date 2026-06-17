@@ -54,6 +54,8 @@ public class LeaseContractManagementResponse {
     String renewedContractCode;
     String tenantIntention;
     LocalDate expectedVacantDate;
+    Boolean canRenew;
+    String canRenewBlockedReason;
 
     LeaseStatus contractStatus;
     DepositAgreementStatus depositStatus;

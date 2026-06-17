@@ -26,12 +26,12 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
 
     List<LeaseContractEntity> findAllByStatusInAndDeletedAtIsNull(List<LeaseStatus> statuses);
 
-    Optional<LeaseContractEntity> findByIdAndDeletedAtIsNull(Long id);
-
     Optional<LeaseContractEntity> findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(
             Long roomId,
             List<LeaseStatus> statuses
     );
 
     boolean existsByPrimaryTenantProfile_Id(Long tenantProfileId);
+
+    Optional<LeaseContractEntity> findByIdAndDeletedAtIsNull(Long id);
 }

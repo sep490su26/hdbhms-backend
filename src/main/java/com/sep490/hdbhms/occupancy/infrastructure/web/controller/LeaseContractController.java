@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
@@ -8,6 +9,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseCon
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
+import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
@@ -52,6 +54,7 @@ public class LeaseContractController {
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
     LeaseContractManagementService leaseContractManagementService;
     LeaseContractQueryService leaseContractQueryService;
+    RoomCommitmentChecker roomCommitmentChecker;
     JdbcTemplate jdbcTemplate;
 
     @GetMapping("/management")
@@ -289,7 +292,7 @@ public class LeaseContractController {
                     response.setExpectedVacantDate(rs.getObject("expected_vacant_date", LocalDate.class));
                     response.setContractFileId(fileId);
                     response.setContractFileName(rs.getString("contract_file_name"));
-                    response.setContractFileUrl(fileId == null ? null : "/api/v1/files/download/" + fileId);
+                    response.setContractFileUrl(fileId == null ? null : "/api/v1/tenants/profiles/me/files/" + fileId);
                     return null;
                 },
                 leaseContractId
@@ -303,10 +306,26 @@ public class LeaseContractController {
         boolean isOccupant = isPrimary || isCurrentUserActiveOccupant(leaseContractId, userId);
         response.setIsPrimary(isPrimary);
         response.setRoleInContract(isPrimary ? "PRIMARY" : isOccupant ? "CO_OCCUPANT" : null);
-        response.setCanRecordIntention(isPrimary
+        boolean canRecordIntention = isPrimary
                 && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(response.getStatus())
                 && response.getEndDate() != null
-                && !LocalDate.now().isBefore(response.getEndDate().minusMonths(3)));
+                && !LocalDate.now().isBefore(response.getEndDate().minusMonths(3));
+        response.setCanRecordIntention(canRecordIntention);
+
+        RoomCommitmentChecker.Blocker renewBlocker = response.getRoom() == null || response.getRoom().getId() == null
+                ? RoomCommitmentChecker.Blocker.NONE
+                : roomCommitmentChecker.checkRenewBlockers(response.getRoom().getId(), leaseContractId);
+        response.setCanRenew(canRecordIntention && renewBlocker == RoomCommitmentChecker.Blocker.NONE);
+        response.setCanRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
+                ? null
+                : renewBlockedMessage(renewBlocker));
+    }
+
+    private String renewBlockedMessage(RoomCommitmentChecker.Blocker blocker) {
+        if (blocker == RoomCommitmentChecker.Blocker.ROOM_HOLD_IN_PROGRESS) {
+            return "Phòng đang được giữ chỗ cho khách khác. Vui lòng liên hệ quản lý.";
+        }
+        return "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể gia hạn. Vui lòng liên hệ quản lý.";
     }
 
     private boolean isCurrentUserPrimarySigner(Long leaseContractId, Long userId) {
@@ -398,6 +417,7 @@ public class LeaseContractController {
     public record TenantIntentionRequest(
             @NotNull(message = "Ý định khách là bắt buộc.")
             String intention,
+            @JsonAlias({"expectedMoveOutDate", "expected_vacant_date", "expectedVacantDate"})
             LocalDate expectedMoveOutDate,
             @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
             String note

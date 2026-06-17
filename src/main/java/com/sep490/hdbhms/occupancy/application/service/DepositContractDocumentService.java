@@ -113,6 +113,20 @@ public class DepositContractDocumentService {
         return amount == null || amount <= 0 ? DEFAULT_DEPOSIT_AMOUNT : amount;
     }
 
+    @Transactional(readOnly = true)
+    public DepositContractPreviewResponse previewDraft(Long depositAgreementId) {
+        DepositAgreement agreement = depositAgreementRepository.findById(depositAgreementId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+        ContractData data = buildOfficialData(agreement);
+        return DepositContractPreviewResponse.builder()
+                .html(buildTemplateHtml(data))
+                .depositCode(data.depositCode())
+                .depositAmount(data.depositAmount())
+                .depositAmountText(data.depositAmountText())
+                .generatedAt(formatDateTime(data.generatedAt()))
+                .build();
+    }
+
     @Transactional
     public Long ensureOfficialContractFile(Long depositAgreementId) {
         return ensureOfficialContractFileInCurrentTransaction(depositAgreementId);
@@ -254,6 +268,8 @@ public class DepositContractDocumentService {
 
     private Map<String, Object> buildTemplateVariables(ContractData data) {
         Map<String, Object> variables = new HashMap<>();
+        variables.put("draftNotice", "BẢN NHÁP - CHƯA CÓ CHỮ KÝ");
+        variables.put("draftDescription", "Bản dùng để in và ký trực tiếp, chưa phải bản hợp đồng đặt cọc chính thức.");
         variables.put("issuedAt", formatDate(data.generatedAt().toLocalDate()));
         variables.put("ownerFullName", data.owner().fullName());
         variables.put("ownerDob", data.owner().dob());
@@ -278,6 +294,7 @@ public class DepositContractDocumentService {
         variables.put("depositAmountString", data.depositAmountText());
         variables.put("depositSignedDateString", formatVietnameseDate(data.generatedAt().toLocalDate()));
         variables.put("leaseDurationMonths", "12");
+        variables.put("currentYear", data.generatedAt().getYear());
         variables.put("paymentCycleMonths", data.paymentCycleMonths() != null ? data.paymentCycleMonths() : 1);
         variables.put("depositMonths", data.depositMonths() != null ? data.depositMonths() : 1);
         return variables;
@@ -292,6 +309,8 @@ public class DepositContractDocumentService {
             writer.center("--------o0o--------", 12);
             writer.gap(16);
             writer.center("HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG", 17);
+            writer.center("BAN NHAP - CHUA CO CHU KY", 11);
+            writer.center("Ban dung de in va ky truc tiep, chua phai ban chinh thuc.", 10);
             writer.center("Mã cọc: " + data.depositCode(), 11);
             writer.gap(14);
             writer.paragraph("Hôm nay ngày " + formatDate(data.generatedAt().toLocalDate()), 11);
@@ -318,8 +337,8 @@ public class DepositContractDocumentService {
                     + ". Do bên A đại diện là Ban Quản Lý tòa nhà với các thỏa thuận trong hợp đồng như sau:", 11);
             writer.paragraph("Mục đích thuê: để ở và sinh hoạt với số lượng người đăng kí ở: "
                     + (data.maxOccupants() == null ? "............" : data.maxOccupants()), 11);
-            writer.paragraph("Hợp đồng có thời hạn: .............tháng và bắt đầu tính tiền từ "
-                    + formatVietnameseDate(data.expectedMoveInDate()), 11);
+            writer.paragraph("Hợp đồng có thời hạn: ... tháng và bắt đầu tính tiền từ ngày .., tháng ..., năm "
+                    + data.generatedAt().getYear() + ".", 11);
             writer.paragraph("Giá thuê phòng: " + formatMoney(data.listedPrice()) + " / 01 tháng", 11);
             writer.paragraph("Phương thức thanh toán: Đặt cọc ………. tháng và thanh toán ……………. tháng tiền nhà", 11);
             writer.paragraph("1.2 Để đảm bảo chắc chắn việc ký hợp đồng thuê phòng và trả tiền thuê phòng muộn nhất vào "
@@ -505,7 +524,7 @@ public class DepositContractDocumentService {
                     request.getExpectedMoveInDate(),
                     generatedAt,
                     request.getPaymentCycleMonths(),
-                    1, // Default depositMonths for preview
+                    1,
                     owner
             );
         }
@@ -538,8 +557,8 @@ public class DepositContractDocumentService {
                     agreement.getExpectedLeaseSignDate(),
                     agreement.getExpectedMoveInDate(),
                     generatedAt,
-                    form != null ? form.getPaymentCycleMonths() : 1,
-                    form != null ? form.getDepositMonths() : 1,
+                    form != null && form.getPaymentCycleMonths() != null ? form.getPaymentCycleMonths() : 1,
+                    form != null && form.getDepositMonths() != null ? form.getDepositMonths() : 1,
                     owner
             );
         }
