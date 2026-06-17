@@ -41,7 +41,7 @@ public class CreateStaffUserService implements CreateStaffUserUseCase {
                 command.getInitialRole() != Role.MANAGER
                         && command.getInitialRole() != Role.ACCOUNTANT
         ) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND);
         }
         if (
                 userRepository.existsByEmail(command.getEmail())

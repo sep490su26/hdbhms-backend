@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 public class MeterReadingImportRow {
     Long id;
     Long batchId;
+    Integer rowNo;
     String roomCode;
     MeterType meterType;
     BigDecimal previousValue;

@@ -59,7 +59,7 @@ public class UpdateUserService implements UpdateUserUseCase {
         try {
             newStatus = AccountStatus.valueOf(command.status().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND);
         }
         account.changeStatus(newStatus);
         account = userRepository.save(account);

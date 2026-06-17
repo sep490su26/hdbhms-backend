@@ -38,7 +38,7 @@ public class FloorPersistenceMapper {
                 .id(domain.getId())
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.FLOOR_NOT_FOUND))
                         : null)
                 .floorCode(domain.getFloorCode())
                 .name(domain.getName())

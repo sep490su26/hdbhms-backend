@@ -27,9 +27,9 @@ public class GetLeaseContractOfTenantAdapter implements GetLeaseContractOfTenant
     @Override
     public List<LeaseContract> execute(Long tenantId) {
         Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
         PersonProfile personProfile = personProfileRepository.findByUserId(tenant.getUserId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
         return leaseContractRepository.findAllByTenantPersonProfileId(personProfile.getId());
     }
 }

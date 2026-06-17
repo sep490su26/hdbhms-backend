@@ -95,7 +95,7 @@ public class LoginService implements LoginUseCase {
                     true
             );
         } else {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND);
         }
     }
 

@@ -38,11 +38,11 @@ public class RoomHoldPersistenceMapper {
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_HOLD_NOT_FOUND))
                         : null)
                 .tenant(domain.getTenantId() != null
                         ? jpaTenantRepository.findById(domain.getTenantId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_HOLD_NOT_FOUND))
                         : null)
                 .status(domain.getStatus())
                 .expiresAt(domain.getExpiresAt())

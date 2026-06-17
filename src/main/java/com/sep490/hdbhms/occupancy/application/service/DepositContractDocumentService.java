@@ -88,9 +88,9 @@ public class DepositContractDocumentService {
     @Transactional(readOnly = true)
     public DepositContractPreviewResponse preview(DepositContractPreviewRequest request) {
         Room room = roomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         Property property = propertyRepository.findById(room.getPropertyId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         ContractData data = ContractData.fromPreview(
                 request,
                 room,
@@ -168,7 +168,7 @@ public class DepositContractDocumentService {
 
     private Long ensureOfficialContractFileInCurrentTransaction(Long depositAgreementId) {
         DepositAgreement agreement = depositAgreementRepository.findById(depositAgreementId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         if (agreement.getContractFileId() != null) {
             return agreement.getContractFileId();
         }
@@ -178,7 +178,7 @@ public class DepositContractDocumentService {
 
     private Long regenerateOfficialContractFileInCurrentTransaction(Long depositAgreementId) {
         DepositAgreement agreement = depositAgreementRepository.findById(depositAgreementId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         return createAndAttachOfficialContract(agreement);
     }
 
@@ -203,7 +203,7 @@ public class DepositContractDocumentService {
         try {
             return uploadFileUseCase.execute(command);
         } catch (IOException e) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND);
         }
     }
 
@@ -212,16 +212,16 @@ public class DepositContractDocumentService {
         Long fileId = ensureOfficialContractFile(depositAgreementId);
         FileDataResponse response = downloadFileUseCase.execute(new DownloadFileQuery(fileId));
         if (response == null) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND);
         }
         return response;
     }
 
     private ContractData buildOfficialData(DepositAgreement agreement) {
         Room room = roomRepository.findById(agreement.getRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         Property property = propertyRepository.findById(room.getPropertyId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         DepositForm form = agreement.getDepositFormId() == null
                 ? null
                 : depositFormRepository.findById(agreement.getDepositFormId()).orElse(null);
@@ -341,7 +341,7 @@ public class DepositContractDocumentService {
             document.save(output);
             return output.toByteArray();
         } catch (IOException e) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND);
         }
     }
 

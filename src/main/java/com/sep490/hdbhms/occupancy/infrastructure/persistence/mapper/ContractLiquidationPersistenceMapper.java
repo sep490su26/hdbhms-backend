@@ -48,7 +48,7 @@ public class ContractLiquidationPersistenceMapper {
                 .id(domain.getId())
                 .contract(domain.getContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getContractId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_LIQUIDATION_NOT_FOUND))
                         : null)
                 .liquidationDate(domain.getLiquidationDate())
                 .reason(domain.getReason())
@@ -58,11 +58,11 @@ public class ContractLiquidationPersistenceMapper {
                 .depositRefundAmount(domain.getDepositRefundAmount())
                 .finalInvoice(domain.getFinalInvoiceId() != null
                         ? jpaInvoiceRepository.findById(domain.getFinalInvoiceId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_LIQUIDATION_NOT_FOUND))
                         : null)
                 .signedFile(domain.getSignedFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getSignedFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_LIQUIDATION_NOT_FOUND))
                         : null)
                 .status(domain.getStatus())
                 .createdBy(domain.getCreatedById() != null

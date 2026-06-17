@@ -21,4 +21,6 @@ public interface LeaseContractRepository {
     Page<LeaseContract> findAll(List<Long> ids, LeaseStatus status, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable);
 
     List<LeaseContract> findAllByTenantProfileId(Long id);
+
+    boolean isTenantHasAnyActiveContract(Long tenantId);
 }

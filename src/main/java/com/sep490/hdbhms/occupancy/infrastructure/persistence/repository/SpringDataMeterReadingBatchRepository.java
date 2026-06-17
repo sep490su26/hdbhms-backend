@@ -9,6 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
+
 @Repository
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -24,5 +27,18 @@ public class SpringDataMeterReadingBatchRepository implements MeterReadingBatchR
                         meterReadingBatchPersistenceMapper.toEntity(batch)
                 )
         );
+    }
+
+    @Override
+    public List<MeterReadingBatch> findByProperty_IdOrderByReadingPeriodDesc(Long propertyId) {
+        return jpaMeterReadingBatchRepository.findByProperty_IdOrderByReadingPeriodDesc(propertyId).stream()
+                .map(meterReadingBatchPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<MeterReadingBatch> findById(Long batchId) {
+        return jpaMeterReadingBatchRepository.findById(batchId)
+                .map(meterReadingBatchPersistenceMapper::toDomain);
     }
 }

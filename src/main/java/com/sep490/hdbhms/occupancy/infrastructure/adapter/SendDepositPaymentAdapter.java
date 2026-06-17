@@ -75,7 +75,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     public PaymentIntent execute(DepositForm depositForm, RoomHold roomHold) {
         Long depositAmount = resolveDepositAmount();
         Room room = roomRepository.findById(depositForm.getRoomId()).orElseThrow(
-                () -> new AppException(ApiErrorCode.UNDEFINED)
+                () -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)
         );
         DepositAgreement depositAgreement = DepositAgreement.newDepositAgreementForLeadUser(
                 otpCodeGenerator.generate(),

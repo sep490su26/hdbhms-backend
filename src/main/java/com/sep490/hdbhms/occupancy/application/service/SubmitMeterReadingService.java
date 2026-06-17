@@ -71,7 +71,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         MeterReadingBatch batch = MeterReadingBatch.builder()
                 .propertyId(property.getId())
                 .readingPeriod(command.readingPeriod())
-                .source(BatchSource.MANUAL)
+//                .source(BatchSource.MANUAL)
                 .status(BatchStatus.CONFIRMED)
                 .createdById(currentUser.getId())
                 .confirmedById(currentUser.getId())
@@ -140,5 +140,139 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .build();
 
         meterReadingRepository.save(reading);
+    }
+
+    @Override
+    @Transactional
+    public Long startBatch(String period, Long propertyId) {
+        User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+
+        // Check if draft or confirmed batch already exists for this period
+        // For simplicity, we just check if any batch exists
+        var existingBatches = meterReadingBatchRepository.findByProperty_IdOrderByReadingPeriodDesc(propertyId).stream()
+                .filter(b -> b.getReadingPeriod().equals(period))
+                .toList();
+
+        if (!existingBatches.isEmpty()) {
+            return existingBatches.get(0).getId();
+        }
+
+        MeterReadingBatch batch = MeterReadingBatch.builder()
+                .propertyId(property.getId())
+                .readingPeriod(period)
+                .status(BatchStatus.DRAFT)
+                .createdById(currentUser.getId())
+                .build();
+        batch = meterReadingBatchRepository.save(batch);
+        return batch.getId();
+    }
+
+    @Override
+    @Transactional
+    public void saveProgressiveRoomReading(Long batchId, Long roomId, BigDecimal electricityValue, BigDecimal waterValue, Long elecPhotoId, Long waterPhotoId) {
+        User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+
+        MeterReadingBatch batch = meterReadingBatchRepository.findById(batchId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+
+        if (batch.getStatus() != BatchStatus.DRAFT) {
+            throw new AppException(ApiErrorCode.UNDEFINED); // Cannot edit confirmed batch
+        }
+
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+
+        if (!room.getPropertyId().equals(batch.getPropertyId())) {
+            throw new AppException(ApiErrorCode.VISIT_002);
+        }
+
+        // Electricity
+        saveOrUpdateMeterValue(room, MeterType.ELECTRICITY, electricityValue, batch, elecPhotoId, currentUser);
+        
+        // Water
+        saveOrUpdateMeterValue(room, MeterType.WATER, waterValue, batch, waterPhotoId, currentUser);
+    }
+
+    private void saveOrUpdateMeterValue(Room room, MeterType meterType, BigDecimal newValue, MeterReadingBatch batch, Long photoId, User currentUser) {
+        if (newValue == null) return;
+
+        Meter activeMeter = meterRepository.findFirstByRoomIdAndMeterTypeAndStatus(
+                room.getId(), meterType, MeterStatus.ACTIVE)
+                .orElseThrow(() -> new AppException(ApiErrorCode.METER_NOT_FOUND));
+
+        var latestReadingOpt = meterReadingRepository.findFirstByRoomIdAndMeterTypeOrderByReadingDateDesc(
+                room.getId(), meterType);
+        
+        // If the latest reading belongs to THIS batch, we need to find the one BEFORE this batch
+        BigDecimal prevValue = BigDecimal.ZERO;
+        if (latestReadingOpt.isPresent()) {
+            if (batch.getId().equals(latestReadingOpt.get().getBatchId())) {
+                // Find reading before this one
+                var previousReadings = meterReadingRepository.findByMeterIdAndReadingDateBeforeOrderByReadingDateDesc(
+                    activeMeter.getId(), latestReadingOpt.get().getReadingDate()
+                );
+                if (!previousReadings.isEmpty()) {
+                    prevValue = previousReadings.getFirst().getCurrentValue();
+                }
+            } else {
+                prevValue = latestReadingOpt.get().getCurrentValue();
+            }
+        }
+
+        if (newValue.compareTo(prevValue) < 0) {
+            throw new AppException(ApiErrorCode.UNDEFINED); 
+        }
+
+        // Check if there is already a reading in this batch
+        var existingReadingOpt = meterReadingRepository.findByMeterIdAndBatchId(activeMeter.getId(), batch.getId());
+        
+        if (existingReadingOpt.isPresent()) {
+            MeterReading existing = existingReadingOpt.get();
+            existing.setCurrentValue(newValue);
+            existing.setPhotoFileId(photoId);
+            meterReadingRepository.save(existing);
+        } else {
+            MeterReading reading = MeterReading.builder()
+                    .meterId(activeMeter.getId())
+                    .roomId(room.getId())
+                    .readingPeriod(batch.getReadingPeriod())
+                    .revisionNo(1)
+                    .previousValue(prevValue)
+                    .currentValue(newValue)
+                    .readingDate(LocalDate.now())
+                    .source(ReadingSource.MANUAL)
+                    .status(ReadingStatus.CONFIRMED)
+                    .batchId(batch.getId())
+                    .createdById(currentUser.getId())
+                    .photoFileId(photoId)
+                    .build();
+            meterReadingRepository.save(reading);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void confirmBatch(Long batchId) {
+        User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+
+        MeterReadingBatch batch = meterReadingBatchRepository.findById(batchId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+
+        if (batch.getStatus() == BatchStatus.CONFIRMED) {
+            return;
+        }
+
+        // Validate no pending rooms...
+        // Simplified: just update status
+        batch.setStatus(BatchStatus.CONFIRMED);
+        batch.setConfirmedById(currentUser.getId());
+        batch.setConfirmedAt(java.time.LocalDateTime.now());
+
+        meterReadingBatchRepository.save(batch);
     }
 }

@@ -24,6 +24,7 @@ import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -75,185 +77,185 @@ public class LeaseContractManagementService {
     public List<LeaseContractManagementResponse> findAllForManagement() {
         List<LeaseContractManagementResponse> rows = new ArrayList<>();
         rows.addAll(jdbcTemplate.query("""
-                        SELECT
-                            'DEPOSIT' AS source_type,
-                            lc.id AS lease_contract_id,
-                            da.id AS deposit_agreement_id,
-                            da.deposit_code,
-                            lc.contract_code,
-                            p.id AS property_id,
-                            p.name AS property_name,
-                            p.address_line AS property_address,
-                            COALESCE((
-                                SELECT co.tenant_id
+                SELECT
+                    'DEPOSIT' AS source_type,
+                    lc.id AS lease_contract_id,
+                    da.id AS deposit_agreement_id,
+                    da.deposit_code,
+                    lc.contract_code,
+                    p.id AS property_id,
+                    p.name AS property_name,
+                    p.address_line AS property_address,
+                    COALESCE((
+                        SELECT co.tenant_id
+                        FROM contract_occupants co
+                        WHERE co.contract_id = lc.id
+                          AND co.status = 'ACTIVE'
+                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                        LIMIT 1
+                    ), da.tenant_id) AS tenant_id,
+                    r.id AS room_id,
+                    r.room_code,
+                    r.current_status AS room_status,
+                    pp.id AS primary_tenant_profile_id,
+                    COALESCE(pp.full_name, df.full_name) AS customer_name,
+                    COALESCE(pp.phone, df.phone) AS phone,
+                    COALESCE(pp.email, df.email) AS email,
+                    da.expected_lease_sign_date,
+                    da.expected_move_in_date,
+                    lc.start_date,
+                    lc.end_date,
+                    lc.rent_start_date,
+                    COALESCE(lc.monthly_rent, r.listed_price) AS monthly_rent,
+                    COALESCE(lc.payment_cycle_months, df.payment_cycle_months, 1) AS payment_cycle_months,
+                    COALESCE(lc.deposit_amount, da.amount) AS deposit_amount,
+                    lc.previous_contract_id,
+                    previous_contract.contract_code AS previous_contract_code,
+                    lc.tenant_intention,
+                    lc.expected_vacant_date,
+                    (
+                        SELECT renewed.id
+                        FROM lease_contracts renewed
+                        WHERE renewed.previous_contract_id = lc.id
+                          AND renewed.deleted_at IS NULL
+                        ORDER BY renewed.id DESC
+                        LIMIT 1
+                    ) AS renewed_contract_id,
+                    (
+                        SELECT renewed.contract_code
+                        FROM lease_contracts renewed
+                        WHERE renewed.previous_contract_id = lc.id
+                          AND renewed.deleted_at IS NULL
+                        ORDER BY renewed.id DESC
+                        LIMIT 1
+                    ) AS renewed_contract_code,
+                    GREATEST(
+                        CASE
+                            WHEN lc.id IS NOT NULL THEN (
+                                SELECT COUNT(*)
                                 FROM contract_occupants co
                                 WHERE co.contract_id = lc.id
                                   AND co.status = 'ACTIVE'
-                                ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
-                                LIMIT 1
-                            ), da.tenant_id) AS tenant_id,
-                            r.id AS room_id,
-                            r.room_code,
-                            r.current_status AS room_status,
-                            pp.id AS primary_tenant_profile_id,
-                            COALESCE(pp.full_name, df.full_name) AS customer_name,
-                            COALESCE(pp.phone, df.phone) AS phone,
-                            COALESCE(pp.email, df.email) AS email,
-                            da.expected_lease_sign_date,
-                            da.expected_move_in_date,
-                            lc.start_date,
-                            lc.end_date,
-                            lc.rent_start_date,
-                            COALESCE(lc.monthly_rent, r.listed_price) AS monthly_rent,
-                            COALESCE(lc.payment_cycle_months, df.payment_cycle_months, 1) AS payment_cycle_months,
-                            COALESCE(lc.deposit_amount, da.amount) AS deposit_amount,
-                            lc.previous_contract_id,
-                            previous_contract.contract_code AS previous_contract_code,
-                            lc.tenant_intention,
-                            lc.expected_vacant_date,
-                            (
-                                SELECT renewed.id
-                                FROM lease_contracts renewed
-                                WHERE renewed.previous_contract_id = lc.id
-                                  AND renewed.deleted_at IS NULL
-                                ORDER BY renewed.id DESC
-                                LIMIT 1
-                            ) AS renewed_contract_id,
-                            (
-                                SELECT renewed.contract_code
-                                FROM lease_contracts renewed
-                                WHERE renewed.previous_contract_id = lc.id
-                                  AND renewed.deleted_at IS NULL
-                                ORDER BY renewed.id DESC
-                                LIMIT 1
-                            ) AS renewed_contract_code,
-                            GREATEST(
-                                CASE
-                                    WHEN lc.id IS NOT NULL THEN (
-                                        SELECT COUNT(*)
-                                        FROM contract_occupants co
-                                        WHERE co.contract_id = lc.id
-                                          AND co.status = 'ACTIVE'
-                                    )
-                                    ELSE 0
-                                END,
-                                COALESCE(df.occupant_count, 1),
-                                1 + COALESCE((
-                                    SELECT COUNT(*)
-                                    FROM deposit_form_co_occupants dco_count
-                                    WHERE dco_count.deposit_form_id = df.id
-                                ), 0)
-                            ) AS occupants_count,
-                            lc.status AS contract_status,
-                            da.status AS deposit_status,
-                            lc.contract_file_id,
-                            fm.original_name AS contract_file_name,
-                            fm.created_at AS contract_file_uploaded_at,
-                            lc.signed_at,
-                            COALESCE(lc.created_at, da.created_at) AS created_at,
-                            u.id AS user_id,
-                            u.last_login_at
-                        FROM deposit_agreements da
-                        JOIN rooms r ON r.id = da.room_id
-                        JOIN properties p ON p.id = r.property_id
-                        LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
-                        LEFT JOIN person_profiles pp ON pp.id = da.depositor_person_profile_id
-                        LEFT JOIN lease_contracts lc ON lc.deposit_agreement_id = da.id AND lc.deleted_at IS NULL
-                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
-                        LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
-                        LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
-                        WHERE da.status IN ('PAID', 'CONFIRMED', 'CONVERTED_TO_LEASE')
-                        ORDER BY COALESCE(lc.updated_at, da.updated_at) DESC, da.id DESC
-                        """, (rs, rowNum) -> toResponse(rs)));
+                            )
+                            ELSE 0
+                        END,
+                        COALESCE(df.occupant_count, 1),
+                        1 + COALESCE((
+                            SELECT COUNT(*)
+                            FROM deposit_form_co_occupants dco_count
+                            WHERE dco_count.deposit_form_id = df.id
+                        ), 0)
+                    ) AS occupants_count,
+                    lc.status AS contract_status,
+                    da.status AS deposit_status,
+                    lc.contract_file_id,
+                    fm.original_name AS contract_file_name,
+                    fm.created_at AS contract_file_uploaded_at,
+                    lc.signed_at,
+                    COALESCE(lc.created_at, da.created_at) AS created_at,
+                    u.id AS user_id,
+                    u.last_login_at
+                FROM deposit_agreements da
+                JOIN rooms r ON r.id = da.room_id
+                JOIN properties p ON p.id = r.property_id
+                LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
+                LEFT JOIN person_profiles pp ON pp.id = da.depositor_person_profile_id
+                LEFT JOIN lease_contracts lc ON lc.deposit_agreement_id = da.id AND lc.deleted_at IS NULL
+                LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
+                LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
+                LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
+                WHERE da.status IN ('PAID', 'CONFIRMED', 'CONVERTED_TO_LEASE')
+                ORDER BY COALESCE(lc.updated_at, da.updated_at) DESC, da.id DESC
+                """, (rs, rowNum) -> toResponse(rs)));
         rows.addAll(jdbcTemplate.query("""
-                        SELECT
-                            'CONTRACT' AS source_type,
-                            lc.id AS lease_contract_id,
-                            NULL AS deposit_agreement_id,
-                            NULL AS deposit_code,
-                            lc.contract_code,
-                            p.id AS property_id,
-                            p.name AS property_name,
-                            p.address_line AS property_address,
-                            (
-                                SELECT co.tenant_id
-                                FROM contract_occupants co
-                                WHERE co.contract_id = lc.id
-                                  AND co.status = 'ACTIVE'
-                                ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
-                                LIMIT 1
-                            ) AS tenant_id,
-                            r.id AS room_id,
-                            r.room_code,
-                            r.current_status AS room_status,
-                            pp.id AS primary_tenant_profile_id,
-                            pp.full_name AS customer_name,
-                            pp.phone,
-                            pp.email,
-                            NULL AS expected_lease_sign_date,
-                            lc.rent_start_date AS expected_move_in_date,
-                            lc.start_date,
-                            lc.end_date,
-                            lc.rent_start_date,
-                            lc.monthly_rent,
-                            lc.payment_cycle_months,
-                            lc.deposit_amount,
-                            lc.previous_contract_id,
-                            previous_contract.contract_code AS previous_contract_code,
-                            lc.tenant_intention,
-                            lc.expected_vacant_date,
-                            (
-                                SELECT renewed.id
-                                FROM lease_contracts renewed
-                                WHERE renewed.previous_contract_id = lc.id
-                                  AND renewed.deleted_at IS NULL
-                                ORDER BY renewed.id DESC
-                                LIMIT 1
-                            ) AS renewed_contract_id,
-                            (
-                                SELECT renewed.contract_code
-                                FROM lease_contracts renewed
-                                WHERE renewed.previous_contract_id = lc.id
-                                  AND renewed.deleted_at IS NULL
-                                ORDER BY renewed.id DESC
-                                LIMIT 1
-                            ) AS renewed_contract_code,
-                            GREATEST(
-                                (
-                                    SELECT COUNT(*)
-                                    FROM contract_occupants co
-                                    WHERE co.contract_id = lc.id
-                                      AND co.status = 'ACTIVE'
-                                ),
-                                COALESCE(df.occupant_count, 1),
-                                1 + COALESCE((
-                                    SELECT COUNT(*)
-                                    FROM deposit_form_co_occupants dco_count
-                                    WHERE dco_count.deposit_form_id = df.id
-                                ), 0)
-                            ) AS occupants_count,
-                            lc.status AS contract_status,
-                            NULL AS deposit_status,
-                            lc.contract_file_id,
-                            fm.original_name AS contract_file_name,
-                            fm.created_at AS contract_file_uploaded_at,
-                            lc.signed_at,
-                            lc.created_at,
-                            u.id AS user_id,
-                            u.last_login_at
-                        FROM lease_contracts lc
-                        JOIN rooms r ON r.id = lc.room_id
-                        JOIN properties p ON p.id = r.property_id
-                        JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
-                        LEFT JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
-                        LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
-                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
-                        LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
-                        LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
-                        WHERE lc.deleted_at IS NULL
-                          AND lc.deposit_agreement_id IS NULL
-                        ORDER BY lc.updated_at DESC, lc.id DESC
-                        """, (rs, rowNum) -> toResponse(rs)));
+                SELECT
+                    'CONTRACT' AS source_type,
+                    lc.id AS lease_contract_id,
+                    NULL AS deposit_agreement_id,
+                    NULL AS deposit_code,
+                    lc.contract_code,
+                    p.id AS property_id,
+                    p.name AS property_name,
+                    p.address_line AS property_address,
+                    (
+                        SELECT co.tenant_id
+                        FROM contract_occupants co
+                        WHERE co.contract_id = lc.id
+                          AND co.status = 'ACTIVE'
+                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                        LIMIT 1
+                    ) AS tenant_id,
+                    r.id AS room_id,
+                    r.room_code,
+                    r.current_status AS room_status,
+                    pp.id AS primary_tenant_profile_id,
+                    pp.full_name AS customer_name,
+                    pp.phone,
+                    pp.email,
+                    NULL AS expected_lease_sign_date,
+                    lc.rent_start_date AS expected_move_in_date,
+                    lc.start_date,
+                    lc.end_date,
+                    lc.rent_start_date,
+                    lc.monthly_rent,
+                    lc.payment_cycle_months,
+                    lc.deposit_amount,
+                    lc.previous_contract_id,
+                    previous_contract.contract_code AS previous_contract_code,
+                    lc.tenant_intention,
+                    lc.expected_vacant_date,
+                    (
+                        SELECT renewed.id
+                        FROM lease_contracts renewed
+                        WHERE renewed.previous_contract_id = lc.id
+                          AND renewed.deleted_at IS NULL
+                        ORDER BY renewed.id DESC
+                        LIMIT 1
+                    ) AS renewed_contract_id,
+                    (
+                        SELECT renewed.contract_code
+                        FROM lease_contracts renewed
+                        WHERE renewed.previous_contract_id = lc.id
+                          AND renewed.deleted_at IS NULL
+                        ORDER BY renewed.id DESC
+                        LIMIT 1
+                    ) AS renewed_contract_code,
+                    GREATEST(
+                        (
+                            SELECT COUNT(*)
+                            FROM contract_occupants co
+                            WHERE co.contract_id = lc.id
+                              AND co.status = 'ACTIVE'
+                        ),
+                        COALESCE(df.occupant_count, 1),
+                        1 + COALESCE((
+                            SELECT COUNT(*)
+                            FROM deposit_form_co_occupants dco_count
+                            WHERE dco_count.deposit_form_id = df.id
+                        ), 0)
+                    ) AS occupants_count,
+                    lc.status AS contract_status,
+                    NULL AS deposit_status,
+                    lc.contract_file_id,
+                    fm.original_name AS contract_file_name,
+                    fm.created_at AS contract_file_uploaded_at,
+                    lc.signed_at,
+                    lc.created_at,
+                    u.id AS user_id,
+                    u.last_login_at
+                FROM lease_contracts lc
+                JOIN rooms r ON r.id = lc.room_id
+                JOIN properties p ON p.id = r.property_id
+                JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                LEFT JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
+                LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
+                LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
+                LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
+                LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
+                WHERE lc.deleted_at IS NULL
+                  AND lc.deposit_agreement_id IS NULL
+                ORDER BY lc.updated_at DESC, lc.id DESC
+                """, (rs, rowNum) -> toResponse(rs)));
         return rows;
     }
 
@@ -492,7 +494,9 @@ public class LeaseContractManagementService {
                     "Chi ghi nhan y dinh cho hop dong ACTIVE hoac EXPIRING_SOON."
             );
         }
+
         String normalizedIntention = normalizeTenantIntention(intention);
+        log.info(normalizedIntention);
         if (!TENANT_INTENTIONS.contains(normalizedIntention)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Y dinh khach khong hop le.");
         }
@@ -544,7 +548,7 @@ public class LeaseContractManagementService {
                         room.getId(),
                         fromStatus,
                         RoomStatus.SOON_VACANT,
-                        "Khach du kien chuyen di theo hop dong " + contract.getContractCode()
+                        "Khách dự kiến chuyển đi theo hợp đồng " + contract.getContractCode()
                 );
             }
         } else {
@@ -562,13 +566,13 @@ public class LeaseContractManagementService {
                         room.getId(),
                         fromStatus,
                         RoomStatus.OCCUPIED,
-                        "Khach doi y tiep tuc thue hop dong " + contract.getContractCode()
+                        "Khách đổi ý tiếp tục thuê hợp đồng " + contract.getContractCode()
                 );
                 if ("RENEW".equals(normalizedIntention)) {
                     appendContractEvent(
                             contract.getId(),
                             "RENEWAL_AFTER_MOVE_OUT_INTENT",
-                            "Khach doi y tiep tuc thue sau khi da bao chuyen di"
+                            "Khách đổi ý tiếp tuc thue sau khi da bao chuyen di"
                     );
                 }
             }
@@ -1082,8 +1086,8 @@ public class LeaseContractManagementService {
         int coOccupantCount = deposit.getDepositForm() != null && deposit.getDepositForm().getCoOccupants() != null
                 ? (int) deposit.getDepositForm().getCoOccupants().stream()
                 .filter(item -> item.getPhone() == null || deposit.getDepositorPersonProfile() == null
-                        || deposit.getDepositorPersonProfile().getPhone() == null
-                        || !normalizePhone(item.getPhone()).equals(normalizePhone(deposit.getDepositorPersonProfile().getPhone())))
+                                || deposit.getDepositorPersonProfile().getPhone() == null
+                                || !normalizePhone(item.getPhone()).equals(normalizePhone(deposit.getDepositorPersonProfile().getPhone())))
                 .count()
                 : 0;
         return 1 + coOccupantCount;

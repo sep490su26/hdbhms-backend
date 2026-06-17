@@ -36,7 +36,7 @@ public class ContractEventPersistenceMapper {
                 .id(domain.getId())
                 .contract(domain.getContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getContractId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_EVENT_NOT_FOUND))
                         : null)
                 .eventType(domain.getEventType())
                 .eventData(domain.getEventData())

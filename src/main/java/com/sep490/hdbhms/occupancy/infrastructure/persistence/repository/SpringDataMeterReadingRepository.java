@@ -40,4 +40,16 @@ public class SpringDataMeterReadingRepository implements MeterReadingRepository 
         return jpaMeterReadingRepository.findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(meterId, readingPeriod)
                 .map(meterReadingPersistenceMapper::toDomain);
     }
+
+    @Override
+    public Optional<MeterReading> findByMeterIdAndBatchId(Long meterId, Long batchId) {
+        return jpaMeterReadingRepository.findByMeter_IdAndBatchId(meterId, batchId)
+                .map(meterReadingPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public java.util.List<MeterReading> findByMeterIdAndReadingDateBeforeOrderByReadingDateDesc(Long meterId, java.time.LocalDate readingDate) {
+        return jpaMeterReadingRepository.findByMeter_IdAndReadingDateBeforeOrderByReadingDateDesc(meterId, readingDate).stream()
+                .map(meterReadingPersistenceMapper::toDomain).toList();
+    }
 }

@@ -60,27 +60,27 @@ public class DepositAgreementPersistenceMapper {
                 .depositCode(domain.getDepositCode())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
                         : null)
                 .depositForm(domain.getDepositFormId() != null
                         ? jpaDepositFormRepository.findById(domain.getDepositFormId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
                         : null)
                 .tenant(domain.getTenantId() != null
                         ? jpaTenantRepository.findById(domain.getTenantId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
                         : null)
                 .lead(domain.getLeadId() != null
                         ? jpaLeadRepository.findById(domain.getLeadId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
                         : null)
                 .depositorPersonProfile(domain.getDepositorPersonProfileId() != null
                         ? jpaPersonProfileRepository.findById(domain.getDepositorPersonProfileId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
                         : null)
                 .roomHold(domain.getRoomHoldId() != null
                         ? jpaRoomHoldRepository.findById(domain.getRoomHoldId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
                         : null)
                 .amount(domain.getAmount())
                 .expectedMoveInDate(domain.getExpectedMoveInDate())
@@ -93,7 +93,7 @@ public class DepositAgreementPersistenceMapper {
                 .confirmedAt(domain.getConfirmedAt())
                 .contractFile(domain.getContractFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getContractFileId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND))
                         : null)
                 .note(domain.getNote())
                 .forfeitureReason(domain.getForfeitureReason())
