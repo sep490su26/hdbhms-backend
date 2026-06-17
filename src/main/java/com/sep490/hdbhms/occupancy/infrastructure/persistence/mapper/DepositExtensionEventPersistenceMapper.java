@@ -40,7 +40,7 @@ public class DepositExtensionEventPersistenceMapper {
                 .id(domain.getId())
                 .depositAgreement(domain.getDepositAgreementId() != null
                         ? jpaDepositAgreementRepository.findById(domain.getDepositAgreementId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_EXTENSION_EVENT_NOT_FOUND))
                         : null)
                 .oldExpectedMoveInDate(domain.getOldExpectedMoveInDate())
                 .newExpectedMoveInDate(domain.getNewExpectedMoveInDate())

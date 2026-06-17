@@ -37,12 +37,12 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
         DepositAgreement depositAgreement = depositAgreementRepository.findById(
                         invoice.getDepositAgreementId()
                 )
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         if (depositAgreement.getStatus() != DepositAgreementStatus.PENDING_PAYMENT) {
             return;
         }
         RoomHold roomHold = roomHoldRepository.findById(depositAgreement.getRoomHoldId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         if (roomHold.getStatus() != RoomHoldStatus.CONFIRMED) {
             roomHold.confirmPaidHold();
             roomHoldRepository.save(roomHold);

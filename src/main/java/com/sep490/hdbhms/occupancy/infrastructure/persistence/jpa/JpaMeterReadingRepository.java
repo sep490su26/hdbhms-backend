@@ -16,6 +16,8 @@ import java.util.List;
 public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEntity, Long> {
     Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(Long roomId, MeterType meterType);
     Optional<MeterReadingEntity> findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(Long meterId, String readingPeriod);
+    Optional<MeterReadingEntity> findByMeter_IdAndBatchId(Long meterId, Long batchId);
+    List<MeterReadingEntity> findByMeter_IdAndReadingDateBeforeOrderByReadingDateDesc(Long meterId, java.time.LocalDate readingDate);
 
     /**
      * Fetch all readings for a given period, optionally filtered by property.
@@ -60,4 +62,20 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
             ORDER BY reading.readingPeriod DESC, reading.readingDate DESC, reading.createdAt DESC, reading.id DESC
             """)
     List<MeterReadingEntity> findActiveByRoomIdLatestFirst(@Param("roomId") Long roomId);
+
+    @Query("""
+        SELECT r FROM MeterReadingEntity r
+        JOIN FETCH r.room rm
+        WHERE (:propertyId IS NULL OR rm.property.id = :propertyId)
+          AND r.readingDate = (
+              SELECT MAX(r2.readingDate)
+              FROM MeterReadingEntity r2
+              WHERE r2.room.id = rm.id AND r2.meter.meterType = r.meter.meterType
+                AND r2.readingDate < :startOfPeriod
+          )
+    """)
+    List<MeterReadingEntity> findLatestBeforeDateByProperty(
+            @Param("propertyId") Long propertyId, 
+            @Param("startOfPeriod") java.time.LocalDate startOfPeriod
+    );
 }

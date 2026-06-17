@@ -36,11 +36,11 @@ public class PropertyImagePersistenceMapper {
                 .id(domain.getId())
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_IMAGE_NOT_FOUND))
                         : null)
                 .file(domain.getFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_IMAGE_NOT_FOUND))
                         : null)
                 .sortOrder(domain.getSortOrder())
                 .createdAt(domain.getCreatedAt())

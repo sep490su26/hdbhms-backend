@@ -33,6 +33,10 @@ public class MeterReadingImportRowEntity {
     @JoinColumn(name = "batch_id", nullable = false)
     MeterReadingBatchEntity batch;
 
+    @Column(name = "row_no", nullable = false)
+    @Builder.Default
+    Integer rowNo = 0;
+
     @Column(name = "room_code", nullable = false, length = 50)
     String roomCode;
 

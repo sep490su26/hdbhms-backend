@@ -36,9 +36,17 @@ public class MeterReadingBatchEntity {
     @Column(name = "reading_period", nullable = false, length = 7, columnDefinition = "CHAR(7)")
     String readingPeriod;  // YYYY-MM
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    BatchSource source;
+    @Column(name = "total_rooms", nullable = false)
+    @Builder.Default
+    Integer totalRooms = 0;
+
+    @Column(name = "completed_rooms", nullable = false)
+    @Builder.Default
+    Integer completedRooms = 0;
+
+    @Column(name = "anomaly_count", nullable = false)
+    @Builder.Default
+    Integer anomalyCount = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

@@ -42,7 +42,7 @@ public class RoomAssetPersistenceMapper {
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_ASSET_NOT_FOUND))
                         : null)
                 .assetName(domain.getAssetName())
                 .assetCategory(domain.getAssetCategory())
@@ -51,7 +51,7 @@ public class RoomAssetPersistenceMapper {
                 .description(domain.getDescription())
                 .imageFile(domain.getFileImageId() != null
                         ? jpaFileMetadataRepository.findById(domain.getFileImageId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_ASSET_NOT_FOUND))
                         : null)
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())

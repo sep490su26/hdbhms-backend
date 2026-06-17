@@ -31,5 +31,7 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
             List<LeaseStatus> statuses
     );
 
+    boolean existsByPrimaryTenantProfile_Id(Long tenantProfileId);
+
     Optional<LeaseContractEntity> findByIdAndDeletedAtIsNull(Long id);
 }

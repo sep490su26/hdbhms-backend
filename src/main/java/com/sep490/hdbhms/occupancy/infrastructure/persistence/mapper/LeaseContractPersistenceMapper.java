@@ -60,15 +60,15 @@ public class LeaseContractPersistenceMapper {
                 .contractCode(domain.getContractCode())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
                         : null)
                 .depositAgreement(domain.getDepositAgreementId() != null
                         ? jpaDepositAgreementRepository.findById(domain.getDepositAgreementId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
                         : null)
                 .primaryTenantProfile(domain.getPrimaryTenantProfileId() != null
                         ? jpaPersonProfileRepository.findById(domain.getPrimaryTenantProfileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
                         : null)
                 .startDate(domain.getStartDate())
                 .endDate(domain.getEndDate())
@@ -79,11 +79,11 @@ public class LeaseContractPersistenceMapper {
                 .status(domain.getStatus())
                 .previousContract(domain.getPreviousContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getPreviousContractId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
                         : null)
                 .contractFile(domain.getContractFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getContractFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
                         : null)
                 .signedAt(domain.getSignedAt())
                 .createdBy(domain.getCreatedById() != null

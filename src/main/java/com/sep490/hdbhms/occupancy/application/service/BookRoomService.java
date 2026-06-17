@@ -86,7 +86,7 @@ public class BookRoomService implements BookRoomUseCase {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, buildActiveHoldMessage(depositForm.getRoomId()));
             }
             Room room = roomRepository.findById(roomHold.getRoomId())
-                    .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
             room.holdRoom();
             roomRepository.save(room);
             createRoomHoldTaskPort.execute(roomHold);
@@ -112,7 +112,7 @@ public class BookRoomService implements BookRoomUseCase {
 
     private String getUnavailableReason(Long roomId, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
         Room room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now();
 
         RoomHold activeHold = roomHoldRepository.findActiveHoldByRoomId(roomId, now).orElse(null);

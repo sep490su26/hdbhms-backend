@@ -75,7 +75,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     public PaymentIntent execute(DepositForm depositForm, RoomHold roomHold) {
         Long depositAmount = resolveDepositAmount();
         Room room = roomRepository.findById(depositForm.getRoomId()).orElseThrow(
-                () -> new AppException(ApiErrorCode.UNDEFINED)
+                () -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)
         );
         DepositAgreement depositAgreement = DepositAgreement.newDepositAgreementForLeadUser(
                 otpCodeGenerator.generate(),
@@ -112,13 +112,13 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
         paymentIntent = paymentIntentRepository.save(paymentIntent);
         com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkoutResponse =
                 externalPaymentPort.createCheckoutRequest(
-                new PaymentRequest(
-                        paymentIntent.getId(),
-                        paymentIntent.getAmount(),
-                        paymentIntent.getPaymentContent(),
-                        paymentIntent.getExpiresAt()
-                )
-        );
+                        new PaymentRequest(
+                                paymentIntent.getId(),
+                                paymentIntent.getAmount(),
+                                paymentIntent.getPaymentContent(),
+                                paymentIntent.getExpiresAt()
+                        )
+                );
         paymentIntent.attachQrPayload(toCheckoutPayload(checkoutResponse, paymentIntent));
         paymentIntent.attachProviderOrderCode(checkoutResponse.providerOrderCode());
         paymentIntent = paymentIntentRepository.save(paymentIntent);

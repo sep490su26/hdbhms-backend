@@ -63,31 +63,11 @@ public class RoomTransferRequestEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
-    TransferRequestStatus status = TransferRequestStatus.PENDING;
+    TransferRequestStatus status = TransferRequestStatus.OLD_ROOM_HANDOVER;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "debt_snapshot_id", nullable = true)
     DebtSnapshotEntity debtSnapshot;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by", nullable = true)
-    UserEntity approvedBy;
-
-    @Column(name = "approved_at")
-    LocalDateTime approvedAt;
-
-    @Column(name = "rejection_reason", length = 1000)
-    String rejectionReason;
-
-    @Column(name = "eligibility_checked_at")
-    LocalDateTime eligibilityCheckedAt;
-
-    @Column(name = "is_eligible_at_creation")
-    Boolean isEligibleAtCreation;
-
-    @Lob
-    @Column(name = "eligibility_snapshot", columnDefinition = "BLOB")
-    byte[] eligibilitySnapshot;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "new_contract_id", nullable = true)
