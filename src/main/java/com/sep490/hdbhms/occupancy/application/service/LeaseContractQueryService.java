@@ -378,6 +378,9 @@ public class LeaseContractQueryService {
                             lc.signed_at,
                             lc.previous_contract_id,
                             previous_contract.contract_code AS previous_contract_code,
+                            lc.tenant_intention,
+                            lc.expected_vacant_date,
+                            lc.intention_recorded_at,
                             (
                                 SELECT renewed.id
                                 FROM lease_contracts renewed

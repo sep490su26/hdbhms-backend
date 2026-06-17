@@ -70,6 +70,8 @@ import vn.payos.model.v2.paymentRequests.Transaction;
 @RequestMapping("/api/v1/deposit")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositController {
+    private static final int MAX_DEPOSIT_SCHEDULE_DAYS = 14;
+
     RoomWebMapper roomWebMapper;
     BookRoomUseCase bookRoomUseCase;
     RoomRepository roomRepository;
@@ -307,24 +309,46 @@ public class DepositController {
                     "EXPECTED_SIGN_DATE_REQUIRED: Can co ngay du kien ky hop dong."
             );
         }
-        if (expectedMoveInDate.isBefore(expectedVacantDate)) {
+        LocalDate minAllowedDate = expectedVacantDate.plusDays(1);
+        LocalDate maxAllowedDate = expectedVacantDate.plusDays(MAX_DEPOSIT_SCHEDULE_DAYS);
+        if (expectedMoveInDate.isBefore(minAllowedDate)) {
             return new DepositRoomHoldStatusResponse(
                     false,
                     room.getCurrentStatus().name(),
                     null,
                     null,
                     0,
-                    "NgÃ y dá»± kiáº¿n vÃ o á»Ÿ pháº£i sau hoáº·c báº±ng ngÃ y phÃ²ng dá»± kiáº¿n trá»‘ng."
+                    "Ngày dự kiến vào ở phải sau ngày khách cũ trả phòng."
             );
         }
-        if (expectedLeaseSignDate.isBefore(expectedVacantDate)) {
+        if (expectedLeaseSignDate.isBefore(minAllowedDate)) {
             return new DepositRoomHoldStatusResponse(
                     false,
                     room.getCurrentStatus().name(),
                     null,
                     null,
                     0,
-                    "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngay den ky hop dong phai sau hoac bang ngay phong du kien trong."
+                    "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngày hẹn ký hợp đồng phải sau ngày khách cũ trả phòng."
+            );
+        }
+        if (expectedMoveInDate.isAfter(maxAllowedDate)) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ ngày khách cũ trả phòng."
+            );
+        }
+        if (expectedLeaseSignDate.isAfter(maxAllowedDate)) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "EXPECTED_SIGN_DATE_TOO_FAR_AFTER_VACANT_DATE: Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ ngày khách cũ trả phòng."
             );
         }
         return new DepositRoomHoldStatusResponse(
