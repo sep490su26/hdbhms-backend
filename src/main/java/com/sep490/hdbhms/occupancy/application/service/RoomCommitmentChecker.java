@@ -28,6 +28,9 @@ public class RoomCommitmentChecker {
         if (hasActiveHold(roomId)) {
             return Blocker.ROOM_HOLD_IN_PROGRESS;
         }
+        if (hasReservedRoom(roomId)) {
+            return Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT;
+        }
         if (hasBlockingDeposit(roomId, currentContractId)) {
             return Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT;
         }
@@ -75,6 +78,20 @@ public class RoomCommitmentChecker {
                 Integer.class,
                 roomId,
                 LocalDateTime.now()
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean hasReservedRoom(Long roomId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM rooms
+                        WHERE id = ?
+                          AND current_status = 'RESERVED'
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                roomId
         );
         return count != null && count > 0;
     }

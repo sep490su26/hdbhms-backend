@@ -481,6 +481,17 @@ public class LeaseContractManagementService {
             LocalDate expectedMoveOutDate,
             String note
     ) {
+        return recordTenantIntention(leaseContractId, intention, expectedMoveOutDate, note, "MANAGEMENT_WEB");
+    }
+
+    private LeaseContractManagementResponse recordTenantIntention(
+            Long leaseContractId,
+            String intention,
+            LocalDate expectedMoveOutDate,
+            String note,
+            String source
+    ) {
+        lockContractAndRoom(leaseContractId);
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
         if (contract.getDeletedAt() != null) {
@@ -549,12 +560,16 @@ public class LeaseContractManagementService {
             }
         } else {
             contract.setExpectedVacantDate(null);
-            if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
+            if ("RENEW".equals(normalizedIntention)
+                    && (room.getCurrentStatus() == RoomStatus.SOON_VACANT
+                    || room.getCurrentStatus() == RoomStatus.RESERVED)) {
                 RoomCommitmentChecker.Blocker blocker =
                         roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
                 if (blocker != RoomCommitmentChecker.Blocker.NONE) {
                     throwRenewBlocked(blocker);
                 }
+            }
+            if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
                 RoomStatus fromStatus = room.getCurrentStatus();
                 room.setCurrentStatus(RoomStatus.OCCUPIED);
                 roomRepository.saveAndFlush(room);
@@ -576,9 +591,26 @@ public class LeaseContractManagementService {
         }
         String eventData = "intention=" + normalizedIntention
                 + "; expectedVacantDate=" + (contract.getExpectedVacantDate() != null ? contract.getExpectedVacantDate() : "")
+                + "; source=" + (source == null ? "" : source)
                 + "; note=" + (note == null ? "" : note.trim());
         appendContractEvent(contract.getId(), "INTENTION_RECORDED", eventData);
         return findOne(contract.getId());
+    }
+
+    private void lockContractAndRoom(Long leaseContractId) {
+        List<Long> locked = jdbcTemplate.query("""
+                        SELECT lc.id
+                        FROM lease_contracts lc
+                        JOIN rooms r ON r.id = lc.room_id
+                        WHERE lc.id = ?
+                        FOR UPDATE
+                        """,
+                (rs, rowNum) -> rs.getLong("id"),
+                leaseContractId
+        );
+        if (locked.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+        }
     }
 
     public LeaseContractManagementResponse recordTenantIntentionForCurrentUser(
@@ -640,7 +672,7 @@ public class LeaseContractManagementService {
                     "CONTRACT_INTENTION_PRIMARY_ONLY: Chi nguoi ky chinh cua hop dong moi duoc ghi nhan y dinh."
             );
         }
-        return recordTenantIntention(leaseContractId, intention, expectedMoveOutDate, note);
+        return recordTenantIntention(leaseContractId, intention, expectedMoveOutDate, note, "TENANT_MOBILE");
     }
 
     private boolean currentUserHasRole(String role) {
@@ -1422,7 +1454,7 @@ public class LeaseContractManagementService {
         }
         throw new ResponseStatusException(
                 HttpStatus.CONFLICT,
-                "ROOM_ALREADY_RESERVED_BY_NEW_TENANT: Phong da co nguoi khac dat coc hoac duoc duyet chuyen vao sau khi ban xac nhan chuyen di. Vui long lien he quan ly neu muon thay doi."
+                "ROOM_ALREADY_RESERVED_FOR_FUTURE: Phong da co khach khac dat coc/giu cho, khong the gia han. Vui long lien he quan ly."
         );
     }
 
@@ -1522,6 +1554,11 @@ public class LeaseContractManagementService {
         Long contractFileId = getLongOrNull(rs, "contract_file_id");
         Long userId = getLongOrNull(rs, "user_id");
         String code = rs.getString("contract_code");
+        Long roomId = getLongOrNull(rs, "room_id");
+        Long renewedContractId = getLongOrNull(rs, "renewed_contract_id");
+        LeaseStatus parsedContractStatus = parseEnum(LeaseStatus.class, contractStatus);
+        RoomCommitmentChecker.Blocker renewBlocker =
+                resolveRenewBlocker(roomId, leaseContractId, renewedContractId, parsedContractStatus);
         return LeaseContractManagementResponse.builder()
                 .sourceType(rs.getString("source_type"))
                 .leaseContractId(leaseContractId)
@@ -1533,7 +1570,7 @@ public class LeaseContractManagementService {
                 .propertyName(rs.getString("property_name"))
                 .propertyAddress(rs.getString("property_address"))
                 .tenantId(getLongOrNull(rs, "tenant_id"))
-                .roomId(getLongOrNull(rs, "room_id"))
+                .roomId(roomId)
                 .roomCode(rs.getString("room_code"))
                 .roomStatus(parseEnum(RoomStatus.class, rs.getString("room_status")))
                 .primaryTenantProfileId(getLongOrNull(rs, "primary_tenant_profile_id"))
@@ -1551,11 +1588,15 @@ public class LeaseContractManagementService {
                 .occupantsCount(getIntOrNull(rs, "occupants_count"))
                 .previousContractId(getLongOrNull(rs, "previous_contract_id"))
                 .previousContractCode(rs.getString("previous_contract_code"))
-                .renewedContractId(getLongOrNull(rs, "renewed_contract_id"))
+                .renewedContractId(renewedContractId)
                 .renewedContractCode(rs.getString("renewed_contract_code"))
                 .tenantIntention(rs.getString("tenant_intention"))
                 .expectedVacantDate(toLocalDate(rs, "expected_vacant_date"))
-                .contractStatus(parseEnum(LeaseStatus.class, contractStatus))
+                .canRenew(canRenewFromBlocker(leaseContractId, renewedContractId, parsedContractStatus, renewBlocker))
+                .canRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
+                        ? null
+                        : renewBlockedReason(renewBlocker))
+                .contractStatus(parsedContractStatus)
                 .depositStatus(parseEnum(DepositAgreementStatus.class, depositStatus))
                 .workflowStatus(resolveWorkflow(contractStatus, contractFileId))
                 .contractFileId(contractFileId)
@@ -1566,6 +1607,46 @@ public class LeaseContractManagementService {
                 .accountProvisioned(userId != null)
                 .emailAvailable(rs.getString("email") != null && !rs.getString("email").isBlank())
                 .build();
+    }
+
+    private RoomCommitmentChecker.Blocker resolveRenewBlocker(
+            Long roomId,
+            Long leaseContractId,
+            Long renewedContractId,
+            LeaseStatus contractStatus
+    ) {
+        if (roomId == null
+                || leaseContractId == null
+                || renewedContractId != null
+                || !isRenewableContractStatus(contractStatus)) {
+            return RoomCommitmentChecker.Blocker.NONE;
+        }
+        return roomCommitmentChecker.checkRenewBlockers(roomId, leaseContractId);
+    }
+
+    private boolean canRenewFromBlocker(
+            Long leaseContractId,
+            Long renewedContractId,
+            LeaseStatus contractStatus,
+            RoomCommitmentChecker.Blocker renewBlocker
+    ) {
+        return leaseContractId != null
+                && renewedContractId == null
+                && isRenewableContractStatus(contractStatus)
+                && renewBlocker == RoomCommitmentChecker.Blocker.NONE;
+    }
+
+    private boolean isRenewableContractStatus(LeaseStatus contractStatus) {
+        return contractStatus == LeaseStatus.ACTIVE
+                || contractStatus == LeaseStatus.EXPIRING_SOON
+                || contractStatus == LeaseStatus.EXPIRED;
+    }
+
+    private String renewBlockedReason(RoomCommitmentChecker.Blocker blocker) {
+        if (blocker == RoomCommitmentChecker.Blocker.ROOM_HOLD_IN_PROGRESS) {
+            return "Phong dang duoc giu cho cho khach khac.";
+        }
+        return "Phong da co khach khac dat coc/giu cho, khong the tai ky.";
     }
 
     private String resolveWorkflow(String contractStatus, Long contractFileId) {

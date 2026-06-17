@@ -31,6 +31,8 @@ public class LeaseContractDetailsResponse {
     String roleInContract;
     Boolean isPrimary;
     Boolean canRecordIntention;
+    Boolean canRenew;
+    String canRenewBlockedReason;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
 }

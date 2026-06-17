@@ -130,6 +130,11 @@ class DepositContractDocumentServiceTest {
         public List<DepositAgreement> findAllByTenantId(Long tenantId) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        public List<DepositAgreement> findAllAccessibleByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     private static final class FakeRoomRepository implements RoomRepository {

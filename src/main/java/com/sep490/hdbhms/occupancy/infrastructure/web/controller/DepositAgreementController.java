@@ -20,7 +20,6 @@ import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementReposito
 import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
@@ -88,7 +87,6 @@ public class DepositAgreementController {
     );
 
     GetRoomDetailsUseCase getRoomDetailsUseCase;
-    TenantRepository tenantRepository;
     PropertyRepository propertyRepository;
     DepositFormRepository depositFormRepository;
     DepositAgreementRepository depositAgreementRepository;
@@ -540,9 +538,10 @@ public class DepositAgreementController {
             return;
         }
 
-        if (role == Role.TENANT && depositAgreement.getTenantId() != null) {
-            var tenant = tenantRepository.findByUserId(principal.getId()).orElse(null);
-            if (tenant != null && tenant.getId().equals(depositAgreement.getTenantId())) {
+        if (role == Role.TENANT) {
+            boolean canAccess = depositAgreementRepository.findAllAccessibleByUserId(principal.getId()).stream()
+                    .anyMatch(agreement -> agreement.getId().equals(depositAgreement.getId()));
+            if (canAccess) {
                 return;
             }
         }

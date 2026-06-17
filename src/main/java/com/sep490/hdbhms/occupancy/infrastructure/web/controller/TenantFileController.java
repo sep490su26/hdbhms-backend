@@ -45,7 +45,7 @@ public class TenantFileController {
         Boolean isOwner = jdbcTemplate.queryForObject("""
                 SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END
                 FROM person_profiles pp
-                JOIN users u ON pp.phone = u.phone OR LOWER(pp.email) = LOWER(u.email)
+                JOIN users u ON pp.user_id = u.id OR pp.phone = u.phone OR LOWER(pp.email) = LOWER(u.email)
                 LEFT JOIN identity_documents idoc ON idoc.profile_id = pp.id
                 LEFT JOIN vehicles v ON v.profile_id = pp.id
                 WHERE u.id = ? AND u.deleted_at IS NULL AND pp.deleted_at IS NULL
@@ -61,17 +61,39 @@ public class TenantFileController {
             // Check if it belongs to their lease contract or deposit agreement
             Boolean hasContract = jdbcTemplate.queryForObject("""
                 SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END
-                FROM tenants t
-                LEFT JOIN lease_contracts lc ON lc.id IN (
-                    SELECT co.contract_id FROM contract_occupants co WHERE co.tenant_id = t.id
-                )
-                LEFT JOIN deposit_agreements da ON da.tenant_id = t.id
-                WHERE t.user_id = ? AND t.deleted_at IS NULL
+                FROM users u
+                LEFT JOIN tenants t
+                  ON t.user_id = u.id
+                 AND t.deleted_at IS NULL
+                LEFT JOIN person_profiles pp
+                  ON pp.deleted_at IS NULL
+                 AND (
+                    pp.user_id = u.id
+                    OR (u.phone IS NOT NULL AND pp.phone = u.phone)
+                    OR (u.email IS NOT NULL AND LOWER(pp.email) = LOWER(u.email))
+                 )
+                LEFT JOIN lease_contracts lc
+                  ON lc.deleted_at IS NULL
+                 AND (
+                    lc.primary_tenant_profile_id = pp.id
+                    OR lc.id IN (
+                        SELECT co.contract_id
+                        FROM contract_occupants co
+                        WHERE co.tenant_profile_id = pp.id
+                          AND co.status = 'ACTIVE'
+                    )
+                 )
+                LEFT JOIN deposit_agreements da
+                  ON da.depositor_person_profile_id = pp.id
+                  OR da.tenant_id = t.id
+                  OR da.id = lc.deposit_agreement_id
+                WHERE u.id = ? AND u.deleted_at IS NULL
                   AND (
                       lc.contract_file_id = ?
                       OR da.contract_file_id = ?
+                      OR da.signed_file_id = ?
                   )
-                """, Boolean.class, userId, fileId, fileId);
+                """, Boolean.class, userId, fileId, fileId, fileId);
 
             if (Boolean.FALSE.equals(hasContract)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
