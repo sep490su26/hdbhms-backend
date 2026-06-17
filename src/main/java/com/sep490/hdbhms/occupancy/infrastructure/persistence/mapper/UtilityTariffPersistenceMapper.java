@@ -41,7 +41,7 @@ public class UtilityTariffPersistenceMapper {
                 .id(domain.getId())
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.UTILITY_TARIFF_NOT_FOUND))
                         : null)
                 .utilityType(domain.getUtilityType())
                 .unitPrice(domain.getUnitPrice())

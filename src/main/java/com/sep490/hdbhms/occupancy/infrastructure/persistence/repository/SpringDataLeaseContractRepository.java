@@ -77,4 +77,9 @@ public class SpringDataLeaseContractRepository implements LeaseContractRepositor
                 .map(leaseContractPersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public boolean isTenantHasAnyActiveContract(Long tenantProfileId) {
+        return jpaLeaseContractRepository.existsByPrimaryTenantProfile_Id(tenantProfileId);
+    }
 }

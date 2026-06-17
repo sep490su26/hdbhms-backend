@@ -7,7 +7,7 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DB}?ssl-mode=REQUIRED&serverTimezone=UTC
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DB}?serverTimezone=UTC
     username: ${MYSQL_USERNAME}
     password: ${MYSQL_PASSWORD}
   data:
@@ -35,18 +35,6 @@ spring:
     listener:
       auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
       ack-mode: manual
-    properties:
-      security.protocol: SASL_SSL
-
-      sasl.mechanism: SCRAM-SHA-256
-      sasl.jaas.config: >
-        org.apache.kafka.common.security.scram.ScramLoginModule required
-        username="${KAFKA_USERNAME}"
-        password="${KAFKA_PASSWORD}";
-
-      ssl.truststore.location: ./certs/kafka.truststore.jks
-      ssl.truststore.password: ${KAFKA_TRUSTSTORE_PASSWORD}
-      ssl.truststore.type: JKS
   jpa:
     hibernate:
       ddl-auto: validate

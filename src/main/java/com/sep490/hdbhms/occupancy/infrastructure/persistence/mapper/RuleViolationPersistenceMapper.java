@@ -57,34 +57,34 @@ public class RuleViolationPersistenceMapper {
                 .id(domain.getId())
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.RULE_VIOLATION_NOT_FOUND))
                         : null)
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.RULE_VIOLATION_NOT_FOUND))
                         : null)
                 .contract(domain.getContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getContractId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.RULE_VIOLATION_NOT_FOUND))
                         : null)
                 .tenantProfile(domain.getTenantProfileId() != null
                         ? jpaPersonProfileRepository.findById(domain.getTenantProfileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.RULE_VIOLATION_NOT_FOUND))
                         : null)
                 .rule(domain.getRuleId() != null
                         ? jpaPropertyRuleRepository.findById(domain.getRuleId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.RULE_VIOLATION_NOT_FOUND))
                         : null)
                 .violationDate(domain.getViolationDate())
                 .description(domain.getDescription())
                 .fineAmount(domain.getFineAmount())
                 .invoice(domain.getInvoiceId() != null
                         ? jpaInvoiceRepository.findById(domain.getInvoiceId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.RULE_VIOLATION_NOT_FOUND))
                         : null)
                 .evidenceFile(domain.getEvidenceFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getEvidenceFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.RULE_VIOLATION_NOT_FOUND))
                         : null)
                 .status(domain.getStatus())
                 .createdBy(domain.getCreatedById() != null

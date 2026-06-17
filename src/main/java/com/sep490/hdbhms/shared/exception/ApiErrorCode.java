@@ -52,10 +52,61 @@ public enum ApiErrorCode {
     VISIT_007(40107, "Invalid appointment time", "Ngày giờ hẹn xem phải sau thời gian hiện tại", HttpStatus.BAD_REQUEST),
     DEPOSIT_001(40201, "Invalid deposit occupancy", "Thông tin số người ở không hợp lệ", HttpStatus.BAD_REQUEST),
     HANDOVER_001(40301, "Handover already confirmed", "Biên bản bàn giao đã được xác nhận", HttpStatus.BAD_REQUEST),
-    METER_NOT_FOUND(40401, "Meter not found", "Không tìm thấy đồng hồ điện/nước hoạt động cho phòng này", HttpStatus.NOT_FOUND),
+
+    // --- PORTAL & FILE (20xxx) ---
+    HOME_DATA_NOT_FOUND(20101, "Home data not found", "Không tìm thấy dữ liệu trang chủ", HttpStatus.NOT_FOUND),
+    FILE_UPLOAD_FAILED(20201, "File upload failed", "Tải tệp lên thất bại", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_DOWNLOAD_FAILED(20202, "File download failed", "Tải tệp xuống thất bại", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    // --- IDENTITY & ACCESS (10xxx) ---
+    USER_PROFILE_NOT_FOUND(10202, "User profile not found", "Không tìm thấy hồ sơ người dùng", HttpStatus.NOT_FOUND),
+    PERMISSION_REQUEST_NOT_FOUND(10203, "Permission request not found", "Không tìm thấy yêu cầu cấp quyền", HttpStatus.NOT_FOUND),
+    EMERGENCY_CONTACT_NOT_FOUND(10204, "Emergency contact not found", "Không tìm thấy liên hệ khẩn cấp", HttpStatus.NOT_FOUND),
+    IDENTITY_DOCUMENT_NOT_FOUND(10205, "Identity document not found", "Không tìm thấy giấy tờ tùy thân", HttpStatus.NOT_FOUND),
+
+    // --- OCCUPANCY: PROPERTY & ROOM (404xx) ---
+    ROOM_NOT_FOUND(40401, "Room not found", "Không tìm thấy phòng", HttpStatus.NOT_FOUND),
     ROOM_ASSET_NOT_FOUND(40402, "Room asset not found", "Không tìm thấy thiết bị phòng", HttpStatus.NOT_FOUND),
-    CONTRACT_NOT_FOUND(40403, "Contract not found", "Không tìm thấy hợp đồng", HttpStatus.NOT_FOUND),
-    HANDOVER_RECORD_NOT_FOUND(40404, "Handover record not found", "Không tìm thấy bản ghi bàn giao", HttpStatus.NOT_FOUND),
+    FLOOR_NOT_FOUND(40403, "Floor not found", "Không tìm thấy tầng", HttpStatus.NOT_FOUND),
+    PROPERTY_NOT_FOUND(40404, "Property not found", "Không tìm thấy cơ sở", HttpStatus.NOT_FOUND),
+    PROPERTY_RULE_NOT_FOUND(40405, "Property rule not found", "Không tìm thấy nội quy", HttpStatus.NOT_FOUND),
+    ROOM_HOLD_NOT_FOUND(40406, "Room hold not found", "Không tìm thấy thông tin giữ phòng", HttpStatus.NOT_FOUND),
+    ROOM_IMAGE_NOT_FOUND(40407, "Room image not found", "Không tìm thấy ảnh phòng", HttpStatus.NOT_FOUND),
+    PROPERTY_IMAGE_NOT_FOUND(40408, "Property image not found", "Không tìm thấy ảnh cơ sở", HttpStatus.NOT_FOUND),
+    ROOM_STATUS_HISTORY_NOT_FOUND(40409, "Room status history not found", "Không tìm thấy lịch sử trạng thái phòng", HttpStatus.NOT_FOUND),
+    ROOM_TRANSFER_REQUEST_NOT_FOUND(40410, "Room transfer request not found", "Không tìm thấy yêu cầu chuyển phòng", HttpStatus.NOT_FOUND),
+
+    // --- OCCUPANCY: LEASE & CONTRACT (407xx) ---
+    CONTRACT_NOT_FOUND(40701, "Contract not found", "Không tìm thấy hợp đồng", HttpStatus.NOT_FOUND),
+    CONTRACT_EVENT_NOT_FOUND(40702, "Contract event not found", "Không tìm thấy sự kiện hợp đồng", HttpStatus.NOT_FOUND),
+    CONTRACT_HANDOVER_ITEM_NOT_FOUND(40703, "Handover item not found", "Không tìm thấy thiết bị bàn giao", HttpStatus.NOT_FOUND),
+    CONTRACT_HANDOVER_RECORD_NOT_FOUND(40704, "Handover record not found", "Không tìm thấy biên bản bàn giao", HttpStatus.NOT_FOUND),
+    CONTRACT_LIQUIDATION_NOT_FOUND(40705, "Liquidation not found", "Không tìm thấy biên bản thanh lý", HttpStatus.NOT_FOUND),
+    CONTRACT_OCCUPANT_NOT_FOUND(40706, "Occupant not found", "Không tìm thấy người ở", HttpStatus.NOT_FOUND),
+    CONTRACT_TERMINATION_NOTICE_NOT_FOUND(40707, "Termination notice not found", "Không tìm thấy thông báo chấm dứt", HttpStatus.NOT_FOUND),
+    TENANT_NOT_FOUND(40708, "Tenant not found", "Không tìm thấy người thuê", HttpStatus.NOT_FOUND),
+    LEAD_NOT_FOUND(40709, "Lead not found", "Không tìm thấy khách hàng tiềm năng", HttpStatus.NOT_FOUND),
+    RULE_VIOLATION_NOT_FOUND(40710, "Rule violation not found", "Không tìm thấy vi phạm nội quy", HttpStatus.NOT_FOUND),
+
+    // --- OCCUPANCY: DEPOSIT (402xx) ---
+    DEPOSIT_AGREEMENT_NOT_FOUND(40201, "Deposit agreement not found", "Không tìm thấy thỏa thuận cọc", HttpStatus.NOT_FOUND),
+    DEPOSIT_FORM_NOT_FOUND(40202, "Deposit form not found", "Không tìm thấy biểu mẫu cọc", HttpStatus.NOT_FOUND),
+    DEPOSIT_EXTENSION_EVENT_NOT_FOUND(40203, "Deposit extension not found", "Không tìm thấy gia hạn cọc", HttpStatus.NOT_FOUND),
+
+    // --- OCCUPANCY: UTILITY & METER (409xx) ---
+    METER_NOT_FOUND(40901, "Meter not found", "Không tìm thấy đồng hồ", HttpStatus.NOT_FOUND),
+    METER_READING_NOT_FOUND(40902, "Meter reading not found", "Không tìm thấy chỉ số đồng hồ", HttpStatus.NOT_FOUND),
+    METER_READING_BATCH_NOT_FOUND(40903, "Meter reading batch not found", "Không tìm thấy đợt chốt điện nước", HttpStatus.NOT_FOUND),
+    METER_READING_IMPORT_ROW_NOT_FOUND(40904, "Meter reading import row not found", "Không tìm thấy dòng import", HttpStatus.NOT_FOUND),
+    METER_READING_ANOMALY_NOT_FOUND(40905, "Meter reading anomaly not found", "Không tìm thấy bất thường chỉ số", HttpStatus.NOT_FOUND),
+    UTILITY_TARIFF_NOT_FOUND(40906, "Utility tariff not found", "Không tìm thấy bảng giá điện nước", HttpStatus.NOT_FOUND),
+
+    // --- BILLING & PAYMENT (30xxx) ---
+    TRANSFER_SETTLEMENT_NOT_FOUND(30101, "Transfer settlement not found", "Không tìm thấy quyết toán chuyển phòng", HttpStatus.NOT_FOUND),
+
+    // --- NOTIFICATION (60xxx) ---
+    NOTIFICATION_NOT_FOUND(60101, "Notification not found", "Không tìm thấy thông báo", HttpStatus.NOT_FOUND),
+    NOTIFICATION_OUTBOX_NOT_FOUND(60102, "Notification outbox not found", "Không tìm thấy thông báo outbox", HttpStatus.NOT_FOUND),
     ;
     int code;
     String message;

@@ -39,7 +39,7 @@ public class PropertyRulePersistenceMapper {
                 .id(domain.getId())
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_RULE_NOT_FOUND))
                         : null)
                 .ruleCode(domain.getRuleCode())
                 .title(domain.getTitle())

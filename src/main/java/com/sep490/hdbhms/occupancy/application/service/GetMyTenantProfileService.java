@@ -44,12 +44,12 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
         ), userId);
 
         if (tenant == null) {
-            throw new AppException(ApiErrorCode.UNDEFINED); // Or "Bạn không phải là người thuê"
+            throw new AppException(ApiErrorCode.TENANT_NOT_FOUND); // Or "Bạn không phải là người thuê"
         }
 
         PersonRow person = findPersonProfile(userId, tenant.id());
         if (person == null) {
-            throw new AppException(ApiErrorCode.UNDEFINED); // Or "Chưa có hồ sơ cá nhân"
+            throw new AppException(ApiErrorCode.TENANT_NOT_FOUND); // Or "Chưa có hồ sơ cá nhân"
         }
 
         TenantProfileResponse.IdentityDocumentDto identityDocument = getIdentityDocument(person.id(), tenant.id());

@@ -5,7 +5,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUse
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingSource;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
@@ -127,7 +127,7 @@ public class ManageContractHandoverService {
                 .previousValue(prevValue)
                 .currentValue(input.getCurrentValue())
                 .readingDate(input.getReadingDate() != null ? input.getReadingDate() : LocalDate.now())
-                .source(ReadingSource.HANDOVER)
+                .purpose(ReadingPurpose.HANDOVER)
                 .status(ReadingStatus.CONFIRMED)
                 .createdBy(userRepository.getReferenceById(AuthUtils.getCurrentAuthenticationId()))
                 .build();
@@ -143,7 +143,7 @@ public class ManageContractHandoverService {
     public void confirmHandover(Long contractId, ConfirmHandoverRequest request) {
         ContractHandoverRecordEntity handoverRecord = handoverRecordRepository
                 .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, request.getHandoverType())
-                .orElseThrow(() -> new AppException(ApiErrorCode.HANDOVER_RECORD_NOT_FOUND));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND));
 
         if (handoverRecord.getStatus() == HandoverStatus.CONFIRMED) {
             throw new AppException(ApiErrorCode.HANDOVER_001);
@@ -254,7 +254,7 @@ public class ManageContractHandoverService {
     public ContractHandoverDetailsResponse getHandoverDetails(Long contractId, HandoverType type) {
         ContractHandoverRecordEntity record = handoverRecordRepository
                 .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, type)
-                .orElseThrow(() -> new AppException(ApiErrorCode.HANDOVER_RECORD_NOT_FOUND));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND));
 
         return ContractHandoverDetailsResponse.builder()
                 .handoverRecordId(record.getId())
