@@ -475,6 +475,7 @@ public class LeaseContractQueryService {
                          FROM contract_occupants co_scope
                          LEFT JOIN person_profiles pp_scope ON pp_scope.id = co_scope.tenant_profile_id
                          WHERE co_scope.contract_id = lc.id
+                           AND co_scope.status = 'ACTIVE'
                            AND (co_scope.tenant_id = ? OR pp_scope.user_id = ?)
                      )
                     """);
@@ -503,8 +504,16 @@ public class LeaseContractQueryService {
                                   FROM tenant_account_provisionings tap
                                   JOIN person_profiles pp ON pp.id = tap.tenant_profile_id
                                   WHERE tap.user_id = ?
+                                    AND tap.status <> 'DISABLED'
                                     AND pp.user_id IS NULL
                                     AND pp.deleted_at IS NULL
+                              )
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM contract_occupants disabled_primary
+                                  WHERE disabled_primary.contract_id = lc.id
+                                    AND disabled_primary.tenant_profile_id = lc.primary_tenant_profile_id
+                                    AND disabled_primary.status = 'DISABLED'
                               )
                               OR EXISTS (
                                   SELECT 1
@@ -517,10 +526,11 @@ public class LeaseContractQueryService {
                                         WHERE pp.user_id = ?
                                           AND pp.deleted_at IS NULL
                                         UNION
-                                        SELECT tap.tenant_profile_id
-                                        FROM tenant_account_provisionings tap
-                                        JOIN person_profiles pp ON pp.id = tap.tenant_profile_id
-                                        WHERE tap.user_id = ?
+                                          SELECT tap.tenant_profile_id
+                                          FROM tenant_account_provisionings tap
+                                          JOIN person_profiles pp ON pp.id = tap.tenant_profile_id
+                                          WHERE tap.user_id = ?
+                                          AND tap.status <> 'DISABLED'
                                           AND pp.user_id IS NULL
                                           AND pp.deleted_at IS NULL
                                     )
@@ -786,6 +796,8 @@ public class LeaseContractQueryService {
                     co.status,
                     COALESCE(
                         CASE
+                            WHEN co.status = 'DISABLED'
+                                THEN 'DISABLED'
                             WHEN u.id IS NOT NULL
                               AND (u.last_login_at IS NOT NULL OR u.must_change_password = FALSE)
                                 THEN 'ACTIVE'
@@ -810,7 +822,7 @@ public class LeaseContractQueryService {
                         active_occupant.move_out_date,
                         active_occupant.status
                     FROM contract_occupants active_occupant
-                    WHERE active_occupant.status = 'ACTIVE'
+                    WHERE active_occupant.status IN ('ACTIVE','DISABLED')
                       AND active_occupant.tenant_profile_id IS NOT NULL
 
                     UNION ALL
@@ -831,7 +843,6 @@ public class LeaseContractQueryService {
                           WHERE primary_occupant.contract_id = fallback_contract.id
                             AND primary_occupant.tenant_profile_id =
                                 fallback_contract.primary_tenant_profile_id
-                            AND primary_occupant.status = 'ACTIVE'
                       )
                 ) co
                 JOIN person_profiles pp
@@ -1033,6 +1044,7 @@ public class LeaseContractQueryService {
                     FROM tenant_account_provisionings tap
                     JOIN person_profiles pp ON pp.id = tap.tenant_profile_id
                     WHERE tap.user_id = ?
+                      AND tap.status <> 'DISABLED'
                       AND pp.user_id IS NULL
                       AND pp.deleted_at IS NULL
                 ),
@@ -1040,6 +1052,13 @@ public class LeaseContractQueryService {
                     SELECT lc.id AS contract_id, 0 AS role_rank
                     FROM lease_contracts lc
                     WHERE lc.primary_tenant_profile_id IN (SELECT id FROM accessible_profiles)
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM contract_occupants disabled_primary
+                          WHERE disabled_primary.contract_id = lc.id
+                            AND disabled_primary.tenant_profile_id = lc.primary_tenant_profile_id
+                            AND disabled_primary.status = 'DISABLED'
+                      )
                     UNION ALL
                     SELECT co.contract_id, 1 AS role_rank
                     FROM contract_occupants co

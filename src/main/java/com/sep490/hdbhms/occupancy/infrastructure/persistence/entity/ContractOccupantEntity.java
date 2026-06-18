@@ -61,6 +61,15 @@ public class ContractOccupantEntity {
     @Builder.Default
     OccupantStatus status = OccupantStatus.ACTIVE;
 
+    @Column(name = "disabled_reason", columnDefinition = "TEXT")
+    String disabledReason;
+
+    @Column(name = "disabled_by")
+    Long disabledBy;
+
+    @Column(name = "disabled_at")
+    LocalDateTime disabledAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     LocalDateTime createdAt;

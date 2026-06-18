@@ -5,6 +5,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -34,6 +35,7 @@ public class TenantAccountProvisioningResponse {
     Long occupantId;
     Long profileId;
     String roomRole;
+    OccupantStatus occupantStatus;
     Integer roomOccupantCount;
     Integer roomMaxOccupants;
     Long userId;
@@ -52,6 +54,9 @@ public class TenantAccountProvisioningResponse {
     LocalDateTime sentAt;
     LocalDateTime failedAt;
     String failureReason;
+    String disabledReason;
+    Long disabledBy;
+    LocalDateTime disabledAt;
     Integer attemptCount;
     LocalDateTime lastAttemptAt;
     String profileStatus;

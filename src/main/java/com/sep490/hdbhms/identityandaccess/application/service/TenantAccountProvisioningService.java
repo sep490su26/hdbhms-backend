@@ -14,7 +14,9 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.Tenan
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
@@ -81,7 +83,16 @@ public class TenantAccountProvisioningService {
                     "Hợp đồng chưa có người thuê trong contract_occupants."
             );
         }
-        TenantAccountProvisioningResponse primary = findPrimary(occupants);
+        List<TenantAccountProvisioningResponse> eligibleOccupants = occupants.stream()
+                .filter(this::isProvisioningEligibleContext)
+                .toList();
+        if (eligibleOccupants.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "NO_ACTIVE_TENANT_CONTEXT"
+            );
+        }
+        TenantAccountProvisioningResponse primary = findPrimary(eligibleOccupants);
         if (StringUtils.isEmpty(primary.getRecipientEmail())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -92,7 +103,7 @@ public class TenantAccountProvisioningService {
         ProvisioningPreparation preparation = transactionTemplate().execute(status -> {
             List<Long> claimed = new ArrayList<>();
             List<Long> existingAccountsWithoutDelivery = new ArrayList<>();
-            for (TenantAccountProvisioningResponse occupant : occupants) {
+            for (TenantAccountProvisioningResponse occupant : eligibleOccupants) {
                 PreparationOutcome outcome =
                         prepareProvisioningAttempt(occupant, contractId, retryFailed);
                 if (outcome == PreparationOutcome.CLAIMED) {
@@ -146,6 +157,93 @@ public class TenantAccountProvisioningService {
                 .build();
     }
 
+    public TenantAccountProvisioningResponse disableTenantContext(
+            Long contractId,
+            Long tenantProfileId,
+            String reason
+    ) {
+        String normalizedReason = validateDisableReason(reason);
+        Long disabledBy = AuthUtils.getCurrentAuthenticationId();
+        if (disabledBy == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+        }
+
+        ContractMembershipContext context = findContractMembershipContext(contractId, tenantProfileId);
+        if (!context.hasOccupant() && !Objects.equals(context.primaryTenantProfileId(), tenantProfileId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_CONTEXT_NOT_FOUND");
+        }
+
+        disableTenantContextStatus(contractId, tenantProfileId, normalizedReason, disabledBy, context);
+        return findContractOccupant(contractId, tenantProfileId).toBuilder()
+                .message("TENANT_CONTEXT_DISABLED")
+                .build();
+    }
+
+    private String validateDisableReason(String reason) {
+        String normalized = reason == null ? new String() : reason.trim();
+        if (normalized.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DISABLE_REASON_REQUIRED");
+        }
+        if (normalized.length() > 1000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DISABLE_REASON_TOO_LONG");
+        }
+        return normalized;
+    }
+
+    private boolean isProvisioningEligibleContext(TenantAccountProvisioningResponse occupant) {
+        return occupant.getOccupantStatus() != OccupantStatus.DISABLED
+                && occupant.getProvisioningStatus() != TenantAccountProvisioningStatus.DISABLED;
+    }
+
+    private void disableTenantContextStatus(
+            Long contractId,
+            Long tenantProfileId,
+            String reason,
+            Long disabledBy,
+            ContractMembershipContext context
+    ) {
+        transactionTemplate().executeWithoutResult(status -> {
+            if (context.hasOccupant()) {
+                disableExistingTenantContext(contractId, tenantProfileId, reason, disabledBy);
+            } else {
+                insertDisabledPrimaryTenantContext(contractId, tenantProfileId, reason, disabledBy, context);
+            }
+        });
+    }
+
+    private void disableExistingTenantContext(
+            Long contractId,
+            Long tenantProfileId,
+            String reason,
+            Long disabledBy
+    ) {
+        jdbcTemplate.update(
+                "UPDATE contract_occupants SET status = 'DISABLED', disabled_reason = ?, disabled_by = ?, disabled_at = NOW(6) WHERE contract_id = ? AND tenant_profile_id = ?",
+                reason,
+                disabledBy,
+                contractId,
+                tenantProfileId
+        );
+    }
+
+    private void insertDisabledPrimaryTenantContext(
+            Long contractId,
+            Long tenantProfileId,
+            String reason,
+            Long disabledBy,
+            ContractMembershipContext context
+    ) {
+        jdbcTemplate.update(
+                "INSERT INTO contract_occupants (contract_id, tenant_id, tenant_profile_id, occupant_role, move_in_date, status, disabled_reason, disabled_by, disabled_at, created_at) VALUES (?, ?, ?, 'PRIMARY', ?, 'DISABLED', ?, ?, NOW(6), NOW(6))",
+                contractId,
+                resolveTenantIdForProfile(tenantProfileId, context.propertyId()),
+                tenantProfileId,
+                context.startDate() != null ? context.startDate() : java.time.LocalDate.now(),
+                reason,
+                disabledBy
+        );
+    }
+
     private PreparationOutcome prepareProvisioningAttempt(
             TenantAccountProvisioningResponse occupant,
             Long contractId,
@@ -157,6 +255,10 @@ public class TenantAccountProvisioningService {
                     HttpStatus.BAD_REQUEST,
                     "Người thuê chưa có tenant_profile_id."
             );
+        }
+
+        if (!isProvisioningEligibleContext(occupant)) {
+            return PreparationOutcome.SKIPPED;
         }
 
         TenantAccountProvisioningEntity provisioning =
@@ -471,6 +573,53 @@ public class TenantAccountProvisioningService {
                 ));
     }
 
+    private ContractMembershipContext findContractMembershipContext(Long contractId, Long tenantProfileId) {
+        List<ContractMembershipContext> contexts = jdbcTemplate.query(
+                "SELECT lc.primary_tenant_profile_id, lc.start_date, r.property_id, EXISTS (SELECT 1 FROM contract_occupants co WHERE co.contract_id = lc.id AND co.tenant_profile_id = ?) AS has_occupant, EXISTS (SELECT 1 FROM person_profiles pp WHERE pp.id = ? AND pp.deleted_at IS NULL) AS profile_exists FROM lease_contracts lc JOIN rooms r ON r.id = lc.room_id WHERE lc.id = ? AND lc.deleted_at IS NULL LIMIT 1",
+                (rs, rowNum) -> new ContractMembershipContext(
+                        getLongOrNull(rs, "primary_tenant_profile_id"),
+                        toLocalDate(rs, "start_date"),
+                        getLongOrNull(rs, "property_id"),
+                        rs.getBoolean("has_occupant"),
+                        rs.getBoolean("profile_exists")
+                ),
+                tenantProfileId,
+                tenantProfileId,
+                contractId
+        );
+        if (contexts.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "CONTRACT_NOT_FOUND");
+        }
+        ContractMembershipContext context = contexts.getFirst();
+        if (!context.profileExists()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_PROFILE_NOT_FOUND");
+        }
+        return context;
+    }
+
+    private Long resolveTenantIdForProfile(Long tenantProfileId, Long propertyId) {
+        List<Long> tenantIds = jdbcTemplate.query(
+                "SELECT t.id FROM tenants t JOIN person_profiles pp ON pp.id = ? LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.id WHERE t.property_id = ? AND t.deleted_at IS NULL AND t.user_id = COALESCE(pp.user_id, tap.user_id) ORDER BY t.id DESC LIMIT 1",
+                (rs, rowNum) -> rs.getLong("id"),
+                tenantProfileId,
+                propertyId
+        );
+        return tenantIds.isEmpty() ? null : tenantIds.getFirst();
+    }
+
+    private TenantAccountProvisioningResponse findContractOccupant(Long contractId, Long tenantProfileId) {
+        List<TenantAccountProvisioningResponse> occupants = jdbcTemplate.query(
+                "SELECT * FROM (" + baseCandidateSql() + ") account_candidates WHERE contract_id = ? AND profile_id = ? ORDER BY role_order ASC, full_name",
+                (rs, rowNum) -> toResponse(rs),
+                contractId,
+                tenantProfileId
+        );
+        if (occupants.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_CONTEXT_NOT_FOUND");
+        }
+        return occupants.getFirst();
+    }
+
     private ContractProvisioningContext findContractContext(Long contractId) {
         try {
             return jdbcTemplate.queryForObject("""
@@ -575,6 +724,7 @@ public class TenantAccountProvisioningService {
                     pp.email,
                     COALESCE(primary_pp.email, primary_user.email) AS recipient_email,
                     co.occupant_role AS room_role,
+                    co.status AS occupant_status,
                     GREATEST((
                         SELECT COUNT(*)
                         FROM contract_occupants co_count
@@ -589,6 +739,8 @@ public class TenantAccountProvisioningService {
                     u.last_login_at,
                     u.created_at AS account_created_at,
                     CASE
+                        WHEN co.status = 'DISABLED' OR tap.status = 'DISABLED'
+                            THEN 'DISABLED'
                         WHEN u.id IS NOT NULL
                           AND (u.last_login_at IS NOT NULL OR u.must_change_password = FALSE)
                             THEN 'ACTIVE'
@@ -599,6 +751,9 @@ public class TenantAccountProvisioningService {
                     tap.sent_at,
                     tap.failed_at,
                     tap.failure_reason,
+                    co.disabled_reason,
+                    co.disabled_by,
+                    co.disabled_at,
                     tap.attempt_count,
                     tap.last_attempt_at,
                     CASE
@@ -643,9 +798,13 @@ public class TenantAccountProvisioningService {
                         active_occupant.id,
                         active_occupant.contract_id,
                         active_occupant.tenant_profile_id,
-                        active_occupant.occupant_role
+                        active_occupant.occupant_role,
+                        active_occupant.status,
+                        active_occupant.disabled_reason,
+                        active_occupant.disabled_by,
+                        active_occupant.disabled_at
                     FROM contract_occupants active_occupant
-                    WHERE active_occupant.status = 'ACTIVE'
+                    WHERE active_occupant.status IN ('ACTIVE','DISABLED')
                       AND active_occupant.tenant_profile_id IS NOT NULL
 
                     UNION ALL
@@ -654,7 +813,11 @@ public class TenantAccountProvisioningService {
                         NULL AS id,
                         fallback_contract.id AS contract_id,
                         fallback_contract.primary_tenant_profile_id AS tenant_profile_id,
-                        'PRIMARY' AS occupant_role
+                        'PRIMARY' AS occupant_role,
+                        'ACTIVE' AS status,
+                        NULL AS disabled_reason,
+                        NULL AS disabled_by,
+                        NULL AS disabled_at
                     FROM lease_contracts fallback_contract
                     WHERE fallback_contract.deleted_at IS NULL
                       AND NOT EXISTS (
@@ -663,7 +826,6 @@ public class TenantAccountProvisioningService {
                           WHERE primary_occupant.contract_id = fallback_contract.id
                             AND primary_occupant.tenant_profile_id =
                                 fallback_contract.primary_tenant_profile_id
-                            AND primary_occupant.status = 'ACTIVE'
                       )
                 ) co ON co.contract_id = lc.id
                 JOIN person_profiles pp
@@ -707,6 +869,7 @@ public class TenantAccountProvisioningService {
                 .occupantId(getLongOrNull(rs, "occupant_id"))
                 .profileId(getLongOrNull(rs, "profile_id"))
                 .roomRole(rs.getString("room_role"))
+                .occupantStatus(parseOccupantStatus(rs.getString("occupant_status")))
                 .roomOccupantCount(getIntOrNull(rs, "room_occupant_count"))
                 .roomMaxOccupants(getIntOrNull(rs, "room_max_occupants"))
                 .userId(userId)
@@ -728,6 +891,9 @@ public class TenantAccountProvisioningService {
                 .sentAt(toLocalDateTime(rs, "sent_at"))
                 .failedAt(toLocalDateTime(rs, "failed_at"))
                 .failureReason(rs.getString("failure_reason"))
+                .disabledReason(rs.getString("disabled_reason"))
+                .disabledBy(getLongOrNull(rs, "disabled_by"))
+                .disabledAt(toLocalDateTime(rs, "disabled_at"))
                 .attemptCount(getIntOrNull(rs, "attempt_count"))
                 .lastAttemptAt(toLocalDateTime(rs, "last_attempt_at"))
                 .profileStatus(rs.getString("profile_status"))
@@ -802,6 +968,10 @@ public class TenantAccountProvisioningService {
         return AccountStatus.valueOf(value);
     }
 
+    private OccupantStatus parseOccupantStatus(String value) {
+        return StringUtils.isEmpty(value) ? null : OccupantStatus.valueOf(value);
+    }
+
     private TenantAccountProvisioningStatus parseProvisioningStatus(String value) {
         return StringUtils.isEmpty(value)
                 ? null
@@ -856,6 +1026,15 @@ public class TenantAccountProvisioningService {
             LeaseStatus contractStatus,
             RoomStatus roomStatus,
             int occupantCount
+    ) {
+    }
+
+    private record ContractMembershipContext(
+            Long primaryTenantProfileId,
+            java.time.LocalDate startDate,
+            Long propertyId,
+            boolean hasOccupant,
+            boolean profileExists
     ) {
     }
 }

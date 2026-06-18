@@ -75,7 +75,16 @@ public class TenantFileController {
                 LEFT JOIN lease_contracts lc
                   ON lc.deleted_at IS NULL
                  AND (
-                    lc.primary_tenant_profile_id = pp.id
+                    (
+                        lc.primary_tenant_profile_id = pp.id
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM contract_occupants disabled_primary
+                            WHERE disabled_primary.contract_id = lc.id
+                              AND disabled_primary.tenant_profile_id = pp.id
+                              AND disabled_primary.status = 'DISABLED'
+                        )
+                    )
                     OR lc.id IN (
                         SELECT co.contract_id
                         FROM contract_occupants co

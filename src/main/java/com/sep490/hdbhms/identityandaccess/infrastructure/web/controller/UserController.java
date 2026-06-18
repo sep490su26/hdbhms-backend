@@ -99,6 +99,22 @@ public class UserController {
                 .build();
     }
 
+    @PatchMapping("/tenant-account-candidates/{contractId}/profiles/{profileId}/disable")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    ApiResponse<TenantAccountProvisioningResponse> disableTenantAccountAccess(
+            @PathVariable Long contractId,
+            @PathVariable Long profileId,
+            @RequestBody TenantAccountAccessDisableRequest request
+    ) {
+        return ApiResponse.<TenantAccountProvisioningResponse>builder()
+                .data(tenantAccountProvisioningService.disableTenantContext(
+                        contractId,
+                        profileId,
+                        request == null ? null : request.getReason()
+                ))
+                .build();
+    }
+
     @GetMapping("/{accountId}")
     ApiResponse<UserResponse> getAccount(@PathVariable Long accountId) {
         return ApiResponse.<UserResponse>builder()
