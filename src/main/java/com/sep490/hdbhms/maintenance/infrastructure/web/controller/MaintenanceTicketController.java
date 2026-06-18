@@ -891,6 +891,9 @@ public class MaintenanceTicketController {
                 .invoiceId(billing.invoiceId())
                 .invoiceCode(billing.invoiceCode())
                 .invoiceStatus(billing.invoiceStatus())
+                .paymentStatus(billing.status())
+                .chargeToTenant(isTenantCharge(cost))
+                .payer(cost.paidBy() == null ? null : cost.paidBy().name())
                 .lineType(billing.lineType())
                 .chargeAmount(billing.chargeAmount())
                 .completedAt(ticket.getCompletedAt())
@@ -951,6 +954,9 @@ public class MaintenanceTicketController {
                 .invoiceId(billing.invoiceId())
                 .invoiceCode(billing.invoiceCode())
                 .invoiceStatus(billing.invoiceStatus())
+                .paymentStatus(billing.status())
+                .chargeToTenant(isTenantCharge(cost))
+                .payer(cost.paidBy() == null ? null : cost.paidBy().name())
                 .lineType(billing.lineType())
                 .chargeAmount(billing.chargeAmount())
                 .completedAt(ticket.getCompletedAt())
@@ -1468,6 +1474,11 @@ public class MaintenanceTicketController {
             }
         }
         return ids;
+    }
+
+    private boolean isTenantCharge(CostInfo cost) {
+        return cost.paidBy() == PaidBy.TENANT
+                || cost.costResponsibility() == CostResponsibility.TENANT;
     }
 
     private List<Long> uniqueIds(List<Long> values) {
