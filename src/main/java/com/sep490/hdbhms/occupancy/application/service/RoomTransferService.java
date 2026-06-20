@@ -20,6 +20,7 @@ import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         LeaseContract sourceContract = leaseContractRepository.findById(command.sourceContractId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
 
-        if (!sourceContract.getPrimaryTenantProfileId().equals(requesterProfile.getId())){
+        if (!sourceContract.getPrimaryTenantProfileId().equals(requesterProfile.getId())) {
             throw new RuntimeException("Hợp đồng không");
         }
         //TODO: Check xem khách thuê đang có yêu cầu chuyển phòng nào đang chưa được giải quyết không, tránh spam
@@ -67,7 +68,9 @@ public class RoomTransferService implements RoomTransferUseCase {
         Room targetRoom = roomRepository.findById(command.targetRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         //TODO: Check xem target room có đang active không
-
+        if (targetRoom.getCurrentStatus() == RoomStatus.MAINTENANCE) {
+            throw new AppException(ApiErrorCode.UNDEFINED);
+        }
         //TODO: Check xem target room còn sức chứa không
 
         RoomTransferRequest roomTransferRequest = RoomTransferRequest.builder()
