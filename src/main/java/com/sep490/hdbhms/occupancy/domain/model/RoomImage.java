@@ -9,7 +9,7 @@ import lombok.experimental.FieldDefaults;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @ToString
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RoomImage {
@@ -18,4 +18,7 @@ public class RoomImage {
     Long fileId;
     Integer sortOrder;
     LocalDateTime createdAt;
+    boolean fallback;
+    String sourceRoomCode;
+    String fallbackUrl;
 }

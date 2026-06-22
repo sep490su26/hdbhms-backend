@@ -80,17 +80,17 @@ public class RoomController {
                                             Property property = getPropertyDetailsUseCase.execute(
                                                     new GetPropertyDetailsQuery(floor.getPropertyId())
                                             );
-                                            return RoomResponse.builder()
-                                                    .id(room.getId())
-                                                    .name(room.getName())
-                                                    .areaM2(room.getAreaM2())
-                                                    .roomCode(room.getRoomCode())
-                                                    .currentStatus(room.getCurrentStatus())
-                                                    .listedPrice(room.getListedPrice())
-                                                    .maxOccupants(room.getMaxOccupants())
-                                                    .floorName(floor.getName())
-                                                    .propertyName(property.getName())
-                                                    .build();
+                                                                                        List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
+                                                    new GetRoomImagesByRoomIdQuery(room.getId())
+                                            );
+                                            RoomResponse response = roomWebMapper.toResponse(
+                                                    room,
+                                                    floor,
+                                                    property,
+                                                    roomImages
+                                            );
+                                            response.setAreaM2(room.getAreaM2());
+                                            return response;
                                         })
                         )
                 )
@@ -194,3 +194,4 @@ public class RoomController {
                 .build();
     }
 }
+

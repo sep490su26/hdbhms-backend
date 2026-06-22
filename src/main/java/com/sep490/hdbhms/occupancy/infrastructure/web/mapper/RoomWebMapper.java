@@ -28,6 +28,9 @@ public abstract class RoomWebMapper {
     @Autowired
     protected FloorWebMapper floorWebMapper;
 
+    @Autowired
+    protected RoomImageWebMapper roomImageWebMapper;
+
     public abstract CreateRoomCommand toCommand(CreateRoomRequest request);
 
     public SendDepositFormCommand toCommand(
@@ -76,5 +79,20 @@ public abstract class RoomWebMapper {
     @Mapping(target = "images", source = "images")
     public abstract RoomDetailsResponse toRoomDetailsResponse(Room room, Floor floor, Property property, List<RoomImage> images);
 
+    @Mapping(target = "id", source = "room.id")
+    @Mapping(target = "name", source = "room.name")
+    @Mapping(target = "floorName", source = "floor.name")
+    @Mapping(target = "propertyName", source = "property.name")
+    @Mapping(target = "images", source = "images")
+    @Mapping(target = "firstImageUrl", expression = "java(resolveFirstImageUrl(images))")
+    public abstract RoomResponse toResponse(Room room, Floor floor, Property property, List<RoomImage> images);
+
     public abstract RoomResponse toResponse(Room room);
+
+    protected String resolveFirstImageUrl(List<RoomImage> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        return roomImageWebMapper.toResponse(images.get(0)).getUrl();
+    }
 }
