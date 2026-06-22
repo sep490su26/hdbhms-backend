@@ -6,9 +6,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListDepositAgreementsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListDepositAgreementsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
-import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -26,7 +24,6 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GetMyListDepositAgreementsService implements GetMyListDepositAgreementsUseCase {
     UserRepository userRepository;
-    TenantRepository tenantRepository;
     DepositAgreementRepository depositAgreementRepository;
 
     @Override
@@ -42,9 +39,7 @@ public class GetMyListDepositAgreementsService implements GetMyListDepositAgreem
                     .map(DepositAgreement::getId)
                     .toList();
         } else {
-            Tenant tenant = tenantRepository.findByUserId(user.getId())
-                    .orElseThrow(() -> new RuntimeException("Tenant Not Found"));
-            ids = depositAgreementRepository.findAllByTenantId(tenant.getId()).stream()
+            ids = depositAgreementRepository.findAllAccessibleByUserId(user.getId()).stream()
                     .map(DepositAgreement::getId)
                     .toList();
         }

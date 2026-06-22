@@ -60,7 +60,7 @@ public class DepositFormPersistenceMapper {
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_FORM_NOT_FOUND))
                         : null)
                 .idNumber(domain.getIdNumber())
                 .permanentAddress(domain.getPermanentAddress())

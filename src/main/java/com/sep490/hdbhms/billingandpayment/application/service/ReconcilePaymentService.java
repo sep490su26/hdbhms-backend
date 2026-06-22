@@ -69,6 +69,10 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
         }
 
         if (isExpired(paymentIntent, command.getTransactionTime())) {
+            if (paymentIntent.getDepositBatchId() != null
+                    && reconcileLateBatchPayment(command, paymentIntent, paymentTransaction)) {
+                return;
+            }
             paymentIntent.expirePayment();
             paymentIntentRepository.save(paymentIntent);
             paymentTransaction.reject();
@@ -133,6 +137,37 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
     private boolean canReconcile(PaymentIntent paymentIntent) {
         return paymentIntent.getStatus() == PaymentIntentStatus.PENDING
                 || paymentIntent.getStatus() == PaymentIntentStatus.EXPIRED;
+    }
+
+    private boolean reconcileLateBatchPayment(
+            ReconcilePaymentCommand command,
+            PaymentIntent paymentIntent,
+            PaymentTransaction paymentTransaction
+    ) {
+        if (paymentIntent.getInvoiceId() == null) {
+            return false;
+        }
+        Invoice invoice = invoiceRepository.findById(paymentIntent.getInvoiceId()).orElse(null);
+        if (invoice == null
+                || (invoice.getStatus() != InvoiceStatus.ISSUED
+                && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID)
+                || !isValidFullPayment(command, paymentIntent, invoice)) {
+            return false;
+        }
+
+        PaymentAllocation paymentAllocation = paymentAllocationRepository.save(PaymentAllocation.allocate(
+                paymentTransaction.getId(),
+                invoice.getId(),
+                command.getAmount()
+        ));
+        invoice.applyAmount(command.getAmount());
+        invoice = invoiceRepository.save(invoice);
+        paymentIntent.requireRefund();
+        paymentIntentRepository.save(paymentIntent);
+        paymentTransaction.setMatched();
+        paymentTransactionRepository.save(paymentTransaction);
+        completeInvoiceUseCase.execute(invoice, paymentAllocation);
+        return true;
     }
 
     private boolean isValidFullPayment(

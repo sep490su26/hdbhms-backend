@@ -37,7 +37,7 @@ public class MeterPersistenceMapper {
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.METER_NOT_FOUND))
                         : null)
                 .meterType(domain.getMeterType())
                 .meterCode(domain.getMeterCode())

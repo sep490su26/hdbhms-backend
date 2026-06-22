@@ -28,14 +28,17 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DepositContractDocumentServiceTest {
 
     @Test
     void generateOfficialContractAfterCommitDoesNotBreakPaymentFlowWhenPdfUploadFails() {
+        AtomicBoolean uploadAttempted = new AtomicBoolean(false);
         DepositAgreement agreement = DepositAgreement.builder()
                 .id(11L)
                 .depositCode("DC-TEST-001")
@@ -52,7 +55,7 @@ class DepositContractDocumentServiceTest {
                 new FakeRoomRepository(),
                 new FakePropertyRepository(),
                 new FakeDepositFormRepository(),
-                failingUploadUseCase(),
+                failingUploadUseCase(uploadAttempted),
                 query -> null,
                 defaultConfig(),
                 new FakeDepositAgreementRepository(agreement),
@@ -62,11 +65,13 @@ class DepositContractDocumentServiceTest {
         );
 
         assertDoesNotThrow(() -> service.generateOfficialContractAfterCommit(11L));
+        assertTrue(uploadAttempted.get());
         assertNull(agreement.getContractFileId());
     }
 
-    private static UploadFileUseCase failingUploadUseCase() {
+    private static UploadFileUseCase failingUploadUseCase(AtomicBoolean uploadAttempted) {
         return command -> {
+            uploadAttempted.set(true);
             throw new IOException("Simulated storage failure");
         };
     }
@@ -123,6 +128,11 @@ class DepositContractDocumentServiceTest {
 
         @Override
         public List<DepositAgreement> findAllByTenantId(Long tenantId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<DepositAgreement> findAllAccessibleByUserId(Long userId) {
             throw new UnsupportedOperationException();
         }
     }

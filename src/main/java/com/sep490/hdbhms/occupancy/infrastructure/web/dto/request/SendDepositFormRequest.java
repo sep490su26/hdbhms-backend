@@ -1,9 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.sep490.hdbhms.shared.validator.Age;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
-import com.sep490.hdbhms.shared.validator.VietnamesePhone;
 import jakarta.validation.constraints.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -23,19 +21,23 @@ public class SendDepositFormRequest {
     Long roomId;
     @NotBlank
     String fullName;
-    @Age
+    @NotNull
+    @PastOrPresent(message = "Ngày sinh không được lớn hơn ngày hiện tại")
     LocalDate dob;
     @Email
     String email;
     @NotBlank
-    @VietnamesePhone
+    @Pattern(
+            regexp = "^0\\d{9}$",
+            message = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0"
+    )
     String phone;
     @NotBlank
     String permanentAddress;
     @NotBlank
     @Pattern(
-            regexp = "^(\\d{9}|\\d{12})$",
-            message = "ID number must contain 9 or 12 digits"
+            regexp = "^(?:\\d{9}|\\d{10}|\\d{12})$",
+            message = "Số CCCD phải gồm 9, 10 hoặc 12 chữ số"
     )
     String idNumber;
     @NotBlank
@@ -46,6 +48,7 @@ public class SendDepositFormRequest {
     Integer depositMonths;
     @NotNull
     @ValidPaymentCycle
+    @JsonProperty("payment_cycle_months")
     Integer paymentCycleMonths;
     @NotNull(message = "DEPOSIT_001")
     @Min(value = 1, message = "DEPOSIT_001")
@@ -56,11 +59,21 @@ public class SendDepositFormRequest {
     @JsonProperty("co_occupants")
     List<CoOccupantRequest> coOccupants = new ArrayList<>();
     @NotNull
-    @Future(message = "Move-in date must be in the future")
+    @FutureOrPresent(message = "Ngày dự kiến vào ở không được là ngày trong quá khứ")
     LocalDate expectedMoveInDate;
     @NotNull
-    @Future(message = "Lease sign date must be in the future")
+    @FutureOrPresent(message = "Ngày hẹn ký hợp đồng không được là ngày trong quá khứ")
     LocalDate expectedLeaseSignDate;
+
+    @AssertTrue(message = "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay")
+    public boolean isExpectedMoveInDateWithinAllowedRange() {
+        return expectedMoveInDate == null || !expectedMoveInDate.isAfter(LocalDate.now().plusDays(14));
+    }
+
+    @AssertTrue(message = "Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ hôm nay")
+    public boolean isExpectedLeaseSignDateWithinAllowedRange() {
+        return expectedLeaseSignDate == null || !expectedLeaseSignDate.isAfter(LocalDate.now().plusDays(14));
+    }
 
     @AssertTrue(message = "DEPOSIT_001")
     public boolean isCoOccupantInformationValid() {
@@ -108,15 +121,11 @@ public class SendDepositFormRequest {
         if (value == null) {
             return "";
         }
-        String cleaned = value.replaceAll("[\\s.\\-()]", "");
-        if (cleaned.startsWith("+84")) {
-            return "0" + cleaned.substring(3);
-        }
-        return cleaned;
+        return value.replaceAll("[\\s.\\-()]", "");
     }
 
     private static boolean isVietnamesePhone(String value) {
-        return value.matches("0[35789]\\d{8}");
+        return value.matches("0\\d{9}");
     }
 
     @Data
@@ -129,7 +138,7 @@ public class SendDepositFormRequest {
         @JsonProperty("full_name")
         String fullName;
         @NotBlank(message = "DEPOSIT_001")
-        @VietnamesePhone(message = "DEPOSIT_001")
+        @Pattern(regexp = "^0\\d{9}$", message = "DEPOSIT_001")
         String phone;
         @NotNull(message = "DEPOSIT_001")
         @Min(value = 1, message = "DEPOSIT_001")

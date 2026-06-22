@@ -42,15 +42,15 @@ public class ContractOccupantPersistenceMapper {
                 .id(domain.getId())
                 .contract(domain.getContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getContractId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_OCCUPANT_NOT_FOUND))
                         : null)
                 .tenant(domain.getTenantId() != null
                         ? jpaTenantRepository.findById(domain.getTenantId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_OCCUPANT_NOT_FOUND))
                         : null)
                 .tenantProfile(domain.getTenantProfileId() != null
                         ? jpaPersonProfileRepository.findById(domain.getTenantProfileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_OCCUPANT_NOT_FOUND))
                         : null)
                 .occupantRole(domain.getOccupantRole())
                 .moveInDate(domain.getMoveInDate())

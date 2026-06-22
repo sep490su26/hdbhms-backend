@@ -37,6 +37,7 @@ public class MaintenanceTicket {
     String rejectionReason;
     Long assignedToId;
     String workerName;
+    String repairmanPhone;
     String repairItems;
     LocalDateTime completedAt;
     LocalDateTime createdAt;

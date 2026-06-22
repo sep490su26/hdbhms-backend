@@ -1,0 +1,862 @@
+[INFO] Scanning for projects...
+[WARNING] 
+[WARNING] Some problems were encountered while building the effective model for com:hdbhms:jar:0.0.1-SNAPSHOT
+[WARNING] 'dependencies.dependency.scope' for org.springframework.boot:spring-boot-configuration-processor:jar must be one of [provided, compile, runtime, test, system] but is 'annotationProcessor'. @ line 105, column 20
+[WARNING] 'dependencies.dependency.scope' for org.springframework.modulith:spring-modulith-bom:pom must be one of [provided, compile, runtime, test, system] but is 'import'. @ line 239, column 20
+[WARNING] 
+[WARNING] It is highly recommended to fix these problems because they threaten the stability of your build.
+[WARNING] 
+[WARNING] For this reason, future Maven versions might no longer support building such malformed projects.
+[WARNING] 
+[INFO] 
+[INFO] -----------------------------< com:hdbhms >-----------------------------
+[INFO] Building hdbhms 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.4.4:run (default-cli) > test-compile @ hdbhms >>>
+[INFO] 
+[INFO] --- jacoco:0.8.12:prepare-agent (default) @ hdbhms ---
+[INFO] argLine set to -javaagent:C:\\Users\\Admin\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=D:\\Web_Source\\hdbhms-backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- os:1.7.1:detect (initialize) @ hdbhms ---
+[INFO] ------------------------------------------------------------------------
+[INFO] Detecting the operating system and CPU architecture
+[INFO] ------------------------------------------------------------------------
+[INFO] os.detected.name: windows
+[INFO] os.detected.arch: x86_64
+[INFO] os.detected.bitness: 64
+[INFO] os.detected.version: 10.0
+[INFO] os.detected.version.major: 10
+[INFO] os.detected.version.minor: 0
+[INFO] os.detected.classifier: windows-x86_64
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ hdbhms ---
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] Copying 39 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ hdbhms ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 879 source files with javac [debug parameters release 21] to target\classes
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/notification/infrastructure/persistence/entity/NotificationOutboxEntity.java:[76,13] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/persistence/entity/RoomEntity.java:[72,27] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/shared/dto/response/ApiResponse.java:[15,9] @Builder will ignore the initializing expression entirely. If you want the initializing expression to serve as default, add @Builder.Default. If it is not supposed to be settable during building, make the field final.
+[INFO] MapStruct: Using accessor naming strategy: org.mapstruct.ap.spi.DefaultAccessorNamingStrategy
+[INFO] MapStruct: Using builder provider: org.mapstruct.ap.spi.DefaultBuilderProvider
+[INFO] MapStruct: Using enum naming strategy: org.mapstruct.ap.spi.DefaultEnumMappingStrategy
+[INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomImageWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomImageResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.RoomImage roomImage).
+[INFO] -- MapStruct: mapping property: roomImage.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: roomImage.getId().
+[INFO] -- MapStruct: mapping property: roomImage.getFileId() to: fileId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: roomImage.getFileId().
+[INFO] -- MapStruct: mapping property: roomImage.getSortOrder() to: sortOrder(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: roomImage.getSortOrder().
+[INFO] -- MapStruct: mapping property: roomImage.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: roomImage.getCreatedAt().
+[INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.DepositAgreementWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.DepositAgreement depositAgreement, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] -- MapStruct: mapping property: depositAgreement.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getId().
+[INFO] -- MapStruct: mapping property: depositAgreement.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getCreatedAt().
+[INFO] -- MapStruct: mapping property: depositAgreement.getDepositCode() to: depositCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getDepositCode().
+[INFO] -- MapStruct: mapping property: room.getRoomCode() to: roomCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getRoomCode().
+[INFO] -- MapStruct: mapping property: depositAgreement.getAmount() to: amount(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getAmount().
+[INFO] -- MapStruct: mapping property: depositAgreement.getExpectedMoveInDate() to: expectedMoveInDate(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getExpectedMoveInDate().
+[INFO] -- MapStruct: mapping property: depositAgreement.getExpectedLeaseSignDate() to: expectedLeaseSignDate(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getExpectedLeaseSignDate().
+[INFO] -- MapStruct: mapping property: depositAgreement.getStatus() to: status(com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getStatus().
+[INFO] -- MapStruct: mapping property: depositAgreement.getConfirmedAt() to: confirmedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getConfirmedAt().
+[INFO] -- MapStruct: mapping property: depositAgreement.getContractFileId() to: contractFileId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getContractFileId().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/DepositAgreementWebMapper.java:[14,30] Unmapped target properties: "propertyName, depositorFullName, depositorPhone, depositorEmail, contractDownloadUrl".
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementDetailsResponse toDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.DepositAgreement depositAgreement, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] -- MapStruct: mapping property: depositAgreement.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getId().
+[INFO] -- MapStruct: mapping property: depositAgreement.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getCreatedAt().
+[INFO] -- MapStruct: mapping property: depositAgreement.getDepositCode() to: depositCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getDepositCode().
+[INFO] -- MapStruct: mapping property: room.getRoomCode() to: roomCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getRoomCode().
+[INFO] -- MapStruct: mapping property: depositAgreement.getAmount() to: amount(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getAmount().
+[INFO] -- MapStruct: mapping property: depositAgreement.getExpectedMoveInDate() to: expectedMoveInDate(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getExpectedMoveInDate().
+[INFO] -- MapStruct: mapping property: depositAgreement.getExpectedLeaseSignDate() to: expectedLeaseSignDate(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getExpectedLeaseSignDate().
+[INFO] -- MapStruct: mapping property: depositAgreement.getDepositExpiresAt() to: depositExpiresAt(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getDepositExpiresAt().
+[INFO] -- MapStruct: mapping property: depositAgreement.getStatus() to: status(com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getStatus().
+[INFO] -- MapStruct: mapping property: depositAgreement.getConfirmedAt() to: confirmedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getConfirmedAt().
+[INFO] -- MapStruct: mapping property: depositAgreement.getContractFileId() to: contractFileId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getContractFileId().
+[INFO] -- MapStruct: mapping property: depositAgreement.getNote() to: note(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: depositAgreement.getNote().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/DepositAgreementWebMapper.java:[18,37] Unmapped target properties: "room, propertyName, propertyAddress, depositorFullName, depositorPhone, depositorEmail, depositorPermanentAddress, contractDownloadUrl, idFrontFileId, idFrontFileUrl, idBackFileId, idBackFileUrl, portraitFileId, portraitFileUrl".
+[INFO]  MapStruct: processing: com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper.
+[INFO]  MapStruct: processing: com.sep490.hdbhms.billingandpayment.infrastructure.web.mapper.BalanceWebMapper.
+[INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.PropertyWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.Property property).
+[INFO] -- MapStruct: mapping property: property.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: property.getId().
+[INFO] -- MapStruct: mapping property: property.getPropertyCode() to: propertyCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getPropertyCode().
+[INFO] -- MapStruct: mapping property: property.getName() to: name(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getName().
+[INFO] -- MapStruct: mapping property: property.getPropertyType() to: propertyType(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType).
+[INFO] -- MapStruct: selecting property mapping: property.getPropertyType().
+[INFO] -- MapStruct: mapping property: property.getAddressLine() to: addressLine(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getAddressLine().
+[INFO] -- MapStruct: mapping property: property.getDescription() to: description(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getDescription().
+[INFO] -- MapStruct: mapping property: property.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus).
+[INFO] -- MapStruct: selecting property mapping: property.getStatus().
+[INFO] -- MapStruct: mapping property: property.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: property.getCreatedAt().
+[INFO] -- MapStruct: mapping property: property.getUpdatedAt() to: updatedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: property.getUpdatedAt().
+[INFO] -- MapStruct: mapping property: property.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: property.getDeletedAt().
+[INFO]  MapStruct: processing: com.sep490.hdbhms.maintenance.infrastructure.web.mapper.MaintenanceTicketWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketDetailsResponse toDetailsResponse(com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket maintenanceTicket).
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getId().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getTicketCode() to: ticketCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getTicketCode().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getPropertyId() to: propertyId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getPropertyId().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getRoomId() to: roomId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getRoomId().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getTicketScope() to: ticketScope(com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getTicketScope().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getPriority() to: priority(com.sep490.hdbhms.maintenance.domain.value_objects.Priority).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getPriority().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getCategory() to: category(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getCategory().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getTitle() to: title(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getTitle().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getDescription() to: description(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getDescription().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getStatus() to: status(com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getStatus().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getWorkerName() to: workerName(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getWorkerName().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getRepairItems() to: repairItems(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getRepairItems().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getRejectionReason() to: rejectionReason(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getRejectionReason().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getCompletedAt() to: completedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getCompletedAt().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getCreatedAt().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getUpdatedAt() to: updatedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getUpdatedAt().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/maintenance/infrastructure/web/mapper/MaintenanceTicketWebMapper.java:[10,54] Unmapped target properties: "roomCode, roomName, rootCause, costAmount, costDescription, paidBy, beforeAttachments, afterAttachments, events".
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketResponse toResponse(com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket maintenanceTicket).
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getId().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getTicketCode() to: ticketCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getTicketCode().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getPropertyId() to: propertyId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getPropertyId().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getRoomId() to: roomId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getRoomId().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getTicketScope() to: ticketScope(com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getTicketScope().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getPriority() to: priority(com.sep490.hdbhms.maintenance.domain.value_objects.Priority).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getPriority().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getCategory() to: category(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getCategory().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getTitle() to: title(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getTitle().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getDescription() to: description(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getDescription().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getStatus() to: status(com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getStatus().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getWorkerName() to: workerName(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getWorkerName().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getRepairItems() to: repairItems(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getRepairItems().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getCompletedAt() to: completedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getCompletedAt().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getUpdatedAt() to: updatedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getUpdatedAt().
+[INFO] -- MapStruct: mapping property: maintenanceTicket.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: maintenanceTicket.getCreatedAt().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/maintenance/infrastructure/web/mapper/MaintenanceTicketWebMapper.java:[12,47] Unmapped target properties: "roomCode, roomName, rootCause, costAmount, costDescription, paidBy".
+[INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.FloorWebMapper.
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/FloorWebMapper.java:[9,1] The mapper com.sep490.hdbhms.occupancy.infrastructure.web.mapper.FloorWebMapper is referenced itself in Mapper#uses.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.FloorResponse toFloorResponse(com.sep490.hdbhms.occupancy.domain.model.Floor floor, com.sep490.hdbhms.occupancy.domain.model.Property property).
+[INFO] -- MapStruct: mapping property: floor.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: floor.getId().
+[INFO] -- MapStruct: mapping property: floor.getName() to: name(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: floor.getName().
+[INFO] -- MapStruct: mapping property: floor.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.FloorStatus).
+[INFO] -- MapStruct: selecting property mapping: floor.getStatus().
+[INFO] -- MapStruct: mapping property: floor.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: floor.getCreatedAt().
+[INFO] -- MapStruct: mapping property: floor.getUpdatedAt() to: updatedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: floor.getUpdatedAt().
+[INFO] -- MapStruct: mapping property: floor.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: floor.getDeletedAt().
+[INFO] -- MapStruct: mapping property: property to: property(com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse).
+[INFO] -- MapStruct: mapping property: property.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: property.getId().
+[INFO] -- MapStruct: mapping property: property.getPropertyCode() to: propertyCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getPropertyCode().
+[INFO] -- MapStruct: mapping property: property.getName() to: name(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getName().
+[INFO] -- MapStruct: mapping property: property.getPropertyType() to: propertyType(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType).
+[INFO] -- MapStruct: selecting property mapping: property.getPropertyType().
+[INFO] -- MapStruct: mapping property: property.getAddressLine() to: addressLine(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getAddressLine().
+[INFO] -- MapStruct: mapping property: property.getDescription() to: description(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: property.getDescription().
+[INFO] -- MapStruct: mapping property: property.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus).
+[INFO] -- MapStruct: selecting property mapping: property.getStatus().
+[INFO] -- MapStruct: mapping property: property.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: property.getCreatedAt().
+[INFO] -- MapStruct: mapping property: property.getUpdatedAt() to: updatedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: property.getUpdatedAt().
+[INFO] -- MapStruct: mapping property: property.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: property.getDeletedAt().
+[INFO] -- MapStruct: creating property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse #propertyToPropertyResponse(property).
+[INFO] -- MapStruct: selecting property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse #propertyToPropertyResponse(property).
+[INFO] -- MapStruct: mapping property: floor.getFloorCode() to: floorCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: floor.getFloorCode().
+[INFO] -- MapStruct: mapping property: floor.getSortOrder() to: sortOrder(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: floor.getSortOrder().
+[INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.VisitRequestWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.application.port.in.command.CreateVisitRequestCommand toCommand(com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateVisitRequestRequest request).
+[INFO] -- MapStruct: mapping property: request.getPropertyId() to: propertyId.
+[INFO] -- MapStruct: selecting property mapping: request.getPropertyId().
+[INFO] -- MapStruct: mapping property: request.getRoomId() to: roomId.
+[INFO] -- MapStruct: selecting property mapping: request.getRoomId().
+[INFO] -- MapStruct: mapping property: request.getVisitorName() to: visitorName.
+[INFO] -- MapStruct: selecting property mapping: request.getVisitorName().
+[INFO] -- MapStruct: mapping property: request.getVisitorPhone() to: visitorPhone.
+[INFO] -- MapStruct: selecting property mapping: request.getVisitorPhone().
+[INFO] -- MapStruct: mapping property: request.getVisitorEmail() to: visitorEmail.
+[INFO] -- MapStruct: selecting property mapping: request.getVisitorEmail().
+[INFO] -- MapStruct: mapping property: request.getPreferredStart() to: preferredStart.
+[INFO] -- MapStruct: selecting property mapping: request.getPreferredStart().
+[INFO] -- MapStruct: mapping property: request.getNotes() to: notes.
+[INFO] -- MapStruct: selecting property mapping: request.getNotes().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestDetailsResponse toDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.VisitRequest visitRequest, com.sep490.hdbhms.occupancy.domain.model.Property property, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] -- MapStruct: mapping property: visitRequest.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getId().
+[INFO] -- MapStruct: mapping property: visitRequest.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getCreatedAt().
+[INFO] -- MapStruct: mapping property: visitRequest.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getDeletedAt().
+[INFO] -- MapStruct: mapping property: visitRequest.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getStatus().
+[INFO] -- MapStruct: mapping property: visitRequest.getVisitorName() to: visitorName(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorName().
+[INFO] -- MapStruct: mapping property: visitRequest.getVisitorPhone() to: visitorPhone(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorPhone().
+[INFO] -- MapStruct: mapping property: visitRequest.getVisitorEmail() to: visitorEmail(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorEmail().
+[INFO] -- MapStruct: mapping property: visitRequest.getPreferredStart() to: preferredStart(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getPreferredStart().
+[INFO] -- MapStruct: mapping property: visitRequest.getNotes() to: notes(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getNotes().
+[INFO] -- MapStruct: mapping property: property to: property(com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse).
+[INFO] -- MapStruct: selecting property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse PropertyWebMapper#toResponse(property).
+[INFO] -- MapStruct: mapping property: room to: room(com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse).
+[INFO] -- MapStruct: mapping property: room.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: room.getId().
+[INFO] -- MapStruct: mapping property: room.getRoomCode() to: roomCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getRoomCode().
+[INFO] -- MapStruct: mapping property: room.getName() to: name(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getName().
+[INFO] -- MapStruct: mapping property: room.getListedPrice() to: listedPrice(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: room.getListedPrice().
+[INFO] -- MapStruct: mapping property: room.getAreaM2() to: areaM2(java.math.BigDecimal).
+[INFO] -- MapStruct: selecting property mapping: room.getAreaM2().
+[INFO] -- MapStruct: mapping property: room.getMaxOccupants() to: maxOccupants(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: room.getMaxOccupants().
+[INFO] -- MapStruct: mapping property: room.getCurrentStatus() to: currentStatus(com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus).
+[INFO] -- MapStruct: selecting property mapping: room.getCurrentStatus().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/VisitRequestWebMapper.java:[21,33] Unmapped target properties: "floorName, propertyName, firstImageUrl". Mapping from property "com.sep490.hdbhms.occupancy.domain.model.Room room" to "com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse room".
+[INFO] -- MapStruct: creating property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse #roomToRoomResponse(room).
+[INFO] -- MapStruct: selecting property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse #roomToRoomResponse(room).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.VisitRequest visitRequest).
+[INFO] -- MapStruct: mapping property: visitRequest.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getId().
+[INFO] -- MapStruct: mapping property: visitRequest.getPropertyId() to: propertyId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getPropertyId().
+[INFO] -- MapStruct: mapping property: visitRequest.getRoomId() to: roomId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getRoomId().
+[INFO] -- MapStruct: mapping property: visitRequest.getVisitorName() to: visitorName(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorName().
+[INFO] -- MapStruct: mapping property: visitRequest.getVisitorPhone() to: visitorPhone(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorPhone().
+[INFO] -- MapStruct: mapping property: visitRequest.getVisitorEmail() to: visitorEmail(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorEmail().
+[INFO] -- MapStruct: mapping property: visitRequest.getPreferredStart() to: preferredStart(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getPreferredStart().
+[INFO] -- MapStruct: mapping property: visitRequest.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getStatus().
+[INFO] -- MapStruct: mapping property: visitRequest.getNotes() to: notes(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getNotes().
+[INFO] -- MapStruct: mapping property: visitRequest.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getCreatedAt().
+[INFO] -- MapStruct: mapping property: visitRequest.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: visitRequest.getDeletedAt().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/VisitRequestWebMapper.java:[23,26] Unmapped target properties: "propertyName, roomName".
+[INFO]  MapStruct: processing: com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AuthenticationWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.IntrospectResponse toResponse(com.sep490.hdbhms.identityandaccess.domain.model.Introspect introspect).
+[INFO] -- MapStruct: mapping property: introspect.valid() to: valid(boolean).
+[INFO] -- MapStruct: selecting property mapping: introspect.valid().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.application.port.in.command.LoginCommand toCommand(com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.AuthenticationRequest request).
+[INFO] -- MapStruct: mapping property: request.getPhone() to: phone.
+[INFO] -- MapStruct: selecting property mapping: request.getPhone().
+[INFO] -- MapStruct: mapping property: request.getPassword() to: password.
+[INFO] -- MapStruct: selecting property mapping: request.getPassword().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.application.port.in.query.IntrospectTokenQuery toCommand(com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.IntrospectRequest request).
+[INFO] -- MapStruct: mapping property: request.getToken() to: token.
+[INFO] -- MapStruct: selecting property mapping: request.getToken().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.application.port.in.command.RefreshAccessTokenCommand toCommand(com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.RefreshRequest request).
+[INFO] -- MapStruct: mapping property: request.getSessionId() to: sessionId.
+[INFO] -- MapStruct: selecting property mapping: request.getSessionId().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.application.port.in.command.LogoutCommand toCommand(com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.LogoutRequest request).
+[INFO] -- MapStruct: mapping property: request.getToken() to: token.
+[INFO] -- MapStruct: selecting property mapping: request.getToken().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.application.port.in.command.RequestResetPasswordCommand toCommand(com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.AccountPasswordResetRequest request).
+[INFO] -- MapStruct: mapping property: request.getEmail() to: email.
+[INFO] -- MapStruct: selecting property mapping: request.getEmail().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.application.port.in.command.ResetPasswordCommand toCommand(com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.ResetPasswordRequest request).
+[INFO] -- MapStruct: mapping property: request.getToken() to: token.
+[INFO] -- MapStruct: selecting property mapping: request.getToken().
+[INFO] -- MapStruct: mapping property: request.getNewPassword() to: newPassword.
+[INFO] -- MapStruct: selecting property mapping: request.getNewPassword().
+[INFO]  MapStruct: processing: com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.PersonProfileWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PersonProfileResponse toResponse(com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile personProfile, com.sep490.hdbhms.file.domain.model.FileMetadata fileMetadata).
+[INFO] -- MapStruct: mapping property: personProfile.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getId().
+[INFO] -- MapStruct: mapping property: personProfile.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getCreatedAt().
+[INFO] -- MapStruct: mapping property: personProfile.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getDeletedAt().
+[INFO] -- MapStruct: mapping property: personProfile.getUserId() to: userId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getUserId().
+[INFO] -- MapStruct: mapping property: personProfile.getFullName() to: fullName(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getFullName().
+[INFO] -- MapStruct: mapping property: personProfile.getDob() to: dob(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getDob().
+[INFO] -- MapStruct: mapping property: personProfile.getGender() to: gender(com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getGender().
+[INFO] -- MapStruct: mapping property: personProfile.getPhone() to: phone(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getPhone().
+[INFO] -- MapStruct: mapping property: personProfile.getEmail() to: email(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getEmail().
+[INFO] -- MapStruct: mapping property: personProfile.getPermanentAddress() to: permanentAddress(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getPermanentAddress().
+[INFO] -- MapStruct: mapping property: personProfile.getUpdatedAt() to: updatedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: personProfile.getUpdatedAt().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/identityandaccess/infrastructure/web/mapper/PersonProfileWebMapper.java:[16,27] Unmapped target properties: "portraitFile, identityDocument".
+[INFO]  MapStruct: processing: com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.PermissionRequestWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestResponse toResponse(com.sep490.hdbhms.identityandaccess.domain.model.PermissionRequest permissionRequest).
+[INFO] -- MapStruct: mapping property: permissionRequest.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getId().
+[INFO] -- MapStruct: mapping property: permissionRequest.getRequesterUserId() to: requesterUserId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getRequesterUserId().
+[INFO] -- MapStruct: mapping property: permissionRequest.getTargetType() to: targetType(com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionTargetType).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getTargetType().
+[INFO] -- MapStruct: mapping property: permissionRequest.getTargetId() to: targetId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getTargetId().
+[INFO] -- MapStruct: mapping property: permissionRequest.getRejectedReason() to: rejectedReason(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getRejectedReason().
+[INFO] -- MapStruct: mapping property: permissionRequest.getStatus() to: status(com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getStatus().
+[INFO] -- MapStruct: mapping property: permissionRequest.getExpiresAt() to: expiresAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getExpiresAt().
+[INFO] -- MapStruct: mapping property: permissionRequest.getDecidedAt() to: decidedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getDecidedAt().
+[INFO] -- MapStruct: mapping property: permissionRequest.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getCreatedAt().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestApprovalResponse toApprovalResponse(com.sep490.hdbhms.identityandaccess.domain.model.PermissionRequest permissionRequest).
+[INFO] -- MapStruct: mapping property: permissionRequest.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getId().
+[INFO] -- MapStruct: mapping property: permissionRequest.getStatus() to: status(com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getStatus().
+[INFO] -- MapStruct: mapping property: permissionRequest.getDecidedAt() to: decidedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getDecidedAt().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestRejectionResponse toRejectionResponse(com.sep490.hdbhms.identityandaccess.domain.model.PermissionRequest permissionRequest).
+[INFO] -- MapStruct: mapping property: permissionRequest.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getId().
+[INFO] -- MapStruct: mapping property: permissionRequest.getRejectedReason() to: rejectedReason(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getRejectedReason().
+[INFO] -- MapStruct: mapping property: permissionRequest.getStatus() to: status(com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getStatus().
+[INFO] -- MapStruct: mapping property: permissionRequest.getDecidedAt() to: decidedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: permissionRequest.getDecidedAt().
+[INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.application.port.in.command.CreateRoomCommand toCommand(com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateRoomRequest request).
+[INFO] -- MapStruct: mapping property: request.getPropertyId() to: propertyId.
+[INFO] -- MapStruct: selecting property mapping: request.getPropertyId().
+[INFO] -- MapStruct: mapping property: request.getFloorId() to: floorId.
+[INFO] -- MapStruct: selecting property mapping: request.getFloorId().
+[INFO] -- MapStruct: mapping property: request.getRoomCode() to: roomCode.
+[INFO] -- MapStruct: selecting property mapping: request.getRoomCode().
+[INFO] -- MapStruct: mapping property: request.getName() to: name.
+[INFO] -- MapStruct: selecting property mapping: request.getName().
+[INFO] -- MapStruct: mapping property: request.getAreaM2() to: areaM2.
+[INFO] -- MapStruct: selecting property mapping: request.getAreaM2().
+[INFO] -- MapStruct: mapping property: request.getListedPrice() to: listedPrice.
+[INFO] -- MapStruct: selecting property mapping: request.getListedPrice().
+[INFO] -- MapStruct: mapping property: request.getMaxOccupants() to: maxOccupants.
+[INFO] -- MapStruct: selecting property mapping: request.getMaxOccupants().
+[INFO] -- MapStruct: mapping property: request.getSortOrder() to: sortOrder.
+[INFO] -- MapStruct: selecting property mapping: request.getSortOrder().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse toRoomDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.Room room, com.sep490.hdbhms.occupancy.domain.model.Floor floor, com.sep490.hdbhms.occupancy.domain.model.Property property, java.util.List<com.sep490.hdbhms.occupancy.domain.model.RoomImage> images).
+[INFO] -- MapStruct: mapping property: room.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: room.getId().
+[INFO] -- MapStruct: mapping property: room.getName() to: name(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getName().
+[INFO] -- MapStruct: mapping property: room.getSortOrder() to: sortOrder(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: room.getSortOrder().
+[INFO] -- MapStruct: mapping property: images to: images(java.util.List<com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomImageResponse>).
+[INFO] -- MapStruct: selecting element mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomImageResponse RoomImageWebMapper#toResponse(roomImage).
+[INFO] -- MapStruct: creating property mapping: java.util.List<com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomImageResponse> #roomImageListToRoomImageResponseList(images).
+[INFO] -- MapStruct: selecting property mapping: java.util.List<com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomImageResponse> #roomImageListToRoomImageResponseList(images).
+[INFO] -- MapStruct: mapping property: room.getRoomCode() to: roomCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getRoomCode().
+[INFO] -- MapStruct: mapping property: room.getAreaM2() to: areaM2(java.math.BigDecimal).
+[INFO] -- MapStruct: selecting property mapping: room.getAreaM2().
+[INFO] -- MapStruct: mapping property: room.getListedPrice() to: listedPrice(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: room.getListedPrice().
+[INFO] -- MapStruct: mapping property: room.getCurrentStatus() to: currentStatus(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getCurrentStatus().name().
+[INFO] -- MapStruct: mapping property: room.getPublicNote() to: publicNote(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getPublicNote().
+[INFO] -- MapStruct: mapping property: room.getMaxOccupants() to: maxOccupants(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: room.getMaxOccupants().
+[INFO] -- MapStruct: mapping property: room.getPositionX() to: positionX(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: room.getPositionX().
+[INFO] -- MapStruct: mapping property: room.getPositionY() to: positionY(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: room.getPositionY().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] -- MapStruct: mapping property: room.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: room.getId().
+[INFO] -- MapStruct: mapping property: room.getRoomCode() to: roomCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getRoomCode().
+[INFO] -- MapStruct: mapping property: room.getName() to: name(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getName().
+[INFO] -- MapStruct: mapping property: room.getListedPrice() to: listedPrice(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: room.getListedPrice().
+[INFO] -- MapStruct: mapping property: room.getAreaM2() to: areaM2(java.math.BigDecimal).
+[INFO] -- MapStruct: selecting property mapping: room.getAreaM2().
+[INFO] -- MapStruct: mapping property: room.getMaxOccupants() to: maxOccupants(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: room.getMaxOccupants().
+[INFO] -- MapStruct: mapping property: room.getCurrentStatus() to: currentStatus(com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus).
+[INFO] -- MapStruct: selecting property mapping: room.getCurrentStatus().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/RoomWebMapper.java:[79,34] Unmapped target properties: "floorName, propertyName, firstImageUrl".
+[INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.LeaseContractWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.LeaseContract leaseContract, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] -- MapStruct: mapping property: leaseContract.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getId().
+[INFO] -- MapStruct: mapping property: leaseContract.getContractCode() to: contractCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getContractCode().
+[INFO] -- MapStruct: mapping property: room.getRoomCode() to: roomCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: room.getRoomCode().
+[INFO] -- MapStruct: mapping property: leaseContract.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getStatus().
+[INFO] -- MapStruct: mapping property: leaseContract.getSignedAt() to: signedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getSignedAt().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractDetailsResponse toDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.LeaseContract leaseContract, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] -- MapStruct: mapping property: leaseContract.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getId().
+[INFO] -- MapStruct: mapping property: leaseContract.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getCreatedAt().
+[INFO] -- MapStruct: mapping property: leaseContract.getContractCode() to: contractCode(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getContractCode().
+[INFO] -- MapStruct: mapping property: leaseContract.getStartDate() to: startDate(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getStartDate().
+[INFO] -- MapStruct: mapping property: leaseContract.getEndDate() to: endDate(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getEndDate().
+[INFO] -- MapStruct: mapping property: leaseContract.getRentStartDate() to: rentStartDate(java.time.LocalDate).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getRentStartDate().
+[INFO] -- MapStruct: mapping property: leaseContract.getMonthlyRent() to: monthlyRent(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getMonthlyRent().
+[INFO] -- MapStruct: mapping property: leaseContract.getPaymentCycleMonths() to: paymentCycleMonths(java.lang.Integer).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getPaymentCycleMonths().
+[INFO] -- MapStruct: mapping property: leaseContract.getDepositAmount() to: depositAmount(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getDepositAmount().
+[INFO] -- MapStruct: mapping property: leaseContract.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getStatus().
+[INFO] -- MapStruct: mapping property: leaseContract.getContractFileId() to: contractFileId(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getContractFileId().
+[INFO] -- MapStruct: mapping property: leaseContract.getSignedAt() to: signedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: leaseContract.getSignedAt().
+[INFO] -- MapStruct: mapping property: room to: room(com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse).
+[INFO] -- MapStruct: selecting property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse RoomWebMapper#toResponse(room).
+[INFO]  MapStruct: processing: com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper.
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.application.port.in.command.CreateUserCommand toCommand(com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.UserCreationRequest request).
+[INFO] -- MapStruct: mapping property: request.getFullName() to: fullName(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: request.getFullName().
+[INFO] -- MapStruct: mapping property: request.getEmail() to: email(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: request.getEmail().
+[INFO] -- MapStruct: mapping property: request.getPhone() to: phone(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: request.getPhone().
+[INFO] -- MapStruct: mapping property: request.getInitialRole() to: initialRole(com.sep490.hdbhms.identityandaccess.domain.value_objects.Role).
+[INFO] -- MapStruct: selecting property mapping: request.getInitialRole().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserResponse toAccountResponse(com.sep490.hdbhms.identityandaccess.domain.model.User user).
+[INFO] -- MapStruct: mapping property: user.getId() to: id(java.lang.Long).
+[INFO] -- MapStruct: selecting property mapping: user.getId().
+[INFO] -- MapStruct: mapping property: user.getPhone() to: phone(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: user.getPhone().
+[INFO] -- MapStruct: mapping property: user.getEmail() to: email(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: user.getEmail().
+[INFO] -- MapStruct: mapping property: user.getRole() to: role(com.sep490.hdbhms.identityandaccess.domain.value_objects.Role).
+[INFO] -- MapStruct: selecting property mapping: user.getRole().
+[INFO] -- MapStruct: mapping property: user.isMustChangePassword() to: mustChangePassword(boolean).
+[INFO] -- MapStruct: selecting property mapping: user.isMustChangePassword().
+[INFO] -- MapStruct: mapping property: user.getStatus() to: status(com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus).
+[INFO] -- MapStruct: selecting property mapping: user.getStatus().
+[INFO] -- MapStruct: mapping property: user.getLastLoginAt() to: lastLoginAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: user.getLastLoginAt().
+[INFO] -- MapStruct: mapping property: user.getCreatedAt() to: createdAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: user.getCreatedAt().
+[INFO] -- MapStruct: mapping property: user.getUpdatedAt() to: updatedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: user.getUpdatedAt().
+[INFO] -- MapStruct: mapping property: user.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: user.getDeletedAt().
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.LoginHistoryResponse toLoginHistoryResponse(com.sep490.hdbhms.identityandaccess.domain.model.LoginHistory loginHistory).
+[INFO] -- MapStruct: mapping property: loginHistory.getStatus() to: status(com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus).
+[INFO] -- MapStruct: selecting property mapping: loginHistory.getStatus().
+[INFO] -- MapStruct: mapping property: loginHistory.getIpAddress() to: ipAddress(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: loginHistory.getIpAddress().
+[INFO] -- MapStruct: mapping property: loginHistory.getUserAgent() to: userAgent(java.lang.String).
+[INFO] -- MapStruct: selecting property mapping: loginHistory.getUserAgent().
+[INFO] -- MapStruct: mapping property: loginHistory.getMethod() to: method(com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod).
+[INFO] -- MapStruct: selecting property mapping: loginHistory.getMethod().
+[INFO] -- MapStruct: mapping property: loginHistory.getLoggedInAt() to: loggedInAt(java.time.LocalDateTime).
+[INFO] -- MapStruct: selecting property mapping: loginHistory.getLoggedInAt().
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/identityandaccess/infrastructure/web/mapper/UserWebMapper.java:[19,26] Unmapped target property: "accountId".
+[INFO] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/shared/utils/CookieUtils.java: D:\Web_Source\hdbhms-backend\src\main\java\com\sep490\hdbhms\shared\utils\CookieUtils.java uses or overrides a deprecated API.
+[INFO] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/shared/utils/CookieUtils.java: Recompile with -Xlint:deprecation for details.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ hdbhms ---
+[INFO] skip non existing resourceDirectory D:\Web_Source\hdbhms-backend\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ hdbhms ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 5 source files with javac [debug parameters release 21] to target\test-classes
+[WARNING] The following options were not recognized by any processor: '[mapstruct.verbose, mapstruct.defaultComponentModel, mapstruct.suppressGeneratorTimestamp]'
+[INFO] 
+[INFO] <<< spring-boot:3.4.4:run (default-cli) < test-compile @ hdbhms <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.4.4:run (default-cli) @ hdbhms ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.4)
+
+2026-06-08T16:53:13.127+07:00  INFO 18340 --- [hdbhms] [  restartedMain] com.sep490.hdbhms.HdbhmsApplication      : Starting HdbhmsApplication using Java 21.0.11 with PID 18340 (D:\Web_Source\hdbhms-backend\target\classes started by Admin in D:\Web_Source\hdbhms-backend)
+2026-06-08T16:53:13.132+07:00  INFO 18340 --- [hdbhms] [  restartedMain] com.sep490.hdbhms.HdbhmsApplication      : The following 1 profile is active: "dev"
+2026-06-08T16:53:13.212+07:00  INFO 18340 --- [hdbhms] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-06-08T16:53:13.212+07:00  INFO 18340 --- [hdbhms] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-06-08T16:53:19.226+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.s.b.c.c.annotation.BatchRegistrar      : Finished Spring Batch infrastructure beans configuration in 12 ms.
+2026-06-08T16:53:19.245+07:00  INFO 18340 --- [hdbhms] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-06-08T16:53:19.246+07:00  INFO 18340 --- [hdbhms] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-06-08T16:53:20.319+07:00  INFO 18340 --- [hdbhms] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 1057 ms. Found 52 JPA repository interfaces.
+2026-06-08T16:53:23.253+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-06-08T16:53:23.348+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-08T16:53:23.350+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.39]
+2026-06-08T16:53:23.500+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-08T16:53:23.504+07:00  INFO 18340 --- [hdbhms] [  restartedMain] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 10288 ms
+2026-06-08T16:53:24.856+07:00  INFO 18340 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-06-08T16:53:25.752+07:00  INFO 18340 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@22572d84
+2026-06-08T16:53:25.756+07:00  INFO 18340 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-06-08T16:53:25.865+07:00  INFO 18340 --- [hdbhms] [  restartedMain] org.flywaydb.core.FlywayExecutor         : Database: jdbc:mysql://127.0.0.1:3308/hdbhms_web?serverTimezone=UTC (MySQL 8.0)
+2026-06-08T16:53:26.051+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.f.core.internal.command.DbValidate     : Successfully validated 32 migrations (execution time 00:00.111s)
+2026-06-08T16:53:26.102+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.f.core.internal.command.DbMigrate      : Current version of schema `hdbhms_web`: 31
+2026-06-08T16:53:26.110+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.f.core.internal.command.DbMigrate      : Schema `hdbhms_web` is up to date. No migration necessary.
+2026-06-08T16:53:26.410+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-06-08T16:53:26.568+07:00  INFO 18340 --- [hdbhms] [  restartedMain] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.11.Final
+2026-06-08T16:53:26.631+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-06-08T16:53:27.119+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-06-08T16:53:27.261+07:00  INFO 18340 --- [hdbhms] [  restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 8.0.46
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-06-08T16:53:30.827+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-06-08T16:53:30.906+07:00  INFO 18340 --- [hdbhms] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-06-08T16:53:31.717+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+Controllers: 32
+2026-06-08T16:53:37.113+07:00  INFO 18340 --- [hdbhms] [  restartedMain] org.redisson.Version                     : Redisson 3.45.1
+2026-06-08T16:53:37.497+07:00  INFO 18340 --- [hdbhms] [isson-netty-4-5] o.redisson.connection.ConnectionsHolder  : 1 connections initialized for localhost/127.0.0.1:6379
+2026-06-08T16:53:37.640+07:00  INFO 18340 --- [hdbhms] [sson-netty-4-20] o.redisson.connection.ConnectionsHolder  : 24 connections initialized for localhost/127.0.0.1:6379
+2026-06-08T16:53:38.156+07:00  WARN 18340 --- [hdbhms] [  restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-06-08T16:53:38.311+07:00  INFO 18340 --- [hdbhms] [  restartedMain] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name customUserDetailsService
+2026-06-08T16:53:39.501+07:00  INFO 18340 --- [hdbhms] [  restartedMain] c.s.hdbhms.shared.config.AppInitConfig   : Initializing application
+2026-06-08T16:53:39.531+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.s.b.c.r.s.JobRepositoryFactoryBean     : No database type set, using meta data indicating: MYSQL
+2026-06-08T16:53:39.573+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.s.b.c.l.s.TaskExecutorJobLauncher      : No TaskExecutor has been set, defaulting to synchronous executor.
+2026-06-08T16:53:41.006+07:00  WARN 18340 --- [hdbhms] [  restartedMain] o.s.b.d.a.OptionalLiveReloadServer       : Unable to start LiveReload server
+2026-06-08T16:53:41.664+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.a.k.clients.admin.AdminClientConfig    : AdminClientConfig values: 
+	auto.include.jmx.reporter = true
+	bootstrap.controllers = []
+	bootstrap.servers = [localhost:9092]
+	client.dns.lookup = use_all_dns_ips
+	client.id = hdbhms-admin-0
+	connections.max.idle.ms = 300000
+	default.api.timeout.ms = 60000
+	enable.metrics.push = true
+	metadata.max.age.ms = 300000
+	metadata.recovery.strategy = none
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retries = 2147483647
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+
+2026-06-08T16:53:41.943+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.8.1
+2026-06-08T16:53:41.943+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 70d6ff42debf7e17
+2026-06-08T16:53:41.944+07:00  INFO 18340 --- [hdbhms] [  restartedMain] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1780912421940
+2026-06-08T16:53:41.965+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:41.965+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:42.076+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:42.076+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:42.183+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:42.183+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:42.512+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:42.514+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:42.950+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:42.950+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:43.714+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:43.714+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:44.686+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:44.686+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:45.793+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:45.794+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:46.659+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:46.661+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:47.650+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:47.650+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:48.605+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:48.605+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:49.591+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:49.591+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:50.484+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:50.486+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:51.464+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:51.466+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:52.561+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:52.562+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:53.642+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:53.644+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:54.514+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:54.514+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:55.387+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:55.387+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:56.355+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:56.355+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:57.326+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:57.326+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:58.384+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:58.384+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:53:59.487+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:53:59.487+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:00.426+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:00.428+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:01.402+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:01.404+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:02.364+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:02.364+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:03.340+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:03.340+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:04.221+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:04.221+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:05.107+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:05.110+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:06.185+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:06.185+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:07.142+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:07.142+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:08.206+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:08.207+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:09.043+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:09.044+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:09.898+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:09.899+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:10.975+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:10.978+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:11.950+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.a.k.c.a.i.AdminMetadataManager         : [AdminClient clientId=hdbhms-admin-0] Metadata update failed
+
+org.apache.kafka.common.errors.TimeoutException: Timed out waiting for a node assignment. Call: fetchMetadata
+
+2026-06-08T16:54:11.966+07:00 ERROR 18340 --- [hdbhms] [  restartedMain] o.springframework.kafka.core.KafkaAdmin  : Could not configure topics
+
+org.springframework.kafka.KafkaException: Timed out waiting to get existing topics
+	at org.springframework.kafka.core.KafkaAdmin.lambda$checkPartitions$13(KafkaAdmin.java:571) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at java.base/java.util.HashMap.forEach(HashMap.java:1429) ~[na:na]
+	at java.base/java.util.Collections$UnmodifiableMap.forEach(Collections.java:1708) ~[na:na]
+	at org.springframework.kafka.core.KafkaAdmin.checkPartitions(KafkaAdmin.java:550) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.kafka.core.KafkaAdmin.addOrModifyTopicsIfNeeded(KafkaAdmin.java:443) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.kafka.core.KafkaAdmin.initialize(KafkaAdmin.java:276) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.kafka.core.KafkaAdmin.afterSingletonsInstantiated(KafkaAdmin.java:245) ~[spring-kafka-3.3.4.jar:3.3.4]
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1083) ~[spring-beans-6.2.5.jar:6.2.5]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987) ~[spring-context-6.2.5.jar:6.2.5]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627) ~[spring-context-6.2.5.jar:6.2.5]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:318) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1361) ~[spring-boot-3.4.4.jar:3.4.4]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1350) ~[spring-boot-3.4.4.jar:3.4.4]
+	at com.sep490.hdbhms.HdbhmsApplication.main(HdbhmsApplication.java:28) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.boot.devtools.restart.RestartLauncher.run(RestartLauncher.java:50) ~[spring-boot-devtools-3.4.4.jar:3.4.4]
+Caused by: java.util.concurrent.TimeoutException: null
+	at java.base/java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1960) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.get(CompletableFuture.java:2095) ~[na:na]
+	at org.apache.kafka.common.internals.KafkaFutureImpl.get(KafkaFutureImpl.java:180) ~[kafka-clients-3.8.1.jar:na]
+	at org.springframework.kafka.core.KafkaAdmin.lambda$checkPartitions$13(KafkaAdmin.java:553) ~[spring-kafka-3.3.4.jar:3.3.4]
+	... 19 common frames omitted
+
+2026-06-08T16:54:12.077+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:12.078+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:13.059+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:13.061+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:14.153+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:14.154+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:15.245+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:15.247+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:16.344+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:16.347+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:17.324+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:17.324+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:18.421+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:18.421+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:19.480+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:19.480+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:20.553+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:20.555+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:21.450+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Node -1 disconnected.
+2026-06-08T16:54:21.451+07:00  WARN 18340 --- [hdbhms] [ hdbhms-admin-0] org.apache.kafka.clients.NetworkClient   : [AdminClient clientId=hdbhms-admin-0] Connection to node -1 (localhost/127.0.0.1:9092) could not be established. Node may not be available.
+2026-06-08T16:54:21.981+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.a.k.clients.admin.KafkaAdminClient     : [AdminClient clientId=hdbhms-admin-0] Forcing a hard I/O thread shutdown. Requests in progress will be aborted.
+2026-06-08T16:54:21.982+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.a.kafka.common.utils.AppInfoParser     : App info kafka.admin.client for hdbhms-admin-0 unregistered
+2026-06-08T16:54:21.983+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.a.k.c.a.i.AdminMetadataManager         : [AdminClient clientId=hdbhms-admin-0] Metadata update failed
+
+org.apache.kafka.common.errors.TimeoutException: The AdminClient thread has exited. Call: fetchMetadata
+
+2026-06-08T16:54:21.983+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.a.k.clients.admin.KafkaAdminClient     : [AdminClient clientId=hdbhms-admin-0] Timed out 2 remaining operation(s) during close.
+2026-06-08T16:54:21.986+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-06-08T16:54:21.987+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-06-08T16:54:21.987+07:00  INFO 18340 --- [hdbhms] [ hdbhms-admin-0] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-06-08T16:54:21.995+07:00  WARN 18340 --- [hdbhms] [  restartedMain] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-06-08T16:54:22.020+07:00  INFO 18340 --- [hdbhms] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-06-08T16:54:22.027+07:00  INFO 18340 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-06-08T16:54:22.049+07:00  INFO 18340 --- [hdbhms] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-06-08T16:54:22.070+07:00  INFO 18340 --- [hdbhms] [  restartedMain] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-06-08T16:54:22.090+07:00 ERROR 18340 --- [hdbhms] [  restartedMain] o.s.b.d.LoggingFailureAnalysisReporter   : 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  02:02 min
+[INFO] Finished at: 2026-06-08T16:54:23+07:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.4.4:run (default-cli) on project hdbhms: Process terminated with exit code: 1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

@@ -38,7 +38,7 @@ public class LeadPersistenceMapper {
                 .id(domain.getId())
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.LEAD_NOT_FOUND))
                         : null)
                 .user(domain.getUserId() != null
                         ? jpaUserRepository.findById(domain.getUserId())

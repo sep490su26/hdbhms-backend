@@ -3,7 +3,6 @@ package com.sep490.hdbhms.maintenance.application.service;
 import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
 import com.sep490.hdbhms.maintenance.application.port.in.command.CreateMaintenanceTicketCommand;
 import com.sep490.hdbhms.maintenance.application.port.in.usecase.CreateMaintenanceTicketUseCase;
-import com.sep490.hdbhms.maintenance.application.port.out.GetLeaseContractOfTenantPort;
 import com.sep490.hdbhms.maintenance.application.port.out.GetRoomFromLeaseContractPort;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketAttachmentRepository;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepository;
@@ -13,7 +12,9 @@ import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
 import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
@@ -34,13 +35,16 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUseCase {
+    private static final int MAX_ATTACHMENTS = 3;
+
     TenantRepository tenantRepository;
     FileMetadataRepository fileMetadataRepository;
     MaintenanceTicketRepository maintenanceTicketRepository;
-    GetLeaseContractOfTenantPort getLeaseContractOfTenantPort;
     GetRoomFromLeaseContractPort getRoomFromLeaseContractPort;
     MaintenanceTicketAttachmentRepository maintenanceTicketAttachmentRepository;
     RoomRepository roomRepository;
+    LeaseContractRepository leaseContractRepository;
+    LeaseContractQueryService leaseContractQueryService;
 
     @Override
     public MaintenanceTicket execute(CreateMaintenanceTicketCommand command) {
@@ -73,6 +77,15 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
 
         List<Long> attachmentFileIds = command.attachmentIds();
         if (attachmentFileIds != null && !attachmentFileIds.isEmpty()) {
+            attachmentFileIds = attachmentFileIds.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (attachmentFileIds.size() > MAX_ATTACHMENTS) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Chỉ được upload tối đa 3 ảnh trước sửa."
+                );
+            }
             validateAttachments(attachmentFileIds);
             int sort = 0;
             for (Long fileId : attachmentFileIds) {
@@ -81,7 +94,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                         .fileId(fileId)
                         .attachmentPhase(AttachmentPhase.BEFORE)
                         .sortOrder(sort++)
-                        .createdById(tenant.getId())
+                        .createdById(currentSessionUserId)
                         .build();
                 maintenanceTicketAttachmentRepository.save(attachment);
             }
@@ -91,18 +104,20 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
     }
 
     private LeaseRoom resolveLeaseRoom(Tenant tenant, Long requestedRoomId) {
-        try {
-            List<LeaseContract> activeLeaseContracts = getLeaseContractOfTenantPort.execute(tenant.getId());
-            if (!activeLeaseContracts.isEmpty()) {
-                LeaseContract leaseContract = activeLeaseContracts.getFirst();
-                return new LeaseRoom(leaseContract, getRoomFromLeaseContractPort.execute(leaseContract.getId()));
-            }
-        } catch (RuntimeException ignored) {
-            // Some test tenants are created from deposit flow before a lease contract is generated.
-        }
-
         if (requestedRoomId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng đang thuê để tạo phiếu sự cố.");
+        }
+
+        leaseContractQueryService.assertCurrentUserCanReadRoom(requestedRoomId);
+        LeaseContract leaseContract = leaseContractQueryService
+                .getRentalContexts(tenant.getUserId())
+                .stream()
+                .filter(context -> context.roomId().equals(requestedRoomId))
+                .findFirst()
+                .flatMap(context -> leaseContractRepository.findById(context.contractId()))
+                .orElse(null);
+        if (leaseContract != null) {
+            return new LeaseRoom(leaseContract, getRoomFromLeaseContractPort.execute(leaseContract.getId()));
         }
 
         Room room = roomRepository.findById(requestedRoomId)
@@ -123,8 +138,9 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
     }
 
     private void validateAttachments(List<Long> fileIds) {
-        long count = fileMetadataRepository.countByIdInAndDeletedAtIsNull(fileIds);
-        if (count != fileIds.size()) {
+        List<Long> uniqueFileIds = fileIds.stream().distinct().toList();
+        long count = fileMetadataRepository.countByIdInAndDeletedAtIsNull(uniqueFileIds);
+        if (count != uniqueFileIds.size()) {
             throw new IllegalArgumentException(
                     "One or more attachment files are no longer available. Please re-upload."
             );

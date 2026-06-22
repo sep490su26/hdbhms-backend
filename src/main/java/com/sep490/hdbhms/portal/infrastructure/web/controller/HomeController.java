@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -28,7 +29,8 @@ public class HomeController {
     @GetMapping
     @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<HomeResponse> getHome(
-            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
+            @RequestParam(required = false) Long contractId
     ) {
         if (!"mobile".equals(clientType)) {
             throw new AppException(ApiErrorCode.UNAUTHORIZED);
@@ -37,7 +39,7 @@ public class HomeController {
         return ApiResponse.<HomeResponse>builder()
                 .data(
                         getHomeUseCase.execute(
-                                new GetHomeQuery(userId)
+                                new GetHomeQuery(userId, contractId)
                         )
                 )
                 .build();

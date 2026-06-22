@@ -6,12 +6,21 @@
   <title>Hợp đồng đặt cọc tiền phòng</title>
 
   <style>
+    html {
+      background: #eef0f4;
+    }
+
     body {
       font-family: "Times New Roman", serif;
       font-size: 16px;
-      line-height: 1.6;
-      margin: 40px 60px;
+      line-height: 1.55;
+      margin: 0 auto;
+      max-width: 794px;
+      min-height: 1123px;
+      padding: 48px 64px;
+      background: #fff;
       color: #000;
+      box-sizing: border-box;
     }
 
     .text-center {
@@ -76,6 +85,23 @@
     p {
       margin: 6px 0;
     }
+
+    @media print {
+      html {
+        background: #fff;
+      }
+
+      body {
+        max-width: none;
+        min-height: auto;
+        padding: 0;
+      }
+
+      @page {
+        size: A4;
+        margin: 18mm;
+      }
+    }
   </style>
 </head>
 
@@ -90,11 +116,14 @@
     HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG
   </div>
 
-  <p>Hôm nay ngày <span th:text="${issuedAt}"></span></p>
+  <p class="text-center bold uppercase" th:text="${draftNotice}">BẢN NHÁP - CHƯA CÓ CHỮ KÝ</p>
+  <p class="text-center" th:text="${draftDescription}">
+    Bản dùng để in và ký trực tiếp, chưa phải bản hợp đồng đặt cọc chính thức.
+  </p>
 
-  <p>Chúng tôi những người ký tên dưới đây gồm:</p>
+  <p>Hôm nay, ngày <span th:text="${issuedAt}"></span>; chúng tôi những người ký tên dưới đây gồm:</p>
 
-  <p class="bold">1/ BÊN NHẬN TIỀN ĐẶT CỌC (BÊN A)</p>
+  <p class="bold">1. BÊN NHẬN TIỀN ĐẶT CỌC (BÊN A)</p>
 
   <p>Ông: <span th:text="${ownerFullName}"></span></p>
 
@@ -113,7 +142,7 @@
     đây.
   </p>
 
-  <p class="bold mt-20">2/ BÊN GIAO TIỀN ĐẶT CỌC (BÊN B)</p>
+  <p class="bold mt-20">2. BÊN GIAO TIỀN ĐẶT CỌC (BÊN B)</p>
 
   <p>
     Ông/ Bà:
@@ -162,8 +191,8 @@
   </p>
 
   <p class="indent">
-    Hợp đồng có thời hạn: .............tháng và bắt đầu tính tiền từ
-    <span th:text="${expectedMoveInDateString}"></span>
+    Hợp đồng có thời hạn: ... tháng và bắt đầu tính tiền từ ngày .., tháng ..., năm
+    <span th:text="${currentYear}"></span>.
   </p>
 
   <p class="indent">
@@ -173,7 +202,7 @@
   </p>
 
   <p class="indent">
-    Phương thức thanh toán: Đặt cọc ………. tháng và thanh toán ……………. tháng tiền
+    Phương thức thanh toán: Đặt cọc <span class="bold" th:text="${depositMonths}"></span> tháng và thanh toán <span class="bold" th:text="${paymentCycleMonths}"></span> tháng tiền
     nhà
   </p>
 

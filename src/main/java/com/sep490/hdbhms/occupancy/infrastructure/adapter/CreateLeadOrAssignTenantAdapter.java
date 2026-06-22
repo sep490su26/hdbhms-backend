@@ -47,7 +47,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     @Override
     public void execute(DepositAgreement depositAgreement) {
         DepositForm depositForm = depositFormRepository.findById(depositAgreement.getDepositFormId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.LEAD_NOT_FOUND));
 
         /*
          * Flow moi: deposit paid chi giu phong va tao ho so nguoi dat coc.
@@ -99,6 +99,11 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     }
 
     private PersonProfile ensurePersonProfile(DepositForm depositForm) {
+        Optional<PersonProfile> existing = personProfileRepository.findByPhone(depositForm.getPhone());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
         return personProfileRepository.save(
                 PersonProfile.create(
                         null,

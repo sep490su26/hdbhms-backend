@@ -14,5 +14,11 @@ public interface MaintenanceTicketRepository {
 
     List<Long> findIdsByTicketCode(String code);
 
-    Page<MaintenanceTicket> findAll(List<Long> ids, String type, String status, Pageable pageable);
+    Page<MaintenanceTicket> findAll(
+            List<Long> ids,
+            String type,
+            String status,
+            Long roomId,
+            Pageable pageable
+    );
 }

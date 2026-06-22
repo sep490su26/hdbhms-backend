@@ -8,4 +8,6 @@ import java.util.List;
 
 public interface JpaPropertyRepository extends JpaRepository<PropertyEntity, Long>, JpaSpecificationExecutor<PropertyEntity> {
     List<PropertyEntity> findAllByDeletedAtIsNull();
+
+    List<PropertyEntity> findAllByIdInAndDeletedAtIsNull(List<Long> ids);
 }

@@ -39,6 +39,7 @@ public class LoginService implements LoginUseCase {
     TokenProvider tokenProvider;
     LoginHistoryRepository loginHistoryRepository;
     TenantRepository tenantRepository;
+    TenantAccountProvisioningStatusService provisioningStatusService;
 
     @Override
     public Authentication execute(String clientType, LoginCommand command, HttpServletRequest request, HttpServletResponse response) {
@@ -80,6 +81,7 @@ public class LoginService implements LoginUseCase {
                 SessionUtils.getOrCreateDeviceId(request, response)
         );
         loginHistoryRepository.save(loginHistory);
+        provisioningStatusService.markActiveByUserId(user.getId());
         if ("web".equals(normalizedClientType) && isStaff(user)) {
             return new WebAuthentication(accessToken, user.getRole(), true);
         } else if ("mobile".equals(normalizedClientType) && !isStaff(user)) {
@@ -93,7 +95,7 @@ public class LoginService implements LoginUseCase {
                     true
             );
         } else {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND);
         }
     }
 

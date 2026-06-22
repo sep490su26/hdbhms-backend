@@ -4,6 +4,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -18,6 +19,7 @@ public class RoomDetailsResponse {
     BigDecimal areaM2;
     Long listedPrice;
     String currentStatus;
+    LocalDate expectedVacantDate;
     String publicNote;
     Integer maxOccupants;
     Integer positionX;

@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
+import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.EarlyCancelRoomHoldTaskPort;
@@ -53,6 +55,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -75,6 +78,7 @@ public class DepositController {
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     DepositContractDocumentService depositContractDocumentService;
+    RoomCommitmentChecker roomCommitmentChecker;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     PayOSProperties payOSProperties;
     ObjectMapper objectMapper;
@@ -105,9 +109,13 @@ public class DepositController {
     }
 
     @GetMapping("/rooms/{roomIdentifier}/hold-status")
-    public ApiResponse<DepositRoomHoldStatusResponse> getRoomHoldStatus(@PathVariable String roomIdentifier) {
+    public ApiResponse<DepositRoomHoldStatusResponse> getRoomHoldStatus(
+            @PathVariable String roomIdentifier,
+            @RequestParam(required = false) LocalDate expectedMoveInDate,
+            @RequestParam(required = false) LocalDate expectedLeaseSignDate
+    ) {
         return ApiResponse.<DepositRoomHoldStatusResponse>builder()
-                .data(resolveRoomHoldStatus(roomIdentifier))
+                .data(resolveRoomHoldStatus(roomIdentifier, expectedMoveInDate, expectedLeaseSignDate))
                 .build();
     }
 
@@ -188,14 +196,20 @@ public class DepositController {
         roomHoldRepository.save(roomHold);
         earlyCancelRoomHoldTaskPort.execute(roomHold.getId());
         markPaymentIntentFailedIfPending(paymentIntent);
-        roomRepository.updateRoomStatusIfCurrent(depositAgreement.getRoomId(), RoomStatus.ON_HOLD, RoomStatus.VACANT);
+        depositAgreement.changeStatus(DepositAgreementStatus.CANCELLED);
+        depositAgreementRepository.save(depositAgreement);
+        roomRepository.updateRoomStatusIfCurrent(
+                depositAgreement.getRoomId(),
+                RoomStatus.ON_HOLD,
+                roomStatusAfterHoldRelease(depositAgreement.getRoomId())
+        );
 
         return ApiResponse.<DepositRoomHoldStatusResponse>builder()
-                .data(resolveRoomHoldStatus(String.valueOf(depositAgreement.getRoomId())))
+                .data(resolveRoomHoldStatus(String.valueOf(depositAgreement.getRoomId()), null, null))
                 .build();
     }
 
-    private DepositRoomHoldStatusResponse resolveRoomHoldStatus(String roomIdentifier) {
+    private DepositRoomHoldStatusResponse resolveRoomHoldStatus(String roomIdentifier, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
         Room room = resolveRoom(roomIdentifier);
         LocalDateTime now = LocalDateTime.now();
         RoomHold activeHold = roomHoldRepository.findActiveHoldByRoomId(room.getId(), now).orElse(null);
@@ -221,6 +235,10 @@ public class DepositController {
                     0,
                     "Phòng đã được đặt cọc. Vui lòng chọn phòng khác."
             );
+        }
+
+        if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
+            return resolveSoonVacantHoldStatus(room, expectedMoveInDate, expectedLeaseSignDate);
         }
 
         if (room.getCurrentStatus() != RoomStatus.VACANT) {
@@ -256,6 +274,75 @@ public class DepositController {
         }
     }
 
+    private DepositRoomHoldStatusResponse resolveSoonVacantHoldStatus(Room room, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId())
+                .orElse(null);
+        if (expectedVacantDate == null) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "PhÃ²ng sáº¯p trá»‘ng chÆ°a cÃ³ ngÃ y dá»± kiáº¿n bÃ n giao."
+            );
+        }
+        if (expectedMoveInDate == null) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "PhÃ²ng sáº¯p trá»‘ng. Vui lÃ²ng chá»n ngÃ y dá»± kiáº¿n vÃ o á»Ÿ Ä‘á»ƒ kiá»ƒm tra kháº£ dá»¥ng."
+            );
+        }
+        if (expectedLeaseSignDate == null) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "EXPECTED_SIGN_DATE_REQUIRED: Can co ngay du kien ky hop dong."
+            );
+        }
+        if (expectedMoveInDate.isBefore(expectedVacantDate)) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "NgÃ y dá»± kiáº¿n vÃ o á»Ÿ pháº£i sau hoáº·c báº±ng ngÃ y phÃ²ng dá»± kiáº¿n trá»‘ng."
+            );
+        }
+        if (expectedLeaseSignDate.isBefore(expectedVacantDate)) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngay den ky hop dong phai sau hoac bang ngay phong du kien trong."
+            );
+        }
+        return new DepositRoomHoldStatusResponse(
+                true,
+                room.getCurrentStatus().name(),
+                null,
+                null,
+                0,
+                "PhÃ²ng sáº¯p trá»‘ng, cÃ³ thá»ƒ Ä‘áº·t cá»c theo ngÃ y dá»± kiáº¿n vÃ o á»Ÿ."
+        );
+    }
+
+    private RoomStatus roomStatusAfterHoldRelease(Long roomId) {
+        return roomCommitmentChecker.findExpectedVacantDateForBooking(roomId).isPresent()
+                ? RoomStatus.SOON_VACANT
+                : RoomStatus.VACANT;
+    }
+
     private void markPaymentIntentFailedIfPending(PaymentIntent paymentIntent) {
         if (paymentIntent.getStatus() != PaymentIntentStatus.PENDING) {
             return;
@@ -264,7 +351,8 @@ public class DepositController {
             paymentIntent.failPayment();
             paymentIntentRepository.save(paymentIntent);
         } catch (RuntimeException ex) {
-            log.warn("Skip failing payment intent during hold cancel. paymentIntentId={}", paymentIntent.getId(), ex);
+            log.warn("Skip failing payment intent during hold cancel. providerOrderCode={}",
+                    paymentIntent.getProviderOrderCode(), ex);
         }
     }
 
@@ -278,6 +366,22 @@ public class DepositController {
         }
 
         Long orderCode = longValue(payload, "orderCode");
+        String providerOrderCode = valueOrDefault(
+                textValue(payload, "providerOrderCode"),
+                paymentIntent.getProviderOrderCode()
+        );
+        String accountName = valueOrDefault(
+                textValue(payload, "accountName"),
+                textValue(payload, "receiverName")
+        );
+        String bankShortName = valueOrDefault(
+                textValue(payload, "bankShortName"),
+                textValue(payload, "bankName")
+        );
+        String transferDescription = valueOrDefault(
+                textValue(payload, "transferDescription"),
+                textValue(payload, "description")
+        );
         return DepositCheckoutResponse.builder()
                 .id(paymentIntent.getId())
                 .paymentIntentId(paymentIntent.getId())
@@ -293,10 +397,15 @@ public class DepositController {
                 .expiresAt(paymentIntent.getExpiresAt())
                 .provider(paymentIntent.getProvider())
                 .status(paymentIntent.getStatus())
-                .orderCode(orderCode == null ? paymentIntent.getId() : orderCode)
+                .orderCode(orderCode == null ? providerOrderCode : String.valueOf(orderCode))
+                .providerOrderCode(providerOrderCode)
                 .paymentLinkId(textValue(payload, "paymentLinkId"))
-                .receiverName(textValue(payload, "receiverName"))
-                .bankName(textValue(payload, "bankName"))
+                .bankBin(textValue(payload, "bankBin"))
+                .bankShortName(bankShortName)
+                .accountName(accountName)
+                .transferDescription(transferDescription)
+                .receiverName(accountName)
+                .bankName(bankShortName)
                 .accountNumber(textValue(payload, "accountNumber"))
                 .build();
     }
@@ -308,7 +417,7 @@ public class DepositController {
         }
 
         try {
-            PaymentLink paymentLink = payOSProperties.payOS().paymentRequests().get(paymentIntent.getId());
+            PaymentLink paymentLink = payOSProperties.payOS().paymentRequests().get(paymentIntent.getProviderOrderCode());
             if (paymentLink == null || paymentLink.getStatus() != PaymentLinkStatus.PAID) {
                 return paymentIntent;
             }
@@ -333,7 +442,8 @@ public class DepositController {
 
             return paymentIntentRepository.findById(paymentIntent.getId()).orElse(paymentIntent);
         } catch (Exception ex) {
-            log.warn("Could not sync PayOS payment status. paymentIntentId={}", paymentIntent.getId(), ex);
+            log.warn("Could not sync PayOS payment status. providerOrderCode={}",
+                    paymentIntent.getProviderOrderCode(), ex);
             return paymentIntent;
         }
     }

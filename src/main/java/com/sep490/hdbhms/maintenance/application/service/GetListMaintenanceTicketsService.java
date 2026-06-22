@@ -37,6 +37,7 @@ public class GetListMaintenanceTicketsService implements GetListMaintenanceTicke
                 ids,
                 query.type(),
                 query.status(),
+                query.roomId(),
                 query.pageable()
         );
     }

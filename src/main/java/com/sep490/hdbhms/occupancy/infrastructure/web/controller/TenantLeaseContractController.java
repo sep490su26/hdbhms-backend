@@ -1,76 +1,50 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryDetailsResponse;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryItemResponse;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomRentalHistoryResponse;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/tenants/{tenantId}")
+@RequestMapping("/api/v1/tenant/contracts")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TenantLeaseContractController {
-    LeaseContractQueryService leaseContractQueryService;
+    LeaseContractManagementService leaseContractManagementService;
 
-    @GetMapping("/contracts")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
-    public ApiResponse<List<LeaseContractQueryItemResponse>> getContracts(
-            @PathVariable Long tenantId,
-            @RequestParam(required = false) LeaseStatus status,
-            @RequestParam(name = "room_id", required = false) Long roomId,
-            @RequestParam(name = "property_id", required = false) Long propertyId,
-            @RequestParam(name = "tenant_profile_id", required = false) Long tenantProfileId,
-            @RequestParam(name = "date_from", required = false) LocalDate dateFrom,
-            @RequestParam(name = "date_to", required = false) LocalDate dateTo,
-            @RequestParam(required = false) String keyword
+    @PostMapping("/{leaseContractId}/intention")
+    @PreAuthorize("hasRole('TENANT')")
+    public ApiResponse<LeaseContractManagementResponse> recordTenantIntention(
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody TenantIntentionRequest request
     ) {
-        return ApiResponse.<List<LeaseContractQueryItemResponse>>builder()
-                .data(leaseContractQueryService.findContracts(
-                        tenantId,
-                        status,
-                        roomId,
-                        propertyId,
-                        tenantProfileId,
-                        dateFrom,
-                        dateTo,
-                        keyword
+        return ApiResponse.<LeaseContractManagementResponse>builder()
+                .data(leaseContractManagementService.recordTenantIntentionForCurrentTenant(
+                        leaseContractId,
+                        request.intention(),
+                        request.expectedMoveOutDate(),
+                        request.note()
                 ))
                 .build();
     }
 
-    @GetMapping("/contracts/{contractId}")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
-    public ApiResponse<LeaseContractQueryDetailsResponse> getContractDetails(
-            @PathVariable Long tenantId,
-            @PathVariable Long contractId
+    public record TenantIntentionRequest(
+            @NotNull(message = "Y dinh khach la bat buoc.")
+            String intention,
+            @JsonAlias({"expectedMoveOutDate", "expected_vacant_date", "expectedVacantDate"})
+            LocalDate expectedMoveOutDate,
+            @Size(max = 1000, message = "Ghi chu khong duoc vuot qua 1000 ky tu.")
+            String note
     ) {
-        return ApiResponse.<LeaseContractQueryDetailsResponse>builder()
-                .data(leaseContractQueryService.getContractDetails(tenantId, contractId))
-                .build();
-    }
-
-    @GetMapping("/rooms/{roomId}/rental-history")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
-    public ApiResponse<RoomRentalHistoryResponse> getRoomRentalHistory(
-            @PathVariable Long tenantId,
-            @PathVariable Long roomId
-    ) {
-        return ApiResponse.<RoomRentalHistoryResponse>builder()
-                .data(leaseContractQueryService.getRoomRentalHistory(tenantId, roomId))
-                .build();
     }
 }

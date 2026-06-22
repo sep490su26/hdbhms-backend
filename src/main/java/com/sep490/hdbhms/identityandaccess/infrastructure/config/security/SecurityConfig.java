@@ -44,6 +44,8 @@ public class SecurityConfig {
             "/api/v1/auth/forgot-password",
             "/api/v1/auth/reset-password",
             "/api/v1/deposit/checkout",
+            "/api/v1/public/deposits/batch-checkout",
+            "/api/v1/public/deposits/batches/*/cancel",
             "/api/v1/deposit/contracts/preview",
             "/api/v1/deposit/payments/*/cancel",
             "/api/v1/mock/payment",
@@ -55,9 +57,13 @@ public class SecurityConfig {
     static final String[] PUBLIC_GET_URLS = {
             "/api/v1/rooms",
             "/api/v1/rooms/*",
+            "/api/v1/rooms/*/assets",
+            "/api/v1/rooms/*/assets/*",
+            "/api/v1/rooms/*/meter-readings/latest",
             "/api/v1/deposit/rooms/*/hold-status",
             "/api/v1/deposit/payments/*/status",
             "/api/v1/deposit/payments/*/contract",
+            "/api/v1/public/deposits/batches/*/status",
             "/api/v1/properties",
             "/api/v1/properties/simple",
             "/api/v1/properties/*",
@@ -131,9 +137,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         var configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "http://10.0.2.2:*"
+//                "http://localhost:*",
+//                "http://127.0.0.1:*",
+//                "http://10.0.2.2:*"
+                "*"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of(

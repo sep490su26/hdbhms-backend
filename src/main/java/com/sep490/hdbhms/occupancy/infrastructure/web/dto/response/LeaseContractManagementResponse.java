@@ -28,6 +28,7 @@ public class LeaseContractManagementResponse {
     Long propertyId;
     String propertyName;
     String propertyAddress;
+    Long tenantId;
 
     Long roomId;
     String roomCode;
@@ -47,6 +48,14 @@ public class LeaseContractManagementResponse {
     Integer paymentCycleMonths;
     Long depositAmount;
     Integer occupantsCount;
+    Long previousContractId;
+    String previousContractCode;
+    Long renewedContractId;
+    String renewedContractCode;
+    String tenantIntention;
+    LocalDate expectedVacantDate;
+    Boolean canRenew;
+    String canRenewBlockedReason;
 
     LeaseStatus contractStatus;
     DepositAgreementStatus depositStatus;

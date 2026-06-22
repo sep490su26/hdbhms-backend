@@ -11,6 +11,9 @@ import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomImage;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.application.service.GetLatestMeterReadingsService;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LatestMeterReadingsResponse;
+import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateRoomRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse;
@@ -24,8 +27,10 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -38,11 +43,13 @@ public class RoomController {
     BookRoomUseCase bookRoomUseCase;
     CreateRoomUseCase createRoomUseCase;
     GetListRoomsUseCase getListRoomsUseCase;
+    GetLatestMeterReadingsService getLatestMeterReadingsService;
     GetRoomByCodeUseCase getRoomByCodeUseCase;
     GetRoomDetailsUseCase getRoomDetailsUseCase;
     GetFloorDetailsUseCase getFloorDetailsUseCase;
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     GetRoomImagesByRoomIdUseCase getRoomImagesByRoomIdUseCase;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @GetMapping
     public ApiResponse<PageResponse<RoomResponse>> getRooms(
@@ -104,14 +111,16 @@ public class RoomController {
         List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
                 new GetRoomImagesByRoomIdQuery(room.getId())
         );
+        RoomDetailsResponse response = roomWebMapper.toRoomDetailsResponse(
+                room,
+                floor,
+                property,
+                roomImages
+        );
+        response.setExpectedVacantDate(expectedVacantDate(room));
         return ApiResponse.<RoomDetailsResponse>builder()
                 .data(
-                        roomWebMapper.toRoomDetailsResponse(
-                                room,
-                                floor,
-                                property,
-                                roomImages
-                        )
+                        response
                 )
                 .build();
     }
@@ -128,15 +137,17 @@ public class RoomController {
         List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
                 new GetRoomImagesByRoomIdQuery(room.getId())
         );
+        RoomDetailsResponse response = roomWebMapper.toRoomDetailsResponse(
+                room,
+                floor,
+                property,
+                roomImages
+        );
+        response.setExpectedVacantDate(expectedVacantDate(room));
         return ApiResponse.<RoomDetailsResponse>builder()
                 .code(0)
                 .data(
-                        roomWebMapper.toRoomDetailsResponse(
-                                room,
-                                floor,
-                                property,
-                                roomImages
-                        )
+                        response
                 )
                 .build();
     }
@@ -153,16 +164,33 @@ public class RoomController {
         List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
                 new GetRoomImagesByRoomIdQuery(room.getId())
         );
+        RoomDetailsResponse response = roomWebMapper.toRoomDetailsResponse(
+                room,
+                floor,
+                property,
+                roomImages
+        );
+        response.setExpectedVacantDate(expectedVacantDate(room));
         return ApiResponse.<RoomDetailsResponse>builder()
                 .code(0)
                 .data(
-                        roomWebMapper.toRoomDetailsResponse(
-                                room,
-                                floor,
-                                property,
-                                roomImages
-                        )
+                        response
                 )
+                .build();
+    }
+
+    private LocalDate expectedVacantDate(Room room) {
+        if (room.getCurrentStatus() != RoomStatus.SOON_VACANT) {
+            return null;
+        }
+        return roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId()).orElse(null);
+    }
+
+    @GetMapping("/{roomId}/meter-readings/latest")
+//    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public ApiResponse<LatestMeterReadingsResponse> getLatestMeterReadings(@PathVariable Long roomId) {
+        return ApiResponse.<LatestMeterReadingsResponse>builder()
+                .data(getLatestMeterReadingsService.getLatestReadings(roomId))
                 .build();
     }
 }

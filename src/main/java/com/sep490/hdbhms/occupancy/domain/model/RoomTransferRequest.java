@@ -8,6 +8,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -19,17 +20,14 @@ public class RoomTransferRequest {
     Long oldContractId;
     Long oldRoomId;
     Long targetRoomId;
+    List<Long> transferringTenantProfileIds;
+    Long nominatedHolderProfileId;
+    String targetTransferType; // NEW_CONTRACT, OWN_CONTRACT, OTHER_CONTRACT
     LocalDate requestedTransferDate;
     String reason;
     @Builder.Default
-    TransferRequestStatus status = TransferRequestStatus.PENDING;
+    TransferRequestStatus status = TransferRequestStatus.OLD_ROOM_HANDOVER;
     Long debtSnapshotId;
-    Long approvedById;
-    LocalDateTime approvedAt;
-    String rejectionReason;
-    LocalDateTime eligibilityCheckedAt;
-    Boolean isEligibleAtCreation;
-    byte[] eligibilitySnapshot;
     Long newContractId;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

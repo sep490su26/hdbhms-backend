@@ -1,5 +1,10 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreatePropertyCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListPropertiesQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
@@ -23,9 +28,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,12 +47,29 @@ public class PropertyController {
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     JpaPropertyRepository jpaPropertyRepository;
     JpaRoomRepository jpaRoomRepository;
+    JpaRolePromotionRepository jpaRolePromotionRepository;
 
     @GetMapping
     public ApiResponse<PageResponse<PropertyResponse>> getProperties(
             @RequestParam(required = false) PropertyStatus status,
             @PageableDefault(size = 20) Pageable pageable
     ) {
+        if (currentRole() == Role.MANAGER) {
+            List<PropertyResponse> properties = jpaPropertyRepository.findAllByIdInAndDeletedAtIsNull(managerPropertyIds())
+                    .stream()
+                    .filter(property -> status == null || property.getStatus() == status)
+                    .map(this::toPropertyResponse)
+                    .toList();
+            return ApiResponse.<PageResponse<PropertyResponse>>builder()
+                    .data(PageResponse.<PropertyResponse>builder()
+                            .data(properties)
+                            .pageSize(pageable.getPageSize())
+                            .currentPage(pageable.getPageNumber() + 1)
+                            .totalPages(properties.isEmpty() ? 0 : 1)
+                            .totalElements(properties.size())
+                            .build())
+                    .build();
+        }
         return ApiResponse.<PageResponse<PropertyResponse>>builder()
                 .data(
                         PageResponse.fromPageToPageResponse(
@@ -58,6 +84,7 @@ public class PropertyController {
 
     @GetMapping("/{propertyId}")
     public ApiResponse<PropertyResponse> getProperty(@PathVariable Long propertyId) {
+        assertManagerCanAccessProperty(propertyId);
         return ApiResponse.<PropertyResponse>builder()
                 .data(
                         propertyWebMapper.toResponse(
@@ -73,8 +100,11 @@ public class PropertyController {
 
     @GetMapping("/simple")
     public ApiResponse<List<PropertySimpleResponse>> getSimpleProperties() {
+        List<PropertyEntity> properties = currentRole() == Role.MANAGER
+                ? jpaPropertyRepository.findAllByIdInAndDeletedAtIsNull(managerPropertyIds())
+                : jpaPropertyRepository.findAllByDeletedAtIsNull();
         return ApiResponse.<List<PropertySimpleResponse>>builder()
-                .data(jpaPropertyRepository.findAllByDeletedAtIsNull()
+                .data(properties
                         .stream()
                         .map(this::toSimpleResponse)
                         .toList())
@@ -83,6 +113,7 @@ public class PropertyController {
 
     @GetMapping("/{propertyId}/rooms/simple")
     public ApiResponse<List<RoomSimpleResponse>> getSimpleRoomsByProperty(@PathVariable Long propertyId) {
+        assertManagerCanAccessProperty(propertyId);
         return ApiResponse.<List<RoomSimpleResponse>>builder()
                 .data(jpaRoomRepository.findAllByProperty_IdAndDeletedAtIsNullOrderBySortOrderAscRoomCodeAsc(propertyId)
                         .stream()
@@ -124,5 +155,58 @@ public class PropertyController {
                 .name(property.getName())
                 .propertyCode(property.getPropertyCode())
                 .build();
+    }
+
+    private PropertyResponse toPropertyResponse(PropertyEntity property) {
+        return PropertyResponse.builder()
+                .id(property.getId())
+                .propertyCode(property.getPropertyCode())
+                .name(property.getName())
+                .propertyType(property.getPropertyType())
+                .addressLine(property.getAddressLine())
+                .description(property.getDescription())
+                .status(property.getStatus())
+                .createdAt(property.getCreatedAt())
+                .updatedAt(property.getUpdatedAt())
+                .deletedAt(property.getDeletedAt())
+                .build();
+    }
+
+    private void assertManagerCanAccessProperty(Long propertyId) {
+        if (currentRole() != Role.MANAGER) {
+            return;
+        }
+        if (propertyId == null || !managerPropertyIds().contains(propertyId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem cơ sở này.");
+        }
+    }
+
+    private List<Long> managerPropertyIds() {
+        Long userId = currentUserId();
+        if (userId == null) {
+            return List.of();
+        }
+        return jpaRolePromotionRepository
+                .findActivePropertyIds(userId, PromotionRole.MANAGER, RolePromotionStatus.ACTIVE)
+                .stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+    }
+
+    private Role currentRole() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            return null;
+        }
+        return principal.getRole();
+    }
+
+    private Long currentUserId() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            return null;
+        }
+        return principal.getId();
     }
 }

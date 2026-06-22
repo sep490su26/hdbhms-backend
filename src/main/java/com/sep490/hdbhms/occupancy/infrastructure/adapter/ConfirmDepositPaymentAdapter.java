@@ -29,13 +29,13 @@ public class ConfirmDepositPaymentAdapter implements ConfirmPaymentIntentPort {
     @Override
     public DepositAgreement execute(Long paymentIndentId, PaymentStatus paymentStatus) {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIndentId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         if (paymentIntent.getStatus() != PaymentIntentStatus.PENDING) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND);
         }
         DepositAgreement depositAgreement = depositAgreementRepository
                 .findById(paymentIntent.getDepositAgreementId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
         if (paymentStatus != PaymentStatus.SUCCEEDED) {
             paymentIntent.failPayment();
         }

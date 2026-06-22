@@ -1,0 +1,39 @@
+package com.sep490.hdbhms.changerequest.domain.model;
+
+import com.sep490.hdbhms.changerequest.domain.value_objects.AssignedRole;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequesterRole;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.experimental.FieldDefaults;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class ChangeRequest {
+    Long id;
+    String requestCode;
+    RequestType requestType;
+    Long requesterId;
+    RequesterRole requesterRole;
+    TargetType targetType;
+    Long targetId;
+    String title;
+    String description;
+    String requestPayload;
+    Long evidenceFileId;
+    AssignedRole assignedRole;
+    Long assignedTo;
+    @Builder.Default
+    RequestStatus status = RequestStatus.PENDING;
+    String resolutionNote;
+    Long resolvedBy;
+    LocalDateTime resolvedAt;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+}
