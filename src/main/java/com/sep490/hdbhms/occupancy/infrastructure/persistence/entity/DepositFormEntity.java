@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
+import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.DepositFormStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -8,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -48,6 +51,35 @@ public class DepositFormEntity {
 
     @Column(name = "phone", length = 30, nullable = false)
     String phone;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_front_file_id", nullable = true)
+     FileMetadataEntity idFrontFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_back_file_id", nullable = true)
+    FileMetadataEntity idBackFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "portrait_file_id", nullable = true)
+    FileMetadataEntity portraitFile;
+
+    @Column(name = "deposit_months", columnDefinition = "INT UNSIGNED")
+    Integer depositMonths;
+
+    @Column(name = "payment_cycle_months", columnDefinition = "TINYINT UNSIGNED")
+    Integer paymentCycleMonths;
+
+    @Column(name = "occupant_count", nullable = false, columnDefinition = "TINYINT UNSIGNED")
+    @Builder.Default
+    Integer occupantCount = 1;
+
+    @OneToMany(mappedBy = "depositForm", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    @Builder.Default
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    List<DepositFormCoOccupantEntity> coOccupants = new ArrayList<>();
 
     @Column(name = "expected_move_in_date", nullable = false)
     LocalDate expectedMoveInDate;

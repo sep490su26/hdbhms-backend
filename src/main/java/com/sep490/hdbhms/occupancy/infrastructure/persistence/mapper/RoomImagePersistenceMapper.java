@@ -27,6 +27,9 @@ public class RoomImagePersistenceMapper {
                 .fileId(entity.getFile() != null ? entity.getFile().getId() : null)
                 .sortOrder(entity.getSortOrder())
                 .createdAt(entity.getCreatedAt())
+                .fallback(false)
+                .sourceRoomCode(null)
+                .fallbackUrl(null)
                 .build();
     }
 
@@ -36,11 +39,11 @@ public class RoomImagePersistenceMapper {
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_IMAGE_NOT_FOUND))
                         : null)
                 .file(domain.getFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_IMAGE_NOT_FOUND))
                         : null)
                 .sortOrder(domain.getSortOrder())
                 .createdAt(domain.getCreatedAt())

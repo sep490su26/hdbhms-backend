@@ -21,6 +21,7 @@ public class Invoice {
     Long roomId;
     Long leaseContractId;
     Long depositAgreementId;
+    Long depositBatchId;
     InvoiceType invoiceType;
     @Builder.Default
     Integer revisionNo = 1;
@@ -44,6 +45,14 @@ public class Invoice {
     LocalDateTime updatedAt;
     Integer version;
     String activeInvoiceKey;
+
+    public void addDiscountAmount(long discountAmount) {
+        long newDiscount = (this.getDiscountAmount() == null ? 0L : this.getDiscountAmount()) + discountAmount;
+        long newTotalAmount = Math.max((this.getSubtotalAmount() == null ? 0L : this.getSubtotalAmount()) - newDiscount, 0L);
+        this.discountAmount = newDiscount;
+        this.totalAmount = newTotalAmount;
+        this.remainingAmount = Math.max(newTotalAmount - (this.getPaidAmount() == null ? 0L : this.getPaidAmount()), 0L);
+    }
 
     public void applyAmount(long amountInDong) {
         if (status == InvoiceStatus.VOIDED || status == InvoiceStatus.DRAFT) {

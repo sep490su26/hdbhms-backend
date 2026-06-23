@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Getter
@@ -25,7 +24,7 @@ public class UserModificationHistory {
 
     final LocalDateTime changedAt;
 
-    public static UserModificationHistory newAccountModificationHistory(
+    public static UserModificationHistory newUserModificationHistory(
             Long accountId,
             ModificationType type,
             String oldValue,

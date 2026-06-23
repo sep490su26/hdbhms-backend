@@ -11,4 +11,6 @@ public interface IdentityDocumentRepository {
     Optional<IdentityDocument> findById(Long id);
 
     boolean existsByDocTypeAndDocNumber(DocumentType documentType, String idNumber);
+
+    boolean existsByProfileIdAndDocType(Long id, DocumentType documentType);
 }

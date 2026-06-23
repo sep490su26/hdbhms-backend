@@ -25,5 +25,10 @@ jobs:
       - name: Build & Test with Maven
         run: mvn clean verify -Djacoco.skip=true
       - name: Check test report
-        if: failure()
-        run: cat target/surefire-reports/*.txt
+        if: always()
+        run: |
+          if ls target/surefire-reports/*.txt 1> /dev/null 2>&1; then
+            cat target/surefire-reports/*.txt
+          else
+            echo "No surefire test reports found. Build may have failed before tests ran."
+          fi

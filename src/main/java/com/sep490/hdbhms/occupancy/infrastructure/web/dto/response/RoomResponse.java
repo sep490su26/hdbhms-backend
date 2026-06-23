@@ -5,6 +5,8 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @Builder
@@ -21,5 +23,7 @@ public class RoomResponse {
     BigDecimal areaM2;
     Integer maxOccupants;
     RoomStatus currentStatus;
+    LocalDate expectedVacantDate;
     String firstImageUrl;
+    List<RoomImageResponse> images;
 }

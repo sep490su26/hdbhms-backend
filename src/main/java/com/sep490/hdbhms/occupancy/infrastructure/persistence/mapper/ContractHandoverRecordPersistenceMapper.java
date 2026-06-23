@@ -47,21 +47,21 @@ public class ContractHandoverRecordPersistenceMapper {
                 .id(domain.getId())
                 .contract(domain.getContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getContractId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND))
                         : null)
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND))
                         : null)
                 .handoverType(domain.getHandoverType())
                 .handoverDate(domain.getHandoverDate())
                 .electricityReading(domain.getElectricityReadingId() != null
                         ? jpaMeterReadingRepository.findById(domain.getElectricityReadingId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND))
                         : null)
                 .waterReading(domain.getWaterReadingId() != null
                         ? jpaMeterReadingRepository.findById(domain.getWaterReadingId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND))
                         : null)
                 .note(domain.getNote())
                 .status(domain.getStatus())

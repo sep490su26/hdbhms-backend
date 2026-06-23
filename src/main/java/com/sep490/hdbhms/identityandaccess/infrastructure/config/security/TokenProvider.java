@@ -24,6 +24,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -45,8 +46,8 @@ public class TokenProvider {
     JpaInvalidatedTokenRepository invalidatedTokenRepository;
     RedisTemplate<String, Object> redisTemplate;
 
-    static String refreshTokenKeyFormat = "refresh:token:%s";
-    static String tokenKey = "token";
+    static String refreshTokenKeyFormat = "refresh:sessionId:%s";
+    static String tokenKey = "sessionId";
     static String userIdKey = "user-id";
 
     public String createAccessToken(UserPrincipal userPrincipal, String sessionId, HttpServletResponse response) {
@@ -88,42 +89,42 @@ public class TokenProvider {
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
         JWSObject jwsObject = new JWSObject(jwsHeader, payload);
         try {
-            jwsObject.sign(new MACSigner(authProperties.getTokenSecret().getBytes()));
+            jwsObject.sign(new MACSigner(secretBytes()));
             var accessToken = jwsObject.serialize();
             var expiryMillis = expiryDate.toInstant().toEpochMilli();
             var ttl = expiryMillis - now.toInstant().toEpochMilli();
             CookieUtils.addCookie(response, ACCESS_TOKEN_COOKIE_NAME, accessToken, Math.toIntExact(ttl / 1000));
             return accessToken;
         } catch (JOSEException e) {
-            log.error("Can not create token", e);
+            log.error("Can not create sessionId", e);
             throw new RuntimeException(e);
         }
     }
 
     /**
-     * Creates a new refresh token for the specified authenticated user.
+     * Creates a new refresh sessionId for the specified authenticated user.
      *
-     * <p>This method generates a signed JWT refresh token containing a unique
-     * session ID and user ID. The refresh token metadata is stored in Redis
+     * <p>This method generates a signed JWT refresh sessionId containing a unique
+     * session ID and user ID. The refresh sessionId metadata is stored in Redis
      * for later validation and management. A cookie containing the session ID
      * is also added to the HTTP response, allowing the server to identify
      * the user's session in subsequent requests.</p>
      *
-     * <p>The refresh token has a longer lifespan than an access token and can
+     * <p>The refresh sessionId has a longer lifespan than an access sessionId and can
      * be used to obtain new access tokens without requiring the user to log in again.
-     * The session information and refresh token are stored in Redis with an expiry
-     * time matching the token's lifetime.</p>
+     * The session information and refresh sessionId are stored in Redis with an expiry
+     * time matching the sessionId's lifetime.</p>
      *
-     * @param userPrincipal the authenticated user's details used to populate the token claims
+     * @param userPrincipal the authenticated user's details used to populate the sessionId claims
      * @param response      the HTTP servlet response where the session ID cookie will be added
-     * @return the generated session ID associated with the refresh token
+     * @return the generated session ID associated with the refresh sessionId
      * @throws RuntimeException if signing the JWT fails
      * @implNote <ul>
-     * <li>The refresh token and related metadata are stored in Redis as a hash under the key
-     * {@code refresh:token:{sessionId}}.</li>
+     * <li>The refresh sessionId and related metadata are stored in Redis as a hash under the key
+     * {@code refresh:sessionId:{sessionId}}.</li>
      * <li>The session ID is also stored in a Redis set under {@code device_sessions:{userId}:{deviceId}}
      * to allow tracking multiple concurrent sessions per user.</li>
-     * <li>The TTL in Redis is set to the exact expiration time of the refresh token.</li>
+     * <li>The TTL in Redis is set to the exact expiration time of the refresh sessionId.</li>
      * <li>A cookie named {@code SESSION_ID_COOKIE_NAME} is created to persist the session ID
      * on the client side.</li>
      * </ul>
@@ -162,7 +163,7 @@ public class TokenProvider {
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
         JWSObject jwsObject = new JWSObject(jwsHeader, payload);
         try {
-            jwsObject.sign(new MACSigner(authProperties.getTokenSecret().getBytes()));
+            jwsObject.sign(new MACSigner(secretBytes()));
             var token = jwsObject.serialize();
 
             var key = String.format(refreshTokenKeyFormat, sessionId);
@@ -181,7 +182,7 @@ public class TokenProvider {
             CookieUtils.addCookie(response, SESSION_ID_COOKIE_NAME, sessionId, Math.toIntExact(ttl / 1000));
             return sessionId;
         } catch (Exception e) {
-            log.error("Can not create token", e);
+            log.error("Can not create sessionId", e);
             throw new RuntimeException(e);
         }
     }
@@ -220,19 +221,24 @@ public class TokenProvider {
                 .orElse(null);
     }
 
+    public String getSessionIdFromCookie(HttpServletRequest request) {
+        return CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
+                .map(Cookie::getValue)
+                .orElse(null);
+    }
+
     @SneakyThrows
     public Long getUserId(HttpServletRequest request) {
-        var sessionCookie = CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
-                .map(Cookie::getValue);
-        if (sessionCookie.isEmpty()) {
+        var sessionId = getSessionIdFromCookie(request);
+        if (StringUtils.isEmpty(sessionId)) {
             return null;
         }
-        var key = String.format(refreshTokenKeyFormat, sessionCookie.get());
+        var key = String.format(refreshTokenKeyFormat, sessionId);
         return Long.parseLong((String) Objects.requireNonNull(redisTemplate.opsForHash().get(key, "user-id")));
     }
 
     public SignedJWT verifyToken(String token, boolean isRefreshToken) throws JOSEException, ParseException {
-        var jwsVerifier = new MACVerifier(authProperties.getTokenSecret().getBytes());
+        var jwsVerifier = new MACVerifier(secretBytes());
         if (StringUtils.isEmpty(token)) {
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN);
         }
@@ -274,7 +280,7 @@ public class TokenProvider {
                     .expiryTime(expiryTime)
                     .build();
             invalidatedTokenRepository.save(invalidatedToken);
-            log.info("Moved token: {} with id: {} to the invalidated token repository", token, invalidatedToken.getId());
+            log.info("Moved sessionId: {} with id: {} to the invalidated sessionId repository", token, invalidatedToken.getId());
         } catch (JOSEException | ParseException | AppException e) {
             log.error(e.getMessage());
         }
@@ -350,5 +356,9 @@ public class TokenProvider {
 
     public boolean hasSession(HttpServletRequest request) {
         return CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME).isPresent();
+    }
+
+    private byte[] secretBytes() {
+        return authProperties.getTokenSecret().getBytes(StandardCharsets.UTF_8);
     }
 }

@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa;
 
+import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -23,4 +25,8 @@ public interface JpaUserRepository extends JpaRepository<UserEntity, Long>, JpaS
     Optional<UserEntity> findByEmail(String email);
 
     Optional<UserEntity> findByPhone(String phone);
+
+    boolean existsByRole(Role role);
+
+    Optional<UserEntity> findByRole(Role role);
 }

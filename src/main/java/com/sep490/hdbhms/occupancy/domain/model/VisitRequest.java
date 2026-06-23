@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
+import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,8 +21,13 @@ public class VisitRequest {
     String visitorPhone;
     String visitorEmail;
     LocalDateTime preferredStart;
+    @Builder.Default
+    VisitRequestStatus status = VisitRequestStatus.NOT_VIEWED;
     String notes;
     LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+    Long deletedByUserId;
+    LocalDateTime deletedAt;
 
     public static VisitRequest create(
             Long propertyId,

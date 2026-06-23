@@ -42,7 +42,7 @@ public class TenantPersistenceMapper {
                         : null)
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.TENANT_NOT_FOUND))
                         : null)
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())

@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.identityandaccess.application.port.out;
 
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -14,12 +16,13 @@ public interface UserRepository {
 
     boolean existsByPhone(String phone);
 
+    boolean existsAnOwnerAccount();
 
     List<User> findAll();
 
     Optional<User> findById(Long id);
 
-    Page<User> findAll(List<Long> ids, List<String> roles, List<String> statuses, Pageable pageable);
+    Page<User> findAll(List<Long> ids, Role role, AccountStatus status, Pageable pageable);
 
     Optional<User> findByEmail(String email);
 
@@ -28,4 +31,6 @@ public interface UserRepository {
     List<Long> findIdsByFullText(String keyword);
 
     Optional<User> findByPhoneOrEmailAndDeletedAtIsNull(String phone, String email);
+
+    Optional<User> findOwner();
 }

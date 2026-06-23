@@ -14,7 +14,7 @@ import java.util.UUID;
 public class PasswordResetTokenGeneratorAdapter implements PasswordResetTokenGenerator {
     @Override
     public String generate() {
-        //TODO: Implement proper logic for password reset token, for now just some random uuid
+        //TODO: Implement proper logic for password reset sessionId, for now just some random uuid
         return UUID.randomUUID().toString();
     }
 }

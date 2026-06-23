@@ -3,7 +3,7 @@ package com.sep490.hdbhms.identityandaccess.application.service;
 import com.sep490.hdbhms.identityandaccess.application.port.in.command.RequestResetPasswordCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.command.ResetPasswordCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.ResetPasswordUseCase;
-import com.sep490.hdbhms.identityandaccess.application.port.out.AccountModificationHistoryRepository;
+import com.sep490.hdbhms.identityandaccess.application.port.out.UserModificationHistoryRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetTokenPort;
 import com.sep490.hdbhms.identityandaccess.domain.model.UserModificationHistory;
@@ -29,13 +29,13 @@ public class ResetPasswordService implements ResetPasswordUseCase {
     PasswordEncoder passwordEncoder;
     UserRepository userRepository;
     PasswordResetTokenPort passwordResetTokenPort;
-    AccountModificationHistoryRepository accountModificationHistoryRepository;
+    UserModificationHistoryRepository userModificationHistoryRepository;
 
     @Override
     public void requestResetPassword(RequestResetPasswordCommand command) {
         var account = userRepository.findByEmail(command.email())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
-        var numberOfPasswordResetOfTheLast3Days = accountModificationHistoryRepository.getNumberOfPasswordResetOfTheDays(account.getId(), 3);
+        var numberOfPasswordResetOfTheLast3Days = userModificationHistoryRepository.getNumberOfPasswordResetOfTheDays(account.getId(), 3);
         if (numberOfPasswordResetOfTheLast3Days >= 10) {
             throw new AppException(ApiErrorCode.RESET_PASSWORD_NOT_ALLOWED_YET);
         }
@@ -59,13 +59,13 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         var newPasswordHash = passwordEncoder.encode(command.newPassword());
         account.changePassword(newPasswordHash);
         account = userRepository.save(account);
-        var modificationHistory = UserModificationHistory.newAccountModificationHistory(
+        var modificationHistory = UserModificationHistory.newUserModificationHistory(
                 account.getId(),
                 ModificationType.PASSWORD_RESET,
                 oldPasswordHash,
                 newPasswordHash
         );
-        accountModificationHistoryRepository.save(modificationHistory);
+        userModificationHistoryRepository.save(modificationHistory);
         passwordResetTokenPort.deleteToken(command.token());
     }
 }

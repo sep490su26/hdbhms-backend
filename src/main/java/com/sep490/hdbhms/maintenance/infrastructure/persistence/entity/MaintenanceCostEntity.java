@@ -3,6 +3,7 @@ package com.sep490.hdbhms.maintenance.infrastructure.persistence.entity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
+import com.sep490.hdbhms.maintenance.domain.value_objects.CostResponsibility;
 import com.sep490.hdbhms.maintenance.domain.value_objects.CostType;
 import com.sep490.hdbhms.maintenance.domain.value_objects.PaidBy;
 import jakarta.persistence.*;
@@ -48,6 +49,11 @@ public class MaintenanceCostEntity {
     @Column(name = "paid_by", nullable = false, length = 50)
     @Builder.Default
     PaidBy paidBy = PaidBy.LANDLORD;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cost_responsibility", nullable = false, length = 50)
+    @Builder.Default
+    CostResponsibility costResponsibility = CostResponsibility.UNDECIDED;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "charge_invoice_id", nullable = true)

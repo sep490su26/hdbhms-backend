@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -46,7 +45,21 @@ public class VisitRequestEntity {
     @Column(columnDefinition = "TEXT")
     String notes;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 50)
+    VisitRequestStatus status;
+
+    @Column(name = "deleted_at")
+    LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    Long deletedBy;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    @UpdateTimestamp
+    LocalDateTime updatedAt;
 }

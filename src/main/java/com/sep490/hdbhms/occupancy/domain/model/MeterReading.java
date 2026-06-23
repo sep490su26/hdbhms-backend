@@ -1,10 +1,12 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingSource;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
@@ -23,11 +25,16 @@ public class MeterReading {
     @Builder.Default
     Integer revisionNo = 1;
     BigDecimal previousValue;
+    @Setter
     BigDecimal currentValue;
     BigDecimal usageAmount;
     LocalDate readingDate;
+    @Setter
     Long photoFileId;
-    ReadingSource source;
+    @Builder.Default
+    ReadingPurpose purpose = ReadingPurpose.MONTHLY;
+    @Builder.Default
+    ReadingSource source = ReadingSource.MANUAL;
     @Builder.Default
     ReadingStatus status = ReadingStatus.CONFIRMED;
     String voidReason;

@@ -11,6 +11,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -19,18 +20,22 @@ public class HashUtils {
 
     public static String hmacSHA512(String key, String data) {
         try {
+            if (key == null || key.isEmpty()) {
+                throw new IllegalArgumentException("HMAC secret key cannot be null or empty");
+            }
             Mac mac = Mac.getInstance("HmacSHA512");
-            SecretKeySpec secretKeySpec = new SecretKeySpec(key.getBytes(StandardCharsets.US_ASCII), "HmacSHA512");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(
+                    key.getBytes(StandardCharsets.US_ASCII), "HmacSHA512"
+            );
             mac.init(secretKeySpec);
             byte[] bytes = mac.doFinal(data.getBytes(StandardCharsets.US_ASCII));
-            // Convert to lowercase hex
             StringBuilder sb = new StringBuilder();
             for (byte b : bytes) {
                 sb.append(String.format("%02x", b));
             }
             return sb.toString();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to generate HMAC-SHA512", e);
+        } catch (IllegalArgumentException | NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException("Failed to generate HMAC-SHA512: " + e.getMessage(), e);
         }
     }
 

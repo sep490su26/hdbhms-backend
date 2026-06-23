@@ -7,8 +7,6 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.UserPersistenceMapper;
-import com.sep490.hdbhms.shared.exception.ApiErrorCode;
-import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.specifications.AccountSpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +19,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,6 +64,11 @@ public class SpringDataUserRepository implements UserRepository {
         return jpaUserRepository.existsByPhoneAndDeletedAtIsNull(phone);
     }
 
+    @Override
+    public boolean existsAnOwnerAccount() {
+        return jpaUserRepository.existsByRole(Role.OWNER);
+    }
+
 
     @Override
     public Optional<User> findById(Long id) {
@@ -82,11 +84,17 @@ public class SpringDataUserRepository implements UserRepository {
     }
 
     @Override
-    public Page<User> findAll(List<Long> ids, List<String> roles, List<String> statuses, Pageable pageable) {
+    public Page<User> findAll(
+            List<Long> ids,
+            Role role,
+            AccountStatus status,
+            Pageable pageable
+    ) {
         Specification<UserEntity> specification =
                 Specification.where(AccountSpecifications.idIn(ids))
-                        .and(AccountSpecifications.roleIn(toRoleEntityList(roles)))
-                        .and(AccountSpecifications.statusIn(toAccountStatusList(statuses)));
+                        .and(AccountSpecifications.roleIn(role))
+                        .and(AccountSpecifications.statusIn(status))
+                        .and((root, query, cb) -> cb.notEqual(root.get("role"), Role.OWNER));
         return jpaUserRepository.findAll(specification, pageable)
                 .map(userPersistenceMapper::toDomain);
     }
@@ -116,31 +124,9 @@ public class SpringDataUserRepository implements UserRepository {
                 .map(userPersistenceMapper::toDomain);
     }
 
-    private List<Role> toRoleEntityList(List<String> roles) {
-        if (roles == null || roles.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return roles.stream()
-                .map(s -> {
-                    try {
-                        return Role.valueOf(s.toUpperCase());
-                    } catch (IllegalArgumentException e) {
-                        throw new AppException(ApiErrorCode.UNDEFINED);
-                    }
-                }).toList();
-    }
-
-    private List<AccountStatus> toAccountStatusList(List<String> statuses) {
-        if (statuses == null || statuses.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return statuses.stream()
-                .map(s -> {
-                    try {
-                        return AccountStatus.valueOf(s.toUpperCase());
-                    } catch (IllegalArgumentException e) {
-                        throw new AppException(ApiErrorCode.UNDEFINED);
-                    }
-                }).toList();
+    @Override
+    public Optional<User> findOwner() {
+        return jpaUserRepository.findByRole(Role.OWNER)
+                .map(userPersistenceMapper::toDomain);
     }
 }

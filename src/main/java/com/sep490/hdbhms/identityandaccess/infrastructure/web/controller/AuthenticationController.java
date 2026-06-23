@@ -1,21 +1,22 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.controller;
 
+import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetResidentOnboardingStatusQuery;
+import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetStaffOnboardingStatusQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.*;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.AuthenticationResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.IntrospectResponse;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.OnboardingStatusResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AuthenticationWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -25,18 +26,25 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthenticationController {
     LoginUseCase loginUseCase;
     LogoutUseCase logoutUseCase;
-    RefreshAccessTokenUseCase refreshAccessTokenUseCase;
     ResetPasswordUseCase resetPasswordUseCase;
     IntrospectTokenUseCase introspectTokenUseCase;
     AuthenticationWebMapper authenticationWebMapper;
+    RefreshAccessTokenUseCase refreshAccessTokenUseCase;
+    GetOnboardingStatusUseCase getOnboardingStatusUseCase;
 
 
     @PostMapping("/login")
-    ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest authenticationRequest, HttpServletRequest request, HttpServletResponse response) {
+    ApiResponse<AuthenticationResponse> login(
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
+            @RequestBody AuthenticationRequest authenticationRequest,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
         return ApiResponse.<AuthenticationResponse>builder()
                 .data(
                         authenticationWebMapper.toResponse(
                                 loginUseCase.execute(
+                                        clientType,
                                         authenticationWebMapper.toCommand(authenticationRequest),
                                         request,
                                         response
@@ -60,7 +68,11 @@ public class AuthenticationController {
     }
 
     @PostMapping("/refresh")
-    ApiResponse<AuthenticationResponse> refreshToken(@RequestBody RefreshRequest refreshRequest, HttpServletRequest request, HttpServletResponse response) {
+    ApiResponse<AuthenticationResponse> refreshToken(
+            @RequestBody RefreshRequest refreshRequest,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
         return ApiResponse.<AuthenticationResponse>builder()
                 .data(
                         authenticationWebMapper.toResponse(
@@ -75,7 +87,11 @@ public class AuthenticationController {
     }
 
     @PostMapping("/logout")
-    ApiResponse<Void> logout(@RequestBody LogoutRequest logoutRequest, HttpServletRequest request, HttpServletResponse response) {
+    ApiResponse<Void> logout(
+            @RequestBody LogoutRequest logoutRequest,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
         logoutUseCase.execute(
                 authenticationWebMapper.toCommand(logoutRequest),
                 request,
@@ -98,5 +114,27 @@ public class AuthenticationController {
                 authenticationWebMapper.toCommand(request)
         );
         return ApiResponse.<Void>builder().build();
+    }
+
+    @GetMapping("/onboarding")
+    ApiResponse<OnboardingStatusResponse> getOnboardingStatus(
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+    ) {
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+
+        if ("web".equals(clientType)) {
+            return ApiResponse.<OnboardingStatusResponse>builder()
+                    .data(
+                            getOnboardingStatusUseCase.ofStaff(
+                                    new GetStaffOnboardingStatusQuery(userId)
+                            )
+                    ).build();
+        }
+        return ApiResponse.<OnboardingStatusResponse>builder()
+                .data(
+                        getOnboardingStatusUseCase.ofResident(
+                                new GetResidentOnboardingStatusQuery(userId)
+                        )
+                ).build();
     }
 }

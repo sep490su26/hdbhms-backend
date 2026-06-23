@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.maintenance.domain.model;
 
 import com.sep490.hdbhms.maintenance.domain.value_objects.CostType;
+import com.sep490.hdbhms.maintenance.domain.value_objects.CostResponsibility;
 import com.sep490.hdbhms.maintenance.domain.value_objects.PaidBy;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -21,6 +22,7 @@ public class MaintenanceCost {
     String description;
     Long amount;
     PaidBy paidBy;
+    CostResponsibility costResponsibility;
     Long chargeInvoiceId;
     Long receiptFileId;
     Long createdById;

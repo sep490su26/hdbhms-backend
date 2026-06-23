@@ -22,6 +22,7 @@ public class MeterReadingImportRowPersistenceMapper {
         return MeterReadingImportRow.builder()
                 .id(entity.getId())
                 .batchId(entity.getBatch() != null ? entity.getBatch().getId() : null)
+                .rowNo(entity.getRowNo())
                 .roomCode(entity.getRoomCode())
                 .meterType(entity.getMeterType())
                 .previousValue(entity.getPreviousValue())
@@ -38,8 +39,9 @@ public class MeterReadingImportRowPersistenceMapper {
                 .id(domain.getId())
                 .batch(domain.getBatchId() != null
                         ? jpaMeterReadingBatchRepository.findById(domain.getBatchId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_IMPORT_ROW_NOT_FOUND))
                         : null)
+                .rowNo(domain.getRowNo())
                 .roomCode(domain.getRoomCode())
                 .meterType(domain.getMeterType())
                 .previousValue(domain.getPreviousValue())

@@ -45,7 +45,7 @@ public class ContractTerminationNoticePersistenceMapper {
                 .id(domain.getId())
                 .contract(domain.getContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getContractId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_TERMINATION_NOTICE_NOT_FOUND))
                         : null)
                 .noticeBy(domain.getNoticeBy())
                 .noticeUser(domain.getNoticeUserId() != null
@@ -57,7 +57,7 @@ public class ContractTerminationNoticePersistenceMapper {
                 .reason(domain.getReason())
                 .evidenceFile(domain.getEvidenceFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getEvidenceFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_TERMINATION_NOTICE_NOT_FOUND))
                         : null)
                 .status(domain.getStatus())
                 .decidedBy(domain.getDecidedById() != null

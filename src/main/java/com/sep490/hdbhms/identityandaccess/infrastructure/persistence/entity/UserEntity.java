@@ -8,7 +8,6 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -56,8 +55,8 @@ public class UserEntity {
     AccountStatus status = AccountStatus.PENDING_CONTRACT;
 
     @Builder.Default
-    @Column(name = "email_verified", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
-    Boolean emailVerified = false;
+    @Column(name = "must_change_password", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    Boolean mustChangePassword = false;
 
     @Column(name = "last_login_at")
     LocalDateTime lastLoginAt;
@@ -81,7 +80,7 @@ public class UserEntity {
 
     @PrePersist
     public void prePersist() {
-        if (emailVerified == null) emailVerified = false;
+        if (mustChangePassword == null) mustChangePassword = false;
         if (this.email != null) this.email = email.toLowerCase();
     }
 

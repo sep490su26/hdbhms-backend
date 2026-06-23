@@ -17,21 +17,25 @@ services:
       - "6378:6379"
     volumes:
       - "hdbhms_redis_data:/data"
-#  kafka:
-#    image: 'bitnami/kafka:3.8.0'
-#    container_name: "kafka-message"
-#    hostname: kafka
-#    restart: always
-#    ports:
-#      - '9094:9094'
-#    environment:
-#      - KAFKA_CFG_NODE_ID=0
-#      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-#      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
-#      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
-#      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
-#      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
-#      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft required settings
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      # Auto-format storage (one-time)
+      KAFKA_FORMAT_STORAGE: "true"
+    volumes:
+      - hdbhms_kafka_data:/var/lib/kafka/data
 volumes:
   hdbhms_mysql_data:
   hdbhms_redis_data:
+  hdbhms_kafka_data:

@@ -40,4 +40,9 @@ public class SpringDataIdentityDocumentRepository implements IdentityDocumentRep
     public boolean existsByDocTypeAndDocNumber(DocumentType documentType, String idNumber) {
         return jpaIdentityDocumentRepository.existsByDocTypeAndDocNumber(documentType, idNumber);
     }
+
+    @Override
+    public boolean existsByProfileIdAndDocType(Long profileId, DocumentType documentType) {
+        return jpaIdentityDocumentRepository.existsByProfile_IdAndDocType(profileId, documentType);
+    }
 }

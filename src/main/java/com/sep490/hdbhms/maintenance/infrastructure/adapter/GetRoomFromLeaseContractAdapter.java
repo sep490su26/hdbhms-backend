@@ -20,7 +20,7 @@ public class GetRoomFromLeaseContractAdapter implements GetRoomFromLeaseContract
     @Override
     public Room execute(Long leaseContractId) {
         LeaseContract leaseContract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid leaseContractId: " + leaseContractId));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid depositAgreementId: " + leaseContractId));
         return roomRepository.findById(leaseContract.getRoomId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid roomId: " + leaseContract.getRoomId()));
     }

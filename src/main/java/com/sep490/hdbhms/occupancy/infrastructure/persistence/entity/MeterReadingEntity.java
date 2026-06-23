@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingSource;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import jakarta.persistence.*;
@@ -72,7 +73,13 @@ public class MeterReadingEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    ReadingSource source;
+    @Builder.Default
+    ReadingPurpose purpose = ReadingPurpose.MONTHLY;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    @Builder.Default
+    ReadingSource source = ReadingSource.MANUAL;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

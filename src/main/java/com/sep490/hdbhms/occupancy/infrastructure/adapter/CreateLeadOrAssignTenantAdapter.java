@@ -2,10 +2,12 @@ package com.sep490.hdbhms.occupancy.infrastructure.adapter;
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.IdentityDocumentRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
+import com.sep490.hdbhms.identityandaccess.application.port.out.SendPreCreatedAccountPort;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.IdentityDocument;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.occupancy.application.port.out.*;
@@ -13,14 +15,12 @@ import com.sep490.hdbhms.occupancy.domain.model.*;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
+import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +33,6 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenantPort {
-    JavaMailSender javaMailSender;
     UserRepository userRepository;
     LeadRepository leadRepository;
     RoomRepository roomRepository;
@@ -41,127 +40,118 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     TenantRepository tenantRepository;
     DepositFormRepository depositFormRepository;
     PersonProfileRepository personProfileRepository;
+    SendPreCreatedAccountPort sendPreCreatedAccountPort;
     DepositAgreementRepository depositAgreementRepository;
     IdentityDocumentRepository identityDocumentRepository;
 
     @Override
     public void execute(DepositAgreement depositAgreement) {
         DepositForm depositForm = depositFormRepository.findById(depositAgreement.getDepositFormId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        Room room = roomRepository.findById(depositForm.getRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.LEAD_NOT_FOUND));
 
-        Optional<User> existingUser = userRepository
-                .findByPhoneOrEmailAndDeletedAtIsNull(
+        /*
+         * Flow moi: deposit paid chi giu phong va tao ho so nguoi dat coc.
+         * Khong tao user TENANT, khong tao tenant membership, khong gui email password o buoc nay.
+         * Tai khoan chi duoc cap sau khi hop dong thue offline ACTIVE va quan ly bam gui tai khoan.
+         */
+        PersonProfile personProfile = ensurePersonProfile(depositForm);
+        ensureIdentityDocument(personProfile, depositForm);
+
+//        depositAgreement.setLeadId(lead.getId());
+        depositAgreement.setDepositorPersonProfileId(personProfile.getId());
+        depositAgreementRepository.save(depositAgreement);
+    }
+
+    private User ensureTenantAccount(User user) {
+        boolean changed = false;
+        if (user.getStatus() != AccountStatus.ACTIVE) {
+            user.activeAccount();
+            changed = true;
+        }
+        if (user.getRole() != Role.TENANT) {
+            user.assignRole(Role.TENANT);
+            changed = true;
+        }
+        if (changed) {
+            return userRepository.save(user);
+        }
+        return user;
+    }
+
+    private Tenant ensureTenantMembership(Long propertyId, Long userId) {
+        return tenantRepository.findByUserIdAndPropertyId(userId, propertyId)
+                .orElseGet(() -> tenantRepository.save(Tenant.newTenant(propertyId, userId)));
+    }
+
+    private PersonProfile ensurePersonProfile(User user, DepositForm depositForm) {
+        return personProfileRepository.findByUserId(user.getId())
+                .orElseGet(() -> personProfileRepository.save(
+                        PersonProfile.create(
+                                user.getId(),
+                                depositForm.getFullName(),
+                                depositForm.getDob(),
+                                depositForm.getPhone(),
+                                depositForm.getEmail(),
+                                depositForm.getPermanentAddress(),
+                                depositForm.getPortraitFileId()
+                        )
+                ));
+    }
+
+    private PersonProfile ensurePersonProfile(DepositForm depositForm) {
+        Optional<PersonProfile> existing = personProfileRepository.findByPhone(depositForm.getPhone());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        return personProfileRepository.save(
+                PersonProfile.create(
+                        null,
+                        depositForm.getFullName(),
+                        depositForm.getDob(),
                         depositForm.getPhone(),
-                        depositForm.getEmail()
-                );
-        if (existingUser.isPresent()) {
-            User user = existingUser.get();
-            Optional<Tenant> existingTenant = tenantRepository
-                    .findByUserIdAndPropertyId(user.getId(), room.getPropertyId());
-            if (existingTenant.isPresent()) {
-                Tenant tenant = existingTenant.get();
-                PersonProfile tenantProfile = personProfileRepository.findByUserId(tenant.getUserId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-                depositAgreement.setTenantId(tenant.getId());
-                depositAgreement.setDepositorPersonProfileId(tenantProfile.getId());
-                depositAgreement.confirmDepositAgreement();
-                depositAgreementRepository.save(depositAgreement);
-                return;
-            }
-            Lead lead = leadRepository.findByAssignedUserId(user.getId())
-                    .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-            PersonProfile leadProfile = personProfileRepository.findByUserId(lead.getUserId())
-                    .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-            depositAgreement.setLeadId(lead.getId());
-            depositAgreement.setDepositorPersonProfileId(leadProfile.getId());
-            depositAgreement.confirmDepositAgreement();
-            depositAgreementRepository.save(depositAgreement);
+                        depositForm.getEmail(),
+                        depositForm.getPermanentAddress(),
+                        depositForm.getPortraitFileId()
+                )
+        );
+    }
+
+    private void ensureIdentityDocument(PersonProfile personProfile, DepositForm depositForm) {
+        if (StringUtils.isEmpty(depositForm.getIdNumber())
+                || identityDocumentRepository.existsByProfileIdAndDocType(personProfile.getId(), DocumentType.CCCD)) {
             return;
         }
-
-        String randomPassword = RandomPasswordUtils.generatePassword(
-                6,
-                true,
-                true
-        );
-        String randomPasswordHash = passwordEncoder.encode(randomPassword);
-        User user = User.newUser(
-                depositForm.getPhone(),
-                depositForm.getEmail(),
-                randomPasswordHash,
-                Role.LEAD
-        );
-        try {
-            user = userRepository.save(user);
-        } catch (DataIntegrityViolationException ex) {
-            if (ex.getMessage().contains("uq_users_phone_active") ||
-                    ex.getMessage().contains("uq_users_email_active")) {
-                user = userRepository.findByPhoneOrEmailAndDeletedAtIsNull(
-                                depositForm.getPhone(), depositForm.getEmail())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-            } else {
-                throw ex;
-            }
-        }
-        Lead lead = Lead.newLeadUser(room.getPropertyId(), user.getId());
-        lead = leadRepository.save(lead);
-        PersonProfile personProfile = PersonProfile.create(
-                user.getId(),
-                depositForm.getFullName(),
-                depositForm.getPhone(),
-                depositForm.getEmail()
-        );
-        personProfile = personProfileRepository.save(personProfile);
-        if (identityDocumentRepository.existsByDocTypeAndDocNumber(
-                DocumentType.CCCD, depositForm.getIdNumber())) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+        if (identityDocumentRepository.existsByDocTypeAndDocNumber(DocumentType.CCCD, depositForm.getIdNumber())) {
+            log.warn("Skip creating duplicate CCCD document for deposit profile {}", personProfile.getId());
+            return;
         }
         IdentityDocument identityDocument = IdentityDocument.create(
                 personProfile.getId(),
                 DocumentType.CCCD,
-                depositForm.getIdNumber()
+                depositForm.getIdNumber(),
+                depositForm.getIdIssueDate(),
+                depositForm.getIdIssuePlace(),
+                depositForm.getIdFrontFileId(),
+                depositForm.getIdBackFileId()
         );
         identityDocumentRepository.save(identityDocument);
+    }
 
-        SimpleMailMessage message = createNewAccountMessage(depositForm, randomPassword);
-        javaMailSender.send(message);
-
-        depositAgreement.setLeadId(lead.getId());
+    private void assignTenantToDepositAgreement(
+            DepositAgreement depositAgreement,
+            Tenant tenant,
+            PersonProfile personProfile
+    ) {
+        depositAgreement.setTenantId(tenant.getId());
         depositAgreement.setDepositorPersonProfileId(personProfile.getId());
-        depositAgreement.confirmDepositAgreement();
         depositAgreementRepository.save(depositAgreement);
     }
 
-    private static @NotNull SimpleMailMessage createNewAccountMessage(
-            DepositForm depositForm,
-            String randomPassword
-    ) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setSubject("[Nhà trọ Hải Đăng] Gửi thông tin tài khoản người dùng");
-        message.setTo(depositForm.getEmail());
-        message.setText(
-                String.format(
-                        """
-                                Kính gửi Anh/Chị %s,
-                                
-                                Hệ thống đã tạo tài khoản cho Anh/Chị thành công.
-                                
-                                Thông tin đăng nhập:
-                                
-                                Tên đăng nhập: %s
-                                Mật khẩu tạm thời: %s
-                                
-                                
-                                Vui lòng đăng nhập và đổi mật khẩu sau lần đăng nhập đầu tiên để đảm bảo an toàn tài khoản.
-                                Trân trọng.
-                                """,
-                        depositForm.getFullName(),
-                        depositForm.getPhone(),
-                        randomPassword
-                )
-        );
-        return message;
+    private boolean isActiveUserDuplicate(DataIntegrityViolationException ex) {
+        String message = ex.getMessage();
+        return message != null
+                && (message.contains("uq_users_phone_active")
+                || message.contains("uq_users_email_active"));
     }
 }
