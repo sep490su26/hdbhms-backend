@@ -24,5 +24,8 @@ public class ContractOccupant {
     LocalDate moveOutDate;
     @Builder.Default
     OccupantStatus status = OccupantStatus.ACTIVE;
+    String disabledReason;
+    Long disabledBy;
+    LocalDateTime disabledAt;
     LocalDateTime createdAt;
 }

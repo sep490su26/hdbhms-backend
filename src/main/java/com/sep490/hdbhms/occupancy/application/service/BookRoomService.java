@@ -36,6 +36,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class BookRoomService implements BookRoomUseCase {
     private static final long ROOM_HOLD_DURATION_MINUTES = 5;
+    private static final int MAX_DEPOSIT_SCHEDULE_DAYS = 14;
 
     RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
@@ -102,8 +103,7 @@ public class BookRoomService implements BookRoomUseCase {
     private void ensureRoomAvailableForBooking(Long roomId, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
         String unavailableReason = getUnavailableReason(roomId, expectedMoveInDate, expectedLeaseSignDate);
         if (unavailableReason != null) {
-            HttpStatus status = unavailableReason.startsWith("EXPECTED_MOVE_IN_BEFORE_VACANT_DATE")
-                    || unavailableReason.startsWith("EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE")
+            HttpStatus status = unavailableReason.startsWith("EXPECTED_")
                     ? HttpStatus.UNPROCESSABLE_ENTITY
                     : HttpStatus.CONFLICT;
             throw new ResponseStatusException(status, unavailableReason);
@@ -130,6 +130,17 @@ public class BookRoomService implements BookRoomUseCase {
             }
             return "Phòng hiện không thể đặt cọc. Vui lòng chọn phòng khác.";
         }
+        return validateRegularVacantBooking(expectedMoveInDate, expectedLeaseSignDate);
+    }
+
+    private String validateRegularVacantBooking(LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        LocalDate maxAllowedDate = LocalDate.now().plusDays(MAX_DEPOSIT_SCHEDULE_DAYS);
+        if (expectedMoveInDate != null && expectedMoveInDate.isAfter(maxAllowedDate)) {
+            return "EXPECTED_MOVE_IN_TOO_FAR: Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay.";
+        }
+        if (expectedLeaseSignDate != null && expectedLeaseSignDate.isAfter(maxAllowedDate)) {
+            return "EXPECTED_SIGN_DATE_TOO_FAR: Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ hôm nay.";
+        }
         return null;
     }
 
@@ -145,11 +156,19 @@ public class BookRoomService implements BookRoomUseCase {
         if (expectedVacantDate == null) {
             return "EXPECTED_VACANT_DATE_MISSING: Phong sap trong chua co ngay du kien ban giao.";
         }
-        if (expectedMoveInDate.isBefore(expectedVacantDate)) {
-            return "EXPECTED_MOVE_IN_BEFORE_VACANT_DATE: Ngay du kien vao o phai sau hoac bang ngay phong du kien trong.";
+        LocalDate minAllowedDate = expectedVacantDate.plusDays(1);
+        LocalDate maxAllowedDate = expectedVacantDate.plusDays(MAX_DEPOSIT_SCHEDULE_DAYS);
+        if (expectedMoveInDate.isBefore(minAllowedDate)) {
+            return "EXPECTED_MOVE_IN_BEFORE_VACANT_DATE: Ngày dự kiến vào ở phải sau ngày khách cũ trả phòng.";
         }
-        if (expectedLeaseSignDate.isBefore(expectedVacantDate)) {
-            return "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngay den ky hop dong phai sau hoac bang ngay phong du kien trong.";
+        if (expectedLeaseSignDate.isBefore(minAllowedDate)) {
+            return "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngày hẹn ký hợp đồng phải sau ngày khách cũ trả phòng.";
+        }
+        if (expectedMoveInDate.isAfter(maxAllowedDate)) {
+            return "EXPECTED_MOVE_IN_TOO_FAR_AFTER_VACANT_DATE: Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ ngày khách cũ trả phòng.";
+        }
+        if (expectedLeaseSignDate.isAfter(maxAllowedDate)) {
+            return "EXPECTED_SIGN_DATE_TOO_FAR_AFTER_VACANT_DATE: Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ ngày khách cũ trả phòng.";
         }
         return null;
     }

@@ -21,6 +21,9 @@ public class TenantAccountProvisioningStatusService {
         }
         var provisionings = provisioningRepository.findAllByUserId(userId);
         provisionings.forEach(provisioning -> {
+            if (provisioning.getStatus() == TenantAccountProvisioningStatus.DISABLED) {
+                return;
+            }
             provisioning.setStatus(TenantAccountProvisioningStatus.ACTIVE);
             provisioning.setFailedAt(null);
             provisioning.setFailureReason(null);

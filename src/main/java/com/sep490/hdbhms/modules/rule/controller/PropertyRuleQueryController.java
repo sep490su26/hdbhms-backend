@@ -2,6 +2,7 @@ package com.sep490.hdbhms.modules.rule.controller;
 
 import com.sep490.hdbhms.modules.rule.dto.PropertyRuleItemResponse;
 import com.sep490.hdbhms.modules.rule.dto.PropertyRuleResponse;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
@@ -28,6 +29,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PropertyRuleQueryController {
     JdbcTemplate jdbcTemplate;
+    LeaseContractQueryService leaseContractQueryService;
 
     @GetMapping("/me")
     public ApiResponse<PropertyRuleResponse> getMyPropertyRules(
@@ -41,6 +43,11 @@ public class PropertyRuleQueryController {
         Long propertyId = resolvePropertyId(userId, tenantId);
         if (propertyId == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant property not found");
+        }
+        boolean canReadPropertyContext = leaseContractQueryService.getRentalContexts(userId).stream()
+                .anyMatch(context -> context.propertyId().equals(propertyId));
+        if (!canReadPropertyContext) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tenant context disabled");
         }
 
         List<PropertyRuleItemResponse> items = jdbcTemplate.query("""

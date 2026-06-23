@@ -65,16 +65,6 @@ public class SendDepositFormRequest {
     @FutureOrPresent(message = "Ngày hẹn ký hợp đồng không được là ngày trong quá khứ")
     LocalDate expectedLeaseSignDate;
 
-    @AssertTrue(message = "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay")
-    public boolean isExpectedMoveInDateWithinAllowedRange() {
-        return expectedMoveInDate == null || !expectedMoveInDate.isAfter(LocalDate.now().plusDays(14));
-    }
-
-    @AssertTrue(message = "Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ hôm nay")
-    public boolean isExpectedLeaseSignDateWithinAllowedRange() {
-        return expectedLeaseSignDate == null || !expectedLeaseSignDate.isAfter(LocalDate.now().plusDays(14));
-    }
-
     @AssertTrue(message = "DEPOSIT_001")
     public boolean isCoOccupantInformationValid() {
         if (occupantCount == null || occupantCount < 1 || occupantCount > 3) {

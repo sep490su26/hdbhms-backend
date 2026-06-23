@@ -71,6 +71,9 @@ public class MaintenanceTicketDetailsResponse {
     Long invoiceId;
     String invoiceCode;
     String invoiceStatus;
+    String paymentStatus;
+    Boolean chargeToTenant;
+    String payer;
     String lineType;
     Long chargeAmount;
     String checkoutUrl;

@@ -662,7 +662,14 @@ public class LeaseContractManagementService {
                         WHERE lc.id = ?
                           AND lc.deleted_at IS NULL
                           AND pp.deleted_at IS NULL
-                          AND (pp.user_id = ? OR tap.user_id = ?)
+                          AND (pp.user_id = ? OR (tap.user_id = ? AND tap.status <> 'DISABLED'))
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM contract_occupants disabled_primary
+                              WHERE disabled_primary.contract_id = lc.id
+                                AND disabled_primary.tenant_profile_id = pp.id
+                                AND disabled_primary.status = 'DISABLED'
+                          )
                         """,
                 Integer.class,
                 userId,

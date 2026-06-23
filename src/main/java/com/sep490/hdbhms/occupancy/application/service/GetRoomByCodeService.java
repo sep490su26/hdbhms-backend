@@ -20,7 +20,19 @@ public class GetRoomByCodeService implements GetRoomByCodeUseCase {
 
     @Override
     public Room getRoomByCode(String roomCode) {
-        return roomRepository.findByRoomCode(roomCode)
+        String normalizedRoomCode = normalizeRoomCode(roomCode);
+        return roomRepository.findByRoomCode(normalizedRoomCode)
+                .or(() -> normalizedRoomCode.startsWith("P")
+                        ? roomRepository.findByRoomCode(normalizedRoomCode.substring(1))
+                        : roomRepository.findByRoomCode("P" + normalizedRoomCode))
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+    }
+
+    private String normalizeRoomCode(String roomCode) {
+        String normalized = roomCode == null ? "" : roomCode.trim().toUpperCase();
+        if (normalized.isEmpty()) {
+            return normalized;
+        }
+        return normalized.startsWith("P") ? normalized : "P" + normalized;
     }
 }

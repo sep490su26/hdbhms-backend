@@ -5,5 +5,6 @@ public enum TenantAccountProvisioningStatus {
     PENDING,
     SENT,
     FAILED,
-    ACTIVE
+    ACTIVE,
+    DISABLED
 }

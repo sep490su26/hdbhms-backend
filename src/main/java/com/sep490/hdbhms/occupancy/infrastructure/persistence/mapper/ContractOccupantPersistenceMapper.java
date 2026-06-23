@@ -32,6 +32,9 @@ public class ContractOccupantPersistenceMapper {
                 .moveInDate(entity.getMoveInDate())
                 .moveOutDate(entity.getMoveOutDate())
                 .status(entity.getStatus())
+                .disabledReason(entity.getDisabledReason())
+                .disabledBy(entity.getDisabledBy())
+                .disabledAt(entity.getDisabledAt())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
@@ -56,6 +59,9 @@ public class ContractOccupantPersistenceMapper {
                 .moveInDate(domain.getMoveInDate())
                 .moveOutDate(domain.getMoveOutDate())
                 .status(domain.getStatus())
+                .disabledReason(domain.getDisabledReason())
+                .disabledBy(domain.getDisabledBy())
+                .disabledAt(domain.getDisabledAt())
                 .createdAt(domain.getCreatedAt())
                 .build();
     }

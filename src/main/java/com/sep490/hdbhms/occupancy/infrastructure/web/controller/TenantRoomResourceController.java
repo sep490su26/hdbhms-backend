@@ -4,6 +4,7 @@ import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEnti
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomAssetEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -41,6 +42,7 @@ public class TenantRoomResourceController {
     JpaRoomAssetRepository roomAssetRepository;
     JpaMeterReadingRepository meterReadingRepository;
     JpaFileMetadataRepository fileMetadataRepository;
+    LeaseContractQueryService leaseContractQueryService;
 
     @GetMapping("/assets")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
@@ -49,6 +51,7 @@ public class TenantRoomResourceController {
             @PathVariable Long roomId
     ) {
         ensureRoomExists(roomId);
+        leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
         return ApiResponse.<List<RoomAssetResponse>>builder()
                 .data(roomAssetRepository.findActiveByRoomId(roomId).stream()
                         .map(this::toAssetResponse)
@@ -63,6 +66,7 @@ public class TenantRoomResourceController {
             @PathVariable Long roomId,
             @PathVariable Long assetId
     ) {
+        leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
         return ApiResponse.<RoomAssetResponse>builder()
                 .data(toAssetResponse(findRoomAsset(roomId, assetId)))
                 .build();
@@ -130,6 +134,7 @@ public class TenantRoomResourceController {
             @PathVariable Long roomId
     ) {
         ensureRoomExists(roomId);
+        leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
         MeterReadingLatestResponse.Item electricity = null;
         MeterReadingLatestResponse.Item water = null;
         for (MeterReadingEntity reading : meterReadingRepository.findActiveByRoomIdLatestFirst(roomId)) {

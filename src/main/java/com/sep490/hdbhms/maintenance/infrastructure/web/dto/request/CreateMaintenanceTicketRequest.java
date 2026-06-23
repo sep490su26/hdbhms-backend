@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.sep490.hdbhms.maintenance.domain.value_objects.CostType;
 import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import lombok.*;
@@ -31,4 +32,11 @@ public class CreateMaintenanceTicketRequest {
     String description;
     @JsonAlias({"attachmentIds", "attachment_ids"})
     List<Long> attachmentIds;
+    @JsonAlias({"actualCost", "actual_cost"})
+    Long actualCost;
+    @JsonAlias({"accountingNote", "accounting_note", "costDescription", "cost_description"})
+    String accountingNote;
+    @JsonAlias({"receiptFileId", "receipt_file_id"})
+    Long receiptFileId;
+    CostType costType;
 }
