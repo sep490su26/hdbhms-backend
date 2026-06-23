@@ -1,0 +1,13 @@
+ALTER TABLE room_transfer_requests
+    MODIFY COLUMN status ENUM (
+        'WAITING_APPROVAL',
+        'CANCELLED',
+        'REJECTED',
+        'WAITING_NEW_CONTRACT',
+        'WAITING_TARGET_HOLDER_APPROVAL',
+        'WAITING_CONTRACT_CONFIRMATION',
+        'WAITING_SIGNING',
+        'WAITING_EXECUTION',
+        'EXECUTED',
+        'EXPIRED'
+        ) NOT NULL DEFAULT 'WAITING_APPROVAL';

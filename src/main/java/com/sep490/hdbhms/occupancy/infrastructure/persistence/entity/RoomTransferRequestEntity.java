@@ -4,6 +4,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Deb
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -54,16 +55,49 @@ public class RoomTransferRequestEntity {
     @JoinColumn(name = "target_room_id", nullable = false)
     RoomEntity targetRoom;
 
+    @Column(name = "transferring_tenant_profile_ids", columnDefinition = "JSON")
+    String transferringTenantProfileIds;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "nominated_holder_profile_id")
+    PersonProfileEntity nominatedHolderProfile;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "target_transfer_type", length = 50)
+    TargetTransferType targetTransferType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_contract_id")
+    LeaseContractEntity targetContract;
+
+
     @Column(name = "requested_transfer_date", nullable = false)
     LocalDate requestedTransferDate;
 
     @Column(columnDefinition = "TEXT")
     String reason;
 
+    @Column(name = "reserved_slots")
+    Integer reservedSlots;
+
+    @Column(name = "reservation_expires_at")
+    LocalDateTime reservationExpiresAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_holder_approved_by")
+    UserEntity targetHolderApprovedBy;
+
+    @Column(name = "target_holder_approved_at")
+    LocalDateTime targetHolderApprovedAt;
+
+    @Column(name = "target_holder_rejected_at")
+    LocalDateTime targetHolderRejectedAt;
+
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
-    TransferRequestStatus status = TransferRequestStatus.OLD_ROOM_HANDOVER;
+    TransferRequestStatus status = TransferRequestStatus.WAITING_APPROVAL;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "debt_snapshot_id", nullable = true)

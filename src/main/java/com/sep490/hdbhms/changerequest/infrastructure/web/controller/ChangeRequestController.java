@@ -20,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,12 +35,10 @@ public class ChangeRequestController {
     @GetMapping
     public ApiResponse<PageResponse<ChangeRequestResponse>> getRequests(
             @RequestParam(required = false) RequestType type,
-            @RequestParam(required = false) RequestStatus status,
+            @RequestParam(required = false ) RequestStatus status,
             @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<ChangeRequest> requestPage = queryUseCase.getFilteredRequests(type, status, search, pageable);
 
         Page<ChangeRequestResponse> responsePage = requestPage.map(req -> new ChangeRequestResponse(

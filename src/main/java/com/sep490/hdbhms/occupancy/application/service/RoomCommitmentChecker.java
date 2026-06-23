@@ -118,12 +118,31 @@ public class RoomCommitmentChecker {
                         SELECT COUNT(*)
                         FROM room_transfer_requests
                         WHERE target_room_id = ?
-                          AND status = 'APPROVED'
+                          AND status IN (
+                              'WAITING_NEW_CONTRACT',
+                              'WAITING_CONTRACT_CONFIRMATION',
+                              'WAITING_SIGNING',
+                              'WAITING_EXECUTION'
+                          )
+                          AND COALESCE(reserved_slots, 0) > 0
+                          AND (reservation_expires_at IS NULL OR reservation_expires_at >= ?)
+                        """,
+                Integer.class,
+                roomId,
+                LocalDateTime.now()
+        );
+        Integer currentTransferReservationCount = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM rooms
+                        WHERE id = ?
+                          AND current_status = 'RESERVED_FOR_TRANSFER'
+                          AND deleted_at IS NULL
                         """,
                 Integer.class,
                 roomId
         );
-        return count != null && count > 0;
+        return (count != null && count > 0)
+                || (currentTransferReservationCount != null && currentTransferReservationCount > 0);
     }
 
     private boolean hasFutureContract(Long roomId, Long currentContractId) {

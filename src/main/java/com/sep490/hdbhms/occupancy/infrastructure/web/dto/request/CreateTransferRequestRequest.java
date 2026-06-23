@@ -4,6 +4,7 @@ import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record CreateTransferRequestRequest(
         @NotNull(message = "Source contract ID is required")
@@ -15,6 +16,8 @@ public record CreateTransferRequestRequest(
         @FutureOrPresent
         @NotNull(message = "Requested transfer date is required")
         LocalDate requestedTransferDate,
+
+        List<Long> transferredTenantProfileIds,
 
         String reason
 ) {
