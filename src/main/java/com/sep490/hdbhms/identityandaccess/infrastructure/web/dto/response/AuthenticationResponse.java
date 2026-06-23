@@ -17,5 +17,6 @@ public class AuthenticationResponse {
     Role role;
     Long tenantId;
     Long propertyId;
+    Boolean mustChangePassword;
     boolean authorized;
 }

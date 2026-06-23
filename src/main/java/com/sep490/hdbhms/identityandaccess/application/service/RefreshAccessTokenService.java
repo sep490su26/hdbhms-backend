@@ -59,6 +59,6 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
                 sessionId,
                 response
         );
-        return new WebAuthentication(newAccessToken, user.getRole(), true);
+        return new WebAuthentication(newAccessToken, user.getRole(), user.isMustChangePassword(), true);
     }
 }

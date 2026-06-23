@@ -100,33 +100,20 @@ public class TenantAccountProvisioningService {
             );
         }
 
-        ProvisioningPreparation preparation = transactionTemplate().execute(status -> {
+        List<Long> claimedProfileIds = transactionTemplate().execute(status -> {
             List<Long> claimed = new ArrayList<>();
-            List<Long> existingAccountsWithoutDelivery = new ArrayList<>();
             for (TenantAccountProvisioningResponse occupant : eligibleOccupants) {
                 PreparationOutcome outcome =
                         prepareProvisioningAttempt(occupant, contractId, retryFailed);
                 if (outcome == PreparationOutcome.CLAIMED) {
                     claimed.add(occupant.getProfileId());
-                } else if (outcome == PreparationOutcome.EXISTING_ACCOUNT_WITHOUT_DELIVERY) {
-                    existingAccountsWithoutDelivery.add(occupant.getProfileId());
                 }
             }
-            return new ProvisioningPreparation(claimed, existingAccountsWithoutDelivery);
+            return claimed;
         });
 
-        List<Long> claimedProfileIds =
-                preparation == null ? List.of() : preparation.claimedProfileIds();
-        if (claimedProfileIds == null || claimedProfileIds.isEmpty()) {
-            if (preparation != null
-                    && !preparation.existingAccountsWithoutDelivery().isEmpty()) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "ACCOUNT_ALREADY_EXISTS: Tài khoản đã tồn tại nhưng không có bằng chứng "
-                                + "email cấp tài khoản đã được gửi. Hệ thống không reset hoặc gửi "
-                                + "lại mật khẩu cũ; vui lòng dùng luồng quên mật khẩu."
-                );
-            }
+        List<Long> preparedProfileIds = claimedProfileIds == null ? List.of() : claimedProfileIds;
+        if (preparedProfileIds.isEmpty()) {
             List<TenantAccountProvisioningResponse> current = findContractOccupants(contractId);
             return findPrimary(current).toBuilder()
                     .message(resolveNoSendMessage(current, retryFailed))
@@ -135,7 +122,7 @@ public class TenantAccountProvisioningService {
 
         try {
             Integer sentCount = transactionTemplate().execute(status ->
-                    createAccountsAndSend(contractId, claimedProfileIds, primary));
+                    createAccountsAndSend(contractId, preparedProfileIds, primary));
             log.info(
                     "Provisioned tenant accounts from lease contract. contractId={}, sentCount={}",
                     contractId,
@@ -144,7 +131,7 @@ public class TenantAccountProvisioningService {
         } catch (RuntimeException exception) {
             String failureReason = shortFailureReason(exception);
             transactionTemplate().executeWithoutResult(status ->
-                    markProvisioningFailed(claimedProfileIds, contractId, failureReason));
+                    markProvisioningFailed(preparedProfileIds, contractId, failureReason));
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
                     "Gửi tài khoản thất bại. Có thể thử gửi lại sau khi xác nhận.",
@@ -152,8 +139,9 @@ public class TenantAccountProvisioningService {
             );
         }
 
-        return findPrimaryContractOccupant(contractId).toBuilder()
-                .message("Đã gửi tài khoản cho các người thuê chưa được cấp.")
+        List<TenantAccountProvisioningResponse> current = findContractOccupants(contractId);
+        return findPrimary(current).toBuilder()
+                .message(buildSendMessage(preparedProfileIds.size(), current))
                 .build();
     }
 
@@ -266,12 +254,31 @@ public class TenantAccountProvisioningService {
         User existingUser = resolveExistingUser(occupant, profileId);
         if (existingUser != null) {
             prepareExistingUser(occupant, existingUser);
-            boolean deliveryVerified =
-                    syncExistingUserProvisioning(provisioning, existingUser, contractId);
-            provisioningRepository.save(provisioning);
-            return deliveryVerified
-                    ? PreparationOutcome.SKIPPED
-                    : PreparationOutcome.EXISTING_ACCOUNT_WITHOUT_DELIVERY;
+            if (isActivated(existingUser.getLastLoginAt(), existingUser.isMustChangePassword())) {
+                syncExistingUserProvisioning(provisioning, existingUser, contractId);
+                provisioningRepository.save(provisioning);
+                return PreparationOutcome.SKIPPED;
+            }
+            if (provisioning.getStatus() == TenantAccountProvisioningStatus.PENDING) {
+                provisioning.setUserId(existingUser.getId());
+                provisioningRepository.save(provisioning);
+                return PreparationOutcome.SKIPPED;
+            }
+            if (provisioning.getStatus() == TenantAccountProvisioningStatus.FAILED && !retryFailed) {
+                return PreparationOutcome.SKIPPED;
+            }
+            if (provisioning.getStatus() == TenantAccountProvisioningStatus.SENT && !retryFailed) {
+                return PreparationOutcome.SKIPPED;
+            }
+            if (!List.of(
+                    TenantAccountProvisioningStatus.NOT_PROVISIONED,
+                    TenantAccountProvisioningStatus.FAILED,
+                    TenantAccountProvisioningStatus.SENT
+            ).contains(provisioning.getStatus())) {
+                return PreparationOutcome.SKIPPED;
+            }
+            claimProvisioningAttempt(provisioning, existingUser.getId(), contractId, occupant.getRecipientEmail());
+            return PreparationOutcome.CLAIMED;
         }
 
         if (provisioning.getStatus() == TenantAccountProvisioningStatus.FAILED && !retryFailed) {
@@ -284,14 +291,7 @@ public class TenantAccountProvisioningService {
             return PreparationOutcome.SKIPPED;
         }
 
-        provisioning.setStatus(TenantAccountProvisioningStatus.PENDING);
-        provisioning.setLatestContractId(contractId);
-        provisioning.setRecipientEmail(occupant.getRecipientEmail());
-        provisioning.setAttemptCount(Objects.requireNonNullElse(provisioning.getAttemptCount(), 0) + 1);
-        provisioning.setLastAttemptAt(LocalDateTime.now());
-        provisioning.setFailedAt(null);
-        provisioning.setFailureReason(null);
-        provisioningRepository.save(provisioning);
+        claimProvisioningAttempt(provisioning, null, contractId, occupant.getRecipientEmail());
         return PreparationOutcome.CLAIMED;
     }
 
@@ -317,6 +317,24 @@ public class TenantAccountProvisioningService {
             User existingUser = resolveExistingUser(occupant, occupant.getProfileId());
             if (existingUser != null) {
                 prepareExistingUser(occupant, existingUser);
+                if (!isActivated(existingUser.getLastLoginAt(), existingUser.isMustChangePassword())) {
+                    String temporaryPassword = RandomPasswordUtils.generatePassword(6, true, true);
+                    existingUser.issueTemporaryPassword(passwordEncoder.encode(temporaryPassword));
+                    User savedUser = userRepository.save(existingUser);
+                    ensureTenantMembership(occupant.getPropertyId(), savedUser.getId());
+                    linkProfileIfNeeded(occupant.getProfileId(), savedUser.getId());
+                    provisionedAccounts.add(new ProvisionedAccount(
+                            occupant.getProfileId(),
+                            savedUser.getId()
+                    ));
+                    credentials.add(new SendPreCreatedAccountPort.AccountCredential(
+                            occupant.getFullName(),
+                            occupant.getPhone(),
+                            temporaryPassword,
+                            occupant.getRoomRole()
+                    ));
+                    continue;
+                }
                 TenantAccountProvisioningEntity provisioning =
                         getProvisioningForUpdate(occupant.getProfileId());
                 syncExistingUserProvisioning(provisioning, existingUser, contractId);
@@ -371,6 +389,25 @@ public class TenantAccountProvisioningService {
             provisioningRepository.save(provisioning);
         }
         return credentials.size();
+    }
+
+    private void claimProvisioningAttempt(
+            TenantAccountProvisioningEntity provisioning,
+            Long userId,
+            Long contractId,
+            String recipientEmail
+    ) {
+        if (userId != null) {
+            provisioning.setUserId(userId);
+        }
+        provisioning.setStatus(TenantAccountProvisioningStatus.PENDING);
+        provisioning.setLatestContractId(contractId);
+        provisioning.setRecipientEmail(recipientEmail);
+        provisioning.setAttemptCount(Objects.requireNonNullElse(provisioning.getAttemptCount(), 0) + 1);
+        provisioning.setLastAttemptAt(LocalDateTime.now());
+        provisioning.setFailedAt(null);
+        provisioning.setFailureReason(null);
+        provisioningRepository.save(provisioning);
     }
 
     private TenantAccountProvisioningEntity findOrCreateProvisioning(
@@ -919,6 +956,21 @@ public class TenantAccountProvisioningService {
         return "Tất cả người thuê đã được cấp tài khoản, không gửi lại.";
     }
 
+    private String buildSendMessage(
+            int sentCount,
+            List<TenantAccountProvisioningResponse> occupants
+    ) {
+        long activatedCount = occupants.stream()
+                .filter(item -> item.getProvisioningStatus() == TenantAccountProvisioningStatus.ACTIVE)
+                .count();
+        if (activatedCount > 0) {
+            return "Đã gửi " + sentCount
+                    + " tài khoản chưa kích hoạt; bỏ qua "
+                    + activatedCount + " tài khoản đã kích hoạt.";
+        }
+        return "Đã gửi " + sentCount + " tài khoản cho khách thuê chưa kích hoạt.";
+    }
+
     private String resolveUserEmail(TenantAccountProvisioningResponse occupant) {
         if (!StringUtils.isEmpty(occupant.getEmail())) {
             return StringUtils.normalize(occupant.getEmail());
@@ -1010,16 +1062,9 @@ public class TenantAccountProvisioningService {
     private record ProvisionedAccount(Long profileId, Long userId) {
     }
 
-    private record ProvisioningPreparation(
-            List<Long> claimedProfileIds,
-            List<Long> existingAccountsWithoutDelivery
-    ) {
-    }
-
     private enum PreparationOutcome {
         CLAIMED,
-        SKIPPED,
-        EXISTING_ACCOUNT_WITHOUT_DELIVERY
+        SKIPPED
     }
 
     private record ContractProvisioningContext(
