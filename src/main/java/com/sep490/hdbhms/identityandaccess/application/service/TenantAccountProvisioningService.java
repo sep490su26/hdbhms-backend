@@ -367,6 +367,7 @@ public class TenantAccountProvisioningService {
             sendPreCreatedAccountPort.sendAccountInformationBatch(
                     primary.getRecipientEmail(),
                     primary.getFullName(),
+                    primary.getPhone(),
                     credentials
             );
             log.info(

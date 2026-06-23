@@ -7,16 +7,16 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Service
+@Component
 @Transactional
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class SendPreCreatedAccountService implements SendPreCreatedAccountPort {
+public class SendEmailPreCreatedAccountAdapter implements SendPreCreatedAccountPort {
     JavaMailSender javaMailSender;
 
     @Override
@@ -34,15 +34,15 @@ public class SendPreCreatedAccountService implements SendPreCreatedAccountPort {
                 String.format(
                         """
                                 Kính gửi Anh/Chị %s,
-
+                                
                                 Hệ thống đã tạo tài khoản cho Anh/Chị thành công.
-
+                                
                                 Thông tin đăng nhập:
-
+                                
                                 Tên đăng nhập: %s
                                 Mật khẩu tạm thời: %s
-
-
+                                
+                                
                                 Vui lòng đăng nhập và đổi mật khẩu sau lần đăng nhập đầu tiên để đảm bảo an toàn tài khoản.
                                 Trân trọng.
                                 """,
@@ -58,6 +58,7 @@ public class SendPreCreatedAccountService implements SendPreCreatedAccountPort {
     public void sendAccountInformationBatch(
             String email,
             String recipientFullName,
+            String phone,
             List<AccountCredential> credentials
     ) {
         if (credentials == null || credentials.isEmpty()) {
@@ -71,13 +72,13 @@ public class SendPreCreatedAccountService implements SendPreCreatedAccountPort {
                 String.format(
                         """
                                 Kính gửi Anh/Chị %s,
-
+                                
                                 Hệ thống đã tạo tài khoản đăng nhập ứng dụng HDBHMS cho các khách thuê trong hợp đồng.
-
+                                
                                 Thông tin đăng nhập:
-
+                                
                                 %s
-
+                                
                                 Vui lòng đăng nhập ứng dụng mobile, đổi mật khẩu sau lần đăng nhập đầu tiên và hoàn tất cập nhật CCCD/ảnh chân dung nếu hệ thống yêu cầu.
                                 Trân trọng.
                                 """,

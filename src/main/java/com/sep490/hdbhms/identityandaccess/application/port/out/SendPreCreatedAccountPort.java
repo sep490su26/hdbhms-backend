@@ -5,7 +5,7 @@ import java.util.List;
 public interface SendPreCreatedAccountPort {
     void sendAccountInformation(String email, String fullName, String phone, String randomPassword);
 
-    void sendAccountInformationBatch(String email, String recipientFullName, List<AccountCredential> credentials);
+    void sendAccountInformationBatch(String email, String recipientFullName, String phone, List<AccountCredential> credentials);
 
     record AccountCredential(
             String fullName,
