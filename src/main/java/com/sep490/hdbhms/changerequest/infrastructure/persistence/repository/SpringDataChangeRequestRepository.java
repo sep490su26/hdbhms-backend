@@ -9,6 +9,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -39,5 +44,11 @@ public class SpringDataChangeRequestRepository implements ChangeRequestRepositor
         return jpaChangeRequestRepository.findAll().stream()
                 .map(mapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Page<ChangeRequest> findFiltered(RequestType type, RequestStatus status, String search, Pageable pageable) {
+        return jpaChangeRequestRepository.findFiltered(type, status, search, pageable)
+                .map(mapper::toDomain);
     }
 }

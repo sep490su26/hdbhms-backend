@@ -8,6 +8,7 @@ public record CreateTransferRequestCommand(
         Long sourceContractId,
         Long targetRoomId,
         LocalDate requestedTransferDate,
+        List<Long> transferredTenantProfileIds,
         String reason
 ) {
 }

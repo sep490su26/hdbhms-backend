@@ -23,4 +23,6 @@ public interface LeaseContractRepository {
     List<LeaseContract> findAllByTenantProfileId(Long id);
 
     boolean isTenantHasAnyActiveContract(Long tenantId);
+
+    Optional<LeaseContract> findFirstActiveContract(Long roomId, List<LeaseStatus> statuses);
 }

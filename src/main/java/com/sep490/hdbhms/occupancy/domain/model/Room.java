@@ -73,6 +73,11 @@ public class Room {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void reserveRoomForTransfer() {
+        this.currentStatus = RoomStatus.RESERVED_FOR_TRANSFER;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void holdRoom() {
         this.currentStatus = RoomStatus.ON_HOLD;
         this.updatedAt = LocalDateTime.now();

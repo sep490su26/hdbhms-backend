@@ -8,6 +8,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.ExecuteTransferCo
 import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateTransferRequestRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ExecuteTransferRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.HolderReplacementRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomTransferWebMapper;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
@@ -37,6 +38,7 @@ public class RoomTransferController {
                 command.sourceContractId(),
                 command.targetRoomId(),
                 command.requestedTransferDate(),
+                command.transferredTenantProfileIds(),
                 command.reason()
         );
 
@@ -85,14 +87,57 @@ public class RoomTransferController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{id}/target-holder/approve")
+    public ResponseEntity<Void> approveTargetHolderTransfer(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        roomTransferUseCase.approveTargetHolderTransfer(id, principal.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/target-holder/reject")
+    public ResponseEntity<Void> rejectTargetHolderTransfer(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        roomTransferUseCase.rejectTargetHolderTransfer(id, principal.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/contract/confirm")
+    public ResponseEntity<Void> confirmTransferContract(@PathVariable Long id) {
+        roomTransferUseCase.confirmTransferContract(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/contract/sign")
+    public ResponseEntity<Void> signTransferContract(@PathVariable Long id) {
+        roomTransferUseCase.signTransferContract(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/contract/reject")
+    public ResponseEntity<Void> rejectTransferContract(@PathVariable Long id) {
+        roomTransferUseCase.rejectTransferContract(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelTransferRequest(@PathVariable Long id) {
+        roomTransferUseCase.cancelTransferRequest(id);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{id}/execute")
     public ResponseEntity<Void> executeTransfer(
             @PathVariable Long id,
+            @Valid @RequestBody(required = false) ExecuteTransferRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
 
         ExecuteTransferCommand command = new ExecuteTransferCommand(
                 id,
-                principal.getId()
+                principal.getId(),
+                toCommandPayload(request == null ? null : request.transferOutHandover()),
+                toCommandPayload(request == null ? null : request.transferInHandover())
         );
         roomTransferUseCase.executeTransfer(command);
         return ResponseEntity.ok().build();
@@ -109,5 +154,45 @@ public class RoomTransferController {
         );
         roomTransferUseCase.completeTransfer(command);
         return ResponseEntity.ok().build();
+    }
+
+    private ExecuteTransferCommand.TransferHandoverData toCommandPayload(ExecuteTransferRequest.TransferHandoverPayload payload) {
+        if (payload == null) {
+            return null;
+        }
+        return new ExecuteTransferCommand.TransferHandoverData(
+                payload.handoverDate(),
+                payload.note(),
+                toCommandMeter(payload.electricity()),
+                toCommandMeter(payload.water()),
+                payload.assets() == null
+                        ? null
+                        : payload.assets().stream()
+                        .map(this::toCommandAsset)
+                        .toList()
+        );
+    }
+
+    private ExecuteTransferCommand.MeterReadingData toCommandMeter(ExecuteTransferRequest.MeterReadingPayload payload) {
+        if (payload == null) {
+            return null;
+        }
+        return new ExecuteTransferCommand.MeterReadingData(
+                payload.currentValue(),
+                payload.photoFileId(),
+                payload.readingDate()
+        );
+    }
+
+    private ExecuteTransferCommand.AssetData toCommandAsset(ExecuteTransferRequest.AssetPayload payload) {
+        return new ExecuteTransferCommand.AssetData(
+                payload.id(),
+                payload.assetName(),
+                payload.assetCategory(),
+                payload.quantity(),
+                payload.currentCondition(),
+                payload.description(),
+                payload.fileImageId()
+        );
     }
 }

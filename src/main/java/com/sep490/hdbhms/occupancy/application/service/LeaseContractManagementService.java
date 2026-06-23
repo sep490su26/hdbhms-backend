@@ -716,6 +716,29 @@ public class LeaseContractManagementService {
         if (room == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
         }
+
+        // Bắt buộc phải có bản ghi bàn giao MOVE_IN kèm chỉ số điện/nước trước khi kích hoạt
+        // Skip check for renewal contracts (previous contract exists)
+        if (contract.getPreviousContract() == null) {
+            Integer handoverCount = jdbcTemplate.queryForObject("""
+                            SELECT COUNT(*)
+                            FROM contract_handover_records
+                            WHERE contract_id = ?
+                              AND handover_type = 'MOVE_IN'
+                              AND electricity_reading_id IS NOT NULL
+                              AND water_reading_id IS NOT NULL
+                            """,
+                    Integer.class,
+                    leaseContractId
+            );
+            if (handoverCount == null || handoverCount == 0) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Can hoan thanh nhap chi so dien nuoc va ban giao phong (MOVE_IN) truoc khi kich hoat hop dong."
+                );
+            }
+        }
+
         boolean renewalActivation = contract.getPreviousContract() != null
                 && (room.getCurrentStatus() == RoomStatus.OCCUPIED
                 || room.getCurrentStatus() == RoomStatus.EXPIRED);
