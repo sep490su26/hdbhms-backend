@@ -36,6 +36,10 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+twillio:
+  account-sid: ${TWILLIO_ACCOUNT_SID}
+  auth-token: ${TWILLIO_AUTH_TOKEN}
+  from-number: ${TWILLIO_FROM_NUMBER}
 app:
   jwt:
     secret: ${APP_JWT_SECRET:${SIGNER_KEY}}

@@ -291,6 +291,11 @@
             <artifactId>flying-saucer-pdf-openpdf</artifactId>
             <version>9.3.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.twilio.sdk</groupId>
+            <artifactId>twilio</artifactId>
+            <version>10.6.0</version>
+        </dependency>
     </dependencies>
 
     <build>
