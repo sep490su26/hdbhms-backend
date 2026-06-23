@@ -242,10 +242,6 @@ public class MaintenanceTicketController {
     ) {
         assertManagerOrOwner(requireRole());
         validateCreatePayload(request);
-        Long amount = request.getActualCost();
-        if (amount == null || amount < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí thực tế không được âm.");
-        }
 
         Long propertyId = request.getPropertyId();
         Long roomId = request.getRoomId();
@@ -273,7 +269,6 @@ public class MaintenanceTicketController {
                 request
         );
         attachFiles(ticket, attachmentIds, AttachmentPhase.BEFORE, "Ảnh hiện trạng bảo trì nội bộ");
-        saveInternalCost(ticket.getId(), request);
         recordEvent(ticket.getId(), null, ticket.getStatus(), MaintenanceTicketAction.CREATE,
                 roomId == null
                         ? "Tạo phiếu bảo trì nội bộ khu vực chung"
