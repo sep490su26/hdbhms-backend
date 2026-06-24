@@ -5,14 +5,12 @@ import com.sep490.hdbhms.shared.application.port.out.SmsPort;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Primary
 @Component
 @Transactional
 @RequiredArgsConstructor

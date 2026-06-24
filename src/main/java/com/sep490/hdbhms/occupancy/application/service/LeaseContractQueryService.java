@@ -154,6 +154,8 @@ public class LeaseContractQueryService {
                         SELECT
                             lc.id AS contract_id,
                             lc.contract_code,
+                            lc.deposit_agreement_id,
+                            da.signed_file_id AS deposit_signed_file_id,
                             lc.start_date,
                             lc.end_date,
                             lc.rent_start_date,
@@ -368,6 +370,8 @@ public class LeaseContractQueryService {
                         SELECT
                             lc.id AS contract_id,
                             lc.contract_code,
+                            lc.deposit_agreement_id,
+                            da.signed_file_id AS deposit_signed_file_id,
                             lc.start_date,
                             lc.end_date,
                             lc.rent_start_date,
@@ -655,6 +659,8 @@ public class LeaseContractQueryService {
         return new LeaseContractQueryDetailsResponse(
                 rs.getLong("contract_id"),
                 rs.getString("contract_code"),
+                getLongOrNull(rs, "deposit_agreement_id"),
+                getLongOrNull(rs, "deposit_signed_file_id"),
                 new LeaseContractQueryDetailsResponse.RoomInfo(
                         rs.getLong("room_id"),
                         rs.getString("room_code"),
@@ -720,6 +726,8 @@ public class LeaseContractQueryService {
         return new LeaseContractQueryDetailsResponse(
                 details.contractId(),
                 details.contractCode(),
+                details.depositAgreementId(),
+                details.depositSignedFileId(),
                 details.room(),
                 details.property(),
                 details.startDate(),

@@ -58,6 +58,10 @@ public class ContractHandoverRecordEntity {
     @Column(name = "note", columnDefinition = "TEXT")
     String note;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_document_id", nullable = true)
+    FileMetadataEntity signedDocument;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default

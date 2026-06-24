@@ -34,4 +34,19 @@ public interface JpaRoomTransferRequestRepository extends JpaRepository<RoomTran
             TransferRequestStatus status,
             LocalDateTime updatedBefore
     );
+
+    // Find pending target holder approvals for a specific user
+    @Query("""
+            SELECT r FROM RoomTransferRequestEntity r
+            WHERE r.status = :status
+              AND r.targetContract IS NOT NULL
+              AND r.targetContract.primaryTenantProfile.user.id = :holderUserId
+            ORDER BY r.createdAt DESC
+            """)
+    List<RoomTransferRequestEntity> findPendingTargetHolderApprovals(
+            @Param("status") TransferRequestStatus status,
+            @Param("holderUserId") Long holderUserId
+    );
+
+    RoomTransferRequestEntity findByRequestCode(String requestCode);
 }

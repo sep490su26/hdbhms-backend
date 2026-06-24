@@ -51,7 +51,7 @@ public class FileMetadataEntity {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('ROOM_IMAGE','PROPERTY_IMAGE','PORTRAIT_PHOTO','ID_CARD','CONTRACT','DEPOSIT_CONTRACT','METER_PHOTO','VEHICLE_PHOTO','MAINTENANCE','TICKET_ATTACHMENT','RECEIPT','OCR_INPUT','OTHER') DEFAULT 'OTHER'")
+    @Column(name = "category", nullable = false, length = 50)
     FileCategory category = FileCategory.OTHER;
 
     @Builder.Default

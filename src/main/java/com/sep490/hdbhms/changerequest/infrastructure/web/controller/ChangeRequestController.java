@@ -1,8 +1,5 @@
 package com.sep490.hdbhms.changerequest.infrastructure.web.controller;
 
-import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestResponse;
-import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestStatsResponse;
-import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.RejectRequestRequest;
 import com.sep490.hdbhms.changerequest.application.port.in.command.ApproveRequestCommand;
 import com.sep490.hdbhms.changerequest.application.port.in.command.RejectRequestCommand;
 import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequestQueryUseCase;
@@ -10,6 +7,9 @@ import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequest
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.RejectRequestRequest;
+import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestResponse;
+import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestStatsResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -17,7 +17,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -35,7 +34,7 @@ public class ChangeRequestController {
     @GetMapping
     public ApiResponse<PageResponse<ChangeRequestResponse>> getRequests(
             @RequestParam(required = false) RequestType type,
-            @RequestParam(required = false ) RequestStatus status,
+            @RequestParam(required = false) RequestStatus status,
             @RequestParam(required = false) String search,
             @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC) Pageable pageable
     ) {

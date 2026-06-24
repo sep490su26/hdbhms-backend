@@ -21,6 +21,9 @@ public class ContractHandoverDetailsResponse {
     LocalDateTime handoverDate;
     String note;
 
+    Long signedDocumentId;
+    String signedDocumentUrl;
+
     MeterReadingDetails electricity;
     MeterReadingDetails water;
 

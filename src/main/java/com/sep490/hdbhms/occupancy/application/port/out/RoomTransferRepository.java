@@ -11,4 +11,5 @@ public interface RoomTransferRepository {
     RoomTransferRequest save(RoomTransferRequest roomTransferRequest);
     Optional<RoomTransferRequest> findById(Long id);
     List<RoomTransferRequest> findByStatusAndUpdatedAtBefore(TransferRequestStatus status, LocalDateTime updatedBefore);
+    List<RoomTransferRequest> findPendingTargetHolderApprovals(Long holderUserId);
 }

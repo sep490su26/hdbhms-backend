@@ -727,6 +727,7 @@ public class LeaseContractManagementService {
                               AND handover_type = 'MOVE_IN'
                               AND electricity_reading_id IS NOT NULL
                               AND water_reading_id IS NOT NULL
+                              AND signed_document_id IS NOT NULL
                             """,
                     Integer.class,
                     leaseContractId
@@ -734,7 +735,7 @@ public class LeaseContractManagementService {
             if (handoverCount == null || handoverCount == 0) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Can hoan thanh nhap chi so dien nuoc va ban giao phong (MOVE_IN) truoc khi kich hoat hop dong."
+                        "Cần hoàn thành bàn giao phòng (nhập số điện/nước và upload biên bản bàn giao đã ký) trước khi kích hoạt hợp đồng."
                 );
             }
         }

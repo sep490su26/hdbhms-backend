@@ -6,9 +6,11 @@ import com.twilio.type.PhoneNumber;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Component
 @Transactional
 @RequiredArgsConstructor
@@ -18,10 +20,21 @@ public class TwillioSmsAdapter implements SmsPort {
 
     @Override
     public void send(String phoneNumber, String message) {
+        log.info(toE164Vietnam(phoneNumber));
         Message.creator(
-                new PhoneNumber(phoneNumber),
+                new PhoneNumber(toE164Vietnam(phoneNumber)),
                 new PhoneNumber(twillioProperties.getFromNumber()),
                 message
         ).create();
+    }
+
+    private String toE164Vietnam(String phoneNumber) {
+        if (phoneNumber.startsWith("0")) {
+            return "+84" + phoneNumber.substring(1);
+        }
+        if (phoneNumber.startsWith("+84")) {
+            return phoneNumber;
+        }
+        return phoneNumber;
     }
 }

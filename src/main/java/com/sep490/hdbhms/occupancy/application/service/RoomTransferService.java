@@ -886,7 +886,21 @@ public class RoomTransferService implements RoomTransferUseCase {
     ) {
         long oldRent = safe(oldContract.getMonthlyRent());
         long newRent = safe(newContract.getMonthlyRent());
-        saveSettlement(request, oldRent, newRent, 0L, SettlementType.NO_DIFFERENCE, null, managerId);
+        long difference = newRent - oldRent;
+
+        if (difference > 0) {
+            // New room is more expensive — tenant owes the difference
+            Invoice invoice = createTransferDifferenceInvoice(request, oldRent, newRent, difference, targetRoom, managerId);
+            saveSettlement(request, oldRent, newRent, difference, SettlementType.TENANT_PAY_MORE, invoice.getId(), managerId);
+        } else if (difference < 0) {
+            // New room is cheaper — tenant gets credit applied to next month's rent
+            long credit = Math.abs(difference);
+            createNextRentInvoiceWithTransferCredit(request, newContract, targetRoom, credit, managerId);
+            saveSettlement(request, oldRent, newRent, difference, SettlementType.CREDIT_NEXT_CONTRACT, null, managerId);
+        } else {
+            // Same rent — no settlement needed
+            saveSettlement(request, oldRent, newRent, 0L, SettlementType.NO_DIFFERENCE, null, managerId);
+        }
     }
 
     private void submitTransferOutHandover(
@@ -1136,5 +1150,20 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private String nextChangeRequestCode() {
         return "CR-" + snowflakeIdGenerator.next();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RoomTransferRequest getTransferRequestById(Long requestId) {
+        log.info("Getting transfer request by ID: {}", requestId);
+        return roomTransferRepository.findById(requestId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_REQUEST_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RoomTransferRequest> getPendingTargetHolderApprovals(Long holderUserId) {
+        log.info("Getting pending target holder approvals for user: {}", holderUserId);
+        return roomTransferRepository.findPendingTargetHolderApprovals(holderUserId);
     }
 }

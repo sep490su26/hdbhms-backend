@@ -45,4 +45,13 @@ public class SpringDataRoomTransferRepository implements RoomTransferRepository 
                 .map(roomTransferRequestPersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<RoomTransferRequest> findPendingTargetHolderApprovals(Long holderUserId) {
+        return jpaRoomTransferRequestRepository.findPendingTargetHolderApprovals(
+                        TransferRequestStatus.WAITING_TARGET_HOLDER_APPROVAL, holderUserId)
+                .stream()
+                .map(roomTransferRequestPersistenceMapper::toDomain)
+                .toList();
+    }
 }

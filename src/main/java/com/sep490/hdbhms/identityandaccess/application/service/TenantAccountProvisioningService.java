@@ -93,12 +93,12 @@ public class TenantAccountProvisioningService {
             );
         }
         TenantAccountProvisioningResponse primary = findPrimary(eligibleOccupants);
-        if (StringUtils.isEmpty(primary.getRecipientEmail())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "MISSING_EMAIL: Thiếu email người ký chính để nhận tài khoản."
-            );
-        }
+//        if (StringUtils.isEmpty(primary.getRecipientEmail())) {
+//            throw new ResponseStatusException(
+//                    HttpStatus.BAD_REQUEST,
+//                    "MISSING_EMAIL: Thiếu email người ký chính để nhận tài khoản."
+//            );
+//        }
 
         List<Long> claimedProfileIds = transactionTemplate().execute(status -> {
             List<Long> claimed = new ArrayList<>();
@@ -119,7 +119,6 @@ public class TenantAccountProvisioningService {
                     .message(resolveNoSendMessage(current, retryFailed))
                     .build();
         }
-
         try {
             Integer sentCount = transactionTemplate().execute(status ->
                     createAccountsAndSend(contractId, preparedProfileIds, primary));

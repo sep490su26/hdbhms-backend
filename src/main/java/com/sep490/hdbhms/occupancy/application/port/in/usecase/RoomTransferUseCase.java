@@ -6,6 +6,9 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.CompleteTransferC
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferRequestCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ExecuteTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCommand;
+import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
+
+import java.util.List;
 
 public interface RoomTransferUseCase {
     Long createTransferRequest(CreateTransferRequestCommand command);
@@ -22,4 +25,6 @@ public interface RoomTransferUseCase {
     void executeTransfer(ExecuteTransferCommand command);
     void completeTransfer(CompleteTransferCommand command);
     int expireTargetHolderApprovals();
+    RoomTransferRequest getTransferRequestById(Long requestId);
+    List<RoomTransferRequest> getPendingTargetHolderApprovals(Long holderUserId);
 }

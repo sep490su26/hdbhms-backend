@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 public class ContractHandoverController {
 
     ManageContractHandoverService manageContractHandoverService;
+    com.sep490.hdbhms.occupancy.application.service.HandoverDocumentService handoverDocumentService;
 
     @PostMapping("/meter-readings")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
@@ -66,6 +67,31 @@ public class ContractHandoverController {
         manageContractHandoverService.confirmHandover(contractId, request);
         return ApiResponse.<Void>builder()
                 .message("Xác nhận bàn giao thành công")
+                .build();
+    }
+
+    @GetMapping("/draft-pdf")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getHandoverDraftPdf(
+            @PathVariable Long contractId,
+            @RequestParam(required = false, defaultValue = "MOVE_IN") HandoverType type) {
+        byte[] pdfBytes = handoverDocumentService.generateHandoverDraftPdf(contractId, type);
+        org.springframework.core.io.Resource resource = new org.springframework.core.io.ByteArrayResource(pdfBytes);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"handover-document.pdf\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(resource);
+    }
+
+    @PatchMapping("/document")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public ApiResponse<Void> uploadHandoverDocument(
+            @PathVariable Long contractId,
+            @RequestParam(required = false, defaultValue = "MOVE_IN") HandoverType type,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        handoverDocumentService.attachSignedDocument(contractId, type, file);
+        return ApiResponse.<Void>builder()
+                .message("Tải lên biên bản bàn giao thành công")
                 .build();
     }
 }

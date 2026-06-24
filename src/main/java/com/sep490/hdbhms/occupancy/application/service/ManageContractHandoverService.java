@@ -262,6 +262,8 @@ public class ManageContractHandoverService {
                 .status(record.getStatus())
                 .handoverDate(record.getHandoverDate())
                 .note(record.getNote())
+                .signedDocumentId(record.getSignedDocument() != null ? record.getSignedDocument().getId() : null)
+                .signedDocumentUrl(record.getSignedDocument() != null ? "/api/v1/files/" + record.getSignedDocument().getId() : null)
                 .electricity(mapReading(record.getElectricityReading()))
                 .water(mapReading(record.getWaterReading()))
                 .build();

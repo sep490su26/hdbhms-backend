@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 13pt;
+            line-height: 1.65;
+            color: #000;
+            background: #fff;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0;
+            padding: 20mm;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header .country {
+            font-weight: bold;
+            font-size: 14pt;
+            text-transform: uppercase;
+        }
+
+        .header .motto {
+            font-weight: bold;
+            font-size: 13pt;
+        }
+
+        .header .divider {
+            margin: 6px 0;
+        }
+
+        .contract-title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 15pt;
+            text-transform: uppercase;
+            margin: 14px 0 6px;
+        }
+
+        .intro-line {
+            font-style: italic;
+            margin-bottom: 16px;
+        }
+
+        .party-title {
+            font-weight: bold;
+            margin: 14px 0 6px;
+        }
+
+        .info-line {
+            margin: 4px 0;
+        }
+
+        .info-line.indent {
+            margin-left: 20px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 20px 0 8px;
+            text-decoration: underline;
+        }
+
+        ul.responsibilities {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 0 10px;
+        }
+
+        ul.responsibilities li {
+            margin: 5px 0;
+        }
+
+        ul.responsibilities li::before {
+            content: "- ";
+        }
+
+        .bold-penalty {
+            font-weight: bold;
+        }
+
+        .common-terms {
+            margin: 0 0 0 10px;
+        }
+
+        .common-terms p {
+            margin: 5px 0;
+        }
+
+        .common-terms p::before {
+            content: "- ";
+        }
+
+        .signature-section {
+            margin-top: 36px;
+        }
+
+        .issued-date {
+            text-align: right;
+            font-style: italic;
+            margin-bottom: 8px;
+        }
+
+        .sig-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .sig-table td {
+            width: 50%;
+            text-align: center;
+            vertical-align: top;
+            padding: 0 10px;
+        }
+
+        .sig-title {
+            font-weight: bold;
+        }
+
+        .sig-instruction {
+            font-style: italic;
+            margin: 4px 0 60px;
+        }
+
+        .sig-name {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <!-- Quốc hiệu -->
+    <div class="header">
+        <div class="country">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+        <div class="motto">Độc Lập – Tự Do – Hạnh Phúc</div>
+        <div class="divider">--------o0o--------</div>
+    </div>
+
+    <!-- Tiêu đề -->
+    <div class="contract-title">HỢP ĐỒNG THUÊ PHÒNG TRỌ</div>
+
+    <p class="intro-line">
+        Hôm nay, <span th:text="${issuedAtDateString ?: '............'}"></span>;
+        tại địa chỉ: <span th:text="${issuedAtPlace ?: '............'}"></span>
+        chúng tôi gồm:
+    </p>
+
+    <!-- Bên A -->
+    <div class="party-title">1. Đại diện bên cho thuê phòng trọ (Bên A):</div>
+    <div class="info-line">Ông: <strong th:text="${ownerFullNameUppercase ?: '............'}"></strong></div>
+    <div class="info-line">Ngày sinh: <span th:text="${ownerDob ?: '............'}"></span></div>
+    <div class="info-line">CMTND/CCCD Số: <span th:text="${ownerIdNumber ?: '............'}"></span></div>
+    <div class="info-line">Cấp ngày: <span th:text="${ownerIdIssuedDate ?: '............'}"></span></div>
+    <div class="info-line">Nơi cấp: <span th:text="${ownerIdIssuedPlace ?: '............'}"></span></div>
+    <div class="info-line">Điện thoại: <span th:text="${ownerContactPhoneListString ?: '............'}"></span></div>
+    <div class="info-line">
+        Số tài khoản: <span th:text="${ownerBankAccountNumber ?: '............'}"></span>
+        – Ngân hàng <span th:text="${ownerBankAccountProviderName ?: '............'}"></span>
+        Chủ tài khoản: <strong th:text="${ownerFullNameUppercase ?: '............'}"></strong>
+    </div>
+
+    <!-- Bên B -->
+    <div class="party-title">2. Bên thuê phòng trọ (Bên B):</div>
+    <div class="info-line indent">
+        Ông/bà: <span th:text="${signerFullName ?: '............'}"></span>
+        &nbsp;&nbsp; Sinh ngày: <span th:text="${signerDob ?: '............'}"></span>
+    </div>
+    <div class="info-line indent">
+        Nơi đăng ký HK thường trú: <span th:text="${signerPermanentAddress ?: '............'}"></span>
+    </div>
+    <div class="info-line indent">
+        Số CMND: <span th:text="${signerIdNumber ?: '............'}"></span>
+        cấp ngày <span th:text="${signerIdIssuedDate ?: '............'}"></span>
+        tại: <span th:text="${signerIdIssuedPlace ?: '............'}"></span>
+    </div>
+    <div class="info-line indent">Số điện thoại: <span th:text="${signerPhoneNumber ?: '............'}"></span></div>
+    <div class="info-line indent">
+        Họ và tên người thân (bố/mẹ/anh/chị):
+        <span th:text="${signerEmergencyContactFullName ?: '............'}"></span>
+    </div>
+    <div class="info-line indent">
+        Số điện thoại người thân (bố/mẹ/anh/chị):
+        <span th:text="${signerEmergencyContactPhoneNumber ?: '............'}"></span>
+    </div>
+    <div class="info-line indent">
+        Số lượng người ở: <span th:text="${signerNumberOfOccupants ?: '............'}"></span>
+    </div>
+    <div class="info-line indent">
+        Số lượng xe đăng kí để ở trọ: <span th:text="${signerNumberOfVehicles ?: '............'}"></span>
+    </div>
+    <div class="info-line indent" style="margin-left: 56px;">
+        + Loại xe: <span th:text="${signerTypesOfVehicles ?: '............'}"></span>
+    </div>
+    <div class="info-line indent" style="margin-left: 56px;">
+        + Biển số: <span th:text="${signerPlateNumbersOfVehicles ?: '............'}"></span>
+    </div>
+
+    <!-- Nội dung thỏa thuận -->
+    <p style="margin-top: 14px;">
+        Sau khi bàn bạc trên tinh thần dân chủ, hai bên cùng có lợi, cùng thống nhất như sau:
+    </p>
+
+    <div style="margin-top: 10px; margin-left: 20px;">
+        <p>Bên <strong>A</strong> đồng ý cho bên <strong>B</strong> thuê 01 phòng ở tại địa chỉ:
+            <span th:text="${issuedAtPlace ?: '............'}"></span>.</p>
+        <p>Giá thuê: <strong th:text="${roomListedPrice ?: '............'}"></strong> đ/tháng</p>
+        <p>Hình thức thanh toán: bằng tiền mặt hoặc chuyển khoản.</p>
+        <p>+ Tiền điện: <span th:text="${propertyElectricityPrice ?: '............'}"></span>đ/kwh tính theo chỉ số công tơ.</p>
+        <p>+ Tiền nước sinh hoạt: <span th:text="${propertyWaterPrice ?: '............'}"></span>đ/1m³ (không tính 6m³/1 tháng).</p>
+        <p>+ Tiền (đổ rác, máy giặt, nước uống, wifi, ….):
+            <span th:text="${propertyUtilityPrice ?: '............'}"></span> đ/1 phòng</p>
+        <p style="margin-top: 8px;">
+            Tiền dịch vụ (điện, nước, mạng, ….), tiền điện, tiền nước sinh hoạt sẽ thanh toán vào
+            đầu tháng mới, muộn nhất là vào mùng
+            <strong th:text="${leasePaymentDayTo ?: '............'}"></strong> đầu tháng
+            (Nếu như nợ quá 3 tháng tiền dịch vụ, tiền điện, tiền nước sinh hoạt thì phòng đấy
+            sẽ không được hoàn lại tiền cọc.)
+        </p>
+        <p style="margin-top: 8px;">
+            Hợp đồng có giá trị kể từ <strong th:text="${leaseContractStartDateString ?: '............'}"></strong>
+            đến ngày <strong th:text="${leaseContractEndDateString ?: '............'}"></strong>
+        </p>
+        <p style="margin-top: 8px;">
+            Bên B thanh toán cho bên A số tiền
+            <strong th:text="${paymentCycleMonths ?: '............'}"></strong> tháng/01 lần tương đương
+            <strong th:text="${leaseAmount ?: '............'}"></strong> VND
+            (<span th:text="${leaseAmountString ?: '............'}"></span> đồng)
+            trong khoảng từ ngày <strong th:text="${leasePaymentDayFrom ?: '............'}"></strong>
+            đến ngày <strong th:text="${leasePaymentDayTo ?: '............'}"></strong>
+            tháng đầu tiên của kỳ thanh toán tiền nhà.
+            (Nếu như bên B không thanh toán đúng thời hạn thì bên A có thể kết thúc hợp đồng
+            và bên B sẽ không được nhận lại cọc)
+        </p>
+    </div>
+
+    <!-- Trách nhiệm -->
+    <div class="section-title">TRÁCH NHIỆM CỦA CÁC BÊN</div>
+
+    <p style="margin-bottom: 6px;">* Trách nhiệm của bên A:</p>
+    <ul class="responsibilities">
+        <li>Tạo mọi điều kiện thuận lợi để bên B thực hiện theo hợp đồng.</li>
+        <li>Cung cấp nguồn điện, nước, wifi, dịch vụ sinh hoạt cho bên B sử dụng.</li>
+    </ul>
+
+    <p style="margin: 10px 0 6px;">* Trách nhiệm của bên B:</p>
+    <ul class="responsibilities">
+        <li>Thanh toán đầy đủ các khoản tiền theo đúng thỏa thuận.</li>
+        <li>Bảo quản các trang thiết bị và cơ sở vật chất của bên A trang bị cho ban đầu (làm hỏng phải sửa, mất phải đền).</li>
+        <li>Không được tự ý sửa chữa, cải tạo cơ sở vật chất khi chưa được sự đồng ý của bên A.</li>
+        <li class="bold-penalty">
+            Không được tự ý reset lại mật khẩu modem Wifi của phòng mình và của hệ thống.
+            Nếu tự ý reset sẽ bị phạt <strong>200.000đ/lần (Hai trăm ngàn đồng/lần)</strong>.
+        </li>
+        <li>Giữ gìn vệ sinh trong và ngoài khuôn viên của phòng trọ.</li>
+        <li>Bên B phải chấp hành mọi quy định của pháp luật Nhà nước và quy định của địa phương.</li>
+        <li>Nếu bên B cho khách ở qua đêm thì phải báo và được sự đồng ý của chủ nhà đồng thời
+            phải tự chịu trách nhiệm về các hành vi vi phạm pháp luật (nếu có) của khách trong thời gian ở lại.</li>
+    </ul>
+
+    <!-- Trách nhiệm chung -->
+    <div class="section-title">TRÁCH NHIỆM CHUNG</div>
+
+    <div class="common-terms">
+        <p>Hai bên phải tạo điều kiện cho nhau thực hiện hợp đồng.</p>
+        <p>Trong thời gian hợp đồng còn hiệu lực nếu bên nào vi phạm các điều khoản đã thỏa thuận
+            thì bên còn lại có quyền đơn phương chấm dứt hợp đồng; nếu sự vi phạm hợp đồng đó
+            gây tổn thất cho bên bị vi phạm thì bên vi phạm phải bồi thường thiệt hại.</p>
+        <p>Một trong hai bên muốn chấm dứt hợp đồng trước thời hạn thì phải báo trước cho bên kia
+            ít nhất 30 ngày và hai bên phải có sự thống nhất.</p>
+        <p>Bên A phải trả lại tiền đặt cọc cho bên B.</p>
+        <p>Bên nào vi phạm điều khoản chung thì phải chịu trách nhiệm trước pháp luật.</p>
+    </div>
+
+    <p style="margin-top: 10px;">
+        Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ một bản.
+    </p>
+
+    <!-- Ký tên -->
+    <div class="signature-section">
+        <div class="issued-date">
+            <em>Hà Nội, <span th:text="${issuedAtDateString ?: '............'}"></span></em>
+        </div>
+        <table class="sig-table">
+            <tr>
+                <td>
+                    <div class="sig-title">ĐẠI DIỆN BÊN A</div>
+                    <div class="sig-instruction">(Ký và ghi rõ họ tên)</div>
+                    <div class="sig-name" th:text="${ownerFullNameUppercase ?: '............'}"></div>
+                </td>
+                <td>
+                    <div class="sig-title">ĐẠI DIỆN BÊN B</div>
+                    <div class="sig-instruction">(Ký và ghi rõ họ tên)</div>
+                    <div class="sig-name"></div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+</div>
+</body>
+</html>

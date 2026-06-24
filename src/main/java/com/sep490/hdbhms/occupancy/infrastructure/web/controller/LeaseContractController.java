@@ -7,6 +7,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
@@ -54,8 +55,20 @@ public class LeaseContractController {
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
     LeaseContractManagementService leaseContractManagementService;
     LeaseContractQueryService leaseContractQueryService;
+    LeaseContractDocumentService leaseContractDocumentService;
     RoomCommitmentChecker roomCommitmentChecker;
     JdbcTemplate jdbcTemplate;
+
+    @GetMapping("/{id}/draft-pdf")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getDraftPdf(@PathVariable Long id) {
+        byte[] pdfBytes = leaseContractDocumentService.generateDraftPdf(id);
+        org.springframework.core.io.Resource resource = new org.springframework.core.io.ByteArrayResource(pdfBytes);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"draft-contract.pdf\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(resource);
+    }
 
     @GetMapping("/management")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
