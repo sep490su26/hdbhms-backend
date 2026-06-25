@@ -83,6 +83,8 @@ public abstract class RoomWebMapper {
     @Mapping(target = "name", source = "room.name")
     @Mapping(target = "floorName", source = "floor.name")
     @Mapping(target = "propertyName", source = "property.name")
+    @Mapping(target = "propertyId", source = "property.id")
+    @Mapping(target = "floorId", source = "floor.id")
     @Mapping(target = "images", source = "images")
     @Mapping(target = "firstImageUrl", expression = "java(resolveFirstImageUrl(images))")
     public abstract RoomResponse toResponse(Room room, Floor floor, Property property, List<RoomImage> images);

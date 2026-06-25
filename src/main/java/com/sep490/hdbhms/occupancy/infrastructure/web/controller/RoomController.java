@@ -15,6 +15,7 @@ import com.sep490.hdbhms.occupancy.application.service.GetLatestMeterReadingsSer
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LatestMeterReadingsResponse;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateRoomRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.UpdateRoomLayoutsRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper;
@@ -28,6 +29,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -50,6 +61,8 @@ public class RoomController {
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     GetRoomImagesByRoomIdUseCase getRoomImagesByRoomIdUseCase;
     RoomCommitmentChecker roomCommitmentChecker;
+    JpaRoomRepository jpaRoomRepository;
+    JpaRolePromotionRepository rolePromotionRepository;
 
     @GetMapping
     public ApiResponse<PageResponse<RoomResponse>> getRooms(
@@ -123,6 +136,37 @@ public class RoomController {
                         response
                 )
                 .build();
+    }
+
+    @PatchMapping("/layout")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @Transactional
+    public ApiResponse<Void> updateRoomLayouts(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody UpdateRoomLayoutsRequest request
+    ) {
+        List<Long> managerPropertyIds = principal.getRole() == Role.MANAGER
+                ? rolePromotionRepository.findActivePropertyIds(
+                        principal.getId(),
+                        PromotionRole.MANAGER,
+                        RolePromotionStatus.ACTIVE
+                )
+                : List.of();
+
+        request.rooms().forEach(layout -> {
+            var room = jpaRoomRepository.findById(layout.roomId())
+                    .filter(item -> item.getDeletedAt() == null)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng."));
+            if (principal.getRole() == Role.MANAGER
+                    && !managerPropertyIds.contains(room.getProperty().getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền cập nhật cơ sở này.");
+            }
+            room.setPositionX(layout.positionX());
+            room.setPositionY(layout.positionY());
+            jpaRoomRepository.save(room);
+        });
+
+        return ApiResponse.<Void>builder().message("Đã lưu sơ đồ tầng.").build();
     }
 
     @GetMapping("/id/{roomId}")
