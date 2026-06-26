@@ -65,6 +65,7 @@ public class SecurityConfig {
             "/api/v1/deposit/payments/*/status",
             "/api/v1/deposit/payments/*/contract",
             "/api/v1/public/deposits/batches/*/status",
+            "/api/v1/public/properties/*/floor-plan",
             "/api/v1/properties",
             "/api/v1/properties/simple",
             "/api/v1/properties/*",
