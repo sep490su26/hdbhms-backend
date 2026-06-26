@@ -4,6 +4,8 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -72,9 +74,11 @@ public class RoomEntity {
     @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
     List<RoomImageEntity> images = new ArrayList<>();
 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     LocalDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     LocalDateTime updatedAt;
 

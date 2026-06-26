@@ -9,6 +9,9 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class FloorEfficiencyResponse {
+    Long propertyId;
+    String propertyName;
+    Long floorId;
     String floorName;
     Long roomCount;
     Long vacantRoomCount;
