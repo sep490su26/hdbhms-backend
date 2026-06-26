@@ -71,7 +71,7 @@ public class IdentityVerificationService {
                         UPDATE person_profiles
                         SET portrait_file_id = ?,
                             updated_at = NOW(6)
-                        WHERE id = ?
+                        WHERE person_profile_id = ?
                         """,
                 portraitFileId,
                 profileId
@@ -98,7 +98,7 @@ public class IdentityVerificationService {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM tenants
-                        WHERE id = ?
+                        WHERE tenant_id = ?
                           AND user_id = ?
                           AND deleted_at IS NULL
                         """,
@@ -126,11 +126,11 @@ public class IdentityVerificationService {
 
     private Long resolveOrCreatePersonProfile(Long userId) {
         Long existingProfileId = jdbcTemplate.query("""
-                        SELECT id
+                        SELECT person_profile_id AS id
                         FROM person_profiles
                         WHERE user_id = ?
                           AND deleted_at IS NULL
-                        ORDER BY id DESC
+                        ORDER BY person_profile_id DESC
                         LIMIT 1
                         """,
                 rs -> rs.next() ? rs.getLong("id") : null,
@@ -151,14 +151,14 @@ public class IdentityVerificationService {
                                 created_at,
                                 updated_at
                             )
-                            SELECT id,
+                            SELECT user_id,
                                    'Khách thuê',
                                    phone,
                                    email,
                                    NOW(6),
                                    NOW(6)
                             FROM users
-                            WHERE id = ?
+                            WHERE user_id = ?
                               AND deleted_at IS NULL
                             """,
                     Statement.RETURN_GENERATED_KEYS);
@@ -192,11 +192,11 @@ public class IdentityVerificationService {
 
     private void upsertIdentityDocument(Long profileId, Long frontFileId, Long backFileId) {
         Long existingDocumentId = jdbcTemplate.query("""
-                        SELECT id
+                        SELECT identity_document_id AS id
                         FROM identity_documents
                         WHERE profile_id = ?
                           AND doc_type = 'CCCD'
-                        ORDER BY updated_at DESC, id DESC
+                        ORDER BY updated_at DESC, identity_document_id DESC
                         LIMIT 1
                         """,
                 rs -> rs.next() ? rs.getLong("id") : null,
@@ -230,7 +230,7 @@ public class IdentityVerificationService {
                             back_file_id = ?,
                             status = 'ACTIVE',
                             updated_at = NOW(6)
-                        WHERE id = ?
+                        WHERE identity_document_id = ?
                         """,
                 frontFileId,
                 backFileId,

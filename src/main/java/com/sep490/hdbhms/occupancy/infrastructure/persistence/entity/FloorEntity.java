@@ -28,6 +28,7 @@ public class FloorEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "floor_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

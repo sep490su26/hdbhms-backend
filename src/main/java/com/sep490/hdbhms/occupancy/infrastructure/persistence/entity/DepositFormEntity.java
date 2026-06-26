@@ -22,6 +22,7 @@ import java.util.List;
 public class DepositFormEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "deposit_form_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

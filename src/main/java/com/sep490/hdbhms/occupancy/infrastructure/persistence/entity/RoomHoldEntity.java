@@ -33,6 +33,7 @@ public class RoomHoldEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_hold_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

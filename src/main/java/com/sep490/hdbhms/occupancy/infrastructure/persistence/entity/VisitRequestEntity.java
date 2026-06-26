@@ -20,6 +20,7 @@ public class VisitRequestEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "visit_request_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

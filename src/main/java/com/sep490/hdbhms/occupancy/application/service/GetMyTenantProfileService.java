@@ -30,9 +30,9 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
 
         // Get tenant by userId
         TenantRow tenant = queryNullable("""
-                SELECT t.id, t.user_id, u.status
+                SELECT t.tenant_id AS id, t.user_id, u.status
                 FROM tenants t
-                JOIN users u ON u.id = t.user_id
+                JOIN users u ON u.user_id = t.user_id
                 WHERE t.user_id = ?
                   AND t.deleted_at IS NULL
                   AND u.deleted_at IS NULL
@@ -75,7 +75,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
 
     private PersonRow findPersonProfile(Long userId, Long tenantId) {
         return queryNullable("""
-                SELECT pp.id,
+                SELECT pp.person_profile_id AS id,
                        pp.full_name,
                        pp.dob,
                        pp.phone,
@@ -83,19 +83,19 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                        pp.permanent_address,
                        pp.portrait_file_id
                 FROM person_profiles pp
-                JOIN users u ON u.id = ?
+                JOIN users u ON u.user_id = ?
                 WHERE pp.deleted_at IS NULL
                   AND (
                     pp.phone = u.phone
                     OR LOWER(pp.email) = LOWER(u.email)
-                    OR pp.id IN (
+                    OR pp.person_profile_id IN (
                         SELECT lc.primary_tenant_profile_id
                         FROM lease_contracts lc
-                        JOIN contract_occupants co ON co.contract_id = lc.id
+                        JOIN contract_occupants co ON co.contract_id = lc.lease_contract_id
                         WHERE co.tenant_id = ?
                           AND lc.deleted_at IS NULL
                     )
-                    OR pp.id IN (
+                    OR pp.person_profile_id IN (
                         SELECT da.depositor_person_profile_id
                         FROM deposit_agreements da
                         WHERE da.tenant_id = ?
@@ -107,7 +107,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                     WHEN pp.phone = u.phone OR LOWER(pp.email) = LOWER(u.email) THEN 0
                     ELSE 1
                   END,
-                  pp.id DESC
+                  pp.person_profile_id DESC
                 LIMIT 1
                 """, rs -> new PersonRow(
                 rs.getLong("id"),
@@ -131,7 +131,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 FROM identity_documents
                 WHERE profile_id = ?
                   AND status = 'ACTIVE'
-                ORDER BY id DESC
+                ORDER BY identity_document_id DESC
                 LIMIT 1
                 """, rs -> new TenantProfileResponse.IdentityDocumentDto(
                 rs.getString("doc_type"),
@@ -145,12 +145,12 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
 
     private List<TenantProfileResponse.VehicleDto> getVehicles(Long personProfileId) {
         return jdbcTemplate.query("""
-                SELECT id, vehicle_type, license_plate, image_file_id
+                SELECT vehicle_id AS id, vehicle_type, license_plate, image_file_id
                 FROM vehicles
                 WHERE profile_id = ?
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL
-                ORDER BY id
+                ORDER BY vehicle_id
                 """, (rs, rowNum) -> new TenantProfileResponse.VehicleDto(
                 rs.getLong("id"),
                 rs.getString("vehicle_type"),
@@ -164,7 +164,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 SELECT full_name, relationship, phone
                 FROM emergency_contacts
                 WHERE tenant_profile_id = ?
-                ORDER BY id
+                ORDER BY emergency_contact_id
                 """, (rs, rowNum) -> new TenantProfileResponse.EmergencyContactDto(
                 rs.getString("full_name"),
                 rs.getString("relationship"),

@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 public class PendingBillingChargeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "pending_billing_charge_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

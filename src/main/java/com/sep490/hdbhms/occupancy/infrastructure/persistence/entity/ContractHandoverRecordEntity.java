@@ -30,6 +30,7 @@ public class ContractHandoverRecordEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "contract_handover_record_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -78,4 +79,3 @@ public class ContractHandoverRecordEntity {
     @Column(name = "created_at", updatable = false, nullable = false)
     LocalDateTime createdAt;
 }
-

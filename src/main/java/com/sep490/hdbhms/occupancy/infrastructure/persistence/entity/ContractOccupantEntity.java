@@ -31,6 +31,7 @@ public class ContractOccupantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "contract_occupant_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

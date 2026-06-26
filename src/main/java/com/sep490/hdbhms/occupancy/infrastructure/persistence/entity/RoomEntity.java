@@ -20,6 +20,7 @@ import java.util.List;
 public class RoomEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

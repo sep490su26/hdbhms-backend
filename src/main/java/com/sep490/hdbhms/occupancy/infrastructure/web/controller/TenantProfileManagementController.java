@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -36,20 +35,20 @@ public class TenantProfileManagementController {
         List<TenantProfileRow> rows = jdbcTemplate.query("""
                         SELECT *
                         FROM (
-                            SELECT lc.id AS contract_id,
+                            SELECT lc.lease_contract_id AS contract_id,
                                    lc.contract_code,
                                    lc.status AS contract_status,
                                    lc.start_date,
                                    lc.end_date,
                                    lc.monthly_rent,
                                    lc.deposit_amount,
-                                   r.id AS room_id,
+                                   r.room_id AS room_id,
                                    r.room_code,
                                    r.max_occupants,
-                                   p.id AS property_id,
+                                   p.property_id AS property_id,
                                    p.name AS property_name,
                                    p.address_line AS property_address,
-                                   pp.id AS profile_id,
+                                   pp.person_profile_id AS profile_id,
                                    pp.user_id,
                                    pp.full_name,
                                    pp.dob,
@@ -64,31 +63,31 @@ public class TenantProfileManagementController {
                                    co.move_out_date,
                                    'RENTING' AS residence_status
                             FROM lease_contracts lc
-                            JOIN rooms r ON r.id = lc.room_id
-                            JOIN properties p ON p.id = r.property_id
-                            JOIN contract_occupants co ON co.contract_id = lc.id AND co.status = 'ACTIVE'
-                            JOIN person_profiles pp ON pp.id = co.tenant_profile_id
-                            LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            JOIN properties p ON p.property_id = r.property_id
+                            JOIN contract_occupants co ON co.contract_id = lc.lease_contract_id AND co.status = 'ACTIVE'
+                            JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
+                            LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
                               AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
                               AND pp.deleted_at IS NULL
 
                             UNION ALL
 
-                            SELECT lc.id AS contract_id,
+                            SELECT lc.lease_contract_id AS contract_id,
                                    lc.contract_code,
                                    lc.status AS contract_status,
                                    lc.start_date,
                                    lc.end_date,
                                    lc.monthly_rent,
                                    lc.deposit_amount,
-                                   r.id AS room_id,
+                                   r.room_id AS room_id,
                                    r.room_code,
                                    r.max_occupants,
-                                   p.id AS property_id,
+                                   p.property_id AS property_id,
                                    p.name AS property_name,
                                    p.address_line AS property_address,
-                                   pp.id AS profile_id,
+                                   pp.person_profile_id AS profile_id,
                                    pp.user_id,
                                    pp.full_name,
                                    pp.dob,
@@ -103,18 +102,18 @@ public class TenantProfileManagementController {
                                    NULL AS move_out_date,
                                    'RENTING' AS residence_status
                             FROM lease_contracts lc
-                            JOIN rooms r ON r.id = lc.room_id
-                            JOIN properties p ON p.id = r.property_id
-                            JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
-                            LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            JOIN properties p ON p.property_id = r.property_id
+                            JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
+                            LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
                               AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
                               AND pp.deleted_at IS NULL
                               AND NOT EXISTS (
                                   SELECT 1
                                   FROM contract_occupants co_primary
-                                  WHERE co_primary.contract_id = lc.id
-                                    AND co_primary.tenant_profile_id = pp.id
+                                  WHERE co_primary.contract_id = lc.lease_contract_id
+                                    AND co_primary.tenant_profile_id = pp.person_profile_id
                                     AND co_primary.status = 'ACTIVE'
                               )
                         ) tenant_profiles
@@ -229,7 +228,7 @@ public class TenantProfileManagementController {
         }
 
         List<IdentityDocumentResponse> documents = jdbcTemplate.query("""
-                        SELECT id,
+                        SELECT identity_document_id AS id,
                                doc_type,
                                doc_number,
                                issued_date,
@@ -241,7 +240,7 @@ public class TenantProfileManagementController {
                         FROM identity_documents
                         WHERE profile_id = ?
                           AND status = 'ACTIVE'
-                        ORDER BY updated_at DESC, id DESC
+                        ORDER BY updated_at DESC, identity_document_id DESC
                         LIMIT 1
                         """,
                 (rs, rowNum) -> new IdentityDocumentResponse(
@@ -269,7 +268,7 @@ public class TenantProfileManagementController {
         }
 
         return jdbcTemplate.query("""
-                        SELECT id,
+                        SELECT vehicle_id AS id,
                                vehicle_type,
                                license_plate,
                                image_file_id,
@@ -278,7 +277,7 @@ public class TenantProfileManagementController {
                         WHERE profile_id = ?
                           AND deleted_at IS NULL
                           AND status = 'ACTIVE'
-                        ORDER BY id
+                        ORDER BY vehicle_id
                         """,
                 (rs, rowNum) -> new VehicleResponse(
                         nullableLong(rs, "id"),
@@ -298,13 +297,13 @@ public class TenantProfileManagementController {
         }
 
         return jdbcTemplate.query("""
-                        SELECT id,
+                        SELECT emergency_contact_id AS id,
                                full_name,
                                relationship,
                                phone
                         FROM emergency_contacts
                         WHERE tenant_profile_id = ?
-                        ORDER BY id
+                        ORDER BY emergency_contact_id
                         """,
                 (rs, rowNum) -> new EmergencyContactResponse(
                         nullableLong(rs, "id"),
@@ -484,7 +483,6 @@ public class TenantProfileManagementController {
             String fullName,
             LocalDate dob,
             String phone,
-            @JsonProperty("roomRole")
             String roomRole
     ) {
     }

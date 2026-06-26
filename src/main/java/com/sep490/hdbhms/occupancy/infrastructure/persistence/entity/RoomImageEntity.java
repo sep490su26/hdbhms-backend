@@ -24,6 +24,7 @@ public class RoomImageEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_image_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

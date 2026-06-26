@@ -34,6 +34,7 @@ public class LeaseContractEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "lease_contract_id")
     Long id;
 
     @Column(name = "contract_code", nullable = false, length = 80)

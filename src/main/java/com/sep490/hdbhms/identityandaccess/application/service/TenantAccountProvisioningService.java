@@ -523,7 +523,7 @@ public class TenantAccountProvisioningService {
             linkedUserId = jdbcTemplate.query("""
                             SELECT user_id
                             FROM person_profiles
-                            WHERE id = ?
+                            WHERE person_profile_id = ?
                               AND deleted_at IS NULL
                             LIMIT 1
                             """,
@@ -612,7 +612,7 @@ public class TenantAccountProvisioningService {
 
     private ContractMembershipContext findContractMembershipContext(Long contractId, Long tenantProfileId) {
         List<ContractMembershipContext> contexts = jdbcTemplate.query(
-                "SELECT lc.primary_tenant_profile_id, lc.start_date, r.property_id, EXISTS (SELECT 1 FROM contract_occupants co WHERE co.contract_id = lc.id AND co.tenant_profile_id = ?) AS has_occupant, EXISTS (SELECT 1 FROM person_profiles pp WHERE pp.id = ? AND pp.deleted_at IS NULL) AS profile_exists FROM lease_contracts lc JOIN rooms r ON r.id = lc.room_id WHERE lc.id = ? AND lc.deleted_at IS NULL LIMIT 1",
+                "SELECT lc.primary_tenant_profile_id, lc.start_date, r.property_id, EXISTS (SELECT 1 FROM contract_occupants co WHERE co.contract_id = lc.lease_contract_id AND co.tenant_profile_id = ?) AS has_occupant, EXISTS (SELECT 1 FROM person_profiles pp WHERE pp.person_profile_id = ? AND pp.deleted_at IS NULL) AS profile_exists FROM lease_contracts lc JOIN rooms r ON r.room_id = lc.room_id WHERE lc.lease_contract_id = ? AND lc.deleted_at IS NULL LIMIT 1",
                 (rs, rowNum) -> new ContractMembershipContext(
                         getLongOrNull(rs, "primary_tenant_profile_id"),
                         toLocalDate(rs, "start_date"),
@@ -636,7 +636,7 @@ public class TenantAccountProvisioningService {
 
     private Long resolveTenantIdForProfile(Long tenantProfileId, Long propertyId) {
         List<Long> tenantIds = jdbcTemplate.query(
-                "SELECT t.id FROM tenants t JOIN person_profiles pp ON pp.id = ? LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.id WHERE t.property_id = ? AND t.deleted_at IS NULL AND t.user_id = COALESCE(pp.user_id, tap.user_id) ORDER BY t.id DESC LIMIT 1",
+                "SELECT t.tenant_id AS id FROM tenants t JOIN person_profiles pp ON pp.person_profile_id = ? LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.person_profile_id WHERE t.property_id = ? AND t.deleted_at IS NULL AND t.user_id = COALESCE(pp.user_id, tap.user_id) ORDER BY t.tenant_id DESC LIMIT 1",
                 (rs, rowNum) -> rs.getLong("id"),
                 tenantProfileId,
                 propertyId
@@ -666,13 +666,13 @@ public class TenantAccountProvisioningService {
                                 (
                                     SELECT COUNT(*)
                                     FROM contract_occupants co
-                                    WHERE co.contract_id = lc.id
+                                    WHERE co.contract_id = lc.lease_contract_id
                                       AND co.status = 'ACTIVE'
                                       AND co.tenant_profile_id IS NOT NULL
                                 ) AS occupant_count
                             FROM lease_contracts lc
-                            JOIN rooms r ON r.id = lc.room_id
-                            WHERE lc.id = ?
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            WHERE lc.lease_contract_id = ?
                               AND lc.deleted_at IS NULL
                             """,
                     (rs, rowNum) -> new ContractProvisioningContext(
@@ -743,19 +743,19 @@ public class TenantAccountProvisioningService {
         return """
                 SELECT
                     CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END AS role_order,
-                    lc.id AS contract_id,
+                    lc.lease_contract_id AS contract_id,
                     lc.contract_code,
                     lc.status AS contract_status,
                     lc.start_date,
                     lc.end_date,
                     lc.signed_at,
-                    p.id AS property_id,
+                    p.property_id AS property_id,
                     p.name AS property_name,
-                    r.id AS room_id,
+                    r.room_id AS room_id,
                     r.room_code,
                     r.current_status AS room_status,
                     co.id AS occupant_id,
-                    pp.id AS profile_id,
+                    pp.person_profile_id AS profile_id,
                     pp.full_name,
                     pp.phone,
                     pp.email,
@@ -765,11 +765,11 @@ public class TenantAccountProvisioningService {
                     GREATEST((
                         SELECT COUNT(*)
                         FROM contract_occupants co_count
-                        WHERE co_count.contract_id = lc.id
+                        WHERE co_count.contract_id = lc.lease_contract_id
                           AND co_count.status = 'ACTIVE'
                     ), 1) AS room_occupant_count,
                     r.max_occupants AS room_max_occupants,
-                    u.id AS user_id,
+                    u.user_id AS user_id,
                     u.role,
                     u.status AS account_status,
                     u.must_change_password,
@@ -778,7 +778,7 @@ public class TenantAccountProvisioningService {
                     CASE
                         WHEN co.status = 'DISABLED' OR tap.status = 'DISABLED'
                             THEN 'DISABLED'
-                        WHEN u.id IS NOT NULL
+                        WHEN u.user_id IS NOT NULL
                           AND (u.last_login_at IS NOT NULL OR u.must_change_password = FALSE)
                             THEN 'ACTIVE'
                         WHEN tap.status = 'SENT' AND tap.sent_at IS NULL
@@ -797,7 +797,7 @@ public class TenantAccountProvisioningService {
                         WHEN NOT EXISTS (
                             SELECT 1
                             FROM identity_documents idoc
-                            WHERE idoc.profile_id = pp.id
+                            WHERE idoc.profile_id = pp.person_profile_id
                               AND idoc.status = 'ACTIVE'
                               AND idoc.doc_number IS NOT NULL
                               AND idoc.doc_number <> ''
@@ -807,14 +807,14 @@ public class TenantAccountProvisioningService {
                         WHEN NOT EXISTS (
                             SELECT 1
                             FROM emergency_contacts ec
-                            WHERE ec.tenant_profile_id = pp.id
+                            WHERE ec.tenant_profile_id = pp.person_profile_id
                         ) THEN 'MISSING_EMERGENCY_CONTACT'
                         ELSE 'COMPLETED'
                     END AS profile_status,
                     NOT EXISTS (
                         SELECT 1
                         FROM identity_documents idoc
-                        WHERE idoc.profile_id = pp.id
+                        WHERE idoc.profile_id = pp.person_profile_id
                           AND idoc.status = 'ACTIVE'
                           AND idoc.doc_number IS NOT NULL
                           AND idoc.doc_number <> ''
@@ -824,15 +824,15 @@ public class TenantAccountProvisioningService {
                     NOT EXISTS (
                         SELECT 1
                         FROM emergency_contacts ec
-                        WHERE ec.tenant_profile_id = pp.id
+                            WHERE ec.tenant_profile_id = pp.person_profile_id
                     ) AS missing_emergency_contact
                 FROM lease_contracts lc
-                JOIN rooms r ON r.id = lc.room_id
-                JOIN properties p ON p.id = r.property_id
-                JOIN person_profiles primary_pp ON primary_pp.id = lc.primary_tenant_profile_id
+                JOIN rooms r ON r.room_id = lc.room_id
+                JOIN properties p ON p.property_id = r.property_id
+                JOIN person_profiles primary_pp ON primary_pp.person_profile_id = lc.primary_tenant_profile_id
                 JOIN (
                     SELECT
-                        active_occupant.id,
+                        active_occupant.contract_occupant_id AS id,
                         active_occupant.contract_id,
                         active_occupant.tenant_profile_id,
                         active_occupant.occupant_role,
@@ -848,7 +848,7 @@ public class TenantAccountProvisioningService {
 
                     SELECT
                         NULL AS id,
-                        fallback_contract.id AS contract_id,
+                        fallback_contract.lease_contract_id AS contract_id,
                         fallback_contract.primary_tenant_profile_id AS tenant_profile_id,
                         'PRIMARY' AS occupant_role,
                         'ACTIVE' AS status,
@@ -860,19 +860,19 @@ public class TenantAccountProvisioningService {
                       AND NOT EXISTS (
                           SELECT 1
                           FROM contract_occupants primary_occupant
-                          WHERE primary_occupant.contract_id = fallback_contract.id
+                          WHERE primary_occupant.contract_id = fallback_contract.lease_contract_id
                             AND primary_occupant.tenant_profile_id =
                                 fallback_contract.primary_tenant_profile_id
                       )
-                ) co ON co.contract_id = lc.id
+                ) co ON co.contract_id = lc.lease_contract_id
                 JOIN person_profiles pp
-                    ON pp.id = co.tenant_profile_id
+                    ON pp.person_profile_id = co.tenant_profile_id
                     AND pp.deleted_at IS NULL
                 LEFT JOIN users primary_user
-                    ON primary_user.id = primary_pp.user_id
+                    ON primary_user.user_id = primary_pp.user_id
                     AND primary_user.deleted_at IS NULL
-                LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
-                LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.id
+                LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
+                LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.person_profile_id
                 WHERE lc.deleted_at IS NULL
                   AND lc.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
                 """;

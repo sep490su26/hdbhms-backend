@@ -2,6 +2,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Column;
 import jakarta.persistence.Table;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -18,6 +19,7 @@ import java.util.Date;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class InvalidatedTokenEntity {
     @Id
+    @Column(name = "invalidated_token_id")
     String id;
     Date expiryTime;
 }

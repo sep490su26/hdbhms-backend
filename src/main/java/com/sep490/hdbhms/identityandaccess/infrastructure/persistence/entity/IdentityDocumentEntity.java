@@ -31,6 +31,7 @@ public class IdentityDocumentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "identity_document_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

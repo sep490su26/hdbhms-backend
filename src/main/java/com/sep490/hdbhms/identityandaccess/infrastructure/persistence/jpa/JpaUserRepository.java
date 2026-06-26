@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface JpaUserRepository extends JpaRepository<UserEntity, Long>, JpaSpecificationExecutor<UserEntity> {
-    @Query(value = "SELECT id FROM hdbhms.users WHERE MATCH(email) AGAINST (CONCAT(?1, '*') IN BOOLEAN MODE)",
+    @Query(value = "SELECT user_id FROM hdbhms.users WHERE MATCH(email) AGAINST (CONCAT(?1, '*') IN BOOLEAN MODE)",
             nativeQuery = true)
     List<Long> findIdsByFullText(String keyword);
 

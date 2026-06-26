@@ -27,6 +27,7 @@ public class TransferSettlementEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "transfer_settlement_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

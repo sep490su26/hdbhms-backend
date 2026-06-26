@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
@@ -11,13 +11,13 @@ public record UpdateTenantProfileRequest(
         @NotBlank
         String email,
 
-        @JsonProperty("emergency_contacts")
+        @JsonAlias("emergency_contacts")
         List<EmergencyContactDto> emergencyContacts,
 
         List<VehicleDto> vehicles
 ) {
     public record EmergencyContactDto(
-            @JsonProperty("full_name")
+            @JsonAlias("full_name")
             @NotBlank
             String fullName,
 
@@ -30,14 +30,14 @@ public record UpdateTenantProfileRequest(
     }
 
     public record VehicleDto(
-            @JsonProperty("vehicle_type")
+            @JsonAlias("vehicle_type")
             String vehicleType,
 
-            @JsonProperty("license_plate")
+            @JsonAlias("license_plate")
             @NotBlank
             String licensePlate,
 
-            @JsonProperty("image_file_id")
+            @JsonAlias("image_file_id")
             Long imageFileId
     ) {
     }

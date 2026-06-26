@@ -512,12 +512,12 @@ public class DepositBatchCheckoutService {
         Integer activeDeposit = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM deposit_agreements da
-                LEFT JOIN room_holds rh ON rh.id = da.room_hold_id
+                LEFT JOIN room_holds rh ON rh.room_hold_id = da.room_hold_id
                 WHERE da.room_id = ?
                   AND da.status IN ('PENDING_PAYMENT','PAID','CONFIRMED','EXTENDED')
                   AND (
                       da.status <> 'PENDING_PAYMENT'
-                      OR rh.id IS NULL
+                      OR rh.room_hold_id IS NULL
                       OR rh.status NOT IN ('CANCELLED','EXPIRED')
                   )
                 """, Integer.class, room.getId());

@@ -21,6 +21,7 @@ public class RoomStatusDisplayConfigEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_status_display_config_id")
     Long id;
 
     @Enumerated(EnumType.STRING)

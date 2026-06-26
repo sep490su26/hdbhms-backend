@@ -30,6 +30,7 @@ import java.time.LocalDateTime;
 public class TenantAccountProvisioningEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "tenant_account_provisioning_id")
     Long id;
 
     @Column(name = "tenant_profile_id", nullable = false, unique = true)

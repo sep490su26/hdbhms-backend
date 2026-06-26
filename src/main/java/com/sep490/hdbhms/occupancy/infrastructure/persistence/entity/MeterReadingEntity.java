@@ -34,6 +34,7 @@ public class MeterReadingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "meter_reading_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

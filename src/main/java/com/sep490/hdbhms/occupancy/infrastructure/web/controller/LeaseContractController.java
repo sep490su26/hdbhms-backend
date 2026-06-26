@@ -292,8 +292,8 @@ public class LeaseContractController {
                             lc.contract_file_id,
                             fm.original_name AS contract_file_name
                         FROM lease_contracts lc
-                        LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
-                        WHERE lc.id = ?
+                        LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        WHERE lc.lease_contract_id = ?
                         LIMIT 1
                         """,
                 rs -> {
@@ -345,11 +345,11 @@ public class LeaseContractController {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM lease_contracts lc
-                        JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                        JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN tenant_account_provisionings tap
-                               ON tap.tenant_profile_id = pp.id
+                               ON tap.tenant_profile_id = pp.person_profile_id
                               AND tap.user_id = ?
-                        WHERE lc.id = ?
+                        WHERE lc.lease_contract_id = ?
                           AND lc.deleted_at IS NULL
                           AND pp.deleted_at IS NULL
                           AND (pp.user_id = ? OR tap.user_id = ?)
@@ -367,9 +367,9 @@ public class LeaseContractController {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM contract_occupants co
-                        JOIN person_profiles pp ON pp.id = co.tenant_profile_id
+                        JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
                         LEFT JOIN tenant_account_provisionings tap
-                               ON tap.tenant_profile_id = pp.id
+                               ON tap.tenant_profile_id = pp.person_profile_id
                               AND tap.user_id = ?
                         WHERE co.contract_id = ?
                           AND co.status = 'ACTIVE'

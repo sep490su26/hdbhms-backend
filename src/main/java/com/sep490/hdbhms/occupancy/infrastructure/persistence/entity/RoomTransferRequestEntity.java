@@ -34,6 +34,7 @@ public class RoomTransferRequestEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_transfer_request_id")
     Long id;
 
     @Column(name = "request_code", nullable = false, length = 80)

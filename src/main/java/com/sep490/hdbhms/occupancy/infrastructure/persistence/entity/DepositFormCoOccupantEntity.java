@@ -22,6 +22,7 @@ import lombok.experimental.FieldDefaults;
 public class DepositFormCoOccupantEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "deposit_form_co_occupant_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

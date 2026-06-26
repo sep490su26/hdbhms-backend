@@ -30,6 +30,7 @@ public class DebtSnapshotEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "debt_snapshot_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -48,15 +48,15 @@ public class SendDepositFormRequest {
     Integer depositMonths;
     @NotNull
     @ValidPaymentCycle
-    @JsonProperty("payment_cycle_months")
+    @JsonAlias("payment_cycle_months")
     Integer paymentCycleMonths;
     @NotNull(message = "DEPOSIT_001")
     @Min(value = 1, message = "DEPOSIT_001")
     @Max(value = 3, message = "DEPOSIT_001")
-    @JsonProperty("occupant_count")
+    @JsonAlias("occupant_count")
     Integer occupantCount;
     @Builder.Default
-    @JsonProperty("co_occupants")
+    @JsonAlias("co_occupants")
     List<CoOccupantRequest> coOccupants = new ArrayList<>();
     @NotNull
     @FutureOrPresent(message = "Ngày dự kiến vào ở không được là ngày trong quá khứ")
@@ -125,7 +125,7 @@ public class SendDepositFormRequest {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class CoOccupantRequest {
         @NotBlank(message = "DEPOSIT_001")
-        @JsonProperty("full_name")
+        @JsonAlias("full_name")
         String fullName;
         @NotBlank(message = "DEPOSIT_001")
         @Pattern(regexp = "^0\\d{9}$", message = "DEPOSIT_001")
@@ -133,7 +133,7 @@ public class SendDepositFormRequest {
         @NotNull(message = "DEPOSIT_001")
         @Min(value = 1, message = "DEPOSIT_001")
         @Max(value = 2, message = "DEPOSIT_001")
-        @JsonProperty("display_order")
+        @JsonAlias("display_order")
         Integer displayOrder;
     }
 }

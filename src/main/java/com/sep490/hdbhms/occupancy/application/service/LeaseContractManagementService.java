@@ -79,25 +79,25 @@ public class LeaseContractManagementService {
         rows.addAll(jdbcTemplate.query("""
                 SELECT
                     'DEPOSIT' AS source_type,
-                    lc.id AS lease_contract_id,
-                    da.id AS deposit_agreement_id,
+                    lc.lease_contract_id AS lease_contract_id,
+                    da.deposit_agreement_id AS deposit_agreement_id,
                     da.deposit_code,
                     lc.contract_code,
-                    p.id AS property_id,
+                    p.property_id AS property_id,
                     p.name AS property_name,
                     p.address_line AS property_address,
                     COALESCE((
                         SELECT co.tenant_id
                         FROM contract_occupants co
-                        WHERE co.contract_id = lc.id
+                        WHERE co.contract_id = lc.lease_contract_id
                           AND co.status = 'ACTIVE'
-                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.contract_occupant_id ASC
                         LIMIT 1
                     ), da.tenant_id) AS tenant_id,
-                    r.id AS room_id,
+                    r.room_id AS room_id,
                     r.room_code,
                     r.current_status AS room_status,
-                    pp.id AS primary_tenant_profile_id,
+                    pp.person_profile_id AS primary_tenant_profile_id,
                     COALESCE(pp.full_name, df.full_name) AS customer_name,
                     COALESCE(pp.phone, df.phone) AS phone,
                     COALESCE(pp.email, df.email) AS email,
@@ -114,27 +114,27 @@ public class LeaseContractManagementService {
                     lc.tenant_intention,
                     lc.expected_vacant_date,
                     (
-                        SELECT renewed.id
+                        SELECT renewed.lease_contract_id
                         FROM lease_contracts renewed
-                        WHERE renewed.previous_contract_id = lc.id
+                        WHERE renewed.previous_contract_id = lc.lease_contract_id
                           AND renewed.deleted_at IS NULL
-                        ORDER BY renewed.id DESC
+                        ORDER BY renewed.lease_contract_id DESC
                         LIMIT 1
                     ) AS renewed_contract_id,
                     (
                         SELECT renewed.contract_code
                         FROM lease_contracts renewed
-                        WHERE renewed.previous_contract_id = lc.id
+                        WHERE renewed.previous_contract_id = lc.lease_contract_id
                           AND renewed.deleted_at IS NULL
-                        ORDER BY renewed.id DESC
+                        ORDER BY renewed.lease_contract_id DESC
                         LIMIT 1
                     ) AS renewed_contract_code,
                     GREATEST(
                         CASE
-                            WHEN lc.id IS NOT NULL THEN (
+                            WHEN lc.lease_contract_id IS NOT NULL THEN (
                                 SELECT COUNT(*)
                                 FROM contract_occupants co
-                                WHERE co.contract_id = lc.id
+                                WHERE co.contract_id = lc.lease_contract_id
                                   AND co.status = 'ACTIVE'
                             )
                             ELSE 0
@@ -143,7 +143,7 @@ public class LeaseContractManagementService {
                         1 + COALESCE((
                             SELECT COUNT(*)
                             FROM deposit_form_co_occupants dco_count
-                            WHERE dco_count.deposit_form_id = df.id
+                            WHERE dco_count.deposit_form_id = df.deposit_form_id
                         ), 0)
                     ) AS occupants_count,
                     lc.status AS contract_status,
@@ -153,42 +153,42 @@ public class LeaseContractManagementService {
                     fm.created_at AS contract_file_uploaded_at,
                     lc.signed_at,
                     COALESCE(lc.created_at, da.created_at) AS created_at,
-                    u.id AS user_id,
+                    u.user_id AS user_id,
                     u.last_login_at
                 FROM deposit_agreements da
-                JOIN rooms r ON r.id = da.room_id
-                JOIN properties p ON p.id = r.property_id
-                LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
-                LEFT JOIN person_profiles pp ON pp.id = da.depositor_person_profile_id
-                LEFT JOIN lease_contracts lc ON lc.deposit_agreement_id = da.id AND lc.deleted_at IS NULL
-                LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
-                LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
-                LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
+                JOIN rooms r ON r.room_id = da.room_id
+                JOIN properties p ON p.property_id = r.property_id
+                LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
+                LEFT JOIN person_profiles pp ON pp.person_profile_id = da.depositor_person_profile_id
+                LEFT JOIN lease_contracts lc ON lc.deposit_agreement_id = da.deposit_agreement_id AND lc.deleted_at IS NULL
+                LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
+                LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                 WHERE da.status IN ('PAID', 'CONFIRMED', 'CONVERTED_TO_LEASE')
-                ORDER BY COALESCE(lc.updated_at, da.updated_at) DESC, da.id DESC
+                ORDER BY COALESCE(lc.updated_at, da.updated_at) DESC, da.deposit_agreement_id DESC
                 """, (rs, rowNum) -> toResponse(rs)));
         rows.addAll(jdbcTemplate.query("""
                 SELECT
                     'CONTRACT' AS source_type,
-                    lc.id AS lease_contract_id,
+                    lc.lease_contract_id AS lease_contract_id,
                     NULL AS deposit_agreement_id,
                     NULL AS deposit_code,
                     lc.contract_code,
-                    p.id AS property_id,
+                    p.property_id AS property_id,
                     p.name AS property_name,
                     p.address_line AS property_address,
                     (
                         SELECT co.tenant_id
                         FROM contract_occupants co
-                        WHERE co.contract_id = lc.id
+                        WHERE co.contract_id = lc.lease_contract_id
                           AND co.status = 'ACTIVE'
-                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.contract_occupant_id ASC
                         LIMIT 1
                     ) AS tenant_id,
-                    r.id AS room_id,
+                    r.room_id AS room_id,
                     r.room_code,
                     r.current_status AS room_status,
-                    pp.id AS primary_tenant_profile_id,
+                    pp.person_profile_id AS primary_tenant_profile_id,
                     pp.full_name AS customer_name,
                     pp.phone,
                     pp.email,
@@ -205,33 +205,33 @@ public class LeaseContractManagementService {
                     lc.tenant_intention,
                     lc.expected_vacant_date,
                     (
-                        SELECT renewed.id
+                        SELECT renewed.lease_contract_id
                         FROM lease_contracts renewed
-                        WHERE renewed.previous_contract_id = lc.id
+                        WHERE renewed.previous_contract_id = lc.lease_contract_id
                           AND renewed.deleted_at IS NULL
-                        ORDER BY renewed.id DESC
+                        ORDER BY renewed.lease_contract_id DESC
                         LIMIT 1
                     ) AS renewed_contract_id,
                     (
                         SELECT renewed.contract_code
                         FROM lease_contracts renewed
-                        WHERE renewed.previous_contract_id = lc.id
+                        WHERE renewed.previous_contract_id = lc.lease_contract_id
                           AND renewed.deleted_at IS NULL
-                        ORDER BY renewed.id DESC
+                        ORDER BY renewed.lease_contract_id DESC
                         LIMIT 1
                     ) AS renewed_contract_code,
                     GREATEST(
                         (
                             SELECT COUNT(*)
                             FROM contract_occupants co
-                            WHERE co.contract_id = lc.id
+                            WHERE co.contract_id = lc.lease_contract_id
                               AND co.status = 'ACTIVE'
                         ),
                         COALESCE(df.occupant_count, 1),
                         1 + COALESCE((
                             SELECT COUNT(*)
                             FROM deposit_form_co_occupants dco_count
-                            WHERE dco_count.deposit_form_id = df.id
+                            WHERE dco_count.deposit_form_id = df.deposit_form_id
                         ), 0)
                     ) AS occupants_count,
                     lc.status AS contract_status,
@@ -241,20 +241,20 @@ public class LeaseContractManagementService {
                     fm.created_at AS contract_file_uploaded_at,
                     lc.signed_at,
                     lc.created_at,
-                    u.id AS user_id,
+                    u.user_id AS user_id,
                     u.last_login_at
                 FROM lease_contracts lc
-                JOIN rooms r ON r.id = lc.room_id
-                JOIN properties p ON p.id = r.property_id
-                JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
-                LEFT JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
-                LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
-                LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
-                LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
-                LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
+                JOIN rooms r ON r.room_id = lc.room_id
+                JOIN properties p ON p.property_id = r.property_id
+                JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
+                LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
+                LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
+                LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
+                LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                 WHERE lc.deleted_at IS NULL
                   AND lc.deposit_agreement_id IS NULL
-                ORDER BY lc.updated_at DESC, lc.id DESC
+                ORDER BY lc.updated_at DESC, lc.lease_contract_id DESC
                 """, (rs, rowNum) -> toResponse(rs)));
         return rows;
     }
@@ -603,10 +603,10 @@ public class LeaseContractManagementService {
 
     private void lockContractAndRoom(Long leaseContractId) {
         List<Long> locked = jdbcTemplate.query("""
-                        SELECT lc.id
+                        SELECT lc.lease_contract_id AS id
                         FROM lease_contracts lc
-                        JOIN rooms r ON r.id = lc.room_id
-                        WHERE lc.id = ?
+                        JOIN rooms r ON r.room_id = lc.room_id
+                        WHERE lc.lease_contract_id = ?
                         FOR UPDATE
                         """,
                 (rs, rowNum) -> rs.getLong("id"),
@@ -642,7 +642,7 @@ public class LeaseContractManagementService {
         Integer contractExists = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM lease_contracts lc
-                        WHERE lc.id = ?
+                        WHERE lc.lease_contract_id = ?
                           AND lc.deleted_at IS NULL
                         """,
                 Integer.class,
@@ -655,19 +655,19 @@ public class LeaseContractManagementService {
         Integer isPrimarySigner = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM lease_contracts lc
-                        JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                        JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN tenant_account_provisionings tap
-                               ON tap.tenant_profile_id = pp.id
+                               ON tap.tenant_profile_id = pp.person_profile_id
                               AND tap.user_id = ?
-                        WHERE lc.id = ?
+                        WHERE lc.lease_contract_id = ?
                           AND lc.deleted_at IS NULL
                           AND pp.deleted_at IS NULL
                           AND (pp.user_id = ? OR (tap.user_id = ? AND tap.status <> 'DISABLED'))
                           AND NOT EXISTS (
                               SELECT 1
                               FROM contract_occupants disabled_primary
-                              WHERE disabled_primary.contract_id = lc.id
-                                AND disabled_primary.tenant_profile_id = pp.id
+                              WHERE disabled_primary.contract_id = lc.lease_contract_id
+                                AND disabled_primary.tenant_profile_id = pp.person_profile_id
                                 AND disabled_primary.status = 'DISABLED'
                           )
                         """,
@@ -904,26 +904,26 @@ public class LeaseContractManagementService {
     public LeaseContractManagementResponse findOne(Long leaseContractId) {
         return jdbcTemplate.query("""
                         SELECT
-                            CASE WHEN da.id IS NULL THEN 'CONTRACT' ELSE 'DEPOSIT' END AS source_type,
-                            lc.id AS lease_contract_id,
-                            da.id AS deposit_agreement_id,
+                            CASE WHEN da.deposit_agreement_id IS NULL THEN 'CONTRACT' ELSE 'DEPOSIT' END AS source_type,
+                            lc.lease_contract_id AS lease_contract_id,
+                            da.deposit_agreement_id AS deposit_agreement_id,
                             da.deposit_code,
                             lc.contract_code,
-                            p.id AS property_id,
+                            p.property_id AS property_id,
                             p.name AS property_name,
                             p.address_line AS property_address,
                             (
                                 SELECT co.tenant_id
                                 FROM contract_occupants co
-                                WHERE co.contract_id = lc.id
+                                WHERE co.contract_id = lc.lease_contract_id
                                   AND co.status = 'ACTIVE'
-                                ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id ASC
+                                ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.contract_occupant_id ASC
                                 LIMIT 1
                             ) AS tenant_id,
-                            r.id AS room_id,
+                            r.room_id AS room_id,
                             r.room_code,
                             r.current_status AS room_status,
-                            pp.id AS primary_tenant_profile_id,
+                            pp.person_profile_id AS primary_tenant_profile_id,
                             pp.full_name AS customer_name,
                             pp.phone,
                             pp.email,
@@ -940,33 +940,33 @@ public class LeaseContractManagementService {
                             lc.tenant_intention,
                             lc.expected_vacant_date,
                             (
-                                SELECT renewed.id
+                                SELECT renewed.lease_contract_id
                                 FROM lease_contracts renewed
-                                WHERE renewed.previous_contract_id = lc.id
+                                WHERE renewed.previous_contract_id = lc.lease_contract_id
                                   AND renewed.deleted_at IS NULL
-                                ORDER BY renewed.id DESC
+                                ORDER BY renewed.lease_contract_id DESC
                                 LIMIT 1
                             ) AS renewed_contract_id,
                             (
                                 SELECT renewed.contract_code
                                 FROM lease_contracts renewed
-                                WHERE renewed.previous_contract_id = lc.id
+                                WHERE renewed.previous_contract_id = lc.lease_contract_id
                                   AND renewed.deleted_at IS NULL
-                                ORDER BY renewed.id DESC
+                                ORDER BY renewed.lease_contract_id DESC
                                 LIMIT 1
                             ) AS renewed_contract_code,
                             GREATEST(
                                 (
                                     SELECT COUNT(*)
                                     FROM contract_occupants co
-                                    WHERE co.contract_id = lc.id
+                                    WHERE co.contract_id = lc.lease_contract_id
                                       AND co.status = 'ACTIVE'
                                 ),
                                 COALESCE(df.occupant_count, 1),
                                 1 + COALESCE((
                                     SELECT COUNT(*)
                                     FROM deposit_form_co_occupants dco_count
-                                    WHERE dco_count.deposit_form_id = df.id
+                                    WHERE dco_count.deposit_form_id = df.deposit_form_id
                                 ), 0)
                             ) AS occupants_count,
                             lc.status AS contract_status,
@@ -976,18 +976,18 @@ public class LeaseContractManagementService {
                             fm.created_at AS contract_file_uploaded_at,
                             lc.signed_at,
                             lc.created_at,
-                            u.id AS user_id,
+                            u.user_id AS user_id,
                             u.last_login_at
                         FROM lease_contracts lc
-                        JOIN rooms r ON r.id = lc.room_id
-                        JOIN properties p ON p.id = r.property_id
-                        JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
-                        LEFT JOIN deposit_agreements da ON da.id = lc.deposit_agreement_id
-                        LEFT JOIN deposit_forms df ON df.id = da.deposit_form_id
-                        LEFT JOIN lease_contracts previous_contract ON previous_contract.id = lc.previous_contract_id
-                        LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
-                        LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
-                        WHERE lc.deleted_at IS NULL AND lc.id = ?
+                        JOIN rooms r ON r.room_id = lc.room_id
+                        JOIN properties p ON p.property_id = r.property_id
+                        JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
+                        LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
+                        LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
+                        LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
+                        LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
+                        WHERE lc.deleted_at IS NULL AND lc.lease_contract_id = ?
                         """,
                 rs -> {
                     if (!rs.next()) {
@@ -1323,11 +1323,11 @@ public class LeaseContractManagementService {
             return null;
         }
         return jdbcTemplate.query("""
-                        SELECT id
+                        SELECT person_profile_id AS id
                         FROM person_profiles
                         WHERE REPLACE(REPLACE(REPLACE(phone, ' ', ''), '.', ''), '-', '') = ?
                           AND deleted_at IS NULL
-                        ORDER BY user_id IS NULL, id DESC
+                        ORDER BY user_id IS NULL, person_profile_id DESC
                         LIMIT 1
                         """,
                 rs -> rs.next() ? rs.getLong("id") : null,
@@ -1343,10 +1343,10 @@ public class LeaseContractManagementService {
                             pp.phone,
                             co.occupant_role
                         FROM contract_occupants co
-                        LEFT JOIN person_profiles pp ON pp.id = co.tenant_profile_id
+                        LEFT JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
                         WHERE co.contract_id = ?
                           AND co.status = 'ACTIVE'
-                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id
+                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.contract_occupant_id
                         """,
                 (rs, rowNum) -> new LeaseContractRenewalResponse.OccupantInfo(
                         getLongOrNull(rs, "tenant_profile_id"),
@@ -1381,14 +1381,14 @@ public class LeaseContractManagementService {
             return null;
         }
         return jdbcTemplate.query("""
-                        SELECT t.id
+                        SELECT t.tenant_id AS id
                         FROM person_profiles pp
                         JOIN tenants t ON t.user_id = pp.user_id
-                        WHERE pp.id = ?
+                        WHERE pp.person_profile_id = ?
                           AND pp.deleted_at IS NULL
                           AND t.property_id = ?
                           AND t.deleted_at IS NULL
-                        ORDER BY t.id DESC
+                        ORDER BY t.tenant_id DESC
                         LIMIT 1
                         """,
                 rs -> rs.next() ? rs.getLong("id") : null,
@@ -1400,11 +1400,11 @@ public class LeaseContractManagementService {
     private Long resolveOrCreateCoOccupantProfile(DepositFormCoOccupantEntity coOccupant) {
         String normalizedPhone = normalizePhone(coOccupant.getPhone());
         Long existingProfileId = jdbcTemplate.query("""
-                        SELECT id
+                        SELECT person_profile_id AS id
                         FROM person_profiles
                         WHERE REPLACE(REPLACE(REPLACE(phone, ' ', ''), '.', ''), '-', '') = ?
                           AND deleted_at IS NULL
-                        ORDER BY user_id IS NULL, id DESC
+                        ORDER BY user_id IS NULL, person_profile_id DESC
                         LIMIT 1
                         """,
                 rs -> rs.next() ? rs.getLong("id") : null,
@@ -1457,8 +1457,8 @@ public class LeaseContractManagementService {
                         SELECT COUNT(*)
                         FROM lease_contracts
                         WHERE room_id = ?
-                          AND id <> ?
-                          AND (? IS NULL OR id <> ?)
+                          AND lease_contract_id <> ?
+                          AND (? IS NULL OR lease_contract_id <> ?)
                           AND status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
                           AND deleted_at IS NULL
                         """,
@@ -1564,9 +1564,9 @@ public class LeaseContractManagementService {
 
     private LeaseContractEntity findLatestContractByDeposit(Long depositAgreementId) {
         return jdbcTemplate.query("""
-                        SELECT id FROM lease_contracts
+                        SELECT lease_contract_id AS id FROM lease_contracts
                         WHERE deposit_agreement_id = ? AND deleted_at IS NULL
-                        ORDER BY id DESC LIMIT 1
+                        ORDER BY lease_contract_id DESC LIMIT 1
                         """,
                 rs -> rs.next()
                         ? leaseContractRepository.findById(rs.getLong("id")).orElse(null)

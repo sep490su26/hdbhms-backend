@@ -23,11 +23,12 @@ import java.time.LocalDateTime;
         @Index(name = "idx_files_tenant_category", columnList = "category, created_at"),
         @Index(name = "idx_files_owner", columnList = "owner_user_id")
 })
-@SQLDelete(sql = "UPDATE file_metadata SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(sql = "UPDATE file_metadata SET deleted_at = CURRENT_TIMESTAMP WHERE file_metadata_id = ?")
 @SQLRestriction("deleted_at IS NULL")
 public class FileMetadataEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "file_metadata_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -84,10 +84,10 @@ public class HandoverDocumentService {
                 e.current_value as elec_val, e.reading_date as elec_date,
                 w.current_value as water_val, w.reading_date as water_date
             FROM contract_handover_records h
-            JOIN rooms r ON h.room_id = r.id
-            LEFT JOIN floors f ON r.floor_id = f.id
-            LEFT JOIN meter_readings e ON h.electricity_reading_id = e.id
-            LEFT JOIN meter_readings w ON h.water_reading_id = w.id
+            JOIN rooms r ON h.room_id = r.room_id
+            LEFT JOIN floors f ON r.floor_id = f.floor_id
+            LEFT JOIN meter_readings e ON h.electricity_reading_id = e.meter_reading_id
+            LEFT JOIN meter_readings w ON h.water_reading_id = w.meter_reading_id
             WHERE h.contract_id = ? AND h.handover_type = ?
         """;
         

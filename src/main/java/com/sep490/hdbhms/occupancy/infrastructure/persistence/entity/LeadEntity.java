@@ -27,6 +27,7 @@ public class LeadEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "lead_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

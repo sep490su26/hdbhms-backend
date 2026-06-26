@@ -26,6 +26,7 @@ public class InvoicePaymentGroupEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "invoice_payment_group_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

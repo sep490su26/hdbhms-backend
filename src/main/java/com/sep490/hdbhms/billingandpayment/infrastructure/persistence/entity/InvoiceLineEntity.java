@@ -26,6 +26,7 @@ public class InvoiceLineEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "invoice_line_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

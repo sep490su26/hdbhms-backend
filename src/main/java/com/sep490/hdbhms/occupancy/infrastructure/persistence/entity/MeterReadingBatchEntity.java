@@ -27,6 +27,7 @@ public class MeterReadingBatchEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "meter_reading_batch_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

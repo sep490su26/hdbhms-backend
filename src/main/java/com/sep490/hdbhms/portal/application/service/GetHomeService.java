@@ -33,14 +33,14 @@ public class GetHomeService implements GetHomeUseCase {
         // 1. Fetch User, Tenant, and Profile info
         HomeResponse response = jdbcTemplate.query("""
                 SELECT 
-                    u.id AS user_id, u.email, u.phone AS user_phone, u.role,
-                    t.id AS tenant_id, prop.name AS tenant_name,
-                    p.id AS profile_id, p.full_name, p.phone AS profile_phone, p.portrait_file_id
+                    u.user_id AS user_id, u.email, u.phone AS user_phone, u.role,
+                    t.tenant_id AS tenant_id, prop.name AS tenant_name,
+                    p.person_profile_id AS profile_id, p.full_name, p.phone AS profile_phone, p.portrait_file_id
                 FROM users u
-                LEFT JOIN tenants t ON t.user_id = u.id AND t.deleted_at IS NULL
-                LEFT JOIN properties prop ON prop.id = t.property_id AND prop.deleted_at IS NULL
-                LEFT JOIN person_profiles p ON p.user_id = u.id AND p.deleted_at IS NULL
-                WHERE u.id = ? AND u.deleted_at IS NULL
+                LEFT JOIN tenants t ON t.user_id = u.user_id AND t.deleted_at IS NULL
+                LEFT JOIN properties prop ON prop.property_id = t.property_id AND prop.deleted_at IS NULL
+                LEFT JOIN person_profiles p ON p.user_id = u.user_id AND p.deleted_at IS NULL
+                WHERE u.user_id = ? AND u.deleted_at IS NULL
                 """,
                 rs -> {
                     if (!rs.next()) {
@@ -167,7 +167,7 @@ public class GetHomeService implements GetHomeUseCase {
             jdbcTemplate.query("""
                     SELECT mr.usage_amount, mr.status
                     FROM meter_readings mr
-                    JOIN meters m ON m.id = mr.meter_id
+                    JOIN meters m ON m.meter_id = mr.meter_id
                     WHERE mr.room_id = ? AND m.meter_type = 'ELECTRICITY' AND mr.status != 'VOIDED'
                     ORDER BY mr.reading_date DESC
                     LIMIT 1
@@ -189,7 +189,7 @@ public class GetHomeService implements GetHomeUseCase {
             jdbcTemplate.query("""
                     SELECT mr.usage_amount, mr.status
                     FROM meter_readings mr
-                    JOIN meters m ON m.id = mr.meter_id
+                    JOIN meters m ON m.meter_id = mr.meter_id
                     WHERE mr.room_id = ? AND m.meter_type = 'WATER' AND mr.status != 'VOIDED'
                     ORDER BY mr.reading_date DESC
                     LIMIT 1
@@ -216,12 +216,12 @@ public class GetHomeService implements GetHomeUseCase {
             LeaseContractQueryService.ActiveRoomItem context
     ) {
         Long tenantId = jdbcTemplate.query("""
-                        SELECT t.id
+                        SELECT t.tenant_id AS id
                         FROM tenants t
                         WHERE t.user_id = ?
                           AND t.property_id = ?
                           AND t.deleted_at IS NULL
-                        ORDER BY t.id DESC
+                        ORDER BY t.tenant_id DESC
                         LIMIT 1
                         """,
                 rs -> rs.next() ? rs.getLong("id") : null,

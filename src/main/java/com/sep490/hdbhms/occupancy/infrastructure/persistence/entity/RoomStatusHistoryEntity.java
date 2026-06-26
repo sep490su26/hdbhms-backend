@@ -25,6 +25,7 @@ public class RoomStatusHistoryEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_status_history_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

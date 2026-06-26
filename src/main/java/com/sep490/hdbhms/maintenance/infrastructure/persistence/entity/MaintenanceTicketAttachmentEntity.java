@@ -27,6 +27,7 @@ public class MaintenanceTicketAttachmentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "maintenance_ticket_attachment_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

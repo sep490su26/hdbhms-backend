@@ -25,6 +25,7 @@ public class ContractEventEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "contract_event_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

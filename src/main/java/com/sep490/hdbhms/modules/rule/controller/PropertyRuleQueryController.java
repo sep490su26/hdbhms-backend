@@ -54,7 +54,7 @@ public class PropertyRuleQueryController {
                         SELECT *
                         FROM property_rules
                         WHERE property_id = ? AND status = 'ACTIVE'
-                        ORDER BY sort_order ASC, id ASC
+                        ORDER BY sort_order ASC, property_rule_id ASC
                         """,
                 (rs, rowNum) -> mapRule(rs),
                 propertyId
@@ -79,7 +79,7 @@ public class PropertyRuleQueryController {
             propertyIds = jdbcTemplate.query("""
                             SELECT property_id
                             FROM tenants
-                            WHERE id = ? AND user_id = ? AND deleted_at IS NULL
+                            WHERE tenant_id = ? AND user_id = ? AND deleted_at IS NULL
                             LIMIT 1
                             """,
                     (rs, rowNum) -> rs.getLong("property_id"),
@@ -91,7 +91,7 @@ public class PropertyRuleQueryController {
                             SELECT property_id
                             FROM tenants
                             WHERE user_id = ? AND deleted_at IS NULL
-                            ORDER BY id DESC
+                            ORDER BY tenant_id DESC
                             LIMIT 1
                             """,
                     (rs, rowNum) -> rs.getLong("property_id"),
@@ -104,7 +104,7 @@ public class PropertyRuleQueryController {
     private PropertyRuleItemResponse mapRule(ResultSet rs) throws SQLException {
         String ruleCode = rs.getString("rule_code");
         return new PropertyRuleItemResponse(
-                rs.getLong("id"),
+                rs.getLong("property_rule_id"),
                 ruleCode,
                 stringOrFallback(rs, "rule_category", inferCategory(ruleCode)),
                 nullableString(rs, "icon_key"),

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
@@ -54,7 +54,7 @@ public class DepositContractPreviewRequest {
     LocalDate expectedLeaseSignDate;
 
     @NotNull
-    @JsonProperty("payment_cycle_months")
+    @JsonAlias("payment_cycle_months")
     Integer paymentCycleMonths;
 
 }

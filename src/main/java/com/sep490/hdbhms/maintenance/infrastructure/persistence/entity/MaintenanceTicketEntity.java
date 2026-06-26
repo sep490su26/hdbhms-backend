@@ -36,6 +36,7 @@ public class MaintenanceTicketEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "maintenance_ticket_id")
     Long id;
 
     @Column(name = "ticket_code", nullable = false, length = 80)

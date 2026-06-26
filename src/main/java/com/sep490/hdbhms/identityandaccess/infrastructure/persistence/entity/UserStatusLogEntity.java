@@ -20,6 +20,7 @@ public class UserStatusLogEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_status_log_id")
     Long id;
 
     @ManyToOne

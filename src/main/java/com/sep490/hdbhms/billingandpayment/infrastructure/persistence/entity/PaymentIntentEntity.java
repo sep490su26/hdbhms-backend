@@ -30,6 +30,7 @@ public class PaymentIntentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "payment_intent_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

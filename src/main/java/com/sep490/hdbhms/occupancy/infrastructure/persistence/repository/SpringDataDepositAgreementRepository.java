@@ -72,25 +72,25 @@ public class SpringDataDepositAgreementRepository implements DepositAgreementRep
     @Override
     public List<DepositAgreement> findAllAccessibleByUserId(Long userId) {
         List<Long> ids = jdbcTemplate.query("""
-                        SELECT DISTINCT da.id
+                        SELECT DISTINCT da.deposit_agreement_id AS id
                         FROM deposit_agreements da
-                        JOIN users u ON u.id = ?
-                        LEFT JOIN tenants t ON t.id = da.tenant_id
-                        LEFT JOIN person_profiles depositor_pp ON depositor_pp.id = da.depositor_person_profile_id
+                        JOIN users u ON u.user_id = ?
+                        LEFT JOIN tenants t ON t.tenant_id = da.tenant_id
+                        LEFT JOIN person_profiles depositor_pp ON depositor_pp.person_profile_id = da.depositor_person_profile_id
                         LEFT JOIN lease_contracts lc
-                          ON lc.deposit_agreement_id = da.id
+                          ON lc.deposit_agreement_id = da.deposit_agreement_id
                          AND lc.deleted_at IS NULL
-                        LEFT JOIN person_profiles primary_pp ON primary_pp.id = lc.primary_tenant_profile_id
+                        LEFT JOIN person_profiles primary_pp ON primary_pp.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN contract_occupants co
-                          ON co.contract_id = lc.id
+                          ON co.contract_id = lc.lease_contract_id
                          AND co.status = 'ACTIVE'
-                        LEFT JOIN person_profiles occupant_pp ON occupant_pp.id = co.tenant_profile_id
+                        LEFT JOIN person_profiles occupant_pp ON occupant_pp.person_profile_id = co.tenant_profile_id
                         WHERE u.deleted_at IS NULL
                           AND (
-                              t.user_id = u.id
-                              OR depositor_pp.user_id = u.id
-                              OR primary_pp.user_id = u.id
-                              OR occupant_pp.user_id = u.id
+                              t.user_id = u.user_id
+                              OR depositor_pp.user_id = u.user_id
+                              OR primary_pp.user_id = u.user_id
+                              OR occupant_pp.user_id = u.user_id
                               OR (u.phone IS NOT NULL AND (
                                   depositor_pp.phone = u.phone
                                   OR primary_pp.phone = u.phone

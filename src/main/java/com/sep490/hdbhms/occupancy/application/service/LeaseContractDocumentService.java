@@ -62,20 +62,20 @@ public class LeaseContractDocumentService {
                 pp.full_name as tenant_name, pp.dob as tenant_dob, pp.phone as tenant_phone, pp.permanent_address as tenant_address,
                 ide.doc_number as tenant_id_number, ide.issued_date as tenant_id_issued_date, ide.issued_place as tenant_id_issued_place,
                 ec.full_name as emergency_contact_name, ec.phone as emergency_contact_phone,
-                (SELECT COUNT(*) FROM contract_occupants co WHERE co.contract_id = c.id) as occupants_count,
-                (SELECT COUNT(*) FROM vehicles v WHERE v.profile_id = pp.id AND v.status = 'ACTIVE') as vehicle_count,
-                (SELECT GROUP_CONCAT(v.vehicle_type SEPARATOR ', ') FROM vehicles v WHERE v.profile_id = pp.id AND v.status = 'ACTIVE') as vehicle_types,
-                (SELECT GROUP_CONCAT(v.license_plate SEPARATOR ', ') FROM vehicles v WHERE v.profile_id = pp.id AND v.status = 'ACTIVE') as vehicle_plates
+                (SELECT COUNT(*) FROM contract_occupants co WHERE co.contract_id = c.lease_contract_id) as occupants_count,
+                (SELECT COUNT(*) FROM vehicles v WHERE v.profile_id = pp.person_profile_id AND v.status = 'ACTIVE') as vehicle_count,
+                (SELECT GROUP_CONCAT(v.vehicle_type SEPARATOR ', ') FROM vehicles v WHERE v.profile_id = pp.person_profile_id AND v.status = 'ACTIVE') as vehicle_types,
+                (SELECT GROUP_CONCAT(v.license_plate SEPARATOR ', ') FROM vehicles v WHERE v.profile_id = pp.person_profile_id AND v.status = 'ACTIVE') as vehicle_plates
             FROM lease_contracts c
-            JOIN rooms r ON c.room_id = r.id
-            JOIN properties p ON r.property_id = p.id
-            JOIN person_profiles pp ON c.primary_tenant_profile_id = pp.id
-            LEFT JOIN identity_documents ide ON pp.id = ide.profile_id AND ide.status = 'ACTIVE' AND ide.doc_type = 'CCCD'
-            LEFT JOIN (SELECT tenant_profile_id, full_name, phone FROM emergency_contacts LIMIT 1) ec ON pp.id = ec.tenant_profile_id
-            LEFT JOIN utility_tariffs u1 ON u1.property_id = p.id AND u1.utility_type = 'ELECTRICITY' AND (u1.effective_to IS NULL OR u1.effective_to >= CURRENT_DATE)
-            LEFT JOIN utility_tariffs u2 ON u2.property_id = p.id AND u2.utility_type = 'WATER' AND (u2.effective_to IS NULL OR u2.effective_to >= CURRENT_DATE)
-            LEFT JOIN utility_tariffs u3 ON u3.property_id = p.id AND u3.utility_type = 'SERVICE_FEE' AND (u3.effective_to IS NULL OR u3.effective_to >= CURRENT_DATE)
-            WHERE c.id = ?
+            JOIN rooms r ON c.room_id = r.room_id
+            JOIN properties p ON r.property_id = p.property_id
+            JOIN person_profiles pp ON c.primary_tenant_profile_id = pp.person_profile_id
+            LEFT JOIN identity_documents ide ON pp.person_profile_id = ide.profile_id AND ide.status = 'ACTIVE' AND ide.doc_type = 'CCCD'
+            LEFT JOIN (SELECT tenant_profile_id, full_name, phone FROM emergency_contacts LIMIT 1) ec ON pp.person_profile_id = ec.tenant_profile_id
+            LEFT JOIN utility_tariffs u1 ON u1.property_id = p.property_id AND u1.utility_type = 'ELECTRICITY' AND (u1.effective_to IS NULL OR u1.effective_to >= CURRENT_DATE)
+            LEFT JOIN utility_tariffs u2 ON u2.property_id = p.property_id AND u2.utility_type = 'WATER' AND (u2.effective_to IS NULL OR u2.effective_to >= CURRENT_DATE)
+            LEFT JOIN utility_tariffs u3 ON u3.property_id = p.property_id AND u3.utility_type = 'SERVICE_FEE' AND (u3.effective_to IS NULL OR u3.effective_to >= CURRENT_DATE)
+            WHERE c.lease_contract_id = ?
         """;
         
         List<ContractTemplateData> results = jdbcTemplate.query(sql, this::mapRowToData, contractId);

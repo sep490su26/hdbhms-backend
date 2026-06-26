@@ -28,6 +28,7 @@ public class NotificationOutboxEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "notification_outbox_id")
     Long id;
 
     @Column(name = "event_type", nullable = false, length = 100)

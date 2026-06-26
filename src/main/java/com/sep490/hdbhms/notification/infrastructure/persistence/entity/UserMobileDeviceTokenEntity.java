@@ -27,6 +27,7 @@ import java.time.LocalDateTime;
 public class UserMobileDeviceTokenEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_mobile_device_token_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
