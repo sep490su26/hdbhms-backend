@@ -53,7 +53,7 @@ public class SpringDataLoginHistoryRepository implements LoginHistoryRepository 
                     try {
                         return LoginStatus.valueOf(s.toUpperCase());
                     } catch (IllegalArgumentException e) {
-                        throw new AppException(ApiErrorCode.UNDEFINED);
+                        throw new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND);
                     }
                 }).toList();
     }

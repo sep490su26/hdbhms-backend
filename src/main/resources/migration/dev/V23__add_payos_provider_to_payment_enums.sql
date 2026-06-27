@@ -1,0 +1,5 @@
+ALTER TABLE payment_intents
+    MODIFY provider ENUM ('VIETQR','MOMO','ZALOPAY','CASH','BANK_TRANSFER','PAYOS') NOT NULL;
+
+ALTER TABLE payment_transactions
+    MODIFY provider ENUM ('BANK','MOMO','ZALOPAY','CASH','MANUAL','PAYOS') NOT NULL;

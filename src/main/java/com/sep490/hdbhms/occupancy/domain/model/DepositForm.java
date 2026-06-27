@@ -9,6 +9,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -28,6 +29,11 @@ public class DepositForm {
     Long idFrontFileId;
     Long idBackFileId;
     Long portraitFileId;
+    Integer depositMonths;
+    Integer paymentCycleMonths;
+    Integer occupantCount;
+    @Builder.Default
+    List<DepositFormCoOccupant> coOccupants = List.of();
     LocalDate expectedMoveInDate;
     LocalDate expectedLeaseSignDate;
     LocalDateTime paymentDueAt;
@@ -50,6 +56,10 @@ public class DepositForm {
             String idNumber,
             LocalDate idIssueDate,
             String idIssuePlace,
+            Integer depositMonths,
+            Integer paymentCycleMonths,
+            Integer occupantCount,
+            List<DepositFormCoOccupant> coOccupants,
             Long idFrontFileId,
             Long idBackFileId,
             Long portraitFileId,
@@ -62,6 +72,10 @@ public class DepositForm {
                 .idNumber(idNumber)
                 .fullName(fullName)
                 .email(email)
+                .depositMonths(depositMonths)
+                .paymentCycleMonths(paymentCycleMonths)
+                .occupantCount(occupantCount)
+                .coOccupants(coOccupants == null ? List.of() : coOccupants)
                 .idIssueDate(idIssueDate)
                 .idIssuePlace(idIssuePlace)
                 .idFrontFileId(idFrontFileId)
@@ -80,5 +94,17 @@ public class DepositForm {
         }
         status = DepositFormStatus.APPROVED;
         confirmedAt = LocalDateTime.now();
+    }
+
+    public void updateManagerEditableInfo(
+            String phone,
+            String permanentAddress,
+            LocalDate expectedMoveInDate,
+            LocalDate expectedLeaseSignDate
+    ) {
+        this.phone = phone;
+        this.permanentAddress = permanentAddress;
+        this.expectedMoveInDate = expectedMoveInDate;
+        this.expectedLeaseSignDate = expectedLeaseSignDate;
     }
 }

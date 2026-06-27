@@ -24,6 +24,15 @@ public class LeaseContractDetailsResponse {
     Long depositAmount;
     LeaseStatus status;
     Long contractFileId;
+    String contractFileName;
+    String contractFileUrl;
+    String tenantIntention;
+    LocalDate expectedVacantDate;
+    String roleInContract;
+    Boolean isPrimary;
+    Boolean canRecordIntention;
+    Boolean canRenew;
+    String canRenewBlockedReason;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
 }

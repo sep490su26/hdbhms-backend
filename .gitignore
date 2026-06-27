@@ -1,11 +1,14 @@
 .env
-.env.dev
-.env.prod
-.env.stag
+.env.*
+firebase-service-account.json
 TODO.md
 HELP.md
 target/
 identity/
+*.jks
+*.p12
+*.key
+*.cert
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

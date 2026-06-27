@@ -2,6 +2,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
+import com.sep490.hdbhms.occupancy.domain.model.DepositFormCoOccupant;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositFormEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -10,6 +12,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -38,6 +43,10 @@ public class DepositFormPersistenceMapper {
                 .expectedLeaseSignDate(entity.getExpectedLeaseSignDate())
                 .paymentDueAt(entity.getPaymentDueAt())
                 .depositExpiresAt(entity.getDepositExpiresAt())
+                .depositMonths(entity.getDepositMonths())
+                .paymentCycleMonths(entity.getPaymentCycleMonths())
+                .occupantCount(entity.getOccupantCount())
+                .coOccupants(toCoOccupants(entity.getCoOccupants()))
                 .status(entity.getStatus())
                 .confirmedAt(entity.getConfirmedAt())
                 .rejectReason(entity.getRejectReason())
@@ -47,11 +56,11 @@ public class DepositFormPersistenceMapper {
 
     public DepositFormEntity toEntity(DepositForm domain) {
         if (domain == null) return null;
-        return DepositFormEntity.builder()
+        DepositFormEntity entity = DepositFormEntity.builder()
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_FORM_NOT_FOUND))
                         : null)
                 .idNumber(domain.getIdNumber())
                 .permanentAddress(domain.getPermanentAddress())
@@ -73,11 +82,52 @@ public class DepositFormPersistenceMapper {
                 .expectedMoveInDate(domain.getExpectedMoveInDate())
                 .expectedLeaseSignDate(domain.getExpectedLeaseSignDate())
                 .paymentDueAt(domain.getPaymentDueAt())
+                .depositMonths(domain.getDepositMonths())
+                .paymentCycleMonths(domain.getPaymentCycleMonths())
+                .occupantCount(domain.getOccupantCount())
                 .depositExpiresAt(domain.getDepositExpiresAt())
                 .status(domain.getStatus())
                 .confirmedAt(domain.getConfirmedAt())
                 .rejectReason(domain.getRejectReason())
                 .createdAt(domain.getCreatedAt())
                 .build();
+        entity.setCoOccupants(toCoOccupantEntities(domain.getCoOccupants(), entity));
+        return entity;
+    }
+
+    private List<DepositFormCoOccupant> toCoOccupants(List<DepositFormCoOccupantEntity> entities) {
+        if (entities == null) {
+            return List.of();
+        }
+        return entities.stream()
+                .map(entity -> DepositFormCoOccupant.builder()
+                        .id(entity.getId())
+                        .fullName(entity.getFullName())
+                        .phone(entity.getPhone())
+                        .displayOrder(entity.getDisplayOrder())
+                        .build())
+                .toList();
+    }
+
+    private List<DepositFormCoOccupantEntity> toCoOccupantEntities(
+            List<DepositFormCoOccupant> coOccupants,
+            DepositFormEntity depositForm
+    ) {
+        if (coOccupants == null) {
+            return new ArrayList<>();
+        }
+        return coOccupants.stream()
+                .map(coOccupant -> {
+                    DepositFormCoOccupantEntity entity = DepositFormCoOccupantEntity.builder()
+                            .id(coOccupant.getId())
+                            .depositForm(depositForm)
+                            .fullName(coOccupant.getFullName())
+                            .phone(coOccupant.getPhone())
+                            .displayOrder(coOccupant.getDisplayOrder())
+                            .build();
+                    entity.setDepositForm(depositForm);
+                    return entity;
+                })
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 }

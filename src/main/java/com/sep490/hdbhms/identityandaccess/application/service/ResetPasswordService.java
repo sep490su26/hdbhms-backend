@@ -33,7 +33,8 @@ public class ResetPasswordService implements ResetPasswordUseCase {
 
     @Override
     public void requestResetPassword(RequestResetPasswordCommand command) {
-        var account = userRepository.findByEmail(command.email())
+        var identity = command.email() == null ? "" : command.email().trim();
+        var account = userRepository.findByPhoneOrEmailAndDeletedAtIsNull(identity, identity)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         var numberOfPasswordResetOfTheLast3Days = userModificationHistoryRepository.getNumberOfPasswordResetOfTheDays(account.getId(), 3);
         if (numberOfPasswordResetOfTheLast3Days >= 10) {
@@ -58,6 +59,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
         var oldPasswordHash = account.getPasswordHash();
         var newPasswordHash = passwordEncoder.encode(command.newPassword());
         account.changePassword(newPasswordHash);
+        account.registerFirstPasswordChange();
         account = userRepository.save(account);
         var modificationHistory = UserModificationHistory.newUserModificationHistory(
                 account.getId(),

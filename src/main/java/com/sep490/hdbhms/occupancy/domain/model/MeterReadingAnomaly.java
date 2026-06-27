@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MeterReadingAnomaly {
     Long id;
+    Long batchId;
     Long meterReadingId;
     AnomalyType anomalyType;
     String message;

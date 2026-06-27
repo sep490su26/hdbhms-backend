@@ -4,13 +4,15 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Setter
+@Builder(toBuilder = true)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class LeaseContract {
     Long id;
@@ -27,6 +29,9 @@ public class LeaseContract {
     Long depositAmount = 0L;
     @Builder.Default
     LeaseStatus status = LeaseStatus.DRAFT;
+    String tenantIntention;
+    LocalDate expectedVacantDate;
+    LocalDateTime intentionRecordedAt;
     Long previousContractId;
     Long contractFileId;
     LocalDateTime signedAt;
@@ -62,13 +67,46 @@ public class LeaseContract {
     }
 
     public void activateContract() {
-        if (this.status != LeaseStatus.DRAFT) {
-            throw new IllegalStateException("Lease contract is not a draft.");
+        if (this.status != LeaseStatus.DRAFT && this.status != LeaseStatus.SIGNED) {
+            throw new IllegalStateException("Lease contract must be DRAFT or SIGNED to become ACTIVE.");
         }
         this.status = LeaseStatus.ACTIVE;
         if (this.signedAt == null) {
             this.signedAt = LocalDateTime.now();
         }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void confirmContract() {
+        if (this.status != LeaseStatus.DRAFT) {
+            throw new IllegalStateException("Only DRAFT contracts can be confirmed.");
+        }
+        this.status = LeaseStatus.CONFIRMED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void signContract() {
+        if (this.status != LeaseStatus.CONFIRMED && this.status != LeaseStatus.PENDING_SIGNATURE) {
+            throw new IllegalStateException("Only CONFIRMED contracts can be signed.");
+        }
+        this.status = LeaseStatus.SIGNED;
+        this.signedAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void cancelContract() {
+        if (this.status == LeaseStatus.ACTIVE) {
+            throw new IllegalStateException("ACTIVE contracts cannot be cancelled by transfer rejection.");
+        }
+        this.status = LeaseStatus.CANCELLED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void markTransferred() {
+        if (this.status != LeaseStatus.ACTIVE) {
+            throw new IllegalStateException("Only ACTIVE contracts can be marked TRANSFERRED.");
+        }
+        this.status = LeaseStatus.TRANSFERRED;
         this.updatedAt = LocalDateTime.now();
     }
 }

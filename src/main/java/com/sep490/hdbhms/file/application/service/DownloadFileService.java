@@ -35,7 +35,7 @@ public class DownloadFileService implements DownloadFileUseCase {
         try {
             var data = Files.readAllBytes(Path.of(file.getStorageKey()));
             var resource = new ByteArrayResource(data);
-            return new FileDataResponse(file.getMimeType(), resource);
+            return new FileDataResponse(file.getMimeType(), resource, file.isSensitive(), file.getOwnerUserId());
         } catch (IOException e) {
             throw new AppException(ApiErrorCode.UNDEFINED);
         }

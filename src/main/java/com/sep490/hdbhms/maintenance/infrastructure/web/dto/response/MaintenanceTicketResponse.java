@@ -1,7 +1,10 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
+import com.sep490.hdbhms.maintenance.domain.value_objects.CostResponsibility;
+import com.sep490.hdbhms.maintenance.domain.value_objects.PaidBy;
+import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -15,8 +18,79 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MaintenanceTicketResponse {
     Long id;
+    @JsonProperty("ticket_code")
     String ticketCode;
+    @JsonProperty("property_id")
+    Long propertyId;
+    @JsonProperty("room_id")
+    Long roomId;
+    @JsonProperty("room_code")
+    String roomCode;
+    @JsonProperty("room_name")
+    String roomName;
+    @JsonProperty("property_name")
+    String propertyName;
+    @JsonProperty("ticket_scope")
+    String ticketScope;
+    String scope;
+    Priority priority;
+    Priority severity;
+    String category;
+    String title;
     String description;
-    MaintenanceTicketStatus status;
+    String status;
+    UserSummary createdBy;
+    @JsonProperty("worker_name")
+    String workerName;
+    @JsonProperty("repairman_name")
+    String repairmanName;
+    @JsonProperty("repairman_phone")
+    String repairmanPhone;
+    @JsonProperty("repair_items")
+    String repairItems;
+    @JsonProperty("root_cause")
+    String rootCause;
+    @JsonProperty("cost_amount")
+    Long costAmount;
+    @JsonProperty("actual_cost")
+    Long actualCost;
+    @JsonProperty("cost_description")
+    String costDescription;
+    @JsonProperty("paid_by")
+    PaidBy paidBy;
+    @JsonProperty("cost_responsibility")
+    CostResponsibility costResponsibility;
+    String ticketStatus;
+    String ticketStatusLabel;
+    String billingStatus;
+    String billingStatusLabel;
+    String billingPeriod;
+    Long invoiceId;
+    String invoiceCode;
+    String invoiceStatus;
+    String paymentStatus;
+    Boolean chargeToTenant;
+    String payer;
+    String lineType;
+    Long chargeAmount;
+    String checkoutUrl;
+    @JsonProperty("completed_at")
+    LocalDateTime completedAt;
+    @JsonProperty("updated_at")
+    LocalDateTime updatedAt;
+    @JsonProperty("created_at")
     LocalDateTime createdAt;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class UserSummary {
+        Long id;
+        String email;
+        String phone;
+        String role;
+    }
 }

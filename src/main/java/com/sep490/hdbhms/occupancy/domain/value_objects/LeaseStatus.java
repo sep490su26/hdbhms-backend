@@ -2,6 +2,8 @@ package com.sep490.hdbhms.occupancy.domain.value_objects;
 
 public enum LeaseStatus {
     DRAFT,
+    CONFIRMED,
+    SIGNED,
     PENDING_SIGNATURE,
     ACTIVE,
     EXPIRING_SOON,
@@ -10,6 +12,7 @@ public enum LeaseStatus {
     LIQUIDATED,
     RENEWED,
     AUTO_TERMINATED,
-    CANCELLED
+    CANCELLED,
+    TRANSFERRED
 }
 

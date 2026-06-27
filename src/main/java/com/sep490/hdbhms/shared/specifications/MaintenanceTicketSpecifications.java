@@ -28,6 +28,26 @@ public class MaintenanceTicketSpecifications {
                         : criteriaBuilder.equal(root.get("status"), status);
     }
 
+    public static Specification<MaintenanceTicketEntity> roomIdEquals(Long roomId) {
+        return (root, query, criteriaBuilder) ->
+                roomId == null
+                        ? criteriaBuilder.conjunction()
+                        : criteriaBuilder.equal(root.get("room").get("id"), roomId);
+    }
+
+    public static Specification<MaintenanceTicketEntity> categoryOrScopeEquals(String type) {
+        return (root, query, criteriaBuilder) -> {
+            if (type == null || type.isBlank()) {
+                return criteriaBuilder.conjunction();
+            }
+            String normalized = type.trim().toUpperCase();
+            return criteriaBuilder.or(
+                    criteriaBuilder.equal(criteriaBuilder.upper(root.get("category")), normalized),
+                    criteriaBuilder.equal(root.get("ticketScope").as(String.class), normalized)
+            );
+        };
+    }
+
 //    public static Specification<LoginHistoryEntity> typeIn(List<LoginMethod> methods) {
 //        return (root, query, criteriaBuilder) ->
 //                methods == null || methods.isEmpty() ? criteriaBuilder.conjunction()

@@ -10,5 +10,7 @@ public interface FloorRepository {
 
     Optional<Floor> findById(Long id);
 
+    boolean existsActiveByPropertyIdAndFloorCode(Long propertyId, String floorCode);
+
     List<Floor> findAllByPropertyId(Long propertyId);
 }

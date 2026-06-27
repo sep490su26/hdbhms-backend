@@ -24,4 +24,5 @@ public class VisitRequestResponse {
     VisitRequestStatus status;
     String notes;
     LocalDateTime createdAt;
+    LocalDateTime deletedAt;
 }

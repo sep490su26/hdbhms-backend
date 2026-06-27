@@ -19,4 +19,6 @@ public interface DepositAgreementRepository {
     Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable);
 
     List<DepositAgreement> findAllByTenantId(Long tenantId);
+
+    List<DepositAgreement> findAllAccessibleByUserId(Long userId);
 }

@@ -40,4 +40,10 @@ public class SpringDataPersonProfileRepository implements PersonProfileRepositor
         return jpaPersonProfileRepository.findByUser_Id(userId)
                 .map(personProfilePersistenceMapper::toDomain);
     }
+
+    @Override
+    public Optional<PersonProfile> findByPhone(String phone) {
+        return jpaPersonProfileRepository.findFirstByPhoneAndDeletedAtIsNull(phone)
+                .map(personProfilePersistenceMapper::toDomain);
+    }
 }

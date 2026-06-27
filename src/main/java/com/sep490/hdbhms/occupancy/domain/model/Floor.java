@@ -19,7 +19,8 @@ public class Floor {
     String floorCode;
     String name;
     Integer sortOrder;
-    FloorStatus status;
+    @Builder.Default
+    FloorStatus status = FloorStatus.ACTIVE;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     LocalDateTime deletedAt;
@@ -35,6 +36,7 @@ public class Floor {
                 .floorCode(floorCode)
                 .name(name)
                 .sortOrder(sortOrder)
+                .status(FloorStatus.ACTIVE)
                 .build();
     }
 }

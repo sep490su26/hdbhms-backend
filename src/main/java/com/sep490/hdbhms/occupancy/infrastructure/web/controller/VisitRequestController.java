@@ -17,6 +17,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestR
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.VisitRequestWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -90,24 +92,21 @@ public class VisitRequestController {
                                                         pageable
                                                 )
                                         )
-                                        .map(visitRequest -> {
-                                            Room room = getRoomOrNull(visitRequest.getRoomId());
-                                            Property property = getPropertyOrNull(visitRequest.getPropertyId());
-                                            return VisitRequestResponse.builder()
-                                                    .id(visitRequest.getId())
-                                                    .propertyId(visitRequest.getPropertyId())
-                                                    .roomId(visitRequest.getRoomId())
-                                                    .visitorName(visitRequest.getVisitorName())
-                                                    .visitorEmail(visitRequest.getVisitorEmail())
-                                                    .visitorPhone(visitRequest.getVisitorPhone())
-                                                    .createdAt(visitRequest.getCreatedAt())
-                                                    .roomName(room == null ? null : room.getName())
-                                                    .propertyName(property == null ? null : property.getName())
-                                                    .preferredStart(visitRequest.getPreferredStart())
-                                                    .status(visitRequest.getStatus())
-                                                    .notes(visitRequest.getNotes())
-                                                    .build();
-                                        })
+                                        .map(this::toListResponse)
+                        )
+                )
+                .build();
+    }
+
+    @GetMapping("/trash")
+    public ApiResponse<PageResponse<VisitRequestResponse>> getDeletedVisitRequests(
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return ApiResponse.<PageResponse<VisitRequestResponse>>builder()
+                .data(
+                        PageResponse.fromPageToPageResponse(
+                                visitRequestRepository.findDeleted(pageable)
+                                        .map(this::toListResponse)
                         )
                 )
                 .build();
@@ -133,6 +132,43 @@ public class VisitRequestController {
                         )
                 )
                 .build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<VisitRequestDetailsResponse> moveVisitRequestToTrash(
+            @PathVariable Long id
+    ) {
+        VisitRequest current = findVisitRequest(id);
+        VisitRequest deleted = current.getDeletedAt() == null
+                ? visitRequestRepository.save(copyWithDeletedState(current, LocalDateTime.now(), null))
+                : current;
+
+        return ApiResponse.<VisitRequestDetailsResponse>builder()
+                .data(toDetailsResponse(deleted))
+                .build();
+    }
+
+    @PostMapping("/{id}/restore")
+    public ApiResponse<VisitRequestDetailsResponse> restoreVisitRequest(
+            @PathVariable Long id
+    ) {
+        VisitRequest current = findVisitRequest(id);
+        VisitRequest restored = current.getDeletedAt() == null
+                ? current
+                : visitRequestRepository.save(copyWithDeletedState(current, null, null));
+
+        return ApiResponse.<VisitRequestDetailsResponse>builder()
+                .data(toDetailsResponse(restored))
+                .build();
+    }
+
+    @DeleteMapping("/{id}/force")
+    public ApiResponse<Void> permanentlyDeleteVisitRequest(
+            @PathVariable Long id
+    ) {
+        findVisitRequest(id);
+        visitRequestRepository.deleteById(id);
+        return ApiResponse.<Void>builder().build();
     }
 
     @PatchMapping("/{id}/status")
@@ -170,6 +206,63 @@ public class VisitRequestController {
                                 room
                         )
                 )
+                .build();
+    }
+
+    private VisitRequestResponse toListResponse(VisitRequest visitRequest) {
+        Room room = getRoomOrNull(visitRequest.getRoomId());
+        Property property = getPropertyOrNull(visitRequest.getPropertyId());
+        return VisitRequestResponse.builder()
+                .id(visitRequest.getId())
+                .propertyId(visitRequest.getPropertyId())
+                .roomId(visitRequest.getRoomId())
+                .visitorName(visitRequest.getVisitorName())
+                .visitorEmail(visitRequest.getVisitorEmail())
+                .visitorPhone(visitRequest.getVisitorPhone())
+                .createdAt(visitRequest.getCreatedAt())
+                .deletedAt(visitRequest.getDeletedAt())
+                .roomName(room == null ? null : room.getName())
+                .propertyName(property == null ? null : property.getName())
+                .preferredStart(visitRequest.getPreferredStart())
+                .status(visitRequest.getStatus())
+                .notes(visitRequest.getNotes())
+                .build();
+    }
+
+    private VisitRequestDetailsResponse toDetailsResponse(VisitRequest visitRequest) {
+        Property property = getPropertyOrNull(visitRequest.getPropertyId());
+        Room room = getRoomOrNull(visitRequest.getRoomId());
+        return visitRequestWebMapper.toDetailsResponse(
+                visitRequest,
+                property,
+                room
+        );
+    }
+
+    private VisitRequest findVisitRequest(Long id) {
+        return visitRequestRepository.findById(id)
+                .orElseThrow(() -> new AppException(ApiErrorCode.VISIT_001));
+    }
+
+    private VisitRequest copyWithDeletedState(
+            VisitRequest current,
+            LocalDateTime deletedAt,
+            Long deletedByUserId
+    ) {
+        return VisitRequest.builder()
+                .id(current.getId())
+                .propertyId(current.getPropertyId())
+                .roomId(current.getRoomId())
+                .visitorName(current.getVisitorName())
+                .visitorPhone(current.getVisitorPhone())
+                .visitorEmail(current.getVisitorEmail())
+                .preferredStart(current.getPreferredStart())
+                .status(current.getStatus())
+                .notes(current.getNotes())
+                .createdAt(current.getCreatedAt())
+                .updatedAt(current.getUpdatedAt())
+                .deletedAt(deletedAt)
+                .deletedByUserId(deletedByUserId)
                 .build();
     }
 

@@ -72,4 +72,9 @@ public class PersonProfile {
         this.email = email;
         updatedAt = LocalDateTime.now();
     }
+
+    public void linkUser(Long userId) {
+        this.userId = userId;
+        updatedAt = LocalDateTime.now();
+    }
 }

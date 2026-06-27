@@ -29,6 +29,7 @@ public class MaintenanceCostPersistenceMapper {
                 .description(entity.getDescription())
                 .amount(entity.getAmount())
                 .paidBy(entity.getPaidBy())
+                .costResponsibility(entity.getCostResponsibility())
                 .chargeInvoiceId(entity.getChargeInvoice() != null ? entity.getChargeInvoice().getId() : null)
                 .receiptFileId(entity.getReceiptFile() != null ? entity.getReceiptFile().getId() : null)
                 .createdById(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
@@ -47,6 +48,7 @@ public class MaintenanceCostPersistenceMapper {
                 .description(domain.getDescription())
                 .amount(domain.getAmount())
                 .paidBy(domain.getPaidBy())
+                .costResponsibility(domain.getCostResponsibility())
                 .chargeInvoice(domain.getChargeInvoiceId() != null
                         ? jpaInvoiceRepository.getReferenceById(domain.getChargeInvoiceId())
                         : null)

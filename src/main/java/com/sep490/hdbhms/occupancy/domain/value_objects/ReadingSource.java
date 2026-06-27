@@ -1,9 +1,7 @@
 package com.sep490.hdbhms.occupancy.domain.value_objects;
 
 public enum ReadingSource {
-    EXCEL_IMPORT,
     MANUAL,
-    HANDOVER,
-    TRANSFER,
-    LIQUIDATION
+    EXCEL_IMPORT,
+    API
 }

@@ -93,7 +93,8 @@ public class SpringDataUserRepository implements UserRepository {
         Specification<UserEntity> specification =
                 Specification.where(AccountSpecifications.idIn(ids))
                         .and(AccountSpecifications.roleIn(role))
-                        .and(AccountSpecifications.statusIn(status));
+                        .and(AccountSpecifications.statusIn(status))
+                        .and((root, query, cb) -> cb.notEqual(root.get("role"), Role.OWNER));
         return jpaUserRepository.findAll(specification, pageable)
                 .map(userPersistenceMapper::toDomain);
     }
@@ -120,6 +121,12 @@ public class SpringDataUserRepository implements UserRepository {
     @Override
     public Optional<User> findByPhoneOrEmailAndDeletedAtIsNull(String phone, String email) {
         return jpaUserRepository.findByPhoneOrEmailAndDeletedAtIsNull(phone, email)
+                .map(userPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<User> findOwner() {
+        return jpaUserRepository.findByRole(Role.OWNER)
                 .map(userPersistenceMapper::toDomain);
     }
 }
