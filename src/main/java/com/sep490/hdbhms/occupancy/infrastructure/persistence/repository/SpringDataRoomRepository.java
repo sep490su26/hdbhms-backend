@@ -46,12 +46,12 @@ public class SpringDataRoomRepository implements RoomRepository {
             Long floorId
     ) {
         if (floorId == null) {
-            return jpaRoomRepository.findAllByProperty_Id(propertyId).stream()
+            return jpaRoomRepository.findAllByProperty_IdAndDeletedAtIsNull(propertyId).stream()
                     .map(roomPersistenceMapper::toDomain)
                     .toList();
         }
         return jpaRoomRepository
-                .findAllByProperty_IdAndFloor_Id(propertyId, floorId).stream()
+                .findAllByProperty_IdAndFloor_IdAndDeletedAtIsNull(propertyId, floorId).stream()
                 .map(roomPersistenceMapper::toDomain)
                 .toList();
     }
@@ -66,6 +66,7 @@ public class SpringDataRoomRepository implements RoomRepository {
     ) {
         Specification<RoomEntity> specification = Specification
                 .where(RoomSpecifications.idIn(ids))
+                .and(RoomSpecifications.notDeleted())
                 .and(RoomSpecifications.statusIn(status))
                 .and(RoomSpecifications.priceBetween(minPrice, maxPrice));
         return jpaRoomRepository.findAll(specification, pageable)
@@ -76,6 +77,11 @@ public class SpringDataRoomRepository implements RoomRepository {
     public Optional<Room> findByRoomCode(String roomCode) {
         return jpaRoomRepository.findByRoomCode(roomCode)
                 .map(roomPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode) {
+        return jpaRoomRepository.existsByProperty_IdAndRoomCodeAndDeletedAtIsNull(propertyId, roomCode);
     }
 
     @Override

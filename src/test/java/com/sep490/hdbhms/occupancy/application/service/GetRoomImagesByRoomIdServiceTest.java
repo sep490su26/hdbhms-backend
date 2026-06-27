@@ -57,6 +57,11 @@ class GetRoomImagesByRoomIdServiceTest {
         }
 
         @Override
+        public boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode) {
+            return byCode.containsKey(roomCode);
+        }
+
+        @Override
         public int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus) {
             throw new UnsupportedOperationException();
         }
