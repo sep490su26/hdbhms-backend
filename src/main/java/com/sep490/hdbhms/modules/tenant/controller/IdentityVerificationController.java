@@ -27,9 +27,9 @@ public class IdentityVerificationController {
     )
     public ResponseEntity<IdentityVerificationResponse> uploadIdentity(
             @PathVariable Long tenantId,
-            @RequestPart("portrait_file") MultipartFile portraitFile,
-            @RequestPart("id_card_front_file") MultipartFile idCardFrontFile,
-            @RequestPart("id_card_back_file") MultipartFile idCardBackFile
+            @RequestPart("portraitFile") MultipartFile portraitFile,
+            @RequestPart("idCardFrontFile") MultipartFile idCardFrontFile,
+            @RequestPart("idCardBackFile") MultipartFile idCardBackFile
     ) {
         return ResponseEntity.ok(identityVerificationService.uploadIdentity(
                 AuthUtils.getCurrentAuthenticationId(),

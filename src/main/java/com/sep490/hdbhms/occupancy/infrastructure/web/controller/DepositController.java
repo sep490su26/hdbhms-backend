@@ -88,9 +88,9 @@ public class DepositController {
     @PostMapping("/checkout")
     public ApiResponse<DepositCheckoutResponse> bookRoom(
             @Valid @RequestPart("metadata") SendDepositFormRequest request,
-            @RequestPart("id_front_file") MultipartFile idFrontFile,
-            @RequestPart("id_back_file") MultipartFile idBackFile,
-            @RequestPart("portrait_file") MultipartFile portraitFile
+            @RequestPart("idFrontFile") MultipartFile idFrontFile,
+            @RequestPart("idBackFile") MultipartFile idBackFile,
+            @RequestPart("portraitFile") MultipartFile portraitFile
     ) {
         log.info("{}", request.toString());
         PaymentIntent paymentIntent = bookRoomUseCase.initDepositForm(

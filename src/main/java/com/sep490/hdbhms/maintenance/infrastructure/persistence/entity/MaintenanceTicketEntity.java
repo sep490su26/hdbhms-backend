@@ -91,6 +91,18 @@ public class MaintenanceTicketEntity {
     @Column(name = "worker_name", length = 255)
     String workerName;
 
+    @Column(name = "external_repairman_name", length = 255)
+    String externalRepairmanName;
+
+    @Column(name = "external_repairman_phone", length = 30)
+    String externalRepairmanPhone;
+
+    @Column(name = "external_repair_provider", length = 255)
+    String externalRepairProvider;
+
+    @Column(name = "external_repair_note", length = 1000)
+    String externalRepairNote;
+
     @Column(name = "repairman_phone", length = 30)
     String repairmanPhone;
 
