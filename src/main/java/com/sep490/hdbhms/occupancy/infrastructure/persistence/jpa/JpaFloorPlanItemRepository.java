@@ -11,4 +11,6 @@ public interface JpaFloorPlanItemRepository extends JpaRepository<FloorPlanItemE
     List<FloorPlanItemEntity> findAllByProperty_IdOrderByFloor_SortOrderAscSortOrderAscIdAsc(Long propertyId);
 
     void deleteByProperty_IdAndFloor_Id(Long propertyId, Long floorId);
+
+    void deleteByProperty_IdAndRoom_Id(Long propertyId, Long roomId);
 }

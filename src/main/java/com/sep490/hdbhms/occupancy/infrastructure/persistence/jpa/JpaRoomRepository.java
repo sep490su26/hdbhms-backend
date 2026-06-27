@@ -29,11 +29,21 @@ public interface JpaRoomRepository extends JpaRepository<RoomEntity, Long>, JpaS
 
     List<RoomEntity> findAllByProperty_IdAndFloor_Id(Long propertyId, Long floorId);
 
+    List<RoomEntity> findAllByProperty_IdAndFloor_IdAndDeletedAtIsNull(Long propertyId, Long floorId);
+
     List<RoomEntity> findAllByProperty_Id(Long propertyId);
+
+    List<RoomEntity> findAllByProperty_IdAndDeletedAtIsNull(Long propertyId);
+
+    List<RoomEntity> findAllByFloor_IdAndDeletedAtIsNull(Long floorId);
 
     List<RoomEntity> findAllByProperty_IdAndDeletedAtIsNullOrderBySortOrderAscRoomCodeAsc(Long propertyId);
 
+    long countByFloor_Id(Long floorId);
+
     Optional<RoomEntity> findByRoomCode(String roomCode);
+
+    boolean existsByProperty_IdAndRoomCodeAndDeletedAtIsNull(Long propertyId, String roomCode);
 
     @Modifying
     @Query("UPDATE RoomEntity r SET r.currentStatus = :newStatus, r.version = r.version + 1 " +

@@ -174,6 +174,11 @@ class DepositContractDocumentServiceTest {
         }
 
         @Override
+        public boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode) {
+            return false;
+        }
+
+        @Override
         public int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus) {
             throw new UnsupportedOperationException();
         }

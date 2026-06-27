@@ -173,6 +173,11 @@ class DepositCompletionAdapterTest {
         }
 
         @Override
+        public boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode) {
+            return false;
+        }
+
+        @Override
         public int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus) {
             return expectedStatus == RoomStatus.ON_HOLD && newStatus == RoomStatus.RESERVED ? 1 : 0;
         }

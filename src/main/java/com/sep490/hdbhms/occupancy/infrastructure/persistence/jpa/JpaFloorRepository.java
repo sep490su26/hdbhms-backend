@@ -8,4 +8,8 @@ import java.util.List;
 
 public interface JpaFloorRepository extends JpaRepository<FloorEntity, Long> {
     List<FloorEntity> findAllByProperty_Id(Long propertyId);
+
+    List<FloorEntity> findAllByProperty_IdAndDeletedAtIsNull(Long propertyId);
+
+    boolean existsByProperty_IdAndFloorCodeAndDeletedAtIsNull(Long propertyId, String floorCode);
 }

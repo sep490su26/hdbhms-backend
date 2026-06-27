@@ -38,8 +38,13 @@ public class SpringDataFloorRepository implements FloorRepository {
     }
 
     @Override
+    public boolean existsActiveByPropertyIdAndFloorCode(Long propertyId, String floorCode) {
+        return jpaFloorRepository.existsByProperty_IdAndFloorCodeAndDeletedAtIsNull(propertyId, floorCode);
+    }
+
+    @Override
     public List<Floor> findAllByPropertyId(Long propertyId) {
-        return jpaFloorRepository.findAllByProperty_Id(propertyId)
+        return jpaFloorRepository.findAllByProperty_IdAndDeletedAtIsNull(propertyId)
                 .stream().map(floorPersistenceMapper::toDomain)
                 .sorted(Comparator.comparing(Floor::getSortOrder))
                 .toList();
