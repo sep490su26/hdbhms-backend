@@ -21,6 +21,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.IContext;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -33,6 +35,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DepositContractDocumentServiceTest {
 
@@ -60,7 +66,7 @@ class DepositContractDocumentServiceTest {
                 defaultConfig(),
                 new FakeDepositAgreementRepository(agreement),
                 new ImmediateTransactionManager(),
-                null,
+                mockTemplateEngine(),
                 null
         );
 
@@ -74,6 +80,13 @@ class DepositContractDocumentServiceTest {
             uploadAttempted.set(true);
             throw new IOException("Simulated storage failure");
         };
+    }
+
+    private static TemplateEngine mockTemplateEngine() {
+        TemplateEngine templateEngine = mock(TemplateEngine.class);
+        when(templateEngine.process(eq("contract_templates/html/deposit_contract_template"), any(IContext.class)))
+                .thenReturn("<html><body>mock contract</body></html>");
+        return templateEngine;
     }
 
     private static DefaultConfig defaultConfig() {
