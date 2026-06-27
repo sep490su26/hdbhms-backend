@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
@@ -430,7 +429,6 @@ public class LeaseContractController {
     public record TenantIntentionRequest(
             @NotNull(message = "Ý định khách là bắt buộc.")
             String intention,
-            @JsonAlias({"expectedMoveOutDate", "expected_vacant_date", "expectedVacantDate"})
             LocalDate expectedMoveOutDate,
             @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
             String note

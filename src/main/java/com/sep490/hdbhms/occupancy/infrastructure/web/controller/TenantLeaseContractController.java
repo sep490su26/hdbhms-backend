@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
@@ -41,7 +40,6 @@ public class TenantLeaseContractController {
     public record TenantIntentionRequest(
             @NotNull(message = "Y dinh khach la bat buoc.")
             String intention,
-            @JsonAlias({"expectedMoveOutDate", "expected_vacant_date", "expectedVacantDate"})
             LocalDate expectedMoveOutDate,
             @Size(max = 1000, message = "Ghi chu khong duoc vuot qua 1000 ky tu.")
             String note

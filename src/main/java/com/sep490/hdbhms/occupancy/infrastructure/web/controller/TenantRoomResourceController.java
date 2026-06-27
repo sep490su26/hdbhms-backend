@@ -83,11 +83,11 @@ public class TenantRoomResourceController {
         RoomAssetEntity asset = RoomAssetEntity.builder()
                 .room(room)
                 .assetName(requireAssetName(request))
-                .assetCategory(request.resolvedAssetCategory())
+                .assetCategory(request.assetCategory())
                 .quantity(resolveQuantity(request.quantity()))
-                .currentCondition(resolveCondition(request.resolvedCurrentCondition()))
+                .currentCondition(resolveCondition(request.currentCondition()))
                 .description(request.description())
-                .imageFile(resolveFile(request.resolvedFileImageId()))
+                .imageFile(resolveFile(request.fileImageId()))
                 .build();
         return ApiResponse.<RoomAssetResponse>builder()
                 .data(toAssetResponse(roomAssetRepository.save(asset)))
@@ -104,11 +104,11 @@ public class TenantRoomResourceController {
     ) {
         RoomAssetEntity asset = findRoomAsset(roomId, assetId);
         asset.setAssetName(requireAssetName(request));
-        asset.setAssetCategory(request.resolvedAssetCategory());
+        asset.setAssetCategory(request.assetCategory());
         asset.setQuantity(resolveQuantity(request.quantity()));
-        asset.setCurrentCondition(resolveCondition(request.resolvedCurrentCondition()));
+        asset.setCurrentCondition(resolveCondition(request.currentCondition()));
         asset.setDescription(request.description());
-        asset.setImageFile(resolveFile(request.resolvedFileImageId()));
+        asset.setImageFile(resolveFile(request.fileImageId()));
         return ApiResponse.<RoomAssetResponse>builder()
                 .data(toAssetResponse(roomAssetRepository.save(asset)))
                 .build();
@@ -192,7 +192,7 @@ public class TenantRoomResourceController {
     }
 
     private String requireAssetName(RoomAssetRequest request) {
-        String assetName = request.resolvedAssetName();
+        String assetName = request.assetName();
         if (assetName == null || assetName.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ten thiet bi la bat buoc.");
         }
