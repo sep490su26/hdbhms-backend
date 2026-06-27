@@ -1,7 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.config.security;
 
 import com.nimbusds.jose.JOSEException;
-import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.CookieUtils;
 import com.sep490.hdbhms.shared.utils.StringUtils;
@@ -61,7 +60,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         } catch (AppException ex) {
             SecurityContextHolder.clearContext();
         } catch (JOSEException | ParseException e) {
-            throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN);
+            SecurityContextHolder.clearContext();
         }
         filterChain.doFilter(request, response);
     }
