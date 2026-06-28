@@ -23,6 +23,8 @@ public class NotificationOutboxPersistenceMapper {
                 .targetType(entity.getTargetType())
                 .targetId(entity.getTargetId())
                 .recipientUserId(entity.getRecipientUser() != null ? entity.getRecipientUser().getId() : null)
+                .recipientEmail(entity.getRecipientEmail())
+                .recipientPhone(entity.getRecipientPhone())
                 .channel(entity.getChannel())
                 .title(entity.getTitle())
                 .body(entity.getBody())
@@ -49,6 +51,8 @@ public class NotificationOutboxPersistenceMapper {
                 .recipientUser(domain.getRecipientUserId() != null
                         ? jpaUserRepository.getReferenceById(domain.getRecipientUserId())
                         : null)
+                .recipientEmail(domain.getRecipientEmail())
+                .recipientPhone(domain.getRecipientPhone())
                 .channel(domain.getChannel())
                 .title(domain.getTitle())
                 .body(domain.getBody())

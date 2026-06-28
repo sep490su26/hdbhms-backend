@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.notification.infrastructure.dispatcher;
+package com.sep490.hdbhms.notification.infrastructure.processor;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,17 +11,16 @@ import com.sep490.hdbhms.notification.application.port.out.UserMobileDeviceToken
 import com.sep490.hdbhms.notification.domain.model.NotificationDelivery;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.value_objects.DeliveryStatus;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.infrastructure.external.EmailNotificationService;
 import com.sep490.hdbhms.notification.infrastructure.external.PushNotificationService;
+import com.sep490.hdbhms.notification.infrastructure.external.SmsNotificationService;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.StringUtils;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -33,15 +32,16 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationOutboxProcessor {
-
-    private final JavaMailSender mailSender;
-    private final PushNotificationService pushNotificationService;
-    private final UserRepository userRepository;
-    private final NotificationOutboxRepository notificationOutboxRepository;
-    private final UserMobileDeviceTokenRepository userMobileDeviceTokenRepository;
-    private final NotificationDeliveryRepository notificationDeliveryRepository;
-    private final ObjectMapper objectMapper;
+    EmailNotificationService emailNotificationService;
+    SmsNotificationService smsNotificationService;
+    PushNotificationService pushNotificationService;
+    UserRepository userRepository;
+    NotificationOutboxRepository notificationOutboxRepository;
+    UserMobileDeviceTokenRepository userMobileDeviceTokenRepository;
+    NotificationDeliveryRepository notificationDeliveryRepository;
+    ObjectMapper objectMapper;
 
     @Async
     public void process(Long outboxId) {
@@ -58,6 +58,7 @@ public class NotificationOutboxProcessor {
         switch (outbox.getChannel()) {
             case PUSH    -> processPush(outbox);
             case EMAIL   -> processEmail(outbox);
+            case SMS     -> processSms(outbox);
             case IN_APP  -> processInApp(outbox);
             case WEB     -> processWeb(outbox);
             default      -> log.warn("Unknown channel {} for outbox {}", outbox.getChannel(), outboxId);
@@ -81,7 +82,7 @@ public class NotificationOutboxProcessor {
             try {
                 Map<String, Object> parsedPayload = objectMapper.readValue(
                         outbox.getPayload(),
-                        new TypeReference<Map<String, Object>>() {}
+                        new TypeReference<>() {}
                 );
                 // Convert all values to String for FCM
                 parsedPayload.forEach((k, v) -> {
@@ -115,29 +116,43 @@ public class NotificationOutboxProcessor {
     }
 
     private void processEmail(NotificationOutbox outbox) {
-        User recipient = userRepository.findById(outbox.getRecipientUserId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
-
-        if (StringUtils.isEmpty(recipient.getEmail())) {
-            log.warn("User {} has no email address, outbox {}", outbox.getRecipientUserId(), outbox.getId());
-            outbox.markDeadLetter("User has no email address");
+        String recipientEmail = resolveRecipientEmail(outbox);
+        if (StringUtils.isEmpty(recipientEmail)) {
+            log.warn("No email address found for outbox {}", outbox.getId());
+            outbox.markDeadLetter("Recipient has no email address");
             return;
         }
 
         try {
-            MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
-            helper.setTo(recipient.getEmail());
-            helper.setSubject(outbox.getTitle());
-            helper.setText(outbox.getBody(), true);
-            mailSender.send(msg);
+            emailNotificationService.send(recipientEmail, outbox.getTitle(), outbox.getBody());
 
-            log.info("Email sent to {} for outbox {}", recipient.getEmail(), outbox.getId());
+            log.info("Email sent to {} for outbox {}", recipientEmail, outbox.getId());
             outbox.setSent();
             createDeliveryRecord(outbox, null);
 
-        } catch (MessagingException e) {
+        } catch (Exception e) {
             log.error("Email failed for outbox {}: {}", outbox.getId(), e.getMessage());
+            outbox.markRetry(e.getMessage());
+        }
+    }
+
+    private void processSms(NotificationOutbox outbox) {
+        String recipientPhone = resolveRecipientPhone(outbox);
+        if (StringUtils.isEmpty(recipientPhone)) {
+            log.warn("No phone number found for outbox {}", outbox.getId());
+            outbox.markDeadLetter("Recipient has no phone number");
+            return;
+        }
+
+        try {
+            smsNotificationService.send(recipientPhone, outbox.getBody());
+
+            log.info("SMS sent to {} for outbox {}", recipientPhone, outbox.getId());
+            outbox.setSent();
+            createDeliveryRecord(outbox, null);
+
+        } catch (Exception e) {
+            log.error("SMS failed for outbox {}: {}", outbox.getId(), e.getMessage());
             outbox.markRetry(e.getMessage());
         }
     }
@@ -152,6 +167,32 @@ public class NotificationOutboxProcessor {
         outbox.setSent();
         createDeliveryRecord(outbox, null);
         log.debug("WEB outbox {} marked sent", outbox.getId());
+    }
+
+    private String resolveRecipientEmail(NotificationOutbox outbox) {
+        if (!StringUtils.isEmpty(outbox.getRecipientEmail())) {
+            return outbox.getRecipientEmail();
+        }
+        if (outbox.getRecipientUserId() == null) {
+            return null;
+        }
+
+        User recipient = userRepository.findById(outbox.getRecipientUserId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+        return recipient.getEmail();
+    }
+
+    private String resolveRecipientPhone(NotificationOutbox outbox) {
+        if (!StringUtils.isEmpty(outbox.getRecipientPhone())) {
+            return outbox.getRecipientPhone();
+        }
+        if (outbox.getRecipientUserId() == null) {
+            return null;
+        }
+
+        User recipient = userRepository.findById(outbox.getRecipientUserId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+        return recipient.getPhone();
     }
 
     private void createDeliveryRecord(NotificationOutbox outbox, String providerMessageId) {

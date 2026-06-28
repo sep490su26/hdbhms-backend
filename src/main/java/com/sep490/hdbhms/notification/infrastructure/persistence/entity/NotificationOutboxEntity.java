@@ -40,9 +40,15 @@ public class NotificationOutboxEntity {
     @Column(name = "target_id")
     Long targetId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "recipient_user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_user_id")
     UserEntity recipientUser;
+
+    @Column(name = "recipient_email", length = 255)
+    String recipientEmail;
+
+    @Column(name = "recipient_phone", length = 50)
+    String recipientPhone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

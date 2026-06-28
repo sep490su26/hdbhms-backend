@@ -3,6 +3,7 @@ package com.sep490.hdbhms.notification.infrastructure.dispatcher;
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.infrastructure.processor.NotificationOutboxProcessor;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,11 +19,10 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationOutboxDispatcher {
-
     NotificationOutboxRepository notificationOutboxRepository;
     NotificationOutboxProcessor processor;
 
-    @Scheduled(fixedDelayString = "${app.notification.outbox.poll-interval-ms:60000}")
+    @Scheduled(fixedDelayString = "${app.notification.outbox.poll-interval-ms:5000}")
     public void dispatch() {
         List<NotificationOutbox> pending = notificationOutboxRepository
                 .findByStatusAndNextRetryAtBefore(OutboxStatus.PENDING, LocalDateTime.now());

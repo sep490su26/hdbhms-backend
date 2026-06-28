@@ -20,6 +20,8 @@ public class NotificationOutbox {
     String targetType;
     Long targetId;
     Long recipientUserId;
+    String recipientEmail;
+    String recipientPhone;
     NotificationChannel channel;
     String title;
     String body;

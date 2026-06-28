@@ -35,7 +35,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationService implements SendNotificationUseCase, NotificationQueryUseCase, ManageNotificationUseCase {
-
     NotificationTemplateRepository templateRepository;
     NotificationOutboxRepository outboxRepository;
     TemplateEngine stringTemplateEngine = new TemplateEngine();
