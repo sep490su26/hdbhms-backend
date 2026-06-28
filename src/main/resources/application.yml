@@ -40,6 +40,10 @@ twillio:
   account-sid: ${TWILLIO_ACCOUNT_SID}
   auth-token: ${TWILLIO_AUTH_TOKEN}
   from-number: ${TWILLIO_FROM_NUMBER}
+esms:
+  api-key: ${ESMS_API_KEY}
+  secret-key: ${ESMS_SECRET_KEY}
+  brand-name: ${ESMS_BRAND_NAME}
 app:
   jwt:
     secret: ${APP_JWT_SECRET:${SIGNER_KEY}}

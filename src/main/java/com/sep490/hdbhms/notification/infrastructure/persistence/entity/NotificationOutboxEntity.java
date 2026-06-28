@@ -44,10 +44,10 @@ public class NotificationOutboxEntity {
     @JoinColumn(name = "recipient_user_id")
     UserEntity recipientUser;
 
-    @Column(name = "recipient_email", length = 255)
+    @Transient
     String recipientEmail;
 
-    @Column(name = "recipient_phone", length = 50)
+    @Transient
     String recipientPhone;
 
     @Enumerated(EnumType.STRING)

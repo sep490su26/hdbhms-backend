@@ -99,7 +99,6 @@ public class TenantAccountProvisioningService {
 //                    "MISSING_EMAIL: Thiếu email người ký chính để nhận tài khoản."
 //            );
 //        }
-
         List<Long> claimedProfileIds = transactionTemplate().execute(status -> {
             List<Long> claimed = new ArrayList<>();
             for (TenantAccountProvisioningResponse occupant : eligibleOccupants) {
@@ -138,6 +137,7 @@ public class TenantAccountProvisioningService {
             );
         }
 
+        log.info("test1");
         List<TenantAccountProvisioningResponse> current = findContractOccupants(contractId);
         return findPrimary(current).toBuilder()
                 .message(buildSendMessage(preparedProfileIds.size(), current))
@@ -258,11 +258,6 @@ public class TenantAccountProvisioningService {
                 provisioningRepository.save(provisioning);
                 return PreparationOutcome.SKIPPED;
             }
-            if (provisioning.getStatus() == TenantAccountProvisioningStatus.PENDING) {
-                provisioning.setUserId(existingUser.getId());
-                provisioningRepository.save(provisioning);
-                return PreparationOutcome.SKIPPED;
-            }
             if (provisioning.getStatus() == TenantAccountProvisioningStatus.FAILED && !retryFailed) {
                 return PreparationOutcome.SKIPPED;
             }
@@ -271,6 +266,7 @@ public class TenantAccountProvisioningService {
             }
             if (!List.of(
                     TenantAccountProvisioningStatus.NOT_PROVISIONED,
+                    TenantAccountProvisioningStatus.PENDING,
                     TenantAccountProvisioningStatus.FAILED,
                     TenantAccountProvisioningStatus.SENT
             ).contains(provisioning.getStatus())) {
@@ -285,6 +281,7 @@ public class TenantAccountProvisioningService {
         }
         if (!List.of(
                 TenantAccountProvisioningStatus.NOT_PROVISIONED,
+                TenantAccountProvisioningStatus.PENDING,
                 TenantAccountProvisioningStatus.FAILED
         ).contains(provisioning.getStatus())) {
             return PreparationOutcome.SKIPPED;
@@ -299,6 +296,7 @@ public class TenantAccountProvisioningService {
             List<Long> claimedProfileIds,
             TenantAccountProvisioningResponse primary
     ) {
+        log.info("test");
         List<TenantAccountProvisioningResponse> occupants = findContractOccupants(contractId).stream()
                 .filter(item -> claimedProfileIds.contains(item.getProfileId()))
                 .toList();
@@ -327,6 +325,7 @@ public class TenantAccountProvisioningService {
                             savedUser.getId()
                     ));
                     credentials.add(new SendPreCreatedAccountPort.AccountCredential(
+                            occupant.getProfileId(),
                             occupant.getFullName(),
                             occupant.getPhone(),
                             temporaryPassword,
@@ -350,20 +349,33 @@ public class TenantAccountProvisioningService {
                     savedUser.getId()
             ));
             credentials.add(new SendPreCreatedAccountPort.AccountCredential(
+                    occupant.getProfileId(),
                     occupant.getFullName(),
                     occupant.getPhone(),
                     temporaryPassword,
                     occupant.getRoomRole()
             ));
         }
-
+        log.info(credentials.toString());
         if (!credentials.isEmpty()) {
+            Long recipientUserId = provisionedAccounts.stream()
+                    .filter(account -> Objects.equals(account.profileId(), primary.getProfileId()))
+                    .map(ProvisionedAccount::userId)
+                    .findFirst()
+                    .orElseGet(() -> {
+                        User existingPrimaryUser = resolveExistingUser(primary, primary.getProfileId());
+                        return existingPrimaryUser == null ? null : existingPrimaryUser.getId();
+                    });
+
             log.info(
                     "Sending tenant account email. contractId={}, accountCount={}",
                     contractId,
                     credentials.size()
             );
             sendPreCreatedAccountPort.sendAccountInformationBatch(
+                    contractId,
+                    primary.getProfileId(),
+                    recipientUserId,
                     primary.getRecipientEmail(),
                     primary.getFullName(),
                     primary.getPhone(),
@@ -376,13 +388,17 @@ public class TenantAccountProvisioningService {
             );
         }
 
-        LocalDateTime sentAt = LocalDateTime.now();
+        LocalDateTime sentAt = credentials.isEmpty() ? LocalDateTime.now() : null;
         for (ProvisionedAccount account : provisionedAccounts) {
             TenantAccountProvisioningEntity provisioning =
                     getProvisioningForUpdate(account.profileId());
             provisioning.setUserId(account.userId());
             provisioning.setLatestContractId(contractId);
-            provisioning.setStatus(TenantAccountProvisioningStatus.SENT);
+            provisioning.setStatus(
+                    credentials.isEmpty()
+                            ? TenantAccountProvisioningStatus.SENT
+                            : TenantAccountProvisioningStatus.PENDING
+            );
             provisioning.setSentAt(sentAt);
             provisioning.setFailedAt(null);
             provisioning.setFailureReason(null);

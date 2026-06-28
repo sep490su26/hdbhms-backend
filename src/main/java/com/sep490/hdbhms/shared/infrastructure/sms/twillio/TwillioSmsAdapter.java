@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.infrastructure.sms;
+package com.sep490.hdbhms.shared.infrastructure.sms.twillio;
 
 import com.sep490.hdbhms.shared.application.port.out.SmsPort;
 import com.twilio.rest.api.v2010.account.Message;

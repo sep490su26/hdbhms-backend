@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.infrastructure.sms;
+package com.sep490.hdbhms.shared.infrastructure.sms.esms;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -8,10 +8,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "twillio")
+@ConfigurationProperties(prefix = "esms")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class TwillioProperties {
-    String accountSid;
-    String authToken;
-    String fromNumber;
+public class ESmsProperties {
+    String apiKey;
+    String secretKey;
+    String brandName;
 }

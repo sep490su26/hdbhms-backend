@@ -32,6 +32,9 @@ public class SmartAccountNotificationAdapter implements SendPreCreatedAccountPor
 
     @Override
     public void sendAccountInformation(
+            Long contractId,
+            Long tenantProfileId,
+            Long recipientUserId,
             String email,
             String fullName,
             String phone,
@@ -39,6 +42,9 @@ public class SmartAccountNotificationAdapter implements SendPreCreatedAccountPor
     ) {
         applicationEventPublisher.publishEvent(
                 new PreCreatedAccountNotificationRequestedEvent(
+                        contractId,
+                        tenantProfileId,
+                        recipientUserId,
                         normalizeEmail(email),
                         fullName,
                         phone,
@@ -71,6 +77,9 @@ public class SmartAccountNotificationAdapter implements SendPreCreatedAccountPor
 
     @Override
     public void sendAccountInformationBatch(
+            Long contractId,
+            Long recipientProfileId,
+            Long recipientUserId,
             String email,
             String recipientFullName,
             String phone,
@@ -78,6 +87,9 @@ public class SmartAccountNotificationAdapter implements SendPreCreatedAccountPor
     ) {
         applicationEventPublisher.publishEvent(
                 new PreCreatedAccountNotificationRequestedEvent(
+                        contractId,
+                        recipientProfileId,
+                        recipientUserId,
                         normalizeEmail(email),
                         recipientFullName,
                         phone,

@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.TenantAccountProvisioningEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaTenantAccountProvisioningRepository;
 import com.sep490.hdbhms.notification.application.port.out.NotificationDeliveryRepository;
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.application.port.out.UserMobileDeviceTokenRepository;
@@ -25,6 +28,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +42,7 @@ public class NotificationOutboxProcessor {
     SmsNotificationService smsNotificationService;
     PushNotificationService pushNotificationService;
     UserRepository userRepository;
+    JpaTenantAccountProvisioningRepository tenantAccountProvisioningRepository;
     NotificationOutboxRepository notificationOutboxRepository;
     UserMobileDeviceTokenRepository userMobileDeviceTokenRepository;
     NotificationDeliveryRepository notificationDeliveryRepository;
@@ -104,6 +109,7 @@ public class NotificationOutboxProcessor {
             if (messageIds != null && !messageIds.isEmpty()) {
                 outbox.setSent();
                 createDeliveryRecord(outbox, messageIds);
+                syncProvisioningOnSuccess(outbox);
                 log.info("Push sent for outbox {}: success", outbox.getId());
             } else {
                 outbox.markRetry("Failed to send push notification via FCM");
@@ -129,6 +135,7 @@ public class NotificationOutboxProcessor {
             log.info("Email sent to {} for outbox {}", recipientEmail, outbox.getId());
             outbox.setSent();
             createDeliveryRecord(outbox, null);
+            syncProvisioningOnSuccess(outbox);
 
         } catch (Exception e) {
             log.error("Email failed for outbox {}: {}", outbox.getId(), e.getMessage());
@@ -150,6 +157,7 @@ public class NotificationOutboxProcessor {
             log.info("SMS sent to {} for outbox {}", recipientPhone, outbox.getId());
             outbox.setSent();
             createDeliveryRecord(outbox, null);
+            syncProvisioningOnSuccess(outbox);
 
         } catch (Exception e) {
             log.error("SMS failed for outbox {}: {}", outbox.getId(), e.getMessage());
@@ -173,6 +181,12 @@ public class NotificationOutboxProcessor {
         if (!StringUtils.isEmpty(outbox.getRecipientEmail())) {
             return outbox.getRecipientEmail();
         }
+
+        String emailFromPayload = extractStringPayloadField(outbox, "recipientEmail");
+        if (!StringUtils.isEmpty(emailFromPayload)) {
+            return emailFromPayload;
+        }
+
         if (outbox.getRecipientUserId() == null) {
             return null;
         }
@@ -186,6 +200,12 @@ public class NotificationOutboxProcessor {
         if (!StringUtils.isEmpty(outbox.getRecipientPhone())) {
             return outbox.getRecipientPhone();
         }
+
+        String phoneFromPayload = extractStringPayloadField(outbox, "recipientPhone");
+        if (!StringUtils.isEmpty(phoneFromPayload)) {
+            return phoneFromPayload;
+        }
+
         if (outbox.getRecipientUserId() == null) {
             return null;
         }
@@ -193,6 +213,102 @@ public class NotificationOutboxProcessor {
         User recipient = userRepository.findById(outbox.getRecipientUserId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         return recipient.getPhone();
+    }
+
+    private void syncProvisioningOnSuccess(NotificationOutbox outbox) {
+        if (!isTenantAccountProvisioningOutbox(outbox)) {
+            return;
+        }
+
+        LocalDateTime sentAt = LocalDateTime.now();
+        for (TenantAccountProvisioningEntity provisioning : resolveProvisionings(outbox)) {
+            provisioning.setStatus(TenantAccountProvisioningStatus.SENT);
+            provisioning.setSentAt(sentAt);
+            provisioning.setFailedAt(null);
+            provisioning.setFailureReason(null);
+            tenantAccountProvisioningRepository.save(provisioning);
+        }
+    }
+
+    private List<TenantAccountProvisioningEntity> resolveProvisionings(NotificationOutbox outbox) {
+        List<Long> profileIds = extractTenantProfileIds(outbox);
+        if (profileIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<TenantAccountProvisioningEntity> provisionings = new ArrayList<>();
+        for (Long profileId : profileIds) {
+            tenantAccountProvisioningRepository.findByTenantProfileId(profileId)
+                    .ifPresent(provisionings::add);
+        }
+        return provisionings;
+    }
+
+    private List<Long> extractTenantProfileIds(NotificationOutbox outbox) {
+        List<Long> profileIds = new ArrayList<>();
+        Map<String, Object> payload = parsePayload(outbox);
+
+        Object rawProfileIds = payload.get("tenantProfileIds");
+        if (rawProfileIds instanceof List<?> rawList) {
+            for (Object rawId : rawList) {
+                Long profileId = toLong(rawId);
+                if (profileId != null) {
+                    profileIds.add(profileId);
+                }
+            }
+        }
+
+        if (profileIds.isEmpty() && outbox.getTargetId() != null) {
+            profileIds.add(outbox.getTargetId());
+        }
+        return profileIds;
+    }
+
+    private String extractStringPayloadField(NotificationOutbox outbox, String fieldName) {
+        Object value = parsePayload(outbox).get(fieldName);
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return null;
+    }
+
+    private Map<String, Object> parsePayload(NotificationOutbox outbox) {
+        if (outbox.getPayload() == null || outbox.getPayload().isBlank()) {
+            return Map.of();
+        }
+
+        try {
+            return objectMapper.readValue(
+                    outbox.getPayload(),
+                    new TypeReference<>() {}
+            );
+        } catch (Exception exception) {
+            log.warn(
+                    "Failed to parse payload from outbox {}: {}",
+                    outbox.getId(),
+                    exception.getMessage()
+            );
+            return Map.of();
+        }
+    }
+
+    private Long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private boolean isTenantAccountProvisioningOutbox(NotificationOutbox outbox) {
+        return "PRE_CREATED_ACCOUNT_NOTIFICATION".equals(outbox.getEventType())
+                && "TENANT_ACCOUNT_PROVISIONING".equals(outbox.getTargetType());
     }
 
     private void createDeliveryRecord(NotificationOutbox outbox, String providerMessageId) {
