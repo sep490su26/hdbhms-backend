@@ -135,7 +135,7 @@ public class GetHomeService implements GetHomeUseCase {
             Long contractId = response.getContract().getId();
             jdbcTemplate.query("""
                     SELECT 
-                        COUNT(id) AS unpaid_count,
+                        COUNT(invoice_id) AS unpaid_count,
                         SUM(remaining_amount) AS total_unpaid_amount,
                         MIN(due_date) AS nearest_due_date
                     FROM invoices

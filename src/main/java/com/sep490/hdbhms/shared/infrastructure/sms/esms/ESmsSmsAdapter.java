@@ -49,7 +49,7 @@ public class ESmsSmsAdapter implements SmsPort {
             requestBody.put("Content", message);
             requestBody.put("Brandname", eSmsProperties.getBrandName());
             requestBody.put("SmsType", SMS_TYPE_CSKH);
-//            requestBody.put("Sandbox", "1");
+            requestBody.put("Sandbox", "1");
             requestBody.put("IsUnicode", containsUnicode(message) ? "1" : NON_UNICODE);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
