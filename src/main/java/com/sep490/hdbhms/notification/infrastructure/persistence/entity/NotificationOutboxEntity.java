@@ -2,8 +2,8 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.entity;
 
 
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

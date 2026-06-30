@@ -7,7 +7,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.SendPreCreatedAc
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;

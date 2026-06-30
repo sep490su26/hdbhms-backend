@@ -12,7 +12,7 @@ import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryDetailsResponse;

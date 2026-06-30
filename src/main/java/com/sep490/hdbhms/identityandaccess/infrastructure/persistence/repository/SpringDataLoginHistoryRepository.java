@@ -2,7 +2,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.repositor
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.LoginHistoryRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.LoginHistory;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaLoginHistoryRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.LoginHistoryPersistenceMapper;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;

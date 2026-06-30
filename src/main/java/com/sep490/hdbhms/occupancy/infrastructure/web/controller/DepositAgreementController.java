@@ -1,14 +1,14 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
+import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetDepositAgreementDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListDepositAgreementsQuery;
@@ -54,6 +54,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -101,25 +102,28 @@ public class DepositAgreementController {
     @GetMapping
     public ApiResponse<PageResponse<DepositAgreementResponse>> getDepositAgreements(
             @RequestParam(required = false) DepositAgreementStatus status,
+            @RequestParam(required = false) List<DepositAgreementStatus> statuses,
             @RequestParam(required = false) LocalDateTime signedFrom,
             @RequestParam(required = false) LocalDateTime signedTo,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        return listDepositAgreements(status, signedFrom, signedTo, pageable);
+        return listDepositAgreements(status, statuses, signedFrom, signedTo, pageable);
     }
 
     @GetMapping("/me")
     public ApiResponse<PageResponse<DepositAgreementResponse>> getMyDepositAgreements(
             @RequestParam(required = false) DepositAgreementStatus status,
+            @RequestParam(required = false) List<DepositAgreementStatus> statuses,
             @RequestParam(required = false) LocalDateTime signedFrom,
             @RequestParam(required = false) LocalDateTime signedTo,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        return listDepositAgreements(status, signedFrom, signedTo, pageable);
+        return listDepositAgreements(status, statuses, signedFrom, signedTo, pageable);
     }
 
     private ApiResponse<PageResponse<DepositAgreementResponse>> listDepositAgreements(
             DepositAgreementStatus status,
+            List<DepositAgreementStatus> statuses,
             LocalDateTime signedFrom,
             LocalDateTime signedTo,
             Pageable pageable
@@ -132,6 +136,7 @@ public class DepositAgreementController {
                                         new GetListDepositAgreementsQuery(
                                                 userId,
                                                 status,
+                                                statuses,
                                                 signedFrom,
                                                 signedTo,
                                                 pageable

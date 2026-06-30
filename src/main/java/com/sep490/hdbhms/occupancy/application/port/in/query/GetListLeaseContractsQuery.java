@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.port.in.query;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;

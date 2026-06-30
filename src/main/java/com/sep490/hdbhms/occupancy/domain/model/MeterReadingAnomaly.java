@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.AnomalySeverity;
-import com.sep490.hdbhms.occupancy.domain.value_objects.AnomalyType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.AnomalySeverity;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.AnomalyType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

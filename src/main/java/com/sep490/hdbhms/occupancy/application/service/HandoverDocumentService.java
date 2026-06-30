@@ -4,10 +4,10 @@ import com.lowagie.text.pdf.BaseFont;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
-import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
+import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
-import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -117,7 +117,7 @@ public class HandoverDocumentService {
     private String buildHandoverTemplateHtml(HandoverTemplateData data) {
         Context context = new Context();
         context.setVariables(buildHandoverVariables(data));
-        return templateEngine.process("contract_templates/html/handover_contract_template", context);
+        return templateEngine.process("contractTemplates/html/handover_contract_template", context);
     }
 
     private Map<String, Object> buildHandoverVariables(HandoverTemplateData data) {

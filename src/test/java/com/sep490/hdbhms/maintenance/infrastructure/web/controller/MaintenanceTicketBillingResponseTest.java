@@ -1,7 +1,6 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketResponse;
 import org.junit.jupiter.api.Test;
 
@@ -9,8 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MaintenanceTicketBillingResponseTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void serializesTicketAndBillingStatusesSeparately() throws Exception {
@@ -31,13 +29,13 @@ class MaintenanceTicketBillingResponseTest {
 
         String json = objectMapper.writeValueAsString(response);
 
-        assertTrue(json.contains("\"ticket_status\":\"COMPLETED\""));
-        assertTrue(json.contains("\"ticket_status_label\":\"Hoàn tất xử lý\""));
-        assertTrue(json.contains("\"billing_status\":\"PENDING_PAYMENT\""));
-        assertTrue(json.contains("\"billing_status_label\":\"Chờ thanh toán\""));
-        assertTrue(json.contains("\"payment_status\":\"PENDING_PAYMENT\""));
-        assertTrue(json.contains("\"charge_to_tenant\":true"));
+        assertTrue(json.contains("\"ticketStatus\":\"COMPLETED\""));
+        assertTrue(json.contains("\"ticketStatusLabel\":\"Hoàn tất xử lý\""));
+        assertTrue(json.contains("\"billingStatus\":\"PENDING_PAYMENT\""));
+        assertTrue(json.contains("\"billingStatusLabel\":\"Chờ thanh toán\""));
+        assertTrue(json.contains("\"paymentStatus\":\"PENDING_PAYMENT\""));
+        assertTrue(json.contains("\"chargeToTenant\":true"));
         assertTrue(json.contains("\"payer\":\"TENANT\""));
-        assertTrue(json.contains("\"line_type\":\"MAINTENANCE_COMPENSATION\""));
+        assertTrue(json.contains("\"lineType\":\"MAINTENANCE_COMPENSATION\""));
     }
 }

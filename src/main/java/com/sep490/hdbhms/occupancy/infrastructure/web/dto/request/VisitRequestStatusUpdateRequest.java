@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.VisitRequestStatus;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

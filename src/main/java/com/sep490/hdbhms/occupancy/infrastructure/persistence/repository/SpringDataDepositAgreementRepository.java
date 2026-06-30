@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
@@ -53,10 +53,11 @@ public class SpringDataDepositAgreementRepository implements DepositAgreementRep
     }
 
     @Override
-    public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
+    public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
         Specification<DepositAgreementEntity> specification = Specification
                 .where(DepositAgreementSpecifications.idIn(ids))
                 .and(DepositAgreementSpecifications.statusIn(status))
+                .and(DepositAgreementSpecifications.statusesIn(statuses))
                 .and(DepositAgreementSpecifications.signingDateBetween(signedFrom, signedTo));
         return jpaDepositAgreementRepository.findAll(specification, pageable)
                 .map(depositAgreementPersistenceMapper::toDomain);

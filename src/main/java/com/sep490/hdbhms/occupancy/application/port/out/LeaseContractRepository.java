@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.port.out;
 
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

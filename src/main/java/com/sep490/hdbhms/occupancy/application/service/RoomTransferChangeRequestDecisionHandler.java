@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisionHandler;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ApproveTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
 import lombok.RequiredArgsConstructor;

@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceType;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;

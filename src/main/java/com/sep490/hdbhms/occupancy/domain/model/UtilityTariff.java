@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.UtilityType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.UtilityType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

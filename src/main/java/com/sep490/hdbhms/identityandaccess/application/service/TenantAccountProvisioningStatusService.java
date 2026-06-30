@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.application.service;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaTenantAccountProvisioningRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

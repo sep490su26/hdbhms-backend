@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;

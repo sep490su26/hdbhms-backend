@@ -8,9 +8,9 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRep
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.OnboardingAction;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.DocumentType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.OnboardingAction;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.OnboardingStatusResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;

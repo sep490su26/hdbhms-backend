@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.domain.model;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Gender;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

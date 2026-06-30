@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.notification.domain.model;
 
-import com.sep490.hdbhms.notification.domain.value_objects.Platform;
+import com.sep490.hdbhms.notification.domain.valueObjects.Platform;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

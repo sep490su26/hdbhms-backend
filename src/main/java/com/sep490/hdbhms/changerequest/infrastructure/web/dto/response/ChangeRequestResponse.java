@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.changerequest.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
 
 import java.time.LocalDateTime;
 

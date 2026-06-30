@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 

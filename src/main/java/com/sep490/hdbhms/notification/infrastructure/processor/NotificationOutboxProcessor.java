@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.TenantAccountProvisioningEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaTenantAccountProvisioningRepository;
 import com.sep490.hdbhms.notification.application.port.out.NotificationDeliveryRepository;
@@ -13,7 +13,7 @@ import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRep
 import com.sep490.hdbhms.notification.application.port.out.UserMobileDeviceTokenRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationDelivery;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.value_objects.DeliveryStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.DeliveryStatus;
 import com.sep490.hdbhms.notification.infrastructure.external.EmailNotificationService;
 import com.sep490.hdbhms.notification.infrastructure.external.PushNotificationService;
 import com.sep490.hdbhms.notification.infrastructure.external.SmsNotificationService;

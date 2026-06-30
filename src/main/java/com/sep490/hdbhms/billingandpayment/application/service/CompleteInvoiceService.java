@@ -5,7 +5,7 @@ import com.sep490.hdbhms.billingandpayment.application.port.out.DepositCompletio
 import com.sep490.hdbhms.billingandpayment.application.port.out.DepositBatchCompletionPort;
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentAllocation;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceStatus;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

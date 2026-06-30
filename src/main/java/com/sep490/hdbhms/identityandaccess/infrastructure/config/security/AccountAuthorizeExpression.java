@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.config.security;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

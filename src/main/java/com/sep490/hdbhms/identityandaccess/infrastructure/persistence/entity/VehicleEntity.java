@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.VehicleStatus;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.VehicleType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.VehicleStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.VehicleType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

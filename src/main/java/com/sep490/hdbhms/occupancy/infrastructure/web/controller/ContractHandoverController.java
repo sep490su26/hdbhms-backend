@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.occupancy.application.service.ManageContractHandoverService;
-import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ConfirmHandoverRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.HandoverMeterReadingsRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandoverRequest;

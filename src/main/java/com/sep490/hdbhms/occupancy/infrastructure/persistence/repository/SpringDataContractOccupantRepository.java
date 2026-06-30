@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.ContractOccupantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.ContractOccupant;
-import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractOccupantRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.ContractOccupantPersistenceMapper;
 import lombok.AccessLevel;

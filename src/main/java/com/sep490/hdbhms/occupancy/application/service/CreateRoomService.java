@@ -30,9 +30,9 @@ public class CreateRoomService implements CreateRoomUseCase {
                 roomCode,
                 roomName,
                 command.areaM2(),
-                command.listedPrice(),
-                command.maxOccupants(),
-                command.sortOrder()
+                command.listedPrice() == null ? 0L : command.listedPrice(),
+                command.maxOccupants() == null ? 3 : command.maxOccupants(),
+                command.sortOrder() == null ? 0 : command.sortOrder()
         );
         return roomRepository.save(room);
     }

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PermissionRequestStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PermissionRequestEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

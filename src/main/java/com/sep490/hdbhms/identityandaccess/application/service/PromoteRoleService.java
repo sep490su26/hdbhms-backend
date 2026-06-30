@@ -4,7 +4,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.command.PromoteRo
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.PromoteRoleUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

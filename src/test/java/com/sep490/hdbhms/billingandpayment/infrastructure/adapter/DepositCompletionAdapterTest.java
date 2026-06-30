@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.adapter;
 
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
@@ -9,8 +9,8 @@ import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentSe
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomHoldStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -98,7 +98,7 @@ class DepositCompletionAdapterTest {
         }
 
         @Override
-        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, java.time.LocalDateTime signedFrom, java.time.LocalDateTime signedTo, Pageable pageable) {
+        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, java.time.LocalDateTime signedFrom, java.time.LocalDateTime signedTo, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
 

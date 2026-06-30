@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

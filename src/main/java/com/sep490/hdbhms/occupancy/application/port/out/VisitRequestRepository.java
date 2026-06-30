@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.port.out;
 
 import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.VisitRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

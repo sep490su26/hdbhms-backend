@@ -4,7 +4,7 @@ import com.sep490.hdbhms.notification.application.port.in.query.NotificationQuer
 import com.sep490.hdbhms.notification.application.port.in.usecase.ManageDeviceTokenUseCase;
 import com.sep490.hdbhms.notification.application.port.in.usecase.ManageNotificationUseCase;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
 import com.sep490.hdbhms.notification.infrastructure.web.dto.request.RegisterDeviceTokenRequest;
 import com.sep490.hdbhms.notification.infrastructure.web.dto.response.NotificationResponse;
 import com.sep490.hdbhms.notification.infrastructure.web.dto.response.NotificationScrollResponse;

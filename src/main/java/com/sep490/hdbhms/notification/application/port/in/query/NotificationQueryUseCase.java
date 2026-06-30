@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.notification.application.port.in.query;
 
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

@@ -6,7 +6,6 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -39,34 +38,23 @@ public class FloorPlanItemEntity {
     @JoinColumn(name = "room_id")
     RoomEntity room;
 
-    @Column(name = "item_type", nullable = false, length = 50)
-    String itemType;
+    @Column(name = "type", nullable = false, length = 50)
+    String type;
 
-    @Column(length = 255)
-    String label;
+    @Column(name = "position_x", nullable = false)
+    Integer positionX;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    BigDecimal x;
+    @Column(name = "position_y", nullable = false)
+    Integer positionY;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    BigDecimal y;
+    @Column(name = "width", nullable = false)
+    Integer width;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    BigDecimal width;
+    @Column(name = "height", nullable = false)
+    Integer height;
 
-    @Column(nullable = false, precision = 10, scale = 2)
-    BigDecimal height;
-
-    @Builder.Default
-    @Column(nullable = false, precision = 10, scale = 2)
-    BigDecimal rotation = BigDecimal.ZERO;
-
-    @Builder.Default
-    @Column(name = "sort_order", nullable = false)
-    Integer sortOrder = 0;
-
-    @Column(name = "metadata_json", columnDefinition = "json")
-    String metadataJson;
+    @Column(name = "metadata", columnDefinition = "json")
+    String metadata;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

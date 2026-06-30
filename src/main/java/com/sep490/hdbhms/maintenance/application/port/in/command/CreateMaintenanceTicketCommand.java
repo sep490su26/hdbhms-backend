@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.maintenance.application.port.in.command;
 
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
-import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.Priority;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.TicketScope;
 
 import java.util.List;
 

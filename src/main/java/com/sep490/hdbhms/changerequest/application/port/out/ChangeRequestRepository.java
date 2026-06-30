@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.changerequest.application.port.out;
 
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 

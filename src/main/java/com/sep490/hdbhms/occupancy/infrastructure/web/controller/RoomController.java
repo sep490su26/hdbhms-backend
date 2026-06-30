@@ -10,7 +10,7 @@ import com.sep490.hdbhms.occupancy.domain.model.Floor;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomImage;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import com.sep490.hdbhms.occupancy.application.service.GetLatestMeterReadingsService;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LatestMeterReadingsResponse;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;

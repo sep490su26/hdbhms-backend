@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.billingandpayment.domain.model;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceLineType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

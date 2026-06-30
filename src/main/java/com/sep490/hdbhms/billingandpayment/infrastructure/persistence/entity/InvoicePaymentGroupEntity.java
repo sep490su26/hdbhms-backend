@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoicePaymentGroupStatus;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoicePaymentGroupType;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoicePaymentGroupStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoicePaymentGroupType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

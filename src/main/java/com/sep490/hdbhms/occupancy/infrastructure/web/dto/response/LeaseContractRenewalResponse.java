@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantRole;
 
 import java.util.List;
 

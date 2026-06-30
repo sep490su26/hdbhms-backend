@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
 
 public record RoomAssetResponse(
         Long id,

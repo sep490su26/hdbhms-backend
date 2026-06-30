@@ -1,11 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
-import com.sep490.hdbhms.occupancy.domain.value_objects.FloorStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.FloorStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;

@@ -7,7 +7,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetListPerm
 import com.sep490.hdbhms.identityandaccess.application.service.CreatePermissionRequestService;
 import com.sep490.hdbhms.identityandaccess.application.service.GetListPermissionRequestsService;
 import com.sep490.hdbhms.identityandaccess.application.service.ResolvePermissionRequestService;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PermissionRequestStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.CreatePermissionRequestRequest;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.RejectPermissionRequestRequest;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestApprovalResponse;

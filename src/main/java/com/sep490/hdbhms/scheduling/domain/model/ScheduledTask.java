@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.scheduling.domain.model;
 
-import com.sep490.hdbhms.scheduling.domain.value_objects.TaskStatus;
-import com.sep490.hdbhms.scheduling.domain.value_objects.TaskType;
+import com.sep490.hdbhms.scheduling.domain.valueObjects.TaskStatus;
+import com.sep490.hdbhms.scheduling.domain.valueObjects.TaskType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
