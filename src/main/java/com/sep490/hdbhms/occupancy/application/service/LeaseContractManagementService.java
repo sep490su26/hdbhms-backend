@@ -5,6 +5,7 @@ import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
 import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.valueObjects.LiquidationStatus;
 import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantRole;
@@ -20,11 +21,14 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContra
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractRenewalResponse;
+import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -151,6 +155,10 @@ public class LeaseContractManagementService {
                     lc.contract_file_id,
                     fm.original_name AS contract_file_name,
                     fm.created_at AS contract_file_uploaded_at,
+                    lc.signed_file_id,
+                    sfm.original_name AS signed_file_name,
+                    sfm.created_at AS signed_file_uploaded_at,
+                    lc.signed_uploaded_by,
                     lc.signed_at,
                     COALESCE(lc.created_at, da.created_at) AS created_at,
                     u.user_id AS user_id,
@@ -163,6 +171,7 @@ public class LeaseContractManagementService {
                 LEFT JOIN lease_contracts lc ON lc.deposit_agreement_id = da.deposit_agreement_id AND lc.deleted_at IS NULL
                 LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
                 LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                 LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                 WHERE da.status IN ('PAID', 'CONFIRMED', 'CONVERTED_TO_LEASE')
                 ORDER BY COALESCE(lc.updated_at, da.updated_at) DESC, da.deposit_agreement_id DESC
@@ -239,6 +248,10 @@ public class LeaseContractManagementService {
                     lc.contract_file_id,
                     fm.original_name AS contract_file_name,
                     fm.created_at AS contract_file_uploaded_at,
+                    lc.signed_file_id,
+                    sfm.original_name AS signed_file_name,
+                    sfm.created_at AS signed_file_uploaded_at,
+                    lc.signed_uploaded_by,
                     lc.signed_at,
                     lc.created_at,
                     u.user_id AS user_id,
@@ -251,12 +264,23 @@ public class LeaseContractManagementService {
                 LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                 LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
                 LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                 LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                 WHERE lc.deleted_at IS NULL
                   AND lc.deposit_agreement_id IS NULL
                 ORDER BY lc.updated_at DESC, lc.lease_contract_id DESC
                 """, (rs, rowNum) -> toResponse(rs)));
         return rows;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<LeaseContractManagementResponse> findAllForManagement(Pageable pageable) {
+        List<LeaseContractManagementResponse> rows = findAllForManagement();
+        List<LeaseContractManagementResponse> pageRows = rows.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+        return PageResponse.fromPageToPageResponse(new PageImpl<>(pageRows, pageable, rows.size()));
     }
 
     public LeaseContractManagementResponse createDraftLeaseContractForDeposit(Long depositAgreementId) {
@@ -279,22 +303,31 @@ public class LeaseContractManagementService {
     }
 
     public LeaseContractManagementResponse uploadSignedFile(Long leaseContractId, MultipartFile file) {
+        return uploadSignedFile(leaseContractId, file, false);
+    }
+
+    public LeaseContractManagementResponse uploadSignedFile(Long leaseContractId, MultipartFile file, boolean replace) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong da ACTIVE, khong upload thay file trong luong nay.");
         }
+        if (contract.getSignedFile() != null && !replace) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hop dong thue da co file da ky. Gui replace=true neu muon thay the.");
+        }
+        Long currentUserId = AuthUtils.getCurrentAuthenticationId();
         var metadata = uploadFileService.execute(new UploadFileCommand(
-                AuthUtils.getCurrentAuthenticationId(),
+                currentUserId,
                 file,
                 FileCategory.CONTRACT,
                 true
         ));
-        var contractFile = fileMetadataRepository.findById(metadata.getId())
+        var signedFile = fileMetadataRepository.findById(metadata.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Khong luu duoc file hop dong."));
-        contractFile.setCategory(FileCategory.CONTRACT);
-        contractFile.setSensitive(true);
-        contract.setContractFile(fileMetadataRepository.save(contractFile));
+        signedFile.setCategory(FileCategory.CONTRACT);
+        signedFile.setSensitive(true);
+        contract.setSignedFile(fileMetadataRepository.save(signedFile));
+        contract.setSignedUploadedBy(currentUserId != null ? UserEntity.builder().id(currentUserId).build() : null);
         leaseContractRepository.save(contract);
         return findOne(contract.getId());
     }
@@ -703,7 +736,7 @@ public class LeaseContractManagementService {
         if (contract.getStatus() != LeaseStatus.DRAFT && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi duoc kich hoat hop dong dang cho ky.");
         }
-        if (contract.getContractFile() == null) {
+        if (contract.getSignedFile() == null && contract.getContractFile() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can upload file hop dong da ky truoc khi kich hoat.");
         }
         if (contract.getPrimaryTenantProfile() == null) {
@@ -974,6 +1007,10 @@ public class LeaseContractManagementService {
                             lc.contract_file_id,
                             fm.original_name AS contract_file_name,
                             fm.created_at AS contract_file_uploaded_at,
+                            lc.signed_file_id,
+                            sfm.original_name AS signed_file_name,
+                            sfm.created_at AS signed_file_uploaded_at,
+                            lc.signed_uploaded_by,
                             lc.signed_at,
                             lc.created_at,
                             u.user_id AS user_id,
@@ -986,6 +1023,7 @@ public class LeaseContractManagementService {
                         LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                         LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                         WHERE lc.deleted_at IS NULL AND lc.lease_contract_id = ?
                         """,
@@ -1587,6 +1625,7 @@ public class LeaseContractManagementService {
         String contractStatus = rs.getString("contract_status");
         String depositStatus = rs.getString("deposit_status");
         Long contractFileId = getLongOrNull(rs, "contract_file_id");
+        Long signedFileId = getLongOrNull(rs, "signed_file_id");
         Long userId = getLongOrNull(rs, "user_id");
         String code = rs.getString("contract_code");
         Long roomId = getLongOrNull(rs, "room_id");
@@ -1633,10 +1672,14 @@ public class LeaseContractManagementService {
                         : renewBlockedReason(renewBlocker))
                 .contractStatus(parsedContractStatus)
                 .depositStatus(parseEnum(DepositAgreementStatus.class, depositStatus))
-                .workflowStatus(resolveWorkflow(contractStatus, contractFileId))
+                .workflowStatus(resolveWorkflow(contractStatus, signedFileId != null ? signedFileId : contractFileId))
                 .contractFileId(contractFileId)
                 .contractFileName(rs.getString("contract_file_name"))
                 .contractFileUploadedAt(toLocalDateTime(rs, "contract_file_uploaded_at"))
+                .signedFileId(signedFileId)
+                .signedFileName(rs.getString("signed_file_name"))
+                .signedFileUploadedAt(toLocalDateTime(rs, "signed_file_uploaded_at"))
+                .signedUploadedById(getLongOrNull(rs, "signed_uploaded_by"))
                 .signedAt(toLocalDateTime(rs, "signed_at"))
                 .createdAt(toLocalDateTime(rs, "created_at"))
                 .accountProvisioned(userId != null)

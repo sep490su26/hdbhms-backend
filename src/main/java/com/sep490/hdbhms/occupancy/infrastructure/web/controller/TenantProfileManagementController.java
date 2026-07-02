@@ -1,9 +1,13 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +35,9 @@ public class TenantProfileManagementController {
     @GetMapping
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('OWNER') or hasRole('MANAGER')")
-    public ApiResponse<List<TenantProfileSummaryResponse>> getTenantProfiles() {
+    public ApiResponse<PageResponse<TenantProfileSummaryResponse>> getTenantProfiles(
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
         List<TenantProfileRow> rows = jdbcTemplate.query("""
                         SELECT *
                         FROM (
@@ -185,8 +191,13 @@ public class TenantProfileManagementController {
                 .thenComparingInt(profile -> "PRIMARY".equalsIgnoreCase(profile.roomRole()) ? 0 : 1)
                 .thenComparing(TenantProfileSummaryResponse::fullName, Comparator.nullsLast(String::compareToIgnoreCase)));
 
-        return ApiResponse.<List<TenantProfileSummaryResponse>>builder()
-                .data(response)
+        List<TenantProfileSummaryResponse> pagedResponse = response.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+
+        return ApiResponse.<PageResponse<TenantProfileSummaryResponse>>builder()
+                .data(PageResponse.fromPageToPageResponse(new PageImpl<>(pagedResponse, pageable, response.size())))
                 .build();
     }
 

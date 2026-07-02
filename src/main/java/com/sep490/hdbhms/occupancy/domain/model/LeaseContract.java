@@ -34,6 +34,8 @@ public class LeaseContract {
     LocalDateTime intentionRecordedAt;
     Long previousContractId;
     Long contractFileId;
+    Long signedFileId;
+    Long signedUploadedById;
     LocalDateTime signedAt;
     Long createdById;
     LocalDateTime createdAt;
@@ -107,6 +109,12 @@ public class LeaseContract {
             throw new IllegalStateException("Only ACTIVE contracts can be marked TRANSFERRED.");
         }
         this.status = LeaseStatus.TRANSFERRED;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void attachSignedFile(Long signedFileId, Long uploadedById) {
+        this.signedFileId = signedFileId;
+        this.signedUploadedById = uploadedById;
         this.updatedAt = LocalDateTime.now();
     }
 }

@@ -68,6 +68,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
@@ -217,7 +218,9 @@ public class MaintenanceTicketController {
 
     @GetMapping("/internal-costs")
     @Transactional(readOnly = true)
-    public List<InternalMaintenanceCostResponse> getInternalMaintenanceCosts() {
+    public PageResponse<InternalMaintenanceCostResponse> getInternalMaintenanceCosts(
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
         Role role = requireRole();
         if (role != Role.OWNER && role != Role.MANAGER && role != Role.ACCOUNTANT) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem báo cáo chi phí nội bộ.");
@@ -225,7 +228,7 @@ public class MaintenanceTicketController {
         List<Long> restrictedPropertyIds = role == Role.MANAGER
                 ? restrictedPropertyIdsForCurrentManager(role)
                 : null;
-        return jpaMaintenanceCostRepository.findAllByPaidByOrderByCreatedAtDesc(PaidBy.LANDLORD)
+        List<InternalMaintenanceCostResponse> rows = jpaMaintenanceCostRepository.findAllByPaidByOrderByCreatedAtDesc(PaidBy.LANDLORD)
                 .stream()
                 .filter(cost -> cost.getTicket() != null
                         && cost.getTicket().getTicketScope() == TicketScope.PROPERTY_OPERATION)
@@ -233,6 +236,11 @@ public class MaintenanceTicketController {
                         || restrictedPropertyIds.contains(cost.getTicket().getProperty().getId()))
                 .map(this::toInternalCostResponse)
                 .toList();
+        List<InternalMaintenanceCostResponse> pageRows = rows.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+        return PageResponse.fromPageToPageResponse(new PageImpl<>(pageRows, pageable, rows.size()));
     }
 
     @PostMapping("/internal")

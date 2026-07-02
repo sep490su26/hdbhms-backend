@@ -82,9 +82,11 @@ public class UserController {
 
     @GetMapping("/tenant-account-candidates")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
-    ApiResponse<List<TenantAccountProvisioningResponse>> getTenantAccountCandidates() {
-        return ApiResponse.<List<TenantAccountProvisioningResponse>>builder()
-                .data(tenantAccountProvisioningService.findProvisioningCandidates())
+    ApiResponse<PageResponse<TenantAccountProvisioningResponse>> getTenantAccountCandidates(
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        return ApiResponse.<PageResponse<TenantAccountProvisioningResponse>>builder()
+                .data(tenantAccountProvisioningService.findProvisioningCandidates(pageable))
                 .build();
     }
 

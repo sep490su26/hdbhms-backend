@@ -64,6 +64,10 @@ public class LeaseContractManagementResponse {
     Long contractFileId;
     String contractFileName;
     LocalDateTime contractFileUploadedAt;
+    Long signedFileId;
+    String signedFileName;
+    LocalDateTime signedFileUploadedAt;
+    Long signedUploadedById;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
 

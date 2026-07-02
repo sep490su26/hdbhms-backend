@@ -34,6 +34,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositContra
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,8 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
@@ -269,10 +272,10 @@ public class DepositAgreementController {
         String contentType = fileData.contentType() == null
                 ? MediaType.APPLICATION_PDF_VALUE
                 : fileData.contentType();
-        String filename = "deposit-contract-draft-" + depositAgreement.getDepositCode() + ".pdf";
+        String filename = depositDocumentFilename(depositAgreement);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, attachmentContentDispositionWithFallback(filename))
                 .body(fileData.resource());
     }
 
@@ -344,13 +347,10 @@ public class DepositAgreementController {
         String contentType = fileData.contentType() == null
                 ? MediaType.APPLICATION_OCTET_STREAM_VALUE
                 : fileData.contentType();
-        String filename = signedFileName(depositAgreement.getSignedFileId());
-        if (filename == null || filename.isBlank()) {
-            filename = "deposit-contract-signed-" + depositAgreement.getDepositCode();
-        }
+        String filename = depositDocumentFilename(depositAgreement);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
                 .body(fileData.resource());
     }
 
@@ -446,6 +446,23 @@ public class DepositAgreementController {
         return depositAgreement.getSignedFileId() == null
                 ? null
                 : "/api/v1/deposit-agreements/" + depositAgreement.getId() + "/signed-file";
+    }
+
+    private String attachmentContentDispositionWithFallback(String filename) {
+        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        String fallbackFilename = filename.replace("\\", "").replace("\"", "");
+        return "attachment; filename=\"" + fallbackFilename + "\"; filename*=UTF-8''" + encodedFilename;
+    }
+
+    private String depositDocumentFilename(DepositAgreement depositAgreement) {
+        Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(depositAgreement.getRoomId()));
+        DepositForm depositForm = getDepositForm(depositAgreement);
+        return com.sep490.hdbhms.occupancy.domain.utils.DocumentFilenameBuilder.build(
+                room != null ? room.getRoomCode() : null,
+                null,
+                "HDC",
+                resolveExpectedMoveInDate(depositAgreement, depositForm)
+        );
     }
 
     private String signatureStatus(DepositAgreement depositAgreement) {

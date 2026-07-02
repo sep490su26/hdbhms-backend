@@ -93,6 +93,14 @@ public class LeaseContractEntity {
     @JoinColumn(name = "contract_file_id", nullable = true)
     FileMetadataEntity contractFile;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_file_id", nullable = true)
+    FileMetadataEntity signedFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_uploaded_by", nullable = true)
+    UserEntity signedUploadedBy;
+
     @Column(name = "signed_at")
     LocalDateTime signedAt;
 
