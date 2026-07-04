@@ -67,6 +67,7 @@ public class SecurityConfig {
             "/api/v1/properties",
             "/api/v1/properties/simple",
             "/api/v1/properties/*",
+            "/api/v1/properties/*/rules",
             "/api/v1/properties/*/rooms/simple",
             "/api/v1/floors",
             "/api/v1/floors/*",
