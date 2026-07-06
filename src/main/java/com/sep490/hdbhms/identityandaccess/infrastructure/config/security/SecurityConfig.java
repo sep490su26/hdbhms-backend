@@ -48,6 +48,8 @@ public class SecurityConfig {
             "/api/v1/public/deposits/batches/*/cancel",
             "/api/v1/deposit/contracts/preview",
             "/api/v1/deposit/payments/*/cancel",
+            "/api/v1/mock/payment",
+            "/api/v1/mock/payments/*/success",
             "/api/v1/visit-requests",
             "/api/v1/webhook/**",
     };

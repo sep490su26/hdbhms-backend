@@ -60,6 +60,12 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
 app:
+  mock-payment:
+    enabled: ${APP_MOCK_PAYMENT_ENABLED:true}
+  identity-verification:
+    debug:
+      dump-candidates: ${IDENTITY_VERIFICATION_DUMP_CANDIDATES:false}
+      dump-directory: ${IDENTITY_VERIFICATION_DUMP_DIRECTORY:.debug/identity-verification}
   reset-password:
     web-confirmation-url: localhost:3000//confirm-reset
     mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
@@ -77,3 +83,6 @@ app:
         initial-delay: 500
         multiplier: 2
         timeout: 300
+logging:
+  level:
+    com.sep490.hdbhms.identityverification: DEBUG
