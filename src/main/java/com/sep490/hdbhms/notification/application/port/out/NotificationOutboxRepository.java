@@ -19,9 +19,9 @@ public interface NotificationOutboxRepository {
 
     List<NotificationOutbox> findNextNotificationsCursor(Long userId, NotificationChannel channel, long after, int limit);
 
-    long countByRecipientUserIdAndIsReadFalse(Long userId);
+    long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel);
 
-    void markAllAsRead(Long userId);
+    void markAllAsRead(Long userId, NotificationChannel channel);
 
     boolean markAsProcessing(Long id);
 }

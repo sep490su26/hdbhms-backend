@@ -34,9 +34,10 @@ public class NotificationController {
     ManageDeviceTokenUseCase manageDeviceTokenUseCase;
 
     @GetMapping("/unread-count")
-    public ApiResponse<Long> getUnreadCount() {
+    public ApiResponse<Long> getUnreadCount(@RequestHeader("X-Client-Type") String clientType) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
-        return ApiResponse.<Long>builder().data(notificationQueryUseCase.getUnreadCount(userId)).build();
+        NotificationChannel channel = resolveChannel(clientType);
+        return ApiResponse.<Long>builder().data(notificationQueryUseCase.getUnreadCount(userId, channel)).build();
     }
 
     @GetMapping
@@ -98,9 +99,10 @@ public class NotificationController {
     }
 
     @PostMapping("/read-all")
-    public ApiResponse<Void> markAllAsRead() {
+    public ApiResponse<Void> markAllAsRead(@RequestHeader("X-Client-Type") String clientType) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
-        manageNotificationUseCase.markAllAsRead(userId);
+        NotificationChannel channel = resolveChannel(clientType);
+        manageNotificationUseCase.markAllAsRead(userId, channel);
         return ApiResponse.<Void>builder().build();
     }
 
@@ -109,6 +111,9 @@ public class NotificationController {
                 .id(domain.getId())
                 .title(domain.getTitle())
                 .body(domain.getBody())
+                .eventType(domain.getEventType())
+                .targetType(domain.getTargetType())
+                .targetId(domain.getTargetId())
                 .createdAt(domain.getCreatedAt())
                 .isRead(domain.getIsRead())
                 .build();

@@ -22,7 +22,7 @@ public interface UserRepository {
 
     Optional<User> findById(Long id);
 
-    Page<User> findAll(List<Long> ids, Role role, AccountStatus status, Pageable pageable);
+    Page<User> findAll(List<Long> ids, List<Role> roles, AccountStatus status, Pageable pageable);
 
     Optional<User> findByEmail(String email);
 

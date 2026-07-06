@@ -2,6 +2,7 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
+import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
 import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
 import com.sep490.hdbhms.notification.infrastructure.persistence.jpa.JpaNotificationOutboxRepository;
 import com.sep490.hdbhms.notification.infrastructure.persistence.mapper.NotificationOutboxPersistenceMapper;
@@ -63,14 +64,14 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
     }
 
     @Override
-    public long countByRecipientUserIdAndIsReadFalse(Long userId) {
-        return jpaNotificationOutboxRepository.countByRecipientUser_IdAndIsReadFalse(userId);
+    public long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel) {
+        return jpaNotificationOutboxRepository.countByRecipientUser_IdAndChannelAndIsReadFalse(userId, channel);
     }
 
     @Override
     @Transactional
-    public void markAllAsRead(Long userId) {
-        jpaNotificationOutboxRepository.markAllAsRead(userId);
+    public void markAllAsRead(Long userId, NotificationChannel channel) {
+        jpaNotificationOutboxRepository.markAllAsRead(userId, channel);
     }
 
     @Override

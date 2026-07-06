@@ -96,8 +96,8 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     }
 
     @Override
-    public long getUnreadCount(Long userId) {
-        return outboxRepository.countByRecipientUserIdAndIsReadFalse(userId);
+    public long getUnreadCount(Long userId, NotificationChannel channel) {
+        return outboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse(userId, channel);
     }
 
     @Override
@@ -114,7 +114,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     }
 
     @Override
-    public void markAllAsRead(Long userId) {
-        outboxRepository.markAllAsRead(userId);
+    public void markAllAsRead(Long userId, NotificationChannel channel) {
+        outboxRepository.markAllAsRead(userId, channel);
     }
 }

@@ -46,7 +46,7 @@ public class UserController {
 
     @PostMapping("/staff")
     @PreAuthorize("hasRole('OWNER')")
-    ApiResponse<UserResponse> createStaffAccount(@Valid @RequestBody UserCreationRequest request) {
+    public ApiResponse<UserResponse> createStaffAccount(@Valid @RequestBody UserCreationRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .data(
                         userWebMapper.toAccountResponse(
@@ -56,17 +56,21 @@ public class UserController {
                 .build();
     }
 
-    @GetMapping
+    @GetMapping({"", "/", "/accounts"})
     @PreAuthorize("hasRole('OWNER')")
-    ApiResponse<PageResponse<UserResponse>> getAccounts(
+    public ApiResponse<PageResponse<UserResponse>> getAccounts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Role role,
+            @RequestParam(required = false) List<Role> roles,
             @RequestParam(required = false) AccountStatus status,
             @PageableDefault(size = 20) Pageable pageable
     ) {
+        List<Role> effectiveRoles = roles == null || roles.isEmpty()
+                ? (role == null ? null : List.of(role))
+                : roles;
         var command = new GetAccountsQuery(
                 keyword,
-                role,
+                effectiveRoles,
                 status,
                 pageable
         );
@@ -117,7 +121,7 @@ public class UserController {
                 .build();
     }
 
-    @GetMapping("/{accountId}")
+    @GetMapping("/{accountId:\\d+}")
     ApiResponse<UserResponse> getAccount(@PathVariable Long accountId) {
         return ApiResponse.<UserResponse>builder()
                 .data(
@@ -201,7 +205,7 @@ public class UserController {
                 .build();
     }
 
-    @PutMapping(value = "/{userId}/status")
+    @PutMapping(value = "/{userId:\\d+}/status")
     ApiResponse<UserResponse> updateAccountStatus(
             @PathVariable Long userId,
             @Valid @RequestBody AccountStatusUpdateRequest request
@@ -220,7 +224,7 @@ public class UserController {
                 .build();
     }
 
-    @PutMapping(value = "/{accountId}/role")
+    @PutMapping(value = "/{accountId:\\d+}/role")
     ApiResponse<UserResponse> updateAccountRole(
             @PathVariable Long accountId,
             @Valid @RequestBody AccountRoleUpdateRequest request
@@ -239,7 +243,7 @@ public class UserController {
                 .build();
     }
 
-    @GetMapping("/{accountId}/login-history")
+    @GetMapping("/{accountId:\\d+}/login-history")
     ApiResponse<PageResponse<LoginHistoryResponse>> getLoginHistory(
             @PathVariable Long accountId,
             @RequestParam(required = false) List<String> statuses,

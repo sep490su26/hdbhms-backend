@@ -77,4 +77,9 @@ public class PersonProfile {
         this.userId = userId;
         updatedAt = LocalDateTime.now();
     }
+
+    public void setPortraitFileId(Long portraitFileId) {
+        this.portraitFileId = portraitFileId;
+        updatedAt = LocalDateTime.now();
+    }
 }

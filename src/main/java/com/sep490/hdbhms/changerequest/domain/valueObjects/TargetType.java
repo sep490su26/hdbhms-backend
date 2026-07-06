@@ -5,5 +5,9 @@ public enum TargetType {
     INVOICE,
     CONTRACT,
     DEPOSIT,
+    TENANT_PROFILE,
+    IDENTITY_DOCUMENT,
+    REPORT,
+    FILE,
     OTHER
 }
