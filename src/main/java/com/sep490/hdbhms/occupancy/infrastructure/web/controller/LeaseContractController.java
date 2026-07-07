@@ -138,7 +138,7 @@ public class LeaseContractController {
 
     @PostMapping("/{leaseContractId}/signed-file")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LeaseContractManagementResponse> uploadSignedFile(
             @PathVariable Long leaseContractId,
             @RequestPart("file") MultipartFile file,

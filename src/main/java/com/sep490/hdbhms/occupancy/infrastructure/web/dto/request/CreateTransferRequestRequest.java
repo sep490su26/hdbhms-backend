@@ -13,12 +13,20 @@ public record CreateTransferRequestRequest(
         @NotNull(message = "Target room ID is required")
         Long targetRoomId,
 
-        @FutureOrPresent
-        @NotNull(message = "Requested transfer date is required")
+        @FutureOrPresent(message = "Expected transfer date must be today or later")
         LocalDate requestedTransferDate,
+
+        @FutureOrPresent(message = "Expected transfer date must be today or later")
+        @NotNull(message = "Expected transfer date is required")
+        LocalDate expectedTransferDate,
 
         List<Long> transferredTenantProfileIds,
 
         String reason
 ) {
+    public CreateTransferRequestRequest {
+        if (expectedTransferDate == null) {
+            expectedTransferDate = requestedTransferDate;
+        }
+    }
 }

@@ -82,6 +82,9 @@ public class NotificationOutboxEntity {
     @Column(name = "is_read", nullable = false)
     Boolean isRead = false;
 
+    @Column(name = "read_at")
+    LocalDateTime readAt;
+
     @Column(name = "scheduled_at", nullable = false)
     LocalDateTime scheduledAt;
 

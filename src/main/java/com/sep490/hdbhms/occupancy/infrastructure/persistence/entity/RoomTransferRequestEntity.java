@@ -3,8 +3,9 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.DebtSnapshotEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TransferRequestStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TargetTransferType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -67,7 +68,7 @@ public class RoomTransferRequestEntity {
     @Column(name = "target_transfer_type", length = 50)
     TargetTransferType targetTransferType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true) // Optional for JOIN_EXISTING_CONTRACT
     @JoinColumn(name = "target_contract_id")
     LeaseContractEntity targetContract;
 
@@ -98,15 +99,23 @@ public class RoomTransferRequestEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
-    TransferRequestStatus status = TransferRequestStatus.WAITING_APPROVAL;
+    TransferRequestStatus status = TransferRequestStatus.REQUESTED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "positive_difference_settlement_type", length = 50, nullable = true)
+    SettlementType positiveDifferenceSettlementType; // Choice made at tenant confirmation
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "debt_snapshot_id", nullable = true)
     DebtSnapshotEntity debtSnapshot;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "new_contract_id", nullable = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true) // Destination contract or transfer agreement.
+    @JoinColumn(name = "new_contract_id")
     LeaseContractEntity newContract;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "replacement_old_contract_id")
+    LeaseContractEntity replacementOldContract;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

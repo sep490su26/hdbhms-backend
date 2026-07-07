@@ -20,7 +20,7 @@ public class RoomTransferChangeRequestDecisionHandler implements ChangeRequestDe
 
     @Override
     public void onApproved(ChangeRequest request, Long managerId) {
-        roomTransferUseCase.approveTransfer(new ApproveTransferCommand(request.getTargetId(), managerId));
+        roomTransferUseCase.approveTransfer(new ApproveTransferCommand(request.getTargetId(), managerId, null));
     }
 
     @Override

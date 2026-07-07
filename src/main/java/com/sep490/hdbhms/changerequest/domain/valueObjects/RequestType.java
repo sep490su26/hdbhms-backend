@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.changerequest.domain.valueObjects;
+package com.sep490.hdbhms.changerequest.domain.value_objects;
 
 public enum RequestType {
     METER_READING_CORRECTION,
@@ -9,5 +9,6 @@ public enum RequestType {
     MOVE_OUT,
     COMPLAINT,
     PERMISSION_ACCESS,
-    TENANT_PROFILE_ACCESS
+    TENANT_PROFILE_ACCESS,
+    ADD_CO_OCCUPANT,
 }

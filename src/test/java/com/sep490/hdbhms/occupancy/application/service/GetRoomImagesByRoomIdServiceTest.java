@@ -91,7 +91,7 @@ class GetRoomImagesByRoomIdServiceTest {
     }
 
     // ---------- fake ResourcePatternResolver (no static samples) ----------
-    private static final class NoOpResourcePatternResolver implements ResourcePatternResolver {
+    private static final class EmptySampleResourceResolver implements ResourcePatternResolver {
         @Override
         public Resource[] getResources(String locationPattern) throws IOException {
             return new Resource[0];
@@ -126,7 +126,7 @@ class GetRoomImagesByRoomIdServiceTest {
         imageRepo.putImages(101L, List.of(image));
 
         GetRoomImagesByRoomIdService service =
-                new GetRoomImagesByRoomIdService(roomRepo, imageRepo, new NoOpResourcePatternResolver());
+                new GetRoomImagesByRoomIdService(roomRepo, imageRepo, new EmptySampleResourceResolver());
 
         List<RoomImage> result = service.execute(new GetRoomImagesByRoomIdQuery(101L));
 
@@ -162,7 +162,7 @@ class GetRoomImagesByRoomIdServiceTest {
         imageRepo.putImages(102L, List.of(sampleImage));
 
         GetRoomImagesByRoomIdService service =
-                new GetRoomImagesByRoomIdService(roomRepo, imageRepo, new NoOpResourcePatternResolver());
+                new GetRoomImagesByRoomIdService(roomRepo, imageRepo, new EmptySampleResourceResolver());
 
         List<RoomImage> result = service.execute(new GetRoomImagesByRoomIdQuery(201L));
 

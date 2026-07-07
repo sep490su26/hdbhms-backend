@@ -59,6 +59,36 @@ public class ChangeRequestController {
                 req.getRequestPayload(),
                 req.getStatus(),
                 req.getRequesterId(),
+                req.getTargetId(),
+                req.getResolutionNote(),
+                req.getCreatedAt()
+        ));
+
+        return ApiResponse.<PageResponse<ChangeRequestResponse>>builder()
+                .code(0)
+                .data(PageResponse.fromPageToPageResponse(responsePage))
+                .build();
+    }
+
+    @GetMapping("/my")
+    public ApiResponse<PageResponse<ChangeRequestResponse>> getMyRequests(
+            @RequestParam(required = false) RequestType type,
+            @RequestParam(required = false) RequestStatus status,
+            @RequestParam(required = false) String search,
+            @PageableDefault(sort = {"createdAt"}, direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Page<ChangeRequest> requestPage = queryUseCase.getFilteredRequestsByRequester(
+                AuthUtils.getCurrentAuthenticationId(), type, status, search, pageable);
+
+        Page<ChangeRequestResponse> responsePage = requestPage.map(req -> new ChangeRequestResponse(
+                req.getId(),
+                req.getRequestCode(),
+                req.getRequestType(),
+                req.getTitle(),
+                req.getDescription(),
+                req.getStatus(),
+                req.getRequesterId(),
+                req.getTargetId(),
                 req.getResolutionNote(),
                 req.getCreatedAt()
         ));

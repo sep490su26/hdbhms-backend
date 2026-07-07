@@ -32,6 +32,7 @@ public class NotificationOutbox {
     Integer maxRetries;
     String lastError;
     Boolean isRead;
+    LocalDateTime readAt;
     LocalDateTime scheduledAt;
     LocalDateTime nextRetryAt;
     LocalDateTime sentAt;
@@ -63,7 +64,13 @@ public class NotificationOutbox {
         this.nextRetryAt = null;
     }
 
-    public void markAsRead() {
+    public void markAsRead(LocalDateTime readAt) {
+        if (Boolean.TRUE.equals(this.isRead) && this.readAt != null) {
+            return;
+        }
         this.isRead = true;
+        if (this.readAt == null) {
+            this.readAt = readAt == null ? LocalDateTime.now() : readAt;
+        }
     }
 }

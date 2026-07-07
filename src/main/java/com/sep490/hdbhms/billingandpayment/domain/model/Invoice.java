@@ -54,6 +54,14 @@ public class Invoice {
         this.remainingAmount = Math.max(newTotalAmount - (this.getPaidAmount() == null ? 0L : this.getPaidAmount()), 0L);
     }
 
+    public void addSurchargeAmount(long surchargeAmount) {
+        long newSubtotal = (this.getSubtotalAmount() == null ? 0L : this.getSubtotalAmount()) + surchargeAmount;
+        long newTotalAmount = Math.max(newSubtotal - (this.getDiscountAmount() == null ? 0L : this.getDiscountAmount()), 0L);
+        this.subtotalAmount = newSubtotal;
+        this.totalAmount = newTotalAmount;
+        this.remainingAmount = Math.max(newTotalAmount - (this.getPaidAmount() == null ? 0L : this.getPaidAmount()), 0L);
+    }
+
     public void applyAmount(long amountInDong) {
         if (status == InvoiceStatus.VOIDED || status == InvoiceStatus.DRAFT) {
             throw new IllegalStateException("Invoice cannot be paid in state " + status);

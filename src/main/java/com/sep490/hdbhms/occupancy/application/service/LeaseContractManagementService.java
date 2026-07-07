@@ -1,15 +1,14 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
-import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
-import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LiquidationStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantRole;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractLiquidationEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
@@ -117,6 +116,15 @@ public class LeaseContractManagementService {
                     previous_contract.contract_code AS previous_contract_code,
                     lc.tenant_intention,
                     lc.expected_vacant_date,
+                    tr.room_transfer_request_id AS transfer_request_id,
+                    tr.request_code AS transfer_request_code,
+                    tr.status AS transfer_status,
+                    tr.requested_transfer_date AS transfer_requested_date,
+                    CASE
+                        WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
+                        WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
+                        ELSE NULL
+                    END AS transfer_contract_role,
                     (
                         SELECT renewed.lease_contract_id
                         FROM lease_contracts renewed
@@ -172,6 +180,9 @@ public class LeaseContractManagementService {
                 LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
                 LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                 LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
+                LEFT JOIN room_transfer_requests tr
+                  ON lc.lease_contract_id IS NOT NULL
+                 AND (tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id)
                 LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                 WHERE da.status IN ('PAID', 'CONFIRMED', 'CONVERTED_TO_LEASE')
                 ORDER BY COALESCE(lc.updated_at, da.updated_at) DESC, da.deposit_agreement_id DESC
@@ -213,6 +224,15 @@ public class LeaseContractManagementService {
                     previous_contract.contract_code AS previous_contract_code,
                     lc.tenant_intention,
                     lc.expected_vacant_date,
+                    tr.room_transfer_request_id AS transfer_request_id,
+                    tr.request_code AS transfer_request_code,
+                    tr.status AS transfer_status,
+                    tr.requested_transfer_date AS transfer_requested_date,
+                    CASE
+                        WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
+                        WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
+                        ELSE NULL
+                    END AS transfer_contract_role,
                     (
                         SELECT renewed.lease_contract_id
                         FROM lease_contracts renewed
@@ -264,6 +284,8 @@ public class LeaseContractManagementService {
                 LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                 LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
                 LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                LEFT JOIN room_transfer_requests tr
+                  ON tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id
                 LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                 LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                 WHERE lc.deleted_at IS NULL
@@ -733,6 +755,7 @@ public class LeaseContractManagementService {
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
             return findOne(leaseContractId);
         }
+        ensureNotRoomTransferManagedContract(leaseContractId);
         if (contract.getStatus() != LeaseStatus.DRAFT && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi duoc kich hoat hop dong dang cho ky.");
         }
@@ -972,6 +995,15 @@ public class LeaseContractManagementService {
                             previous_contract.contract_code AS previous_contract_code,
                             lc.tenant_intention,
                             lc.expected_vacant_date,
+                            tr.room_transfer_request_id AS transfer_request_id,
+                            tr.request_code AS transfer_request_code,
+                            tr.status AS transfer_status,
+                            tr.requested_transfer_date AS transfer_requested_date,
+                            CASE
+                                WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
+                                WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
+                                ELSE NULL
+                            END AS transfer_contract_role,
                             (
                                 SELECT renewed.lease_contract_id
                                 FROM lease_contracts renewed
@@ -1024,6 +1056,8 @@ public class LeaseContractManagementService {
                         LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                         LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
+                        LEFT JOIN room_transfer_requests tr
+                          ON tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id
                         LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                         WHERE lc.deleted_at IS NULL AND lc.lease_contract_id = ?
                         """,
@@ -1630,6 +1664,8 @@ public class LeaseContractManagementService {
         String code = rs.getString("contract_code");
         Long roomId = getLongOrNull(rs, "room_id");
         Long renewedContractId = getLongOrNull(rs, "renewed_contract_id");
+        Long transferRequestId = getLongOrNull(rs, "transfer_request_id");
+        String transferStatus = rs.getString("transfer_status");
         LeaseStatus parsedContractStatus = parseEnum(LeaseStatus.class, contractStatus);
         RoomCommitmentChecker.Blocker renewBlocker =
                 resolveRenewBlocker(roomId, leaseContractId, renewedContractId, parsedContractStatus);
@@ -1670,6 +1706,12 @@ public class LeaseContractManagementService {
                 .canRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
                         ? null
                         : renewBlockedReason(renewBlocker))
+                .transferRequestId(transferRequestId)
+                .transferRequestCode(rs.getString("transfer_request_code"))
+                .transferStatus(transferStatus)
+                .transferRequestedDate(toLocalDate(rs, "transfer_requested_date"))
+                .transferContractRole(rs.getString("transfer_contract_role"))
+                .transferActivationLocked(isTransferActivationLocked(transferRequestId, transferStatus))
                 .contractStatus(parsedContractStatus)
                 .depositStatus(parseEnum(DepositAgreementStatus.class, depositStatus))
                 .workflowStatus(resolveWorkflow(contractStatus, signedFileId != null ? signedFileId : contractFileId))
@@ -1725,6 +1767,31 @@ public class LeaseContractManagementService {
             return "Phong dang duoc giu cho cho khach khac.";
         }
         return "Phong da co khach khac dat coc/giu cho, khong the tai ky.";
+    }
+
+    private void ensureNotRoomTransferManagedContract(Long leaseContractId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM room_transfer_requests
+                        WHERE new_contract_id = ? OR replacement_old_contract_id = ?
+                        """,
+                Integer.class,
+                leaseContractId,
+                leaseContractId
+        );
+        if (count != null && count > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Hop dong thuoc yeu cau chuyen phong; vui long xu ly ban giao/kich hoat trong luong chuyen phong."
+            );
+        }
+    }
+
+    private boolean isTransferActivationLocked(Long transferRequestId, String transferStatus) {
+        if (transferRequestId == null) {
+            return false;
+        }
+        return !"EXECUTED".equals(transferStatus);
     }
 
     private String resolveWorkflow(String contractStatus, Long contractFileId) {

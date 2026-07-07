@@ -10,6 +10,9 @@ import java.util.Optional;
 public interface RoomTransferRepository {
     RoomTransferRequest save(RoomTransferRequest roomTransferRequest);
     Optional<RoomTransferRequest> findById(Long id);
+
+    Optional<RoomTransferRequest> findByRequestCode(String requestCode);
     List<RoomTransferRequest> findByStatusAndUpdatedAtBefore(TransferRequestStatus status, LocalDateTime updatedBefore);
+    List<RoomTransferRequest> findPendingHolderNominations(Long holderUserId);
     List<RoomTransferRequest> findPendingTargetHolderApprovals(Long holderUserId);
 }

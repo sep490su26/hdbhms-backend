@@ -1,7 +1,8 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TransferRequestStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TargetTransferType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -37,9 +38,11 @@ public class RoomTransferRequest {
     LocalDateTime reservationExpiresAt;
 
     @Builder.Default
-    TransferRequestStatus status = TransferRequestStatus.WAITING_APPROVAL;
+    TransferRequestStatus status = TransferRequestStatus.REQUESTED;
     Long debtSnapshotId;
-    Long newContractId;
+    Long newContractId; // Destination contract for NEW_CONTRACT, transfer agreement for OTHER_CONTRACT.
+    Long replacementOldContractId;
+    SettlementType positiveDifferenceSettlementType; // Choice made at tenant confirmation
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 

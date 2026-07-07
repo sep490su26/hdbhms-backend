@@ -6,6 +6,7 @@ import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +30,8 @@ public interface UserRepository {
     Optional<User> findByPhone(String phone);
 
     List<Long> findIdsByFullText(String keyword);
+
+    List<Long> findIdsByRolesAndStatus(Collection<Role> roles, AccountStatus status);
 
     Optional<User> findByPhoneOrEmailAndDeletedAtIsNull(String phone, String email);
 

@@ -51,4 +51,10 @@ public class SpringDataChangeRequestRepository implements ChangeRequestRepositor
         return jpaChangeRequestRepository.findFiltered(type, status, search, pageable)
                 .map(mapper::toDomain);
     }
+
+    @Override
+    public Page<ChangeRequest> findFilteredByRequester(Long requesterId, RequestType type, RequestStatus status, String search, Pageable pageable) {
+        return jpaChangeRequestRepository.findFilteredByRequester(requesterId, RequestType.ROOM_TRANSFER, type, status, search, pageable)
+                .map(mapper::toDomain);
+    }
 }

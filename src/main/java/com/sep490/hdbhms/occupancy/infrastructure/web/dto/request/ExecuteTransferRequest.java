@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -13,14 +14,18 @@ import java.util.List;
 
 public record ExecuteTransferRequest(
         @Valid TransferHandoverPayload transferOutHandover,
-        @Valid TransferHandoverPayload transferInHandover
+        @Valid TransferHandoverPayload transferInHandover,
+        SettlementType positiveDifferenceSettlementType
 ) {
     public record TransferHandoverPayload(
             LocalDate handoverDate,
             String note,
             @Valid MeterReadingPayload electricity,
             @Valid MeterReadingPayload water,
-            @Valid List<AssetPayload> assets
+            @Valid List<AssetPayload> assets,
+            @PositiveOrZero(message = "Incidental charge amount must not be negative")
+            Long incidentalChargeAmount,
+            String incidentalChargeNote
     ) {}
 
     public record MeterReadingPayload(
