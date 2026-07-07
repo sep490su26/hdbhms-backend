@@ -34,7 +34,8 @@ public class GetHomeService implements GetHomeUseCase {
         HomeResponse response = jdbcTemplate.query("""
                 SELECT 
                     u.user_id AS user_id, u.email, u.phone AS user_phone, u.role,
-                    t.tenant_id AS tenant_id, prop.name AS tenant_name,
+                    t.tenant_id AS tenant_id, prop.property_id AS property_id,
+                    prop.name AS tenant_name, prop.address_line AS property_address,
                     p.person_profile_id AS profile_id, p.full_name, p.phone AS profile_phone, p.portrait_file_id
                 FROM users u
                 LEFT JOIN tenants t ON t.user_id = u.user_id AND t.deleted_at IS NULL
@@ -68,6 +69,7 @@ public class GetHomeService implements GetHomeUseCase {
                         tenant = TenantHomeResponse.builder()
                                 .id(tenantId)
                                 .name(rs.getString("tenant_name"))
+                                .address(rs.getString("property_address"))
                                 .build();
                     }
                     
@@ -231,6 +233,42 @@ public class GetHomeService implements GetHomeUseCase {
         return TenantHomeResponse.builder()
                 .id(tenantId)
                 .name(context.propertyName())
+                .address(getPropertyAddress(context.propertyId()))
+                .imageUrls(getPropertyImageUrls(context.propertyId()))
                 .build();
+    }
+
+    private String getPropertyAddress(Long propertyId) {
+        if (propertyId == null) {
+            return null;
+        }
+        return jdbcTemplate.query("""
+                        SELECT address_line
+                        FROM properties
+                        WHERE property_id = ?
+                          AND deleted_at IS NULL
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getString("address_line") : null,
+                propertyId
+        );
+    }
+
+    private List<String> getPropertyImageUrls(Long propertyId) {
+        if (propertyId == null) {
+            return List.of();
+        }
+        return jdbcTemplate.query("""
+                        SELECT ri.file_id
+                        FROM room_images ri
+                        JOIN rooms r ON r.room_id = ri.room_id
+                        WHERE r.property_id = ?
+                          AND r.deleted_at IS NULL
+                        ORDER BY ri.sort_order ASC, ri.created_at ASC, ri.file_id ASC
+                        LIMIT 6
+                        """,
+                (rs, rowNum) -> "/api/v1/files/download/" + rs.getLong("file_id"),
+                propertyId
+        );
     }
 }
