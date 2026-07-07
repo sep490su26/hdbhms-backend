@@ -27,6 +27,7 @@ public class NotificationEventConsumer {
             sendNotificationUseCase.queueNotification(event);
         } catch (Exception exception) {
             log.error("Failed to consume notification event payload={}", payload, exception);
+            throw new IllegalArgumentException("Invalid notification event payload", exception);
         }
     }
 }

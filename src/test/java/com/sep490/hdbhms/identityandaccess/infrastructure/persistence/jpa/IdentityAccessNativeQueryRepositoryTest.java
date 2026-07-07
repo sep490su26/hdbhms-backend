@@ -52,9 +52,18 @@ class IdentityAccessNativeQueryRepositoryTest {
                 .locations("classpath:migration/dev")
                 .baselineOnMigrate(true)
                 .baselineVersion("0")
+                .target("8")
                 .load()
                 .migrate();
         jdbcTemplate = new JdbcTemplate(dataSource);
+        insertLegacyMigrationRows();
+        Flyway.configure()
+                .dataSource(dataSource)
+                .locations("classpath:migration/dev")
+                .baselineOnMigrate(true)
+                .baselineVersion("0")
+                .load()
+                .migrate();
     }
 
     @AfterAll
@@ -107,6 +116,84 @@ class IdentityAccessNativeQueryRepositoryTest {
 
         assertEquals(List.of(matchingId), ids);
         assertInstanceOf(Long.class, ids.getFirst());
+    }
+
+    @Test
+    void migrationsPreserveLegacyTransferAndPermissionRequests() {
+        assertEquals(
+                "WAITING_MANAGER_APPROVAL",
+                jdbcTemplate.queryForObject(
+                        "SELECT status FROM room_transfer_requests WHERE request_code = 'TR-LEGACY-MIGRATION'",
+                        String.class
+                )
+        );
+        assertEquals(
+                "PENDING",
+                jdbcTemplate.queryForObject(
+                        "SELECT status FROM change_requests WHERE request_code = 'PR-LEGACY-7001'",
+                        String.class
+                )
+        );
+        assertEquals(
+                1,
+                jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM permission_grants pg
+                        JOIN change_requests cr ON cr.change_request_id = pg.source_change_request_id
+                        WHERE cr.request_code = 'PR-LEGACY-7002'
+                          AND pg.target_type = 'FILE'
+                          AND pg.target_id = 88
+                        """, Integer.class)
+        );
+    }
+
+    private static void insertLegacyMigrationRows() {
+        jdbcTemplate.update("""
+                INSERT INTO users (user_id, phone, email, password_hash, role, status, must_change_password)
+                VALUES
+                    (7000, '0910007000', 'legacy-manager@migration-test.example', 'encoded-password', 'MANAGER', 'ACTIVE', 0),
+                    (7003, '0910007003', 'legacy-tenant@migration-test.example', 'encoded-password', 'TENANT', 'ACTIVE', 0)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO permission_requests (
+                    permission_request_id, requester_user_id, target_type, target_id,
+                    rejected_reason, status, decided_at, created_at
+                ) VALUES
+                    (7001, 7000, 'FILE', 77, '', 'PENDING', NULL, NOW(6)),
+                    (7002, 7000, 'FILE', 88, '', 'APPROVED', NOW(6), NOW(6))
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO person_profiles (person_profile_id, user_id, full_name, phone, email)
+                VALUES (7003, 7003, 'Legacy Tenant', '0910007003', 'legacy-tenant@migration-test.example')
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tenants (tenant_id, user_id, property_id)
+                SELECT 7003, 7003, property_id
+                FROM properties
+                ORDER BY property_id
+                LIMIT 1
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO lease_contracts (
+                    lease_contract_id, contract_code, room_id, primary_tenant_profile_id,
+                    start_date, end_date, rent_start_date, monthly_rent, payment_cycle_months
+                )
+                SELECT 7003, 'LC-LEGACY-MIGRATION', room_id, 7003,
+                       CURRENT_DATE, DATE_ADD(CURRENT_DATE, INTERVAL 1 YEAR), CURRENT_DATE,
+                       listed_price, 1
+                FROM rooms
+                ORDER BY room_id
+                LIMIT 1
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO room_transfer_requests (
+                    room_transfer_request_id, request_code, requester_id, old_contract_id,
+                    old_room_id, target_room_id, requested_transfer_date, status
+                )
+                SELECT 7001, 'TR-LEGACY-MIGRATION', 7003, 7003,
+                       MIN(room_id), MAX(room_id), CURRENT_DATE, 'WAITING_APPROVAL'
+                FROM rooms
+                """);
     }
 
     private static Long insertUser(String email, String phone) {

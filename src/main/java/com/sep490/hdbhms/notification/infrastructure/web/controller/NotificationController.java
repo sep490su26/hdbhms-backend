@@ -39,7 +39,9 @@ public class NotificationController {
     ObjectMapper objectMapper;
 
     @GetMapping("/unread-count")
-    public ApiResponse<Long> getUnreadCount(@RequestHeader("X-Client-Type") String clientType) {
+    public ApiResponse<Long> getUnreadCount(
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+    ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         NotificationChannel channel = resolveChannel(clientType);
         return ApiResponse.<Long>builder().data(notificationQueryUseCase.getUnreadCount(userId, channel)).build();
@@ -104,7 +106,9 @@ public class NotificationController {
     }
 
     @PostMapping("/read-all")
-    public ApiResponse<Void> markAllAsRead(@RequestHeader("X-Client-Type") String clientType) {
+    public ApiResponse<Void> markAllAsRead(
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+    ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         NotificationChannel channel = resolveChannel(clientType);
         manageNotificationUseCase.markAllAsRead(userId, channel);

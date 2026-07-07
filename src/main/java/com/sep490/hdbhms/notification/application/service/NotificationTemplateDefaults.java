@@ -17,6 +17,10 @@ import java.util.stream.Collectors;
 @Component
 public class NotificationTemplateDefaults {
     private static final List<NotificationChannel> ALL_CHANNELS = List.of(NotificationChannel.values());
+    private static final List<NotificationChannel> DEFAULT_TEMPLATE_CHANNELS = List.of(
+            NotificationChannel.PUSH,
+            NotificationChannel.WEB
+    );
 
     private final List<Definition> definitions = List.of(
             definition(
@@ -315,7 +319,7 @@ public class NotificationTemplateDefaults {
 
     private Map<NotificationChannel, DefaultTemplate> allChannelTemplates(String titleTemplate, String bodyTemplate) {
         Map<NotificationChannel, DefaultTemplate> templates = new EnumMap<>(NotificationChannel.class);
-        for (NotificationChannel channel : ALL_CHANNELS) {
+        for (NotificationChannel channel : DEFAULT_TEMPLATE_CHANNELS) {
             templates.put(channel, new DefaultTemplate(titleTemplate, bodyTemplate));
         }
         return Collections.unmodifiableMap(templates);

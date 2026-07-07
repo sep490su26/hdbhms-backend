@@ -38,8 +38,9 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         ChangeRequest request = repository.findById(command.requestId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         request.approve(command.managerId());
-        if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS) {
-            permissionGrantService.grantTenantProfileAccess(request, command.managerId(), command.durationCode());
+        if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS
+                || request.getRequestType() == RequestType.PERMISSION_ACCESS) {
+            permissionGrantService.grantAccess(request, command.managerId(), command.durationCode());
         }
         repository.save(request);
         dispatchApproved(request, command.managerId());
