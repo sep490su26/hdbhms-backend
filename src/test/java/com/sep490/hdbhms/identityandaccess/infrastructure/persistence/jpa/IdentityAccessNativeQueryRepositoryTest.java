@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.opentest4j.TestAbortedException;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -34,7 +35,12 @@ class IdentityAccessNativeQueryRepositoryTest {
 
     @BeforeAll
     static void startMysqlAndMigrateSchema() throws Exception {
-        String jdbcUrl = startMysqlContainer();
+        String jdbcUrl;
+        try {
+            jdbcUrl = startMysqlContainer();
+        } catch (IOException | IllegalStateException exception) {
+            throw new TestAbortedException("Docker MySQL is not available", exception);
+        }
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 jdbcUrl,
                 "root",

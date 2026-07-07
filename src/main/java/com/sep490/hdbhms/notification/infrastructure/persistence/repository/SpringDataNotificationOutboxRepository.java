@@ -2,7 +2,8 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
 import com.sep490.hdbhms.notification.infrastructure.persistence.jpa.JpaNotificationOutboxRepository;
 import com.sep490.hdbhms.notification.infrastructure.persistence.mapper.NotificationOutboxPersistenceMapper;
 import lombok.AccessLevel;
@@ -71,6 +72,12 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
     @Transactional
     public void markAllAsRead(Long userId, NotificationChannel channel) {
         jpaNotificationOutboxRepository.markAllAsRead(userId, channel);
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsRead(Long userId, LocalDateTime readAt) {
+        jpaNotificationOutboxRepository.markAllAsRead(userId, readAt);
     }
 
     @Override

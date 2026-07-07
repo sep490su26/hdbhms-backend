@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.port.in.command;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.SettlementType;
 
 public record ConfirmTenantTransferCommand(
         Long requestId,

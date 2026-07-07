@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.changerequest.domain.value_objects;
+package com.sep490.hdbhms.changerequest.domain.valueObjects;
 
 public enum RequestType {
     METER_READING_CORRECTION,

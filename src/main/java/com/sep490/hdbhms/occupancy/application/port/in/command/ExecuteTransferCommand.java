@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.port.in.command;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
-import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.SettlementType;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;

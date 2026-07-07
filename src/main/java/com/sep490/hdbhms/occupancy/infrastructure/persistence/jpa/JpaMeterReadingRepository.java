@@ -14,7 +14,7 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
             SELECT reading FROM MeterReadingEntity reading
             WHERE reading.room.id = :roomId
               AND reading.meter.meterType = :meterType
-              AND reading.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
+              AND reading.status <> com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingStatus.VOIDED
             ORDER BY reading.readingDate DESC, reading.createdAt DESC, reading.id DESC
             """)
     Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(

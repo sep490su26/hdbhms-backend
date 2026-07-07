@@ -2,13 +2,13 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
-import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
+import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetResidentOnboardingStatusQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetOnboardingStatusUseCase;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentStatus;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.DocumentStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.DocumentType;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.IdentityDocumentEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaIdentityDocumentRepository;

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.file.infrastructure.web.controller;
 
-import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
 import com.sep490.hdbhms.file.application.port.in.command.UploadBatchFileCommand;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
@@ -98,12 +98,11 @@ public class FileMetadataController {
         }
         if (fileData.sensitive()) {
             UserPrincipal principal = currentPrincipal();
-            if (!canDownloadSensitiveFile(fileData.ownerUserId(), principal)) {
+            if (!canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
             }
             assertCanDownloadTenantProfileFile(principal, fileId);
-        }
-        if (!canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
+        } else if (!canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
         }
         return ResponseEntity.ok()
@@ -149,203 +148,201 @@ public class FileMetadataController {
     }
 
     private boolean canDownloadSensitiveFile(Long fileId, Long ownerUserId) {
-        private UserPrincipal currentPrincipal () {
-            var authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-                return null;
-            }
-            return principal;
+        UserPrincipal principal = currentPrincipal();
+        return canDownloadSensitiveFile(ownerUserId, principal)
+                || principal != null
+                && principal.getRole() == Role.TENANT
+                && canDownloadTenantLinkedFile(fileId);
+    }
+
+    private UserPrincipal currentPrincipal() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            return null;
         }
+        return principal;
+    }
 
-        private boolean canDownloadSensitiveFile (Long ownerUserId, UserPrincipal principal){
-            if (principal == null) {
-                return false;
-            }
-            Role role = principal.getRole();
-            if (role == Role.OWNER || role == Role.MANAGER) {
-                return true;
-            }
-
-            if (ownerUserId != null && ownerUserId.equals(principal.getId())) {
-                return true;
-            }
-
-            if (role != Role.TENANT) {
-                return false;
-            }
-
-            return canDownloadTenantLinkedFile(fileId);
-        }
-
-        private boolean canDownloadTenantLinkedFile (Long fileId){
-            return canReadAnyLinkedContract(findLinkedHandoverContractIds(fileId))
-                    || canReadAnyLinkedRoom(findLinkedRoomAssetRoomIds(fileId));
-        }
-
-        private List<Long> findLinkedHandoverContractIds (Long fileId){
-            return jdbcTemplate.queryForList("""
-                            SELECT DISTINCT linked.contract_id
-                            FROM (
-                                SELECT chr.contract_id
-                                FROM contract_handover_items chi
-                                JOIN contract_handover_records chr
-                                  ON chr.contract_handover_record_id = chi.handover_record_id
-                                WHERE chi.evidence_file_id = ?
-                                UNION
-                                SELECT chr.contract_id
-                                FROM contract_handover_records chr
-                                WHERE chr.signed_document_id = ?
-                                UNION
-                                SELECT chr.contract_id
-                                FROM contract_handover_records chr
-                                JOIN meter_readings mr
-                                  ON mr.meter_reading_id = chr.electricity_reading_id
-                                  OR mr.meter_reading_id = chr.water_reading_id
-                                WHERE mr.photo_file_id = ?
-                            ) linked
-                            """,
-                    Long.class,
-                    fileId,
-                    fileId,
-                    fileId
-            );
-        }
-
-        private List<Long> findLinkedRoomAssetRoomIds (Long fileId){
-            return jdbcTemplate.queryForList("""
-                            SELECT DISTINCT room_id
-                            FROM room_assets
-                            WHERE image_file_id = ?
-                              AND deleted_at IS NULL
-                            """,
-                    Long.class,
-                    fileId
-            );
-        }
-
-        private boolean canReadAnyLinkedContract (List < Long > contractIds) {
-            for (Long contractId : contractIds) {
-                if (contractId == null) {
-                    continue;
-                }
-                try {
-                    leaseContractQueryService.assertCurrentUserCanReadContract(contractId);
-                    return true;
-                } catch (ResponseStatusException exception) {
-                    log.debug("Tenant cannot read contract {} linked to sensitive file", contractId, exception);
-                }
-            }
+    private boolean canDownloadSensitiveFile(Long ownerUserId, UserPrincipal principal) {
+        if (principal == null) {
             return false;
         }
-
-        private boolean canReadAnyLinkedRoom (List < Long > roomIds) {
-            for (Long roomId : roomIds) {
-                if (roomId == null) {
-                    continue;
-                }
-                try {
-                    leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
-                    return true;
-                } catch (ResponseStatusException exception) {
-                    log.debug("Tenant cannot read room {} linked to sensitive file", roomId, exception);
-                }
-            }
-            return false;
+        Role role = principal.getRole();
+        if (role == Role.OWNER || role == Role.MANAGER) {
+            return true;
         }
 
-        private void assertCanDownloadTenantProfileFile (UserPrincipal principal, Long fileId){
-            if (principal == null || principal.getRole() != Role.MANAGER) {
+        return ownerUserId != null && ownerUserId.equals(principal.getId());
+    }
+
+    private boolean canDownloadTenantLinkedFile(Long fileId) {
+        return canReadAnyLinkedContract(findLinkedHandoverContractIds(fileId))
+                || canReadAnyLinkedRoom(findLinkedRoomAssetRoomIds(fileId));
+    }
+
+    private List<Long> findLinkedHandoverContractIds(Long fileId) {
+        return jdbcTemplate.queryForList("""
+                        SELECT DISTINCT linked.contract_id
+                        FROM (
+                            SELECT chr.contract_id
+                            FROM contract_handover_items chi
+                            JOIN contract_handover_records chr
+                              ON chr.contract_handover_record_id = chi.handover_record_id
+                            WHERE chi.evidence_file_id = ?
+                            UNION
+                            SELECT chr.contract_id
+                            FROM contract_handover_records chr
+                            WHERE chr.signed_document_id = ?
+                            UNION
+                            SELECT chr.contract_id
+                            FROM contract_handover_records chr
+                            JOIN meter_readings mr
+                              ON mr.meter_reading_id = chr.electricity_reading_id
+                              OR mr.meter_reading_id = chr.water_reading_id
+                            WHERE mr.photo_file_id = ?
+                        ) linked
+                        """,
+                Long.class,
+                fileId,
+                fileId,
+                fileId
+        );
+    }
+
+    private List<Long> findLinkedRoomAssetRoomIds(Long fileId) {
+        return jdbcTemplate.queryForList("""
+                        SELECT DISTINCT room_id
+                        FROM room_assets
+                        WHERE image_file_id = ?
+                          AND deleted_at IS NULL
+                        """,
+                Long.class,
+                fileId
+        );
+    }
+
+    private boolean canReadAnyLinkedContract(List<Long> contractIds) {
+        for (Long contractId : contractIds) {
+            if (contractId == null) {
+                continue;
+            }
+            try {
+                leaseContractQueryService.assertCurrentUserCanReadContract(contractId);
+                return true;
+            } catch (ResponseStatusException exception) {
+                log.debug("Tenant cannot read contract {} linked to sensitive file", contractId, exception);
+            }
+        }
+        return false;
+    }
+
+    private boolean canReadAnyLinkedRoom(List<Long> roomIds) {
+        for (Long roomId : roomIds) {
+            if (roomId == null) {
+                continue;
+            }
+            try {
+                leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
+                return true;
+            } catch (ResponseStatusException exception) {
+                log.debug("Tenant cannot read room {} linked to sensitive file", roomId, exception);
+            }
+        }
+        return false;
+    }
+
+    private void assertCanDownloadTenantProfileFile(UserPrincipal principal, Long fileId) {
+        if (principal == null || principal.getRole() != Role.MANAGER) {
+            return;
+        }
+        List<Long> profileIds = tenantProfileIdsForFile(fileId);
+        if (profileIds.isEmpty()) {
+            return;
+        }
+        for (Long profileId : profileIds) {
+            if (!isAssignedManagerToTenantProfile(principal.getId(), profileId)) {
+                continue;
+            }
+            var activeGrant = permissionGrantService.findActiveTenantProfileGrant(principal.getId(), profileId);
+            if (activeGrant.isPresent()) {
+                PermissionGrant grant = activeGrant.get();
+                permissionGrantService.recordAccess(
+                        grant,
+                        principal.getId(),
+                        TargetType.FILE,
+                        fileId,
+                        PermissionAccessAction.VIEW_PRIVATE_FILE
+                );
                 return;
             }
-            List<Long> profileIds = tenantProfileIdsForFile(fileId);
-            if (profileIds.isEmpty()) {
-                return;
-            }
-            for (Long profileId : profileIds) {
-                if (!isAssignedManagerToTenantProfile(principal.getId(), profileId)) {
-                    continue;
-                }
-                var activeGrant = permissionGrantService.findActiveTenantProfileGrant(principal.getId(), profileId);
-                if (activeGrant.isPresent()) {
-                    PermissionGrant grant = activeGrant.get();
-                    permissionGrantService.recordAccess(
-                            grant,
-                            principal.getId(),
-                            TargetType.FILE,
-                            fileId,
-                            PermissionAccessAction.VIEW_PRIVATE_FILE
-                    );
-                    return;
-                }
-            }
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tenant profile access has not been approved.");
         }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tenant profile access has not been approved.");
+    }
 
-        private List<Long> tenantProfileIdsForFile (Long fileId){
-            return jdbcTemplate.queryForList("""
-                            SELECT DISTINCT profile_id
-                            FROM (
-                                SELECT pp.person_profile_id AS profile_id
-                                FROM person_profiles pp
-                                WHERE pp.portrait_file_id = ?
-                                  AND pp.deleted_at IS NULL
-                            
-                                UNION
-                            
-                                SELECT id.profile_id AS profile_id
-                                FROM identity_documents id
-                                WHERE (id.front_file_id = ? OR id.back_file_id = ?)
-                                  AND id.status = 'ACTIVE'
-                            
-                                UNION
-                            
-                                SELECT v.profile_id AS profile_id
-                                FROM vehicles v
-                                WHERE v.image_file_id = ?
-                                  AND v.deleted_at IS NULL
-                            ) file_profiles
-                            WHERE profile_id IS NOT NULL
-                            """,
-                    Long.class,
-                    fileId,
-                    fileId,
-                    fileId,
-                    fileId
-            );
-        }
-
-        private boolean isAssignedManagerToTenantProfile (Long managerId, Long profileId){
-            Integer count = jdbcTemplate.queryForObject("""
-                            SELECT COUNT(*)
+    private List<Long> tenantProfileIdsForFile(Long fileId) {
+        return jdbcTemplate.queryForList("""
+                        SELECT DISTINCT profile_id
+                        FROM (
+                            SELECT pp.person_profile_id AS profile_id
                             FROM person_profiles pp
-                            JOIN lease_contracts lc
-                              ON lc.deleted_at IS NULL
-                             AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
-                             AND (
-                                 lc.primary_tenant_profile_id = pp.person_profile_id
-                                 OR EXISTS (
-                                     SELECT 1
-                                     FROM contract_occupants co
-                                     WHERE co.contract_id = lc.lease_contract_id
-                                       AND co.tenant_profile_id = pp.person_profile_id
-                                       AND co.status = 'ACTIVE'
-                                 )
-                             )
-                            JOIN rooms r ON r.room_id = lc.room_id
-                            JOIN role_promotions rp
-                              ON rp.property_id = r.property_id
-                             AND rp.user_id = ?
-                             AND rp.role = 'MANAGER'
-                             AND rp.status = 'ACTIVE'
-                             AND rp.deleted_at IS NULL
-                            WHERE pp.person_profile_id = ?
+                            WHERE pp.portrait_file_id = ?
                               AND pp.deleted_at IS NULL
-                            """,
-                    Integer.class,
-                    managerId,
-                    profileId
-            );
-            return count != null && count > 0;
-        }
+
+                            UNION
+
+                            SELECT id.profile_id AS profile_id
+                            FROM identity_documents id
+                            WHERE (id.front_file_id = ? OR id.back_file_id = ?)
+                              AND id.status = 'ACTIVE'
+
+                            UNION
+
+                            SELECT v.profile_id AS profile_id
+                            FROM vehicles v
+                            WHERE v.image_file_id = ?
+                              AND v.deleted_at IS NULL
+                        ) file_profiles
+                        WHERE profile_id IS NOT NULL
+                        """,
+                Long.class,
+                fileId,
+                fileId,
+                fileId,
+                fileId
+        );
+    }
+
+    private boolean isAssignedManagerToTenantProfile(Long managerId, Long profileId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM person_profiles pp
+                        JOIN lease_contracts lc
+                          ON lc.deleted_at IS NULL
+                         AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                         AND (
+                             lc.primary_tenant_profile_id = pp.person_profile_id
+                             OR EXISTS (
+                                 SELECT 1
+                                 FROM contract_occupants co
+                                 WHERE co.contract_id = lc.lease_contract_id
+                                   AND co.tenant_profile_id = pp.person_profile_id
+                                   AND co.status = 'ACTIVE'
+                             )
+                         )
+                        JOIN rooms r ON r.room_id = lc.room_id
+                        JOIN role_promotions rp
+                          ON rp.property_id = r.property_id
+                         AND rp.user_id = ?
+                         AND rp.role = 'MANAGER'
+                         AND rp.status = 'ACTIVE'
+                         AND rp.deleted_at IS NULL
+                        WHERE pp.person_profile_id = ?
+                          AND pp.deleted_at IS NULL
+                        """,
+                Integer.class,
+                managerId,
+                profileId
+        );
+        return count != null && count > 0;
     }
 }

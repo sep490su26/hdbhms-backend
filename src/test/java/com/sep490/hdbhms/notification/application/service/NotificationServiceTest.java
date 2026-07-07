@@ -7,9 +7,9 @@ import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateR
 import com.sep490.hdbhms.notification.domain.model.NotificationDelivery;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.model.NotificationTemplate;
-import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
-import com.sep490.hdbhms.notification.domain.value_objects.TemplateStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.TemplateStatus;
 import com.sep490.hdbhms.shared.event.NotificationEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
@@ -215,8 +215,13 @@ class NotificationServiceTest {
         }
 
         @Override
-        public long countByRecipientUserIdAndIsReadFalse(Long userId) {
-            throw unexpected("NotificationOutboxRepository.countByRecipientUserIdAndIsReadFalse");
+        public long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse");
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
         }
 
         @Override
@@ -282,8 +287,13 @@ class NotificationServiceTest {
         }
 
         @Override
-        public long countByRecipientUserIdAndIsReadFalse(Long userId) {
-            throw unexpected("NotificationOutboxRepository.countByRecipientUserIdAndIsReadFalse");
+        public long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse");
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
         }
 
         @Override
@@ -346,8 +356,13 @@ class NotificationServiceTest {
         }
 
         @Override
-        public long countByRecipientUserIdAndIsReadFalse(Long userId) {
-            throw unexpected("NotificationOutboxRepository.countByRecipientUserIdAndIsReadFalse");
+        public long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse");
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
         }
 
         @Override

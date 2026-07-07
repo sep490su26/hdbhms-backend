@@ -9,9 +9,9 @@ import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRep
 import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.model.NotificationTemplate;
-import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
-import com.sep490.hdbhms.notification.domain.value_objects.TemplateStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.TemplateStatus;
 import com.sep490.hdbhms.shared.event.NotificationEvent;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -58,8 +58,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
 
     @Override
     public void queueNotification(NotificationEvent event) {
-        List<NotificationTemplate> templates = templateRepository.findByTemplateKeyAndStatus(
-                event.getEventType(), TemplateStatus.ACTIVE);
+        List<NotificationTemplate> templates = resolveTemplates(event.getEventType());
 
         if (templates.isEmpty()) {
             log.warn("No active templates found for event type: {}", event.getEventType());

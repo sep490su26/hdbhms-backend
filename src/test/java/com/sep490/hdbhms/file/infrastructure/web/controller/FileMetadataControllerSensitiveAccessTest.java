@@ -9,6 +9,7 @@ import com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper;
 import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
+import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
@@ -40,6 +41,7 @@ class FileMetadataControllerSensitiveAccessTest {
     private final UploadBatchFileService uploadBatchFileService = mock(UploadBatchFileService.class);
     private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
     private final LeaseContractQueryService leaseContractQueryService = mock(LeaseContractQueryService.class);
+    private final PermissionGrantService permissionGrantService = mock(PermissionGrantService.class);
 
     private final FileMetadataController controller = new FileMetadataController(
             uploadFileService,
@@ -47,7 +49,8 @@ class FileMetadataControllerSensitiveAccessTest {
             fileMetadataWebMapper,
             uploadBatchFileService,
             jdbcTemplate,
-            leaseContractQueryService
+            leaseContractQueryService,
+            permissionGrantService
     );
 
     @AfterEach

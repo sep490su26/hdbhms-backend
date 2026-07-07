@@ -59,7 +59,6 @@ public class ChangeRequestController {
                 req.getRequestPayload(),
                 req.getStatus(),
                 req.getRequesterId(),
-                req.getTargetId(),
                 req.getResolutionNote(),
                 req.getCreatedAt()
         ));
@@ -84,11 +83,13 @@ public class ChangeRequestController {
                 req.getId(),
                 req.getRequestCode(),
                 req.getRequestType(),
+                req.getTargetType(),
+                req.getTargetId(),
                 req.getTitle(),
                 req.getDescription(),
+                req.getRequestPayload(),
                 req.getStatus(),
                 req.getRequesterId(),
-                req.getTargetId(),
                 req.getResolutionNote(),
                 req.getCreatedAt()
         ));
