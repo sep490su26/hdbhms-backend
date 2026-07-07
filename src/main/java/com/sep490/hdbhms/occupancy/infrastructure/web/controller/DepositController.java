@@ -12,6 +12,7 @@ import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvid
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
+import com.sep490.hdbhms.occupancy.application.service.DepositPaymentExpiryService;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
@@ -80,6 +81,7 @@ public class DepositController {
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     DepositContractDocumentService depositContractDocumentService;
+    DepositPaymentExpiryService depositPaymentExpiryService;
     RoomCommitmentChecker roomCommitmentChecker;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     PayOSProperties payOSProperties;
@@ -126,6 +128,32 @@ public class DepositController {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
         paymentIntent = syncPayOSPaymentIfPaid(paymentIntent);
+        DepositAgreement depositAgreement = paymentIntent.getDepositAgreementId() == null
+                ? null
+                : depositAgreementRepository.findById(paymentIntent.getDepositAgreementId()).orElse(null);
+        Room room = depositAgreement == null
+                ? null
+                : roomRepository.findById(depositAgreement.getRoomId()).orElse(null);
+
+        return ApiResponse.<DepositPaymentStatusResponse>builder()
+                .data(DepositPaymentStatusResponse.builder()
+                        .paymentIntentId(paymentIntent.getId())
+                        .status(paymentIntent.getStatus())
+                        .depositStatus(depositAgreement == null ? null : depositAgreement.getStatus())
+                        .roomStatus(room == null ? null : room.getCurrentStatus())
+                        .expiresAt(paymentIntent.getExpiresAt())
+                        .paidAt(depositAgreement == null ? null : depositAgreement.getConfirmedAt())
+                        .message(buildPaymentStatusMessage(paymentIntent, depositAgreement, room))
+                        .build())
+                .build();
+    }
+
+    @PostMapping("/payments/{paymentIntentId}/expire")
+    public ApiResponse<DepositPaymentStatusResponse> expireDepositPayment(@PathVariable Long paymentIntentId) {
+        paymentIntentRepository.findById(paymentIntentId)
+                .map(this::syncPayOSPaymentIfPaid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phien thanh toan."));
+        PaymentIntent paymentIntent = depositPaymentExpiryService.expire(paymentIntentId);
         DepositAgreement depositAgreement = paymentIntent.getDepositAgreementId() == null
                 ? null
                 : depositAgreementRepository.findById(paymentIntent.getDepositAgreementId()).orElse(null);

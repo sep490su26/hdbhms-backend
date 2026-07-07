@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 public interface JpaPaymentAllocationRepository extends JpaRepository<PaymentAllocationEntity, Long> {
@@ -15,4 +16,6 @@ public interface JpaPaymentAllocationRepository extends JpaRepository<PaymentAll
             where allocation.invoice.id = :invoiceId
             """)
     Optional<Instant> findLatestTransactionTimeByInvoiceId(@Param("invoiceId") Long invoiceId);
+
+    List<PaymentAllocationEntity> findByInvoice_IdOrderByAllocatedAtDesc(Long invoiceId);
 }

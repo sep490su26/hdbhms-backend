@@ -377,6 +377,97 @@ public class DepositBatchCheckoutService {
         return getStatus(batchId);
     }
 
+    @Transactional
+    public BatchDepositStatusResponse expire(Long batchId) {
+        DepositBatchEntity batch = depositBatchRepository.findById(batchId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay batch dat coc."));
+        if (isTerminalBatch(batch.getStatus())) {
+            return getStatus(batchId);
+        }
+
+        PaymentIntentEntity paymentIntent = batch.getPaymentIntentId() == null
+                ? null
+                : paymentIntentRepository.findById(batch.getPaymentIntentId()).orElse(null);
+        if (paymentIntent != null
+                && (paymentIntent.getStatus() == PaymentIntentStatus.SUCCEEDED
+                || paymentIntent.getStatus() == PaymentIntentStatus.REFUND_REQUIRED)) {
+            return getStatus(batchId);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<DepositBatchItemEntity> items =
+                depositBatchItemRepository.findAllByBatch_IdOrderByRoom_RoomCodeAsc(batchId);
+        boolean sessionDue = paymentIntent != null && isDue(paymentIntent.getExpiresAt(), now);
+        if (!sessionDue) {
+            sessionDue = items.stream()
+                    .map(DepositBatchItemEntity::getRoomHold)
+                    .filter(Objects::nonNull)
+                    .anyMatch(hold -> isDue(hold.getExpiresAt(), now));
+        }
+        if (!sessionDue) {
+            return getStatus(batchId);
+        }
+
+        for (DepositBatchItemEntity item : items) {
+            RoomHoldEntity hold = item.getRoomHold();
+            if (hold != null
+                    && (hold.getStatus() == RoomHoldStatus.ACTIVE
+                    || hold.getStatus() == RoomHoldStatus.PAYMENT_PROCESSING)
+                    && isDue(hold.getExpiresAt(), now)) {
+                hold.setStatus(RoomHoldStatus.EXPIRED);
+                hold.setReleasedAt(now);
+                roomHoldRepository.save(hold);
+                earlyCancelRoomHoldTaskPort.execute(hold.getId());
+            }
+
+            if (item.getStatus() != DepositBatchItemStatus.CONFIRMED
+                    && item.getStatus() != DepositBatchItemStatus.CANCELLED
+                    && item.getStatus() != DepositBatchItemStatus.EXPIRED) {
+                item.setStatus(DepositBatchItemStatus.EXPIRED);
+                depositBatchItemRepository.save(item);
+            }
+
+            RoomEntity room = item.getRoom();
+            if (room != null && room.getCurrentStatus() == RoomStatus.ON_HOLD) {
+                room.setCurrentStatus(roomStatusAfterHoldRelease(room.getId()));
+                roomRepository.save(room);
+            }
+        }
+
+        if (paymentIntent != null
+                && (paymentIntent.getStatus() == PaymentIntentStatus.PENDING
+                || paymentIntent.getStatus() == PaymentIntentStatus.CREATED)) {
+            paymentIntent.setStatus(PaymentIntentStatus.EXPIRED);
+            paymentIntentRepository.save(paymentIntent);
+        }
+
+        if (batch.getStatus() == DepositBatchStatus.DRAFT
+                || batch.getStatus() == DepositBatchStatus.PENDING_PAYMENT) {
+            batch.setStatus(DepositBatchStatus.EXPIRED);
+            depositBatchRepository.save(batch);
+        }
+        return getStatus(batchId);
+    }
+
+    private boolean isTerminalBatch(DepositBatchStatus status) {
+        return status == DepositBatchStatus.CONFIRMED
+                || status == DepositBatchStatus.PAID
+                || status == DepositBatchStatus.CANCELLED
+                || status == DepositBatchStatus.EXPIRED
+                || status == DepositBatchStatus.REFUND_REQUIRED
+                || status == DepositBatchStatus.REFUNDED;
+    }
+
+    private boolean isDue(LocalDateTime expiresAt, LocalDateTime now) {
+        return expiresAt != null && !expiresAt.isAfter(now);
+    }
+
+    private RoomStatus roomStatusAfterHoldRelease(Long roomId) {
+        return roomCommitmentChecker.findExpectedVacantDateForBooking(roomId).isPresent()
+                ? RoomStatus.SOON_VACANT
+                : RoomStatus.VACANT;
+    }
+
     private void validateRequest(BatchDepositCheckoutRequest request) {
         if (request.getRooms() == null || request.getRooms().isEmpty()) {
             throw new BatchDepositRequestException(

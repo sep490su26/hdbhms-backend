@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +10,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -27,6 +29,9 @@ public class ContractHandoverDetailsResponse {
     MeterReadingDetails electricity;
     MeterReadingDetails water;
 
+    @Builder.Default
+    List<HandoverItemDetails> items = List.of();
+
     @Data
     @Builder
     @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -35,5 +40,18 @@ public class ContractHandoverDetailsResponse {
         BigDecimal currentValue;
         LocalDateTime readingDate;
         Long photoFileId;
+    }
+
+    @Data
+    @Builder
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class HandoverItemDetails {
+        Long id;
+        String assetName;
+        Integer quantity;
+        AssetCondition conditionStatus;
+        String note;
+        Long evidenceFileId;
+        String evidenceFileUrl;
     }
 }

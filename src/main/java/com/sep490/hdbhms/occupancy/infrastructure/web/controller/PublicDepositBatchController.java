@@ -108,9 +108,18 @@ public class PublicDepositBatchController {
                 .build();
     }
 
+    @PostMapping("/batches/{batchId}/expire")
+    public ApiResponse<BatchDepositStatusResponse> expire(@PathVariable Long batchId) {
+        syncPayOSPayment(batchId);
+        return ApiResponse.<BatchDepositStatusResponse>builder()
+                .data(depositBatchCheckoutService.expire(batchId))
+                .build();
+    }
+
     private void syncPayOSPayment(Long batchId) {
         BatchDepositStatusResponse status = depositBatchCheckoutService.getStatus(batchId);
-        if (status.paymentStatus() != PaymentIntentStatus.PENDING) {
+        if (status.paymentStatus() != PaymentIntentStatus.PENDING
+                && status.paymentStatus() != PaymentIntentStatus.EXPIRED) {
             return;
         }
         PaymentIntent paymentIntent = paymentIntentRepository.findById(

@@ -65,7 +65,8 @@ public class PaymentIntent {
     }
 
     public void expirePayment() {
-        if (this.status != PaymentIntentStatus.PENDING) {
+        if (this.status != PaymentIntentStatus.PENDING
+                && this.status != PaymentIntentStatus.CREATED) {
             return;
         }
         this.status = PaymentIntentStatus.EXPIRED;

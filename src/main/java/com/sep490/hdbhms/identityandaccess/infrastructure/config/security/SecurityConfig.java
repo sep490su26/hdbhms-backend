@@ -46,8 +46,10 @@ public class SecurityConfig {
             "/api/v1/deposit/checkout",
             "/api/v1/public/deposits/batch-checkout",
             "/api/v1/public/deposits/batches/*/cancel",
+            "/api/v1/public/deposits/batches/*/expire",
             "/api/v1/deposit/contracts/preview",
             "/api/v1/deposit/payments/*/cancel",
+            "/api/v1/deposit/payments/*/expire",
             "/api/v1/visit-requests",
             "/api/v1/webhook/**",
     };
@@ -67,6 +69,7 @@ public class SecurityConfig {
             "/api/v1/properties",
             "/api/v1/properties/simple",
             "/api/v1/properties/*",
+            "/api/v1/properties/*/rules",
             "/api/v1/properties/*/rooms/simple",
             "/api/v1/floors",
             "/api/v1/floors/*",
