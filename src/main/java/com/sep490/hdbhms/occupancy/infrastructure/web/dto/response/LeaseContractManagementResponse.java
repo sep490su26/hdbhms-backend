@@ -56,6 +56,12 @@ public class LeaseContractManagementResponse {
     LocalDate expectedVacantDate;
     Boolean canRenew;
     String canRenewBlockedReason;
+    Long transferRequestId;
+    String transferRequestCode;
+    String transferStatus;
+    LocalDate transferRequestedDate;
+    String transferContractRole;
+    Boolean transferActivationLocked;
 
     LeaseStatus contractStatus;
     DepositAgreementStatus depositStatus;

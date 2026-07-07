@@ -98,10 +98,11 @@ public class ManageContractHandoverService {
                         .status(com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus.ACTIVE)
                         .installedAt(LocalDate.now())
                         .build()));
+        LocalDate readingDate = input.getReadingDate() != null ? input.getReadingDate() : LocalDate.now();
 
         if (existingReading != null) {
             existingReading.setCurrentValue(input.getCurrentValue());
-            existingReading.setReadingDate(input.getReadingDate() != null ? input.getReadingDate() : LocalDate.now());
+            existingReading.setReadingDate(readingDate);
             if (input.getPhotoFileId() != null) {
                 existingReading.setPhotoFile(fileMetadataRepository.getReferenceById(input.getPhotoFileId()));
             }
@@ -111,12 +112,18 @@ public class ManageContractHandoverService {
         var latestReadingOpt = meterReadingRepository.findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(roomId, meterType);
         BigDecimal prevValue = latestReadingOpt.map(MeterReadingEntity::getCurrentValue).orElse(BigDecimal.ZERO);
 
-        String currentPeriod = LocalDate.now().format(DateTimeFormatter.ofPattern("MM/yyyy"));
+        String currentPeriod = readingDate.format(DateTimeFormatter.ofPattern("MM/yyyy"));
         
         int nextRevision = 1;
         var existingPeriodReadingOpt = meterReadingRepository.findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(activeMeter.getId(), currentPeriod);
         if (existingPeriodReadingOpt.isPresent()) {
-            nextRevision = existingPeriodReadingOpt.get().getRevisionNo() + 1;
+            MeterReadingEntity existingPeriodReading = existingPeriodReadingOpt.get();
+            nextRevision = existingPeriodReading.getRevisionNo() + 1;
+            if (existingPeriodReading.getStatus() != ReadingStatus.VOIDED) {
+                existingPeriodReading.setStatus(ReadingStatus.VOIDED);
+                existingPeriodReading.setVoidReason("Superseded by handover reading revision " + nextRevision);
+                meterReadingRepository.saveAndFlush(existingPeriodReading);
+            }
         }
 
         MeterReadingEntity reading = MeterReadingEntity.builder()
@@ -126,7 +133,7 @@ public class ManageContractHandoverService {
                 .revisionNo(nextRevision)
                 .previousValue(prevValue)
                 .currentValue(input.getCurrentValue())
-                .readingDate(input.getReadingDate() != null ? input.getReadingDate() : LocalDate.now())
+                .readingDate(readingDate)
                 .purpose(ReadingPurpose.HANDOVER)
                 .status(ReadingStatus.CONFIRMED)
                 .createdBy(userRepository.getReferenceById(AuthUtils.getCurrentAuthenticationId()))
@@ -187,6 +194,12 @@ public class ManageContractHandoverService {
         // ── 2. Meter readings ────────────────────────────────────────────────
         MeterReadingEntity electricReading = createOrUpdateReading(contract.getRoom(), MeterType.ELECTRICITY, toReadingInput(request.getElectricity()), record.getElectricityReading());
         MeterReadingEntity waterReading   = createOrUpdateReading(contract.getRoom(), MeterType.WATER,        toReadingInput(request.getWater()), record.getWaterReading());
+        if (handoverType == HandoverType.TRANSFER_OUT || handoverType == HandoverType.TRANSFER_IN) {
+            electricReading.setPurpose(ReadingPurpose.TRANSFER);
+            waterReading.setPurpose(ReadingPurpose.TRANSFER);
+            electricReading = meterReadingRepository.save(electricReading);
+            waterReading = meterReadingRepository.save(waterReading);
+        }
 
         LocalDateTime handoverDateTime = request.getHandoverDate() != null
                 ? request.getHandoverDate().atStartOfDay()

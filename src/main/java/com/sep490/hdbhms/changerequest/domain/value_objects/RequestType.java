@@ -7,5 +7,6 @@ public enum RequestType {
     DEPOSIT_REFUND_REQUEST,
     ROOM_TRANSFER,
     MOVE_OUT,
+    ADD_CO_OCCUPANT,
     COMPLAINT
 }

@@ -21,7 +21,9 @@ public interface NotificationOutboxRepository {
 
     long countByRecipientUserIdAndIsReadFalse(Long userId);
 
-    void markAllAsRead(Long userId);
+    void markAllAsRead(Long userId, LocalDateTime readAt);
+
+    void markTargetAsRead(Long userId, String targetType, Long targetId, LocalDateTime readAt);
 
     boolean markAsProcessing(Long id);
 }

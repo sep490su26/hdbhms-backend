@@ -22,5 +22,6 @@ public class NotificationResponse {
     Long targetId;
     Map<String, String> data;
     LocalDateTime createdAt;
+    LocalDateTime readAt;
     boolean isRead;
 }

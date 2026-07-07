@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.occupancy.application.port.in.command.AcceptHolderNominationCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ApproveTransferCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.command.ConfirmTenantTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.CompleteTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferRequestCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ExecuteTransferCommand;
@@ -9,9 +10,11 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCom
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateTransferRequestRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ConfirmTenantTransferRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ExecuteTransferRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.HolderReplacementRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomTransferResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUtilityEstimateResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomTransferWebMapper;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
@@ -23,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/occupant-transfer-requests")
+@RequestMapping("/api/v1/occupant-transfer-requests")
 @RequiredArgsConstructor
 public class RoomTransferController {
 
@@ -79,16 +82,42 @@ public class RoomTransferController {
         return ApiResponse.<Void>builder().build();
     }
 
+    @PostMapping("/{id}/reject-holder-nomination")
+    public ApiResponse<Void> rejectHolderNomination(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        roomTransferUseCase.rejectHolderNomination(id, principal.getId());
+        return ApiResponse.<Void>builder().build();
+    }
+
     @PostMapping("/{id}/approve")
     public ApiResponse<Void> approveTransfer(
             @PathVariable Long id,
+            @Valid @RequestBody ConfirmTenantTransferRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
 
         ApproveTransferCommand command = new ApproveTransferCommand(
                 id,
-                principal.getId()
+                principal.getId(),
+                request.settlementType()
         );
         roomTransferUseCase.approveTransfer(command);
+        return ApiResponse.<Void>builder().build();
+    }
+
+    @PostMapping("/{id}/confirm")
+    public ApiResponse<Void> confirmTenantTransfer(
+            @PathVariable Long id,
+            @Valid @RequestBody ConfirmTenantTransferRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        ConfirmTenantTransferCommand command = new ConfirmTenantTransferCommand(
+                id,
+                principal.getId(),
+                request.settlementType(),
+                request.nominatedHolderProfileId()
+        );
+        roomTransferUseCase.confirmTenantTransfer(command);
         return ApiResponse.<Void>builder().build();
     }
 
@@ -109,20 +138,26 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/contract/confirm")
-    public ApiResponse<Void> confirmTransferContract(@PathVariable Long id) {
-        roomTransferUseCase.confirmTransferContract(id);
+    public ApiResponse<Void> confirmTransferContract(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        roomTransferUseCase.confirmTransferContract(id, principal.getId());
         return ApiResponse.<Void>builder().build();
     }
 
     @PostMapping("/{id}/contract/sign")
-    public ApiResponse<Void> signTransferContract(@PathVariable Long id) {
-        roomTransferUseCase.signTransferContract(id);
+    public ApiResponse<Void> signTransferContract(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        roomTransferUseCase.signTransferContract(id, principal.getId());
         return ApiResponse.<Void>builder().build();
     }
 
     @PostMapping("/{id}/contract/reject")
-    public ApiResponse<Void> rejectTransferContract(@PathVariable Long id) {
-        roomTransferUseCase.rejectTransferContract(id);
+    public ApiResponse<Void> rejectTransferContract(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        roomTransferUseCase.rejectTransferContract(id, principal.getId());
         return ApiResponse.<Void>builder().build();
     }
 
@@ -142,10 +177,29 @@ public class RoomTransferController {
                 id,
                 principal.getId(),
                 toCommandPayload(request == null ? null : request.transferOutHandover()),
-                toCommandPayload(request == null ? null : request.transferInHandover())
+                toCommandPayload(request == null ? null : request.transferInHandover()),
+                request != null ? request.positiveDifferenceSettlementType() : null
         );
         roomTransferUseCase.executeTransfer(command);
         return ApiResponse.<Void>builder().build();
+    }
+
+    @PostMapping("/{id}/transfer-out-utility-estimate")
+    public ApiResponse<TransferOutUtilityEstimateResponse> estimateTransferOutUtility(
+            @PathVariable Long id,
+            @Valid @RequestBody ExecuteTransferRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        ExecuteTransferCommand command = new ExecuteTransferCommand(
+                id,
+                principal.getId(),
+                toCommandPayload(request == null ? null : request.transferOutHandover()),
+                null,
+                null
+        );
+        return ApiResponse.<TransferOutUtilityEstimateResponse>builder()
+                .data(roomTransferUseCase.estimateTransferOutUtility(command))
+                .build();
     }
 
     @PostMapping("/{id}/complete")
@@ -155,13 +209,41 @@ public class RoomTransferController {
 
         CompleteTransferCommand command = new CompleteTransferCommand(
                 id,
-                principal.getId()
+                principal.getId(),
+                null,
+                null
+        );
+        roomTransferUseCase.completeTransfer(command);
+        return ApiResponse.<Void>builder().build();
+    }
+
+    @PostMapping("/{id}/complete-with-handover")
+    public ApiResponse<Void> completeTransferWithHandover(
+            @PathVariable Long id,
+            @Valid @RequestBody(required = false) ExecuteTransferRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        CompleteTransferCommand command = new CompleteTransferCommand(
+                id,
+                principal.getId(),
+                toCommandPayload(request == null ? null : request.transferInHandover()),
+                request != null ? request.positiveDifferenceSettlementType() : null
         );
         roomTransferUseCase.completeTransfer(command);
         return ApiResponse.<Void>builder().build();
     }
 
     // ── GET Endpoints ──────────────────────────────────────────────────────
+
+    @GetMapping("/code/{requestCode}")
+    public ApiResponse<RoomTransferResponse> getTransferRequestByCode(
+            @PathVariable String requestCode) {
+        RoomTransferRequest request = roomTransferUseCase.getTransferRequestByCode(requestCode);
+        return ApiResponse.<RoomTransferResponse>builder()
+                .data(mapper.toResponse(request))
+                .build();
+    }
+
 
     @GetMapping("/{id}")
     public ApiResponse<RoomTransferResponse> getTransferRequest(
@@ -184,6 +266,18 @@ public class RoomTransferController {
                 .build();
     }
 
+    @GetMapping("/pending-holder-nominations")
+    public ApiResponse<List<RoomTransferResponse>> getPendingHolderNominations(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        List<RoomTransferRequest> requests = roomTransferUseCase
+                .getPendingHolderNominations(principal.getId());
+        return ApiResponse.<List<RoomTransferResponse>>builder()
+                .data(requests.stream()
+                        .map(mapper::toResponse)
+                        .toList())
+                .build();
+    }
+
     private ExecuteTransferCommand.TransferHandoverData toCommandPayload(ExecuteTransferRequest.TransferHandoverPayload payload) {
         if (payload == null) {
             return null;
@@ -197,7 +291,9 @@ public class RoomTransferController {
                         ? null
                         : payload.assets().stream()
                         .map(this::toCommandAsset)
-                        .toList()
+                        .toList(),
+                payload.incidentalChargeAmount(),
+                payload.incidentalChargeNote()
         );
     }
 

@@ -13,6 +13,7 @@ public record ChangeRequestResponse(
         String description,
         RequestStatus status,
         Long requesterId,
+        Long targetId,
         String resolutionNote,
         LocalDateTime createdAt
 ) {}

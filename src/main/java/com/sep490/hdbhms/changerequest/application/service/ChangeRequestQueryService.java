@@ -35,6 +35,18 @@ public class ChangeRequestQueryService implements ChangeRequestQueryUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<ChangeRequest> getFilteredRequestsByRequester(
+            Long requesterId,
+            RequestType type,
+            RequestStatus status,
+            String search,
+            Pageable pageable
+    ) {
+        return repository.findFilteredByRequester(requesterId, type, status, search, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ChangeRequest getRequestById(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));

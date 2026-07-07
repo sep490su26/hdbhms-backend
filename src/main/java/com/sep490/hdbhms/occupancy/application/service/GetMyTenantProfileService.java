@@ -57,7 +57,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
         List<TenantProfileResponse.EmergencyContactDto> emergencyContacts = getEmergencyContacts(person.id());
 
         return new TenantProfileResponse(
-                tenant.id(),
+                person.id(),
                 tenant.status(),
                 new TenantProfileResponse.PersonProfileDto(
                         person.fullName(),

@@ -56,6 +56,7 @@ public class RoomTransferRequestPersistenceMapper {
                 .status(entity.getStatus())
                 .debtSnapshotId(entity.getDebtSnapshot() != null ? entity.getDebtSnapshot().getId() : null)
                 .newContractId(entity.getNewContract() != null ? entity.getNewContract().getId() : null)
+                .replacementOldContractId(entity.getReplacementOldContract() != null ? entity.getReplacementOldContract().getId() : null)
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
@@ -111,6 +112,10 @@ public class RoomTransferRequestPersistenceMapper {
                         : null)
                 .newContract(domain.getNewContractId() != null
                         ? jpaLeaseContractRepository.findById(domain.getNewContractId())
+                        .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_REQUEST_NOT_FOUND))
+                        : null)
+                .replacementOldContract(domain.getReplacementOldContractId() != null
+                        ? jpaLeaseContractRepository.findById(domain.getReplacementOldContractId())
                         .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_REQUEST_NOT_FOUND))
                         : null)
                 .createdAt(domain.getCreatedAt())

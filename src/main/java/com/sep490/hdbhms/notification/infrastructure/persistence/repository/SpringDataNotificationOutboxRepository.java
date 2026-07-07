@@ -69,8 +69,14 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
 
     @Override
     @Transactional
-    public void markAllAsRead(Long userId) {
-        jpaNotificationOutboxRepository.markAllAsRead(userId);
+    public void markAllAsRead(Long userId, LocalDateTime readAt) {
+        jpaNotificationOutboxRepository.markAllAsRead(userId, readAt);
+    }
+
+    @Override
+    @Transactional
+    public void markTargetAsRead(Long userId, String targetType, Long targetId, LocalDateTime readAt) {
+        jpaNotificationOutboxRepository.markTargetAsRead(userId, targetType, targetId, readAt);
     }
 
     @Override

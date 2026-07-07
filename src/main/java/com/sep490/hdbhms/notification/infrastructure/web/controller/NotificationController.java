@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.notification.infrastructure.web.controller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.notification.application.port.in.query.NotificationQueryUseCase;
 import com.sep490.hdbhms.notification.application.port.in.usecase.ManageDeviceTokenUseCase;
 import com.sep490.hdbhms.notification.application.port.in.usecase.ManageNotificationUseCase;
@@ -21,7 +23,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -32,6 +36,7 @@ public class NotificationController {
     NotificationQueryUseCase notificationQueryUseCase;
     ManageNotificationUseCase manageNotificationUseCase;
     ManageDeviceTokenUseCase manageDeviceTokenUseCase;
+    ObjectMapper objectMapper;
 
     @GetMapping("/unread-count")
     public ApiResponse<Long> getUnreadCount() {
@@ -104,14 +109,43 @@ public class NotificationController {
         return ApiResponse.<Void>builder().build();
     }
 
+    @PostMapping("/target/read")
+    public ApiResponse<Void> markTargetAsRead(
+            @RequestParam String targetType,
+            @RequestParam Long targetId
+    ) {
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+        manageNotificationUseCase.markTargetAsRead(userId, targetType, targetId);
+        return ApiResponse.<Void>builder().build();
+    }
+
     private NotificationResponse toResponse(NotificationOutbox domain) {
         return NotificationResponse.builder()
                 .id(domain.getId())
                 .title(domain.getTitle())
                 .body(domain.getBody())
+                .eventType(domain.getEventType())
+                .targetType(domain.getTargetType())
+                .targetId(domain.getTargetId())
+                .data(parsePayload(domain.getPayload()))
                 .createdAt(domain.getCreatedAt())
+                .readAt(domain.getReadAt())
                 .isRead(domain.getIsRead())
                 .build();
+    }
+
+    private Map<String, String> parsePayload(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> raw = objectMapper.readValue(payload, new TypeReference<>() {});
+            Map<String, String> parsed = new LinkedHashMap<>();
+            raw.forEach((key, value) -> parsed.put(key, value == null ? null : value.toString()));
+            return parsed;
+        } catch (Exception exception) {
+            return Map.of();
+        }
     }
 
     private NotificationChannel resolveChannel(String clientType) {

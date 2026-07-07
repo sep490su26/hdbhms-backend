@@ -97,6 +97,10 @@ public class NotificationOutboxProcessor {
                 log.warn("Failed to parse outbox {} payload JSON: {}", outbox.getId(), e.getMessage());
             }
         }
+        data.put("notificationId", outbox.getId() == null ? "" : outbox.getId().toString());
+        data.put("eventType", outbox.getEventType() == null ? "" : outbox.getEventType());
+        data.put("targetType", outbox.getTargetType() == null ? "" : outbox.getTargetType());
+        data.put("targetId", outbox.getTargetId() == null ? "" : outbox.getTargetId().toString());
 
         try {
             String messageIds = pushNotificationService.send(

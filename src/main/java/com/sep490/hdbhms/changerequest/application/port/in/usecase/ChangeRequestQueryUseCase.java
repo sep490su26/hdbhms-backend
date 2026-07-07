@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface ChangeRequestQueryUseCase {
     Page<ChangeRequest> getFilteredRequests(RequestType type, RequestStatus status, String search, Pageable pageable);
+    Page<ChangeRequest> getFilteredRequestsByRequester(Long requesterId, RequestType type, RequestStatus status, String search, Pageable pageable);
     ChangeRequest getRequestById(Long id);
     ChangeRequestStatsResponse getStats();
 }

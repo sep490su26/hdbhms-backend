@@ -11,4 +11,8 @@ public interface JpaTransferSettlementRepository extends JpaRepository<TransferS
             Long newContractId,
             SettlementType settlementType
     );
+
+    Optional<TransferSettlementEntity> findFirstByTransferRequest_IdOrderByIdDesc(Long transferRequestId);
+
+    Optional<TransferSettlementEntity> findFirstByTransferDifferenceInvoice_IdOrderByIdDesc(Long transferDifferenceInvoiceId);
 }
