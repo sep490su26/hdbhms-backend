@@ -2,9 +2,9 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PromotionRole;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
@@ -32,7 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -73,7 +72,7 @@ public class FloorPlanController {
                 .data(toLayoutResponse(
                         property,
                         floor,
-                        floorPlanItemRepository.findAllByProperty_IdAndFloor_IdOrderBySortOrderAscIdAsc(propertyId, floorId)
+                        floorPlanItemRepository.findAllByProperty_IdAndFloor_IdOrderByIdAsc(propertyId, floorId)
                 ))
                 .build();
     }
@@ -92,9 +91,8 @@ public class FloorPlanController {
         FloorEntity floor = requireFloor(propertyId, floorId);
         List<FloorPlanItemEntity> nextItems = new ArrayList<>();
 
-        int index = 0;
         for (SaveFloorPlanItemRequest item : request.items()) {
-            String itemType = normalizeItemType(item.itemType());
+            String itemType = normalizeItemType(item.type());
             RoomEntity room = null;
             if ("ROOM".equals(itemType)) {
                 if (item.roomId() == null) {
@@ -111,17 +109,13 @@ public class FloorPlanController {
                     .property(property)
                     .floor(floor)
                     .room(room)
-                    .itemType(itemType)
-                    .label(cleanLabel(item.label()))
-                    .x(item.x())
-                    .y(item.y())
+                    .type(itemType)
+                    .positionX(item.positionX())
+                    .positionY(item.positionY())
                     .width(item.width())
                     .height(item.height())
-                    .rotation(item.rotation() == null ? BigDecimal.ZERO : item.rotation())
-                    .sortOrder(item.sortOrder() == null ? index : item.sortOrder())
-                    .metadataJson(toJson(item.metadata()))
+                    .metadata(toJson(item.metadata()))
                     .build());
-            index++;
         }
 
         floorPlanItemRepository.deleteByProperty_IdAndFloor_Id(propertyId, floorId);
@@ -141,7 +135,7 @@ public class FloorPlanController {
                 .sorted(Comparator.comparing(FloorEntity::getSortOrder).thenComparing(FloorEntity::getId))
                 .toList();
         Map<Long, List<FloorPlanItemEntity>> itemsByFloor = floorPlanItemRepository
-                .findAllByProperty_IdOrderByFloor_SortOrderAscSortOrderAscIdAsc(propertyId)
+                .findAllByProperty_IdOrderByFloor_SortOrderAscIdAsc(propertyId)
                 .stream()
                 .collect(Collectors.groupingBy(item -> item.getFloor().getId(), LinkedHashMap::new, Collectors.toList()));
 
@@ -194,13 +188,6 @@ public class FloorPlanController {
         return normalized;
     }
 
-    private String cleanLabel(String label) {
-        if (label == null || label.isBlank()) {
-            return null;
-        }
-        return label.trim();
-    }
-
     private String toJson(Map<String, Object> metadata) {
         if (metadata == null || metadata.isEmpty()) {
             return null;
@@ -236,27 +223,33 @@ public class FloorPlanController {
                 floor.getSortOrder(),
                 items.size(),
                 items.stream()
-                        .sorted(Comparator.comparing(FloorPlanItemEntity::getSortOrder).thenComparing(FloorPlanItemEntity::getId))
+                        .sorted(Comparator.comparingInt(this::metadataSortOrder)
+                                .thenComparing(FloorPlanItemEntity::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                         .map(this::toItemResponse)
                         .toList()
         );
+    }
+
+    private int metadataSortOrder(FloorPlanItemEntity item) {
+        Object value = fromJson(item.getMetadata()).get("sortOrder");
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return Integer.MAX_VALUE;
     }
 
     private FloorPlanItemResponse toItemResponse(FloorPlanItemEntity item) {
         RoomEntity room = item.getRoom();
         return new FloorPlanItemResponse(
                 item.getId(),
-                item.getItemType(),
+                item.getType(),
                 room == null ? null : room.getId(),
                 room == null ? null : room.getRoomCode(),
-                item.getLabel(),
-                item.getX(),
-                item.getY(),
+                item.getPositionX(),
+                item.getPositionY(),
                 item.getWidth(),
                 item.getHeight(),
-                item.getRotation(),
-                item.getSortOrder(),
-                fromJson(item.getMetadataJson()),
+                fromJson(item.getMetadata()),
                 room == null ? null : room.getCurrentStatus(),
                 room == null ? null : room.getListedPrice(),
                 room == null ? null : room.getAreaM2()

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

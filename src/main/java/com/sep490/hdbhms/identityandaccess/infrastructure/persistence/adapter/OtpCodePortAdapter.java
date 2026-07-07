@@ -3,7 +3,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.adapter;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodePort;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpEmailSender;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.OtpType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.OtpType;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.StringUtils;

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

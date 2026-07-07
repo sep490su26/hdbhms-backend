@@ -1,8 +1,9 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.FloorStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.FloorStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import lombok.Builder;
 import lombok.Value;
 
@@ -14,6 +15,7 @@ public class FacilitiesDashboardResponse {
     Summary summary;
     List<PropertyStatus> availableStatuses;
     List<Facility> facilities;
+    PageResponse<Facility> page;
 
     @Value
     @Builder

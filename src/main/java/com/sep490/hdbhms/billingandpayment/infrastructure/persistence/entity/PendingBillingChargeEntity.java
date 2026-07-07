@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.PendingBillingChargeStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PendingBillingChargeStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;

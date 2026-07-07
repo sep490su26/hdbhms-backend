@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.domain.model;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginMethod;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginStatus;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import lombok.AccessLevel;

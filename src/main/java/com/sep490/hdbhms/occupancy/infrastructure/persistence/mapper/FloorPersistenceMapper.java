@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.occupancy.domain.model.Floor;
-import com.sep490.hdbhms.occupancy.domain.value_objects.FloorStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.FloorStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;

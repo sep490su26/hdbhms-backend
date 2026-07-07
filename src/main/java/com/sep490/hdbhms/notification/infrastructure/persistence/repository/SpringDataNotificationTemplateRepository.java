@@ -2,7 +2,7 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationTemplate;
-import com.sep490.hdbhms.notification.domain.value_objects.TemplateStatus;
+import com.sep490.hdbhms.notification.domain.valueObjects.TemplateStatus;
 import com.sep490.hdbhms.notification.infrastructure.persistence.jpa.JpaNotificationTemplateRepository;
 import com.sep490.hdbhms.notification.infrastructure.persistence.mapper.NotificationTemplatePersistenceMapper;
 import lombok.AccessLevel;

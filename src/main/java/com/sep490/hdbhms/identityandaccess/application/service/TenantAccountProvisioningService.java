@@ -5,18 +5,19 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.SendPreCreatedAc
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.TenantAccountProvisioningEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaTenantAccountProvisioningRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.TenantAccountProvisioningResponse;
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
@@ -24,6 +25,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -67,6 +70,16 @@ public class TenantAccountProvisioningService {
                         """.formatted(baseCandidateSql()),
                 (rs, rowNum) -> toResponse(rs)
         );
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<TenantAccountProvisioningResponse> findProvisioningCandidates(Pageable pageable) {
+        List<TenantAccountProvisioningResponse> rows = findProvisioningCandidates();
+        List<TenantAccountProvisioningResponse> pageRows = rows.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+        return PageResponse.fromPageToPageResponse(new PageImpl<>(pageRows, pageable, rows.size()));
     }
 
     public TenantAccountProvisioningResponse provisionPrimaryTenantAccount(

@@ -27,6 +27,9 @@ public class CreateFloorService implements CreateFloorUseCase {
             floorName = "Tầng " + floorNumber;
             sortOrder = floorNumber;
         }
+        if (sortOrder == null) {
+            sortOrder = 0;
+        }
         Floor floor = Floor.newFloor(
                 command.propertyId(),
                 floorCode,

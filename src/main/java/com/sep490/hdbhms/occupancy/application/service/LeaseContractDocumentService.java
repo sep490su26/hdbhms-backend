@@ -117,7 +117,7 @@ public class LeaseContractDocumentService {
     private String buildLeaseTemplateHtml(ContractTemplateData data) {
         Context context = new Context();
         context.setVariables(buildLeaseVariables(data));
-        return templateEngine.process("contract_templates/html/lease_contract_template", context);
+        return templateEngine.process("contractTemplates/html/lease_contract_template", context);
     }
 
     private Map<String, Object> buildLeaseVariables(ContractTemplateData data) {

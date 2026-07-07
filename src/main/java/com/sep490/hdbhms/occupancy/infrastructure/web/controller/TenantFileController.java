@@ -31,9 +31,9 @@ public class TenantFileController {
         }
 
         Long userId = principal.getId();
-        com.sep490.hdbhms.identityandaccess.domain.value_objects.Role role = principal.getRole();
+        com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role role = principal.getRole();
 
-        boolean isManagerOrOwner = role == com.sep490.hdbhms.identityandaccess.domain.value_objects.Role.OWNER || role == com.sep490.hdbhms.identityandaccess.domain.value_objects.Role.MANAGER;
+        boolean isManagerOrOwner = role == com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role.OWNER || role == com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role.MANAGER;
 
         if (!isManagerOrOwner) {
             // Verify if fileId belongs to the user's tenant profile

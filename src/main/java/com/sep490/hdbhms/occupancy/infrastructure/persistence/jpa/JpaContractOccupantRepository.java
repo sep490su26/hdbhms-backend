@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractOccupantEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,12 +20,12 @@ public interface JpaContractOccupantRepository extends JpaRepository<ContractOcc
     @Query("""
             select count(o)
             from ContractOccupantEntity o
-            where o.status = com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus.ACTIVE
+            where o.status = com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus.ACTIVE
               and o.contract.room.id = :roomId
               and o.contract.status in (
-                    com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus.ACTIVE,
-                    com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus.SIGNED,
-                    com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus.CONFIRMED
+                    com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus.ACTIVE,
+                    com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus.SIGNED,
+                    com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus.CONFIRMED
               )
             """)
     long countActiveOccupantsByRoomId(Long roomId);

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.changerequest.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;

@@ -9,7 +9,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.VisitRequestRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.VisitRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateVisitRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.VisitRequestStatusUpdateRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestDetailsResponse;

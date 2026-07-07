@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.port.out;
 
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomHoldStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;

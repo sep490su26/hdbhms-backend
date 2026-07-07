@@ -39,6 +39,7 @@ public class UploadFileService implements UploadFileUseCase {
     @Override
     public FileMetadata execute(UploadFileCommand query) {
         Path tempFilePath = null;
+        Path finalPath = null;
         FileMetadata fileMetadata = null;
         try {
             String sha256Checksum = HashUtils.sha256Hex(query.file().getInputStream());
@@ -73,7 +74,13 @@ public class UploadFileService implements UploadFileUseCase {
             }
             log.info("Getting user id: {} who uploaded file name: {}", ownerId, multipartFile.getOriginalFilename());
 
-            // Build metadata (without path)
+            Path fileDirectory = Path.of(fileProperties.getStorage().getDirectory());
+            Files.createDirectories(fileDirectory);
+            finalPath = fileDirectory.resolve(localFilename).normalize().toAbsolutePath();
+            Files.move(tempFilePath, finalPath, StandardCopyOption.REPLACE_EXISTING);
+            tempFilePath = null;
+
+            // Build metadata only after the file has a durable storage path.
             fileMetadata = FileMetadata.of(
                     ownerId,
                     multipartFile.getOriginalFilename(),
@@ -83,32 +90,27 @@ public class UploadFileService implements UploadFileUseCase {
                     query.category(),
                     query.isSensitive()
             );
+            fileMetadata.setStorageKey(finalPath.toString());
             log.info(fileMetadata.toString());
 
-            // Save metadata – now the entity is managed
-            fileMetadata = fileMetadataRepository.save(fileMetadata);
-
-            // Move to final storage
-            Path fileDirectory = Path.of(fileProperties.getStorage().getDirectory());
-            Files.createDirectories(fileDirectory);
-            Path finalPath = fileDirectory.resolve(localFilename).normalize().toAbsolutePath();
-            Files.move(tempFilePath, finalPath, StandardCopyOption.REPLACE_EXISTING);
-
-            fileMetadata.setStorageKey(finalPath.toString());
             fileMetadata = fileMetadataRepository.save(fileMetadata);
             log.info("{}", fileMetadata);
-            // No need for a second save – the transaction will flush the change automatically
             log.info("Successfully uploaded file: {}", multipartFile.getOriginalFilename());
             return fileMetadata;
 
         } catch (IOException | AppException | NumberFormatException ex) {
             FileUtils.cleanupTempFile(tempFilePath);
+            FileUtils.cleanupTempFile(finalPath);
             // Only delete metadata if it was created but the file wasn't moved
             if (fileMetadata != null && StringUtils.isEmpty(fileMetadata.getStorageKey()) && fileMetadata.getId() != null) {
                 fileMetadataRepository.deleteById(fileMetadata.getId());
             }
 
             throw new AppException(ApiErrorCode.UNDEFINED);
+        } catch (RuntimeException ex) {
+            FileUtils.cleanupTempFile(tempFilePath);
+            FileUtils.cleanupTempFile(finalPath);
+            throw ex;
         }
     }
 }

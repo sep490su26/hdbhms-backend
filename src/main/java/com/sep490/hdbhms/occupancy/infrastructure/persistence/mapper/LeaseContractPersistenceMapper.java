@@ -47,6 +47,8 @@ public class LeaseContractPersistenceMapper {
                 .intentionRecordedAt(entity.getIntentionRecordedAt())
                 .previousContractId(entity.getPreviousContract() != null ? entity.getPreviousContract().getId() : null)
                 .contractFileId(entity.getContractFile() != null ? entity.getContractFile().getId() : null)
+                .signedFileId(entity.getSignedFile() != null ? entity.getSignedFile().getId() : null)
+                .signedUploadedById(entity.getSignedUploadedBy() != null ? entity.getSignedUploadedBy().getId() : null)
                 .signedAt(entity.getSignedAt())
                 .createdById(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
                 .createdAt(entity.getCreatedAt())
@@ -90,6 +92,14 @@ public class LeaseContractPersistenceMapper {
                 .contractFile(domain.getContractFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getContractFileId())
                                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
+                        : null)
+                .signedFile(domain.getSignedFileId() != null
+                        ? jpaFileMetadataRepository.findById(domain.getSignedFileId())
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
+                        : null)
+                .signedUploadedBy(domain.getSignedUploadedById() != null
+                        ? jpaUserRepository.findById(domain.getSignedUploadedById())
+                                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND))
                         : null)
                 .signedAt(domain.getSignedAt())
                 .createdBy(domain.getCreatedById() != null

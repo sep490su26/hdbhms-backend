@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -26,6 +26,9 @@ public class LeaseContractDetailsResponse {
     Long contractFileId;
     String contractFileName;
     String contractFileUrl;
+    Long signedFileId;
+    String signedFileName;
+    String signedFileUrl;
     String tenantIntention;
     LocalDate expectedVacantDate;
     String roleInContract;

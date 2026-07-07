@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.VisitRequestRepository;
 import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.VisitRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.VisitRequestEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaVisitRequestRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.VisitRequestPersistenceMapper;

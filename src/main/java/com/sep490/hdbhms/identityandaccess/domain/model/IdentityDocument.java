@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.domain.model;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentStatus;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.DocumentStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.DocumentType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

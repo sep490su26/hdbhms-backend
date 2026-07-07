@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.port.out;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.TransferRequestStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;

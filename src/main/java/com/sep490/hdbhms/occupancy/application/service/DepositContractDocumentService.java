@@ -5,7 +5,7 @@ import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
+import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
@@ -64,7 +64,7 @@ import java.util.regex.Pattern;
 public class DepositContractDocumentService {
     static final long DEFAULT_DEPOSIT_AMOUNT = 2_000L;
     static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     static final NumberFormat MONEY_FORMATTER = NumberFormat.getInstance(Locale.forLanguageTag("vi-VN"));
     static final Pattern DIACRITICS = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
     static final String DEPOSIT_RECEIVER_FULL_NAME = "ĐẶNG VĂN NHUẦN";
@@ -109,7 +109,12 @@ public class DepositContractDocumentService {
     }
 
     private Long resolvePreviewDepositAmount() {
-        Long amount = environment.getProperty("app.deposit.amount", Long.class, DEFAULT_DEPOSIT_AMOUNT);
+        Long amount = environment == null
+                ? DEFAULT_DEPOSIT_AMOUNT
+                : environment.getProperty("app.deposit.amount", Long.class, DEFAULT_DEPOSIT_AMOUNT);
+        if (amount == null) {
+            return DEFAULT_DEPOSIT_AMOUNT;
+        }
         return amount <= 0 ? DEFAULT_DEPOSIT_AMOUNT : amount;
     }
 
@@ -263,7 +268,7 @@ public class DepositContractDocumentService {
     private String buildTemplateHtml(ContractData data) {
         Context context = new Context();
         context.setVariables(buildTemplateVariables(data));
-        return templateEngine.process("contract_templates/html/deposit_contract_template", context);
+        return templateEngine.process("contractTemplates/html/deposit_contract_template", context);
     }
 
     private Map<String, Object> buildTemplateVariables(ContractData data) {

@@ -1,11 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PromotionRole;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -13,9 +13,13 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorReposi
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.FacilitiesDashboardResponse;
+import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +47,17 @@ public class GetFacilitiesDashboardService {
             String keyword,
             PropertyStatus status
     ) {
+        return getDashboard(userId, role, keyword, status, PageRequest.of(0, Integer.MAX_VALUE));
+    }
+
+    @Transactional(readOnly = true)
+    public FacilitiesDashboardResponse getDashboard(
+            Long userId,
+            Role role,
+            String keyword,
+            PropertyStatus status,
+            Pageable pageable
+    ) {
         List<PropertyEntity> scopedProperties = getScopedProperties(userId, role).stream()
                 .sorted(Comparator.comparing(PropertyEntity::getName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
@@ -56,6 +71,13 @@ public class GetFacilitiesDashboardService {
                 .filter(facility -> status == null || facility.getStatus() == status)
                 .filter(facility -> matchesKeyword(facility, normalizedKeyword))
                 .toList();
+        List<FacilitiesDashboardResponse.Facility> pagedFacilities = filteredFacilities.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+        PageResponse<FacilitiesDashboardResponse.Facility> page = PageResponse.fromPageToPageResponse(
+                new PageImpl<>(pagedFacilities, pageable, filteredFacilities.size())
+        );
 
         long totalFloors = allFacilities.stream()
                 .mapToLong(FacilitiesDashboardResponse.Facility::getFloorCount)
@@ -83,7 +105,8 @@ public class GetFacilitiesDashboardService {
                         .vacancyRate(totalRooms == 0 ? 0 : (int) Math.round(vacantRooms * 100.0 / totalRooms))
                         .build())
                 .availableStatuses(List.of(PropertyStatus.values()))
-                .facilities(filteredFacilities)
+                .facilities(pagedFacilities)
+                .page(page)
                 .build();
     }
 

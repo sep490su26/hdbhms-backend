@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceType;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -34,7 +34,7 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
                         SELECT occupant.id
                         FROM ContractOccupantEntity occupant
                         WHERE occupant.contract = contract
-                          AND occupant.status = com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus.ACTIVE
+                          AND occupant.status = com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus.ACTIVE
                           AND occupant.tenantProfile.user.id = :userId
                     )
               )

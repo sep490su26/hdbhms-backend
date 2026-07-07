@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginMethod;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.LoginHistoryEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -11,7 +11,7 @@ import java.util.List;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class LoginHistorySpecifications {
-    public static Specification<LoginHistoryEntity> idIn(List<String> ids) {
+    public static Specification<LoginHistoryEntity> idIn(List<Long> ids) {
         return (root, query, criteriaBuilder) -> {
             if (ids == null || ids.isEmpty()) {
                 return criteriaBuilder.conjunction();

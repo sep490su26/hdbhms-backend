@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.VehicleStatus;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.VehicleType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.VehicleStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.VehicleType;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.EmergencyContactEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.VehicleEntity;

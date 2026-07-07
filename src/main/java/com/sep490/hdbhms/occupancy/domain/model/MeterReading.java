@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingSource;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingPurpose;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingSource;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

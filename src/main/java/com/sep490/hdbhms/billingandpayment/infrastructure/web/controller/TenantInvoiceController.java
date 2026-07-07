@@ -152,9 +152,7 @@ public class TenantInvoiceController {
         }
         for (DateTimeFormatter formatter : List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
-                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),
-                DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")
+                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
         )) {
             try {
                 return LocalDateTime.parse(value, formatter);

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.VisitRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.VisitRequestEntity;
 import jakarta.persistence.criteria.JoinType;
 import lombok.AccessLevel;

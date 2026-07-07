@@ -2,7 +2,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.repositor
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.IdentityDocumentRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.IdentityDocument;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.DocumentType;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaIdentityDocumentRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.IdentityDocumentPersistenceMapper;
 import lombok.AccessLevel;

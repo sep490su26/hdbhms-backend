@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

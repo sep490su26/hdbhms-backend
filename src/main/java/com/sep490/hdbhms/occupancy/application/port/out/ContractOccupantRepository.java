@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.port.out;
 
 import com.sep490.hdbhms.occupancy.domain.model.ContractOccupant;
-import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
 
 import java.util.Collection;
 import java.util.List;

@@ -2,9 +2,9 @@ package com.sep490.hdbhms.maintenance.infrastructure.web.controller;
 
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
 import com.sep490.hdbhms.billingandpayment.application.service.ScheduledBillingChargeService;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.PendingBillingChargeStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PendingBillingChargeStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PendingBillingChargeEntity;
@@ -12,9 +12,9 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInv
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPendingBillingChargeRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PromotionRole;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
@@ -23,14 +23,14 @@ import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceCostReposit
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepository;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceCost;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket;
-import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
-import com.sep490.hdbhms.maintenance.domain.value_objects.CostResponsibility;
-import com.sep490.hdbhms.maintenance.domain.value_objects.CostType;
-import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketAction;
-import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
-import com.sep490.hdbhms.maintenance.domain.value_objects.PaidBy;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
-import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.AttachmentPhase;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.CostResponsibility;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.CostType;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.MaintenanceTicketAction;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.MaintenanceTicketStatus;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.PaidBy;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.Priority;
+import com.sep490.hdbhms.maintenance.domain.valueObjects.TicketScope;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceCostEntity;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceReviewEntity;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceTicketAttachmentEntity;
@@ -53,7 +53,7 @@ import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.Maintenance
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketResponse;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.InternalMaintenanceCostResponse;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
-import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -68,6 +68,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
@@ -217,7 +218,9 @@ public class MaintenanceTicketController {
 
     @GetMapping("/internal-costs")
     @Transactional(readOnly = true)
-    public List<InternalMaintenanceCostResponse> getInternalMaintenanceCosts() {
+    public PageResponse<InternalMaintenanceCostResponse> getInternalMaintenanceCosts(
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
         Role role = requireRole();
         if (role != Role.OWNER && role != Role.MANAGER && role != Role.ACCOUNTANT) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem báo cáo chi phí nội bộ.");
@@ -225,7 +228,7 @@ public class MaintenanceTicketController {
         List<Long> restrictedPropertyIds = role == Role.MANAGER
                 ? restrictedPropertyIdsForCurrentManager(role)
                 : null;
-        return jpaMaintenanceCostRepository.findAllByPaidByOrderByCreatedAtDesc(PaidBy.LANDLORD)
+        List<InternalMaintenanceCostResponse> rows = jpaMaintenanceCostRepository.findAllByPaidByOrderByCreatedAtDesc(PaidBy.LANDLORD)
                 .stream()
                 .filter(cost -> cost.getTicket() != null
                         && cost.getTicket().getTicketScope() == TicketScope.PROPERTY_OPERATION)
@@ -233,6 +236,11 @@ public class MaintenanceTicketController {
                         || restrictedPropertyIds.contains(cost.getTicket().getProperty().getId()))
                 .map(this::toInternalCostResponse)
                 .toList();
+        List<InternalMaintenanceCostResponse> pageRows = rows.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+        return PageResponse.fromPageToPageResponse(new PageImpl<>(pageRows, pageable, rows.size()));
     }
 
     @PostMapping("/internal")

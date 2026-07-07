@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -24,6 +24,15 @@ public class DepositAgreementSpecifications {
         return (root, query, criteriaBuilder) ->
                 status == null ? criteriaBuilder.conjunction() :
                         criteriaBuilder.equal(root.get("status"), status);
+    }
+
+    public static Specification<DepositAgreementEntity> statusesIn(List<DepositAgreementStatus> statuses) {
+        return (root, query, criteriaBuilder) -> {
+            if (statuses == null || statuses.isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+            return root.get("status").in(statuses);
+        };
     }
 
     public static Specification<DepositAgreementEntity> signingDateBetween(

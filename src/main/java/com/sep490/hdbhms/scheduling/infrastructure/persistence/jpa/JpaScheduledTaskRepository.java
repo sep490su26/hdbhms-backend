@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.scheduling.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.scheduling.domain.value_objects.TaskStatus;
+import com.sep490.hdbhms.scheduling.domain.valueObjects.TaskStatus;
 import com.sep490.hdbhms.scheduling.infrastructure.persistence.entity.ScheduledTaskEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

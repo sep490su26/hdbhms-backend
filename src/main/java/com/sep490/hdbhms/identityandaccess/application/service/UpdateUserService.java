@@ -7,9 +7,9 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.UserModification
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.model.UserModificationHistory;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.ModificationType;
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.OtpType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.ModificationType;
+import com.sep490.hdbhms.identityandaccess.domain.valueObjects.OtpType;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.TokenProvider;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;

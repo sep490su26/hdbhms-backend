@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.scheduling.application.port.out;
 
 import com.sep490.hdbhms.scheduling.domain.model.ScheduledTask;
-import com.sep490.hdbhms.scheduling.domain.value_objects.TaskStatus;
+import com.sep490.hdbhms.scheduling.domain.valueObjects.TaskStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;

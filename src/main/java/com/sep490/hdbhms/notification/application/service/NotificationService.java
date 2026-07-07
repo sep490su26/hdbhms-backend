@@ -28,6 +28,7 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.StringTemplateResolver;
 
 import jakarta.annotation.PostConstruct;
+
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -57,7 +58,8 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
 
     @Override
     public void queueNotification(NotificationEvent event) {
-        List<NotificationTemplate> templates = resolveTemplates(event.getEventType());
+        List<NotificationTemplate> templates = templateRepository.findByTemplateKeyAndStatus(
+                event.getEventType(), TemplateStatus.ACTIVE);
 
         if (templates.isEmpty()) {
             log.warn("No active templates found for event type: {}", event.getEventType());
@@ -175,15 +177,15 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     }
 
     @Override
-    public long getUnreadCount(Long userId) {
-        return outboxRepository.countByRecipientUserIdAndIsReadFalse(userId);
+    public long getUnreadCount(Long userId, NotificationChannel channel) {
+        return outboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse(userId, channel);
     }
 
     @Override
     public void markAsRead(Long id, Long userId) {
         NotificationOutbox outbox = outboxRepository.findById(id)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        
+
         if (!Objects.equals(outbox.getRecipientUserId(), userId)) {
             throw new AppException(ApiErrorCode.UNAUTHORIZED);
         }
@@ -210,5 +212,9 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
         LocalDateTime readAt = LocalDateTime.now();
         outboxRepository.markTargetAsRead(userId, normalizedTargetType, targetId, readAt);
         deliveryRepository.markReadByRecipientUserIdAndTarget(userId, normalizedTargetType, targetId, readAt);
+    }
+
+    public void markAllAsRead(Long userId, NotificationChannel channel) {
+        outboxRepository.markAllAsRead(userId, channel);
     }
 }

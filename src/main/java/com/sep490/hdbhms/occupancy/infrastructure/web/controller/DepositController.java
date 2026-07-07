@@ -5,10 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentProvider;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
@@ -21,8 +21,8 @@ import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomHoldStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositContractPreviewRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SendDepositFormRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositCheckoutResponse;
@@ -501,7 +501,6 @@ public class DepositController {
 
         List<DateTimeFormatter> formatters = List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
                 DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
         );
         for (DateTimeFormatter formatter : formatters) {

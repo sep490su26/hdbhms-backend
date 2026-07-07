@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.file.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
+import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;

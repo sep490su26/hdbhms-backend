@@ -27,7 +27,7 @@ public class RoomTransferRequest {
     List<Long> transferringTenantProfileIds;
     Long nominatedHolderProfileId;
     TargetTransferType targetTransferType;
-    Long targetContractId; // Optional for JOIN_EXISTING_CONTRACT
+    Long targetContractId;
     Long targetHolderApprovedById;
     LocalDateTime targetHolderApprovedAt;
     LocalDateTime targetHolderRejectedAt;

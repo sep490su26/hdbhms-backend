@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
-import com.sep490.hdbhms.occupancy.domain.value_objects.DepositFormStatus;
+import com.sep490.hdbhms.occupancy.domain.valueObjects.DepositFormStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
