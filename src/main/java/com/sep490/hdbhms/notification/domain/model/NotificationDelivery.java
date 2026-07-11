@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.notification.domain.model;
 
-import com.sep490.hdbhms.notification.domain.valueObjects.DeliveryStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.DeliveryStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

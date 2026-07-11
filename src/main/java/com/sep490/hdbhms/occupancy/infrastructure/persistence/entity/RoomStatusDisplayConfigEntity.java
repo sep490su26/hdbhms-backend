@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PaymentIntentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 

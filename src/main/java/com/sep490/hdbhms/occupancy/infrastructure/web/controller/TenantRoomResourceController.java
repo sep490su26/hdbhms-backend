@@ -2,8 +2,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomAssetEntity;

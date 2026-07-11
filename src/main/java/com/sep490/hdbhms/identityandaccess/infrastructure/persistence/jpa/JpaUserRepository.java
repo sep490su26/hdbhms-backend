@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

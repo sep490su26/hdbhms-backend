@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

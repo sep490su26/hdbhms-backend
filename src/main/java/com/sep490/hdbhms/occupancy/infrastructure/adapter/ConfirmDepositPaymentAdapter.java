@@ -2,8 +2,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.adapter;
 
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.ConfirmPaymentIntentPort;
 import com.sep490.hdbhms.occupancy.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;

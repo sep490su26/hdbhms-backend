@@ -2,8 +2,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.MeterRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Meter;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.MeterPersistenceMapper;
 import lombok.AccessLevel;

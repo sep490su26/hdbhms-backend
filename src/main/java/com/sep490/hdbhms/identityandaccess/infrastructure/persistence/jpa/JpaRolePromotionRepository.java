@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PromotionRole;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.RolePromotionStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.RolePromotionEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

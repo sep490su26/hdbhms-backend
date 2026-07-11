@@ -1,11 +1,11 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceLineType;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceType;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PaymentAllocationEntity;
@@ -25,8 +25,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.Billi
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.ManualPaymentResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.RentOverrideResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.ContractEventType;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ContractEventType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;

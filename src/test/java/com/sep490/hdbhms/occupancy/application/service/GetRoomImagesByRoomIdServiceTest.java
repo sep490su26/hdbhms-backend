@@ -5,7 +5,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.RoomImageRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomImage;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;

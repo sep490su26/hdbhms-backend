@@ -6,7 +6,7 @@ import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceRepositor
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.Data;

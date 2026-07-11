@@ -11,7 +11,7 @@ import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
 import com.google.zxing.common.GlobalHistogramBinarizer;
 import com.google.zxing.common.HybridBinarizer;
 import com.google.zxing.multi.ByQuadrantReader;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Gender;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityverification.application.port.in.command.UploadIdentityVerificationCommand;
 import com.sep490.hdbhms.identityverification.application.port.in.usecase.UploadIdentityVerificationUseCase;
 import com.sep490.hdbhms.identityverification.application.port.out.CccdOcrExtractionPort;

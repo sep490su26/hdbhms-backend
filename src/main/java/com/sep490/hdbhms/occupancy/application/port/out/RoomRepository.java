@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.port.out;
 
 import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

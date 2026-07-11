@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.permissiongrant.application.port.out;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
 
 import java.time.LocalDateTime;

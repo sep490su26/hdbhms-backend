@@ -6,11 +6,11 @@ import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequest
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisionHandler;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;

@@ -9,8 +9,8 @@ import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRep
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.domain.model.InvoiceLine;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentProvider;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.permissiongrant.infrastructure.persistence.repository;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.permissiongrant.application.port.out.PermissionGrantRepository;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
 import com.sep490.hdbhms.permissiongrant.infrastructure.persistence.jpa.JpaPermissionGrantRepository;

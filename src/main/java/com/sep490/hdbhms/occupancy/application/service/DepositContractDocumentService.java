@@ -5,7 +5,7 @@ import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;

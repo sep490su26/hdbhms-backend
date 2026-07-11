@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.notification.domain.model;
 
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

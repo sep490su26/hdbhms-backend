@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.occupancy.application.service.TenantHandoverService;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.ContractHandoverDetailsResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import lombok.AccessLevel;

@@ -1,9 +1,9 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

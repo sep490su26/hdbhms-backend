@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.billingandpayment.application.port.in.command;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 

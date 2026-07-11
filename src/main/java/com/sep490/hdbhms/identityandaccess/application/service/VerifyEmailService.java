@@ -5,7 +5,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.command.VerifyEma
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.VerifyEmailUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodePort;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.OtpType;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.OtpType;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;

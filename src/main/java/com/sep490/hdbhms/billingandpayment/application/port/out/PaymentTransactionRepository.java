@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.application.port.out;
 
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentTransaction;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 
 import java.util.Optional;
 

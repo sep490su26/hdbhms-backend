@@ -7,9 +7,9 @@ import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateR
 import com.sep490.hdbhms.notification.domain.model.NotificationDelivery;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.model.NotificationTemplate;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
-import com.sep490.hdbhms.notification.domain.valueObjects.TemplateStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.TemplateStatus;
 import com.sep490.hdbhms.shared.event.NotificationEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
@@ -40,7 +40,8 @@ class NotificationServiceTest {
                 .build())),
                 outboxRepository,
                 new FailingDeliveryRepository(),
-                new ObjectMapper()
+                new ObjectMapper(),
+                new NotificationTemplateDefaults()
         );
         service.init();
 
@@ -81,7 +82,8 @@ class NotificationServiceTest {
                 .build())),
                 outboxRepository,
                 new FailingDeliveryRepository(),
-                new ObjectMapper()
+                new ObjectMapper(),
+                new NotificationTemplateDefaults()
         );
         service.init();
 
@@ -115,7 +117,8 @@ class NotificationServiceTest {
                 new FixedTemplateRepository(List.of()),
                 outboxRepository,
                 deliveryRepository,
-                new ObjectMapper()
+                new ObjectMapper(),
+                new NotificationTemplateDefaults()
         );
 
         service.markAsRead(21L, 15L);
@@ -134,7 +137,8 @@ class NotificationServiceTest {
                 new FixedTemplateRepository(List.of()),
                 outboxRepository,
                 deliveryRepository,
-                new ObjectMapper()
+                new ObjectMapper(),
+                new NotificationTemplateDefaults()
         );
 
         service.markTargetAsRead(15L, " room_transfer ", 9L);
@@ -163,6 +167,17 @@ class NotificationServiceTest {
                     .filter(template -> templateKey.equals(template.getTemplateKey()))
                     .filter(template -> status == template.getStatus())
                     .toList();
+        }
+
+        @Override
+        public Optional<NotificationTemplate> findByTemplateKeyAndChannel(
+                String templateKey,
+                NotificationChannel channel
+        ) {
+            return templates.stream()
+                    .filter(template -> templateKey.equals(template.getTemplateKey()))
+                    .filter(template -> channel == template.getChannel())
+                    .findFirst();
         }
     }
 

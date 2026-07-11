@@ -11,8 +11,8 @@ import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 
 import java.util.List;
 import java.util.Optional;

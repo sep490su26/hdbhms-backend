@@ -5,10 +5,10 @@ import com.sep490.hdbhms.changerequest.application.port.in.command.RejectRequest
 import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequestQueryUseCase;
 import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequestUseCase;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.ApproveRequestRequest;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.RejectRequestRequest;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestResponse;

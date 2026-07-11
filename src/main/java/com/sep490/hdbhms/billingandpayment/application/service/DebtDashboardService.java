@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceType;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.ManagerTaskStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.ManagerTaskStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.DebtNoticeTrackerEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.ManagerTaskEntity;
@@ -10,7 +10,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaDeb
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaManagerTaskRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.DebtSummaryResponse;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.application.port.in.usecase.SendNotificationUseCase;

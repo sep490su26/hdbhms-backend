@@ -9,9 +9,9 @@ import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRep
 import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.model.NotificationTemplate;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
-import com.sep490.hdbhms.notification.domain.valueObjects.TemplateStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.TemplateStatus;
 import com.sep490.hdbhms.shared.event.NotificationEvent;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -30,7 +30,6 @@ import org.thymeleaf.templateresolver.StringTemplateResolver;
 import jakarta.annotation.PostConstruct;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +46,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     NotificationOutboxRepository outboxRepository;
     NotificationDeliveryRepository deliveryRepository;
     ObjectMapper objectMapper;
+    NotificationTemplateDefaults templateDefaults;
     TemplateEngine stringTemplateEngine = new TemplateEngine();
 
     @PostConstruct
@@ -101,7 +101,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
                 .stream()
                 .filter(template -> !isLegacyRoomTransferTemplate(template))
                 .toList();
-        List<NotificationTemplate> defaults = defaultTemplates(eventType);
+        List<NotificationTemplate> defaults = templateDefaults.defaultTemplates(eventType);
         if (defaults.isEmpty()) {
             return dbTemplates;
         }
@@ -115,42 +115,9 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
         return List.copyOf(templatesByChannel.values());
     }
 
-    private List<NotificationTemplate> defaultTemplates(String eventType) {
-        return switch (eventType) {
-            case "ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED" -> allChannelTemplates(
-                    eventType,
-                    "Bạn được đề cử làm người đại diện phòng",
-                    "Yêu cầu chuyển phòng [[${requestCode}]] cần bạn xác nhận làm người đại diện mới của [[${oldRoomName}]] sau khi người hiện tại chuyển đi. Vui lòng phản hồi để quản lý tiếp tục xử lý."
-            );
-            case "ROOM_TRANSFER_TARGET_HOLDER_APPROVAL_REQUESTED" -> allChannelTemplates(
-                    eventType,
-                    "Có người muốn chuyển vào phòng của bạn",
-                    "Yêu cầu [[${requestCode}]]: khách từ [[${oldRoomName}]] muốn chuyển vào [[${targetRoomName}]]. Ngày dự kiến chuyển là [[${expectedTransferDate}]]. Vui lòng xác nhận nếu bạn đồng ý."
-            );
-            case "ROOM_TRANSFER_MANAGER_ACTION_REQUIRED" -> allChannelTemplates(
-                    eventType,
-                    "Yêu cầu chuyển phòng cần xử lý",
-                    "Yêu cầu [[${requestCode}]] đang cần quản lý xử lý: [[${actionLabel}]]. Chuyển từ [[${oldRoomName}]] sang [[${targetRoomName}]], ngày dự kiến chuyển [[${expectedTransferDate}]]."
-            );
-            default -> List.of();
-        };
-    }
-
     private boolean isLegacyRoomTransferTemplate(NotificationTemplate template) {
         return "ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED".equals(template.getTemplateKey())
                 && "Xac nhan holder moi".equals(template.getTitleTemplate());
-    }
-
-    private List<NotificationTemplate> allChannelTemplates(String key, String title, String body) {
-        return Arrays.stream(NotificationChannel.values())
-                .map(channel -> NotificationTemplate.builder()
-                        .templateKey(key)
-                        .channel(channel)
-                        .titleTemplate(title)
-                        .bodyTemplate(body)
-                        .status(TemplateStatus.ACTIVE)
-                        .build())
-                .toList();
     }
 
     private String toPayload(NotificationEvent event) {

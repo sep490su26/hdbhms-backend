@@ -1,9 +1,9 @@
 package com.sep490.hdbhms.permissiongrant.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.changerequest.infrastructure.persistence.entity.ChangeRequestEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.permissiongrant.domain.valueObjects.PermissionGrantDurationCode;
+import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionGrantDurationCode;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

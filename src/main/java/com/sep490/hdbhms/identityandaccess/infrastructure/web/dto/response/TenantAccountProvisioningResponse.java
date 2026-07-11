@@ -1,12 +1,12 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.TenantAccountProvisioningStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

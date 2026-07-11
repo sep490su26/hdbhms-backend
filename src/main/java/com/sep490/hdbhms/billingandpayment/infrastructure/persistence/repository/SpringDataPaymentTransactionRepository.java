@@ -2,7 +2,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.repositor
 
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentTransactionRepository;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentTransaction;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPaymentTransactionRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.mapper.PaymentTransactionPersistenceMapper;
 import lombok.AccessLevel;

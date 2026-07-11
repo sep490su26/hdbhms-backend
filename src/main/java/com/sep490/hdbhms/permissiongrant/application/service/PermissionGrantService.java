@@ -1,14 +1,14 @@
 package com.sep490.hdbhms.permissiongrant.application.service;
 
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.permissiongrant.application.port.out.PermissionAccessAuditLogRepository;
 import com.sep490.hdbhms.permissiongrant.application.port.out.PermissionGrantRepository;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionAccessAuditLog;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
-import com.sep490.hdbhms.permissiongrant.domain.valueObjects.PermissionAccessAction;
-import com.sep490.hdbhms.permissiongrant.domain.valueObjects.PermissionGrantDurationCode;
+import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
+import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionGrantDurationCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

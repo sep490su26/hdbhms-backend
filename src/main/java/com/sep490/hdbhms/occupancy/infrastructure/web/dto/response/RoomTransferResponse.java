@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.SettlementType;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TargetTransferType;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

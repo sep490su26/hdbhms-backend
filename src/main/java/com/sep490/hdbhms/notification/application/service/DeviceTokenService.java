@@ -3,7 +3,7 @@ package com.sep490.hdbhms.notification.application.service;
 import com.sep490.hdbhms.notification.application.port.in.usecase.ManageDeviceTokenUseCase;
 import com.sep490.hdbhms.notification.application.port.out.UserMobileDeviceTokenRepository;
 import com.sep490.hdbhms.notification.domain.model.UserMobileDeviceToken;
-import com.sep490.hdbhms.notification.domain.valueObjects.Platform;
+import com.sep490.hdbhms.notification.domain.value_objects.Platform;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

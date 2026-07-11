@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.domain.model;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.CollectionAccountProvider;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.CollectionAccountType;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.CollectionAccountProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.CollectionAccountType;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

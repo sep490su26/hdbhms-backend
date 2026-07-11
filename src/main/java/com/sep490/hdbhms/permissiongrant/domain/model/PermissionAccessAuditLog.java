@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.permissiongrant.domain.model;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
-import com.sep490.hdbhms.permissiongrant.domain.valueObjects.PermissionAccessAction;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
+import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

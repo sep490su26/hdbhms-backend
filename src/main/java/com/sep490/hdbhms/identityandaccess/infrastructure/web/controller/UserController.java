@@ -6,8 +6,8 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountL
 import com.sep490.hdbhms.identityandaccess.application.port.in.query.GetAccountsQuery;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.*;
 import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.*;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.LoginHistoryResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.TenantAccountProvisioningResponse;

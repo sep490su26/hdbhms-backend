@@ -2,11 +2,11 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterType;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingPurpose;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterEntity;
@@ -91,11 +91,11 @@ public class ManageContractHandoverService {
     private MeterReadingEntity createOrUpdateReading(RoomEntity room, MeterType meterType, HandoverMeterReadingsRequest.ReadingInput input, MeterReadingEntity existingReading) {
         Long roomId = room.getId();
 
-        var activeMeter = meterRepository.findFirstByRoom_IdAndMeterTypeAndStatus(roomId, meterType, com.sep490.hdbhms.occupancy.domain.valueObjects.MeterStatus.ACTIVE)
+        var activeMeter = meterRepository.findFirstByRoom_IdAndMeterTypeAndStatus(roomId, meterType, com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus.ACTIVE)
                 .orElseGet(() -> meterRepository.save(MeterEntity.builder()
                         .room(room)
                         .meterType(meterType)
-                        .status(com.sep490.hdbhms.occupancy.domain.valueObjects.MeterStatus.ACTIVE)
+                        .status(com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus.ACTIVE)
                         .installedAt(LocalDate.now())
                         .build()));
         LocalDate readingDate = input.getReadingDate() != null ? input.getReadingDate() : LocalDate.now();

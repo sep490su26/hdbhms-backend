@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.RoomTransferRepository;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomTransferRequestRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.RoomTransferRequestPersistenceMapper;
 import lombok.AccessLevel;

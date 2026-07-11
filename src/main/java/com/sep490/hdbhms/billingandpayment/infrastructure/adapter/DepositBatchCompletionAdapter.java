@@ -2,8 +2,8 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.adapter;
 
 import com.sep490.hdbhms.billingandpayment.application.port.out.DepositBatchCompletionPort;
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PaymentIntentEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPaymentIntentRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.CreateLeadOrAssignTenantPort;
@@ -11,7 +11,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementReposito
 import com.sep490.hdbhms.occupancy.application.port.out.EarlyCancelRoomHoldTaskPort;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.*;
+import com.sep490.hdbhms.occupancy.domain.value_objects.*;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositBatchEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositBatchItemEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomHoldEntity;

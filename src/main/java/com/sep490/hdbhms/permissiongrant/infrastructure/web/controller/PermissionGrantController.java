@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.permissiongrant.infrastructure.web.controller;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;

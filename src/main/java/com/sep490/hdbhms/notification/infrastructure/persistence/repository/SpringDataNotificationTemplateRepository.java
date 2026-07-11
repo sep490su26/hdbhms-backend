@@ -2,7 +2,8 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationTemplate;
-import com.sep490.hdbhms.notification.domain.valueObjects.TemplateStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.TemplateStatus;
 import com.sep490.hdbhms.notification.infrastructure.persistence.jpa.JpaNotificationTemplateRepository;
 import com.sep490.hdbhms.notification.infrastructure.persistence.mapper.NotificationTemplatePersistenceMapper;
 import lombok.AccessLevel;
@@ -11,6 +12,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
@@ -32,5 +34,11 @@ public class SpringDataNotificationTemplateRepository implements NotificationTem
                 .stream()
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<NotificationTemplate> findByTemplateKeyAndChannel(String templateKey, NotificationChannel channel) {
+        return jpaRepository.findByTemplateKeyAndChannel(templateKey, channel)
+                .map(mapper::toDomain);
     }
 }

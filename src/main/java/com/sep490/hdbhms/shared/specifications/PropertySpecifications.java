@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

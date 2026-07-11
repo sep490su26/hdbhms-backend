@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.notification.application.port.out;
 
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;

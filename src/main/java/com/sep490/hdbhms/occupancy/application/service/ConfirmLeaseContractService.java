@@ -9,7 +9,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.PromoteToTenantPort;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

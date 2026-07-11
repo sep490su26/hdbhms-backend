@@ -8,9 +8,9 @@ import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketAttac
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepository;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicketAttachment;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.AttachmentPhase;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.Priority;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.TicketScope;
+import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
+import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
+import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;

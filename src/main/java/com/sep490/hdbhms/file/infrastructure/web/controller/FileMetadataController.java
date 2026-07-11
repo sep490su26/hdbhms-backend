@@ -1,22 +1,22 @@
 package com.sep490.hdbhms.file.infrastructure.web.controller;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.file.application.port.in.command.UploadBatchFileCommand;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.service.DownloadFileService;
 import com.sep490.hdbhms.file.application.service.UploadBatchFileService;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
-import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.BatchFileResponse;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;
 import com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
-import com.sep490.hdbhms.permissiongrant.domain.valueObjects.PermissionAccessAction;
+import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;

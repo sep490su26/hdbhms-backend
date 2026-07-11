@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.notification.application.port.in.usecase;
 
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 
 public interface ManageNotificationUseCase {
     void markAsRead(Long id, Long userId);

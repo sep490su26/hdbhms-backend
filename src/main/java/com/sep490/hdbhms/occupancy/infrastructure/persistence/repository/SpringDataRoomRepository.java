@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.RoomPersistenceMapper;

@@ -3,7 +3,7 @@ package com.sep490.hdbhms.file.application.service;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
-import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.shared.utils.ServerInfoUtils;
 import org.junit.jupiter.api.Test;

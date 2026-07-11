@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.domain.event;
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.SendPreCreatedAccountPort;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 
 import java.util.List;
 

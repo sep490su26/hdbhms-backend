@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.file.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 

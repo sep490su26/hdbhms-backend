@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.permissiongrant.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.TargetType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.permissiongrant.infrastructure.persistence.entity.PermissionGrantEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 

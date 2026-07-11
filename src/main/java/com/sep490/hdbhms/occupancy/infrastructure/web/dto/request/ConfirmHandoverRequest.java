@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;

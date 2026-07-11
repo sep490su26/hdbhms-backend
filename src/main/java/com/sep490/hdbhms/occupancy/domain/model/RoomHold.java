@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomHoldStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

@@ -1,9 +1,9 @@
 package com.sep490.hdbhms.maintenance.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.MaintenanceTicketStatus;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.Priority;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.TicketScope;
+import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
+import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
+import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
