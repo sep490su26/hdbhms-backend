@@ -1,10 +1,10 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.TenantAccountProvisioningStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantRole;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,6 +33,12 @@ public record LeaseContractQueryDetailsResponse(
         String tenantIntention,
         LocalDate expectedVacantDate,
         LocalDateTime intentionRecordedAt,
+        Long transferRequestId,
+        String transferRequestCode,
+        String transferStatus,
+        LocalDate transferRequestedDate,
+        String transferContractRole,
+        Boolean transferActivationLocked,
         boolean canRenew,
         boolean canLiquidate,
         boolean canSendAccount,

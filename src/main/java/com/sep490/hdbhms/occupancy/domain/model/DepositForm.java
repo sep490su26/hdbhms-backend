@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.DepositFormStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.DepositFormStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

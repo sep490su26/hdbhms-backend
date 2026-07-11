@@ -11,8 +11,8 @@ import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +49,12 @@ public class SpringDataChangeRequestRepository implements ChangeRequestRepositor
     @Override
     public Page<ChangeRequest> findFiltered(RequestType type, RequestStatus status, String search, Pageable pageable) {
         return jpaChangeRequestRepository.findFiltered(type, status, search, pageable)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Page<ChangeRequest> findFilteredByRequester(Long requesterId, RequestType type, RequestStatus status, String search, Pageable pageable) {
+        return jpaChangeRequestRepository.findFilteredByRequester(requesterId, RequestType.ROOM_TRANSFER, type, status, search, pageable)
                 .map(mapper::toDomain);
     }
 }

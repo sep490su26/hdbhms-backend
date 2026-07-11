@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.changerequest.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.infrastructure.persistence.entity.ChangeRequestEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +18,24 @@ public interface JpaChangeRequestRepository extends JpaRepository<ChangeRequestE
            "AND (:status IS NULL OR c.status = :status) " +
            "AND (:search IS NULL OR c.requestCode LIKE %:search% OR c.title LIKE %:search%)")
     Page<ChangeRequestEntity> findFiltered(
+            @Param("type") RequestType type,
+            @Param("status") RequestStatus status,
+            @Param("search") String search,
+            Pageable pageable);
+
+    @Query("SELECT c FROM ChangeRequestEntity c " +
+           "WHERE (c.requester.id = :requesterId " +
+           "OR (c.requestType = :roomTransferType " +
+           "AND EXISTS (SELECT r.id FROM RoomTransferRequestEntity r " +
+           "WHERE r.id = c.targetId " +
+           "AND (r.requester.user.id = :requesterId " +
+           "OR r.oldContract.primaryTenantProfile.user.id = :requesterId)))) " +
+           "AND (:type IS NULL OR c.requestType = :type) " +
+           "AND (:status IS NULL OR c.status = :status) " +
+           "AND (:search IS NULL OR c.requestCode LIKE %:search% OR c.title LIKE %:search%)")
+    Page<ChangeRequestEntity> findFilteredByRequester(
+            @Param("requesterId") Long requesterId,
+            @Param("roomTransferType") RequestType roomTransferType,
             @Param("type") RequestType type,
             @Param("status") RequestStatus status,
             @Param("search") String search,

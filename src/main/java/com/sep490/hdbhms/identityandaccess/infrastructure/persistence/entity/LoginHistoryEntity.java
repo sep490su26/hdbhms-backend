@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginMethod;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

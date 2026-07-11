@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.notification.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.notification.domain.valueObjects.DeliveryStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.DeliveryStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterType;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingSource;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.ReadingStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingSource;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;

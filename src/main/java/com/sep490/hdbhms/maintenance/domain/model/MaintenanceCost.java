@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.maintenance.domain.model;
 
-import com.sep490.hdbhms.maintenance.domain.valueObjects.CostType;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.CostResponsibility;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.PaidBy;
+import com.sep490.hdbhms.maintenance.domain.value_objects.CostType;
+import com.sep490.hdbhms.maintenance.domain.value_objects.CostResponsibility;
+import com.sep490.hdbhms.maintenance.domain.value_objects.PaidBy;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

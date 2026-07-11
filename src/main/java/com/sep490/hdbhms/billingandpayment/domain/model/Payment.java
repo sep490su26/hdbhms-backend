@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.domain.model;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentProvider;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

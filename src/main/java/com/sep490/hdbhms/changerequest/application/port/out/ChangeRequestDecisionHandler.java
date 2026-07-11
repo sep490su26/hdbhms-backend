@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.changerequest.application.port.out;
 
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 
 public interface ChangeRequestDecisionHandler {
     boolean supports(RequestType requestType);

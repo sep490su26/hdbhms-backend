@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PermissionRequestStatus;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PermissionTargetType;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionTargetType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

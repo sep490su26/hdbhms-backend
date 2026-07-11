@@ -3,7 +3,7 @@ package com.sep490.hdbhms.scheduling.config;
 import com.sep490.hdbhms.scheduling.application.port.out.ExpireRoomHoldPort;
 import com.sep490.hdbhms.scheduling.application.port.out.ScheduledTaskRepository;
 import com.sep490.hdbhms.scheduling.domain.model.ScheduledTask;
-import com.sep490.hdbhms.scheduling.domain.valueObjects.TaskStatus;
+import com.sep490.hdbhms.scheduling.domain.value_objects.TaskStatus;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractLifecycleService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

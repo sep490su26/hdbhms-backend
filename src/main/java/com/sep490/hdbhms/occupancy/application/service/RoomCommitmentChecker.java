@@ -119,9 +119,17 @@ public class RoomCommitmentChecker {
                         FROM room_transfer_requests
                         WHERE target_room_id = ?
                           AND status IN (
+                              'MANAGER_APPROVED',
+                              'WAITING_HOLDER_RESPONSE',
+                              'WAITING_TARGET_HOLDER_APPROVAL',
+                              'WAITING_TENANT_CONFIRMATION',
                               'WAITING_NEW_CONTRACT',
                               'WAITING_CONTRACT_CONFIRMATION',
                               'WAITING_SIGNING',
+                              'WAITING_CONTRACT_SIGNING',
+                              'WAITING_PAYMENT',
+                              'WAITING_TRANSFER_DATE',
+                              'READY_FOR_HANDOVER',
                               'WAITING_EXECUTION'
                           )
                           AND COALESCE(reserved_slots, 0) > 0

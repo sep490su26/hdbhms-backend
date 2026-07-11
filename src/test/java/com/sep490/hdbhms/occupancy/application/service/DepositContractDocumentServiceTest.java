@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
@@ -11,8 +11,8 @@ import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;

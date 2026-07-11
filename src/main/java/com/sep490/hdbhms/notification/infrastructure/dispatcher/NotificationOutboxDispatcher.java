@@ -2,7 +2,7 @@ package com.sep490.hdbhms.notification.infrastructure.dispatcher;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 import com.sep490.hdbhms.notification.infrastructure.processor.NotificationOutboxProcessor;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

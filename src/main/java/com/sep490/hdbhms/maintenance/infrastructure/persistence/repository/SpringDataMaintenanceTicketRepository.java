@@ -2,7 +2,7 @@ package com.sep490.hdbhms.maintenance.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepository;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.MaintenanceTicketStatus;
+import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceTicketEntity;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.jpa.JpaMaintenanceTicketRepository;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.mapper.MaintenanceTicketPersistenceMapper;

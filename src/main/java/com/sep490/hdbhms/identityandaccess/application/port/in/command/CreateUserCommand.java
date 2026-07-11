@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.application.port.in.command;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 

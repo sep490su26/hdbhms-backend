@@ -1,9 +1,9 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginMethod;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.LoginStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.LoginHistoryEntity;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.MaintenanceTicketStatus;
+import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceTicketEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

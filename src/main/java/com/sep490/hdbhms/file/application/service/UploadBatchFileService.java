@@ -4,7 +4,7 @@ import com.sep490.hdbhms.file.application.port.in.command.UploadBatchFileCommand
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadBatchFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.BatchFileResponse;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileMetadataResponse;

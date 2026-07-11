@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.notification.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.notification.domain.valueObjects.Platform;
+import com.sep490.hdbhms.notification.domain.value_objects.Platform;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

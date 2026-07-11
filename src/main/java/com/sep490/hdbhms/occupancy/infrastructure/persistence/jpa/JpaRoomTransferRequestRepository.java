@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomTransferRequestEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface JpaRoomTransferRequestRepository extends JpaRepository<RoomTransferRequestEntity, Long> {
     @Query("""
@@ -48,5 +49,18 @@ public interface JpaRoomTransferRequestRepository extends JpaRepository<RoomTran
             @Param("holderUserId") Long holderUserId
     );
 
-    RoomTransferRequestEntity findByRequestCode(String requestCode);
+    // Find pending source holder nominations for a specific user
+    @Query("""
+            SELECT r FROM RoomTransferRequestEntity r
+            WHERE r.status = :status
+              AND r.nominatedHolderProfile IS NOT NULL
+              AND r.nominatedHolderProfile.user.id = :holderUserId
+            ORDER BY r.createdAt DESC
+            """)
+    List<RoomTransferRequestEntity> findPendingHolderNominations(
+            @Param("status") TransferRequestStatus status,
+            @Param("holderUserId") Long holderUserId
+    );
+
+    Optional<RoomTransferRequestEntity> findByRequestCode(String requestCode);
 }

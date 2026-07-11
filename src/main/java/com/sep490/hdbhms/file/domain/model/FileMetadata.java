@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.file.domain.model;
 
-import com.sep490.hdbhms.file.domain.valueObjects.FileCategory;
+import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.Builder;

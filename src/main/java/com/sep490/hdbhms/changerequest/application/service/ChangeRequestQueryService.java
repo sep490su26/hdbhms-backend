@@ -3,8 +3,8 @@ package com.sep490.hdbhms.changerequest.application.service;
 import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequestQueryUseCase;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestStatsResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -31,6 +31,18 @@ public class ChangeRequestQueryService implements ChangeRequestQueryUseCase {
     @Transactional(readOnly = true)
     public Page<ChangeRequest> getFilteredRequests(RequestType type, RequestStatus status, String search, Pageable pageable) {
         return repository.findFiltered(type, status, search, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ChangeRequest> getFilteredRequestsByRequester(
+            Long requesterId,
+            RequestType type,
+            RequestStatus status,
+            String search,
+            Pageable pageable
+    ) {
+        return repository.findFilteredByRequester(requesterId, type, status, search, pageable);
     }
 
     @Override

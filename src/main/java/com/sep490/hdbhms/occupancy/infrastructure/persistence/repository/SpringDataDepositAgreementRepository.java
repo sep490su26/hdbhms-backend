@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;

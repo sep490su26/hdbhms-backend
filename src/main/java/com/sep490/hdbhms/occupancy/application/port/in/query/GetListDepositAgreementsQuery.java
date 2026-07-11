@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.port.in.query;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.DepositAgreementStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;

@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomHoldStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RoomStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomHoldEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

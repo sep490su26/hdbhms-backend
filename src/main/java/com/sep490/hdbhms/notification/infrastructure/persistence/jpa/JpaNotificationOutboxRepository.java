@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.notification.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 import com.sep490.hdbhms.notification.infrastructure.persistence.entity.NotificationOutboxEntity;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.Modifying;
 
@@ -34,11 +34,38 @@ public interface JpaNotificationOutboxRepository extends JpaRepository<Notificat
 
     Page<NotificationOutboxEntity> findByRecipientUser_IdAndChannelOrderByCreatedAtDesc(Long userId, NotificationChannel channel, Pageable pageable);
 
-    long countByRecipientUser_IdAndIsReadFalse(Long userId);
+    long countByRecipientUser_IdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel);
 
     @Modifying
-    @Query("UPDATE NotificationOutboxEntity n SET n.isRead = true WHERE n.recipientUser.id = :userId AND n.isRead = false")
-    void markAllAsRead(@Param("userId") Long userId);
+    @Query("UPDATE NotificationOutboxEntity n SET n.isRead = true WHERE n.recipientUser.id = :userId AND n.channel = :channel AND n.isRead = false")
+    void markAllAsRead(@Param("userId") Long userId, @Param("channel") NotificationChannel channel);
+
+    @Modifying
+    @Query("""
+            UPDATE NotificationOutboxEntity n
+            SET n.isRead = true,
+                n.readAt = :readAt
+            WHERE n.recipientUser.id = :userId
+              AND n.isRead = false
+            """)
+    void markAllAsRead(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
+
+    @Modifying
+    @Query("""
+            UPDATE NotificationOutboxEntity n
+            SET n.isRead = true,
+                n.readAt = :readAt
+            WHERE n.recipientUser.id = :userId
+              AND n.targetType = :targetType
+              AND n.targetId = :targetId
+              AND n.isRead = false
+            """)
+    void markTargetAsRead(
+            @Param("userId") Long userId,
+            @Param("targetType") String targetType,
+            @Param("targetId") Long targetId,
+            @Param("readAt") LocalDateTime readAt
+    );
 
     @Modifying
     @Query("UPDATE NotificationOutboxEntity n SET n.status = :newStatus WHERE n.id = :id AND n.status = 'PENDING'")

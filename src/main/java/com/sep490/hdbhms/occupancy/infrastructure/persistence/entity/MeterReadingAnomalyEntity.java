@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.AnomalySeverity;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.AnomalyType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.AnomalySeverity;
+import com.sep490.hdbhms.occupancy.domain.value_objects.AnomalyType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.port.out;
 
 import com.sep490.hdbhms.occupancy.domain.model.Meter;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
 
 import java.util.Optional;
 

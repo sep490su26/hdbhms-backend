@@ -1,11 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverItemEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;

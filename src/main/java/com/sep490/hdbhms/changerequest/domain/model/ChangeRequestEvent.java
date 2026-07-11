@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.changerequest.domain.model;
 
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

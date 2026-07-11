@@ -1,11 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantRole;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryItemResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomRentalHistoryResponse;
@@ -168,6 +168,20 @@ public class LeaseContractQueryService {
                             lc.tenant_intention,
                             lc.expected_vacant_date,
                             lc.intention_recorded_at,
+                            tr.room_transfer_request_id AS transfer_request_id,
+                            tr.request_code AS transfer_request_code,
+                            tr.status AS transfer_status,
+                            tr.requested_transfer_date AS transfer_requested_date,
+                            CASE
+                                WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
+                                WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
+                                ELSE NULL
+                            END AS transfer_contract_role,
+                            CASE
+                                WHEN tr.room_transfer_request_id IS NULL THEN FALSE
+                                WHEN tr.status = 'EXECUTED' THEN FALSE
+                                ELSE TRUE
+                            END AS transfer_activation_locked,
                             (
                                 SELECT renewed.lease_contract_id
                                 FROM lease_contracts renewed
@@ -239,6 +253,8 @@ public class LeaseContractQueryService {
                         LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
                         LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        LEFT JOIN room_transfer_requests tr
+                          ON tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id
                         WHERE lc.deleted_at IS NULL
                           AND lc.lease_contract_id = ?
                           AND p.property_id = ?
@@ -382,6 +398,20 @@ public class LeaseContractQueryService {
                             lc.tenant_intention,
                             lc.expected_vacant_date,
                             lc.intention_recorded_at,
+                            tr.room_transfer_request_id AS transfer_request_id,
+                            tr.request_code AS transfer_request_code,
+                            tr.status AS transfer_status,
+                            tr.requested_transfer_date AS transfer_requested_date,
+                            CASE
+                                WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
+                                WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
+                                ELSE NULL
+                            END AS transfer_contract_role,
+                            CASE
+                                WHEN tr.room_transfer_request_id IS NULL THEN FALSE
+                                WHEN tr.status = 'EXECUTED' THEN FALSE
+                                ELSE TRUE
+                            END AS transfer_activation_locked,
                             (
                                 SELECT renewed.lease_contract_id
                                 FROM lease_contracts renewed
@@ -453,6 +483,8 @@ public class LeaseContractQueryService {
                         LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
                         LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        LEFT JOIN room_transfer_requests tr
+                          ON tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id
                         WHERE lc.deleted_at IS NULL
                           AND lc.lease_contract_id = ?
                           AND p.property_id = ?
@@ -681,6 +713,12 @@ public class LeaseContractQueryService {
                 rs.getString("tenant_intention"),
                 toLocalDate(rs, "expected_vacant_date"),
                 toLocalDateTime(rs, "intention_recorded_at"),
+                getLongOrNull(rs, "transfer_request_id"),
+                rs.getString("transfer_request_code"),
+                rs.getString("transfer_status"),
+                toLocalDate(rs, "transfer_requested_date"),
+                rs.getString("transfer_contract_role"),
+                rs.getBoolean("transfer_activation_locked"),
                 renewedContractId == null && List.of(
                         LeaseStatus.ACTIVE,
                         LeaseStatus.EXPIRING_SOON,
@@ -740,6 +778,12 @@ public class LeaseContractQueryService {
                 details.tenantIntention(),
                 details.expectedVacantDate(),
                 details.intentionRecordedAt(),
+                details.transferRequestId(),
+                details.transferRequestCode(),
+                details.transferStatus(),
+                details.transferRequestedDate(),
+                details.transferContractRole(),
+                details.transferActivationLocked(),
                 details.canRenew(),
                 details.canLiquidate(),
                 accountProvisioning.canSend(),

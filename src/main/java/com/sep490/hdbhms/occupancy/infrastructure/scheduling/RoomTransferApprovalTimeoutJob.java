@@ -22,5 +22,9 @@ public class RoomTransferApprovalTimeoutJob {
         if (expiredCount > 0) {
             log.info("Expired {} room transfer requests waiting for target holder approval", expiredCount);
         }
+        int nominationExpiredCount = roomTransferUseCase.expireSourceHolderNominations();
+        if (nominationExpiredCount > 0) {
+            log.info("Expired {} room transfer source holder nominations", nominationExpiredCount);
+        }
     }
 }

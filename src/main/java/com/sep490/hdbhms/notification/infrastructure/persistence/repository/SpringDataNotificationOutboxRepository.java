@@ -2,7 +2,8 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.valueObjects.OutboxStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 import com.sep490.hdbhms.notification.infrastructure.persistence.jpa.JpaNotificationOutboxRepository;
 import com.sep490.hdbhms.notification.infrastructure.persistence.mapper.NotificationOutboxPersistenceMapper;
 import lombok.AccessLevel;
@@ -49,13 +50,13 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
     }
 
     @Override
-    public org.springframework.data.domain.Page<NotificationOutbox> findByRecipientUserIdAndChannelOrderByCreatedAtDesc(Long userId, com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel channel, org.springframework.data.domain.Pageable pageable) {
+    public org.springframework.data.domain.Page<NotificationOutbox> findByRecipientUserIdAndChannelOrderByCreatedAtDesc(Long userId, com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel channel, org.springframework.data.domain.Pageable pageable) {
         return jpaNotificationOutboxRepository.findByRecipientUser_IdAndChannelOrderByCreatedAtDesc(userId, channel, pageable)
                 .map(notificationOutboxPersistenceMapper::toDomain);
     }
 
     @Override
-    public List<NotificationOutbox> findNextNotificationsCursor(Long userId, com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel channel, long after, int limit) {
+    public List<NotificationOutbox> findNextNotificationsCursor(Long userId, com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel channel, long after, int limit) {
         return jpaNotificationOutboxRepository.findNextNotificationsCursor(userId, channel, after, org.springframework.data.domain.PageRequest.of(0, limit))
                 .stream()
                 .map(notificationOutboxPersistenceMapper::toDomain)
@@ -63,14 +64,26 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
     }
 
     @Override
-    public long countByRecipientUserIdAndIsReadFalse(Long userId) {
-        return jpaNotificationOutboxRepository.countByRecipientUser_IdAndIsReadFalse(userId);
+    public long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel) {
+        return jpaNotificationOutboxRepository.countByRecipientUser_IdAndChannelAndIsReadFalse(userId, channel);
     }
 
     @Override
     @Transactional
-    public void markAllAsRead(Long userId) {
-        jpaNotificationOutboxRepository.markAllAsRead(userId);
+    public void markAllAsRead(Long userId, NotificationChannel channel) {
+        jpaNotificationOutboxRepository.markAllAsRead(userId, channel);
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsRead(Long userId, LocalDateTime readAt) {
+        jpaNotificationOutboxRepository.markAllAsRead(userId, readAt);
+    }
+
+    @Override
+    @Transactional
+    public void markTargetAsRead(Long userId, String targetType, Long targetId, LocalDateTime readAt) {
+        jpaNotificationOutboxRepository.markTargetAsRead(userId, targetType, targetId, readAt);
     }
 
     @Override

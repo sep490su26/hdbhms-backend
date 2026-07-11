@@ -4,9 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
@@ -89,7 +90,8 @@ public class TenantInvoiceController {
     }
 
     private boolean syncPayOSPayment(PaymentIntentEntity paymentIntent) {
-        if (!StringUtils.hasText(paymentIntent.getProviderOrderCode())) {
+        if (paymentIntent.getProvider() != PaymentIntentProvider.PAYOS
+                || !StringUtils.hasText(paymentIntent.getProviderOrderCode())) {
             return false;
         }
         try {
@@ -116,9 +118,13 @@ public class TenantInvoiceController {
                     .rawPayload(objectMapper.writeValueAsString(paymentLink))
                     .build());
             return true;
+        } catch (vn.payos.exception.APIException exception) {
+            log.debug("PayOS payment link not available for tenant invoice sync. paymentIntentId={}, providerOrderCode={}, message={}",
+                    paymentIntent.getId(), paymentIntent.getProviderOrderCode(), exception.getMessage());
+            return false;
         } catch (Exception exception) {
-            log.warn("Could not sync tenant invoice PayOS payment. paymentIntentId={}, providerOrderCode={}",
-                    paymentIntent.getId(), paymentIntent.getProviderOrderCode(), exception);
+            log.warn("Could not sync tenant invoice PayOS payment. paymentIntentId={}, providerOrderCode={}, message={}",
+                    paymentIntent.getId(), paymentIntent.getProviderOrderCode(), exception.getMessage(), exception);
             return false;
         }
     }

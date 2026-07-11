@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.maintenance.domain.model;
 
-import com.sep490.hdbhms.maintenance.domain.valueObjects.MaintenanceTicketStatus;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.Priority;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.TicketScope;
+import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
+import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
+import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.Builder;

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.maintenance.domain.model;
 
-import com.sep490.hdbhms.maintenance.domain.valueObjects.AttachmentPhase;
+import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

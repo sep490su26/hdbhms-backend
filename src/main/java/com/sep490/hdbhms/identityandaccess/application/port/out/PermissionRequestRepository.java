@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.identityandaccess.application.port.out;
 
 import com.sep490.hdbhms.identityandaccess.domain.model.PermissionRequest;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PermissionRequestStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

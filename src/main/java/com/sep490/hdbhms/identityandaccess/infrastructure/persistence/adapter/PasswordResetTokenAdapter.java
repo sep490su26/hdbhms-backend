@@ -7,7 +7,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetEma
 import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetTokenGenerator;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetTokenPort;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.ResetPasswordConfig;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

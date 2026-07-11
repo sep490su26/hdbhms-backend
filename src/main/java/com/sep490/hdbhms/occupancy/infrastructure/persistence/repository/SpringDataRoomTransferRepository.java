@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.RoomTransferRepository;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomTransferRequestRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.RoomTransferRequestPersistenceMapper;
 import lombok.AccessLevel;
@@ -39,6 +39,12 @@ public class SpringDataRoomTransferRepository implements RoomTransferRepository 
     }
 
     @Override
+    public Optional<RoomTransferRequest> findByRequestCode(String requestCode) {
+        return jpaRoomTransferRequestRepository.findByRequestCode(requestCode)
+                .map(roomTransferRequestPersistenceMapper::toDomain);
+    }
+
+    @Override
     public List<RoomTransferRequest> findByStatusAndUpdatedAtBefore(TransferRequestStatus status, LocalDateTime updatedBefore) {
         return jpaRoomTransferRequestRepository.findByStatusAndUpdatedAtBefore(status, updatedBefore)
                 .stream()
@@ -50,6 +56,15 @@ public class SpringDataRoomTransferRepository implements RoomTransferRepository 
     public List<RoomTransferRequest> findPendingTargetHolderApprovals(Long holderUserId) {
         return jpaRoomTransferRequestRepository.findPendingTargetHolderApprovals(
                         TransferRequestStatus.WAITING_TARGET_HOLDER_APPROVAL, holderUserId)
+                .stream()
+                .map(roomTransferRequestPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<RoomTransferRequest> findPendingHolderNominations(Long holderUserId) {
+        return jpaRoomTransferRequestRepository.findPendingHolderNominations(
+                        TransferRequestStatus.WAITING_HOLDER_RESPONSE, holderUserId)
                 .stream()
                 .map(roomTransferRequestPersistenceMapper::toDomain)
                 .toList();

@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.HandoverType;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.AssetCondition;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;

@@ -2,7 +2,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.adapter;
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.SendPreCreatedAccountPort;
 import com.sep490.hdbhms.identityandaccess.domain.event.PreCreatedAccountNotificationRequestedEvent;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

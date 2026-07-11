@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

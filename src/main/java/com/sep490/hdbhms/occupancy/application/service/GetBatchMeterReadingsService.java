@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.occupancy.domain.policy.ReadingWindow;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingBatchEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -11,7 +11,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomReposit
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.BatchMeterReadingStatusResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.MeterReadingBatchHistoryResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.UtilityDashboardResponse;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.BatchStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.BatchStatus;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

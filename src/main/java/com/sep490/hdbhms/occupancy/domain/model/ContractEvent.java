@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.ContractEventType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ContractEventType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

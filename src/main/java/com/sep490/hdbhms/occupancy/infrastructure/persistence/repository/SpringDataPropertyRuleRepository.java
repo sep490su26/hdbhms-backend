@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.occupancy.application.port.out.PropertyRuleRepository;
 import com.sep490.hdbhms.occupancy.domain.model.PropertyRule;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.RuleStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RuleStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRuleRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.PropertyRulePersistenceMapper;
 import lombok.AccessLevel;

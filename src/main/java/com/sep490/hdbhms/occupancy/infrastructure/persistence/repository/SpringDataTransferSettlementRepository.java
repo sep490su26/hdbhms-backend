@@ -26,4 +26,17 @@ public class SpringDataTransferSettlementRepository implements TransferSettlemen
                 )
         );
     }
+
+    @Override
+    public java.util.Optional<TransferSettlement> findLatestByTransferRequestId(Long transferRequestId) {
+        return jpaTransferSettlementRepository.findFirstByTransferRequest_IdOrderByIdDesc(transferRequestId)
+                .map(transferSettlementPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public java.util.Optional<TransferSettlement> findByTransferDifferenceInvoiceId(Long transferDifferenceInvoiceId) {
+        return jpaTransferSettlementRepository
+                .findFirstByTransferDifferenceInvoice_IdOrderByIdDesc(transferDifferenceInvoiceId)
+                .map(transferSettlementPersistenceMapper::toDomain);
+    }
 }

@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

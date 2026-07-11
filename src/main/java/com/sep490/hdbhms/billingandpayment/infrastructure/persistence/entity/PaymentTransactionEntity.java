@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;

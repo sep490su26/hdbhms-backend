@@ -1,8 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response;
 
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentProvider;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 
 import java.time.LocalDateTime;
 

@@ -7,9 +7,9 @@ import com.sep490.hdbhms.billingandpayment.application.port.in.query.GetPaymentI
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.GetPaymentIntentUseCase;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentStatus;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.TransactionProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

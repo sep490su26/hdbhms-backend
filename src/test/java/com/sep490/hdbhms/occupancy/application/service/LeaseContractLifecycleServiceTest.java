@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

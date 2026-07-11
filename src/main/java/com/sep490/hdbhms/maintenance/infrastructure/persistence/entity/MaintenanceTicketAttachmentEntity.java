@@ -2,7 +2,7 @@ package com.sep490.hdbhms.maintenance.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
-import com.sep490.hdbhms.maintenance.domain.valueObjects.AttachmentPhase;
+import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;

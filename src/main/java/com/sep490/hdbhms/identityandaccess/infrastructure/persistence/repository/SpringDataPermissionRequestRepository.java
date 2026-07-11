@@ -2,7 +2,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.persistence.repositor
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.PermissionRequestRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.PermissionRequest;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.PermissionRequestStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PermissionRequestEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPermissionRequestRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.PermissionRequestPersistenceMapper;

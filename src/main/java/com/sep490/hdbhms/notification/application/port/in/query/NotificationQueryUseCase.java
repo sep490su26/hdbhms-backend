@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.notification.application.port.in.query;
 
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.valueObjects.NotificationChannel;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -12,5 +12,5 @@ public interface NotificationQueryUseCase {
 
     List<NotificationOutbox> getNotificationsMobile(Long userId, NotificationChannel channel, long after, int limit);
 
-    long getUnreadCount(Long userId);
+    long getUnreadCount(Long userId, NotificationChannel channel);
 }

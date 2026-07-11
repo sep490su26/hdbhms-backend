@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.AccountStatus;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -31,5 +31,14 @@ public class AccountSpecifications {
         return (root, query, criteriaBuilder) ->
                 role == null ? criteriaBuilder.conjunction() :
                         criteriaBuilder.equal(root.get("role"), role);
+    }
+
+    public static Specification<UserEntity> rolesIn(List<Role> roles) {
+        return (root, query, criteriaBuilder) -> {
+            if (roles == null || roles.isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+            return root.get("role").in(roles);
+        };
     }
 }

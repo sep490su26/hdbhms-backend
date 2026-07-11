@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.maintenance.domain.valueObjects.AttachmentPhase;
+import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 

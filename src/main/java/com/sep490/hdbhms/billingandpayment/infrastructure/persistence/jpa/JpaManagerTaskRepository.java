@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa;
 
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.ManagerTaskStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.ManagerTaskStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.ManagerTaskEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 

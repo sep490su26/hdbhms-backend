@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.domain.model;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Gender;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -75,6 +75,11 @@ public class PersonProfile {
 
     public void linkUser(Long userId) {
         this.userId = userId;
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void setPortraitFileId(Long portraitFileId) {
+        this.portraitFileId = portraitFileId;
         updatedAt = LocalDateTime.now();
     }
 }

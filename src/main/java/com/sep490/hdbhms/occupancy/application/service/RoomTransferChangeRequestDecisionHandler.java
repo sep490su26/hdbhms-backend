@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisionHandler;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.valueObjects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ApproveTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class RoomTransferChangeRequestDecisionHandler implements ChangeRequestDe
 
     @Override
     public void onApproved(ChangeRequest request, Long managerId) {
-        roomTransferUseCase.approveTransfer(new ApproveTransferCommand(request.getTargetId(), managerId));
+        roomTransferUseCase.approveTransfer(new ApproveTransferCommand(request.getTargetId(), managerId, null));
     }
 
     @Override

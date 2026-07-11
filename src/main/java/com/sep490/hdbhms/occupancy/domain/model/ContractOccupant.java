@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantRole;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.OccupantStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;

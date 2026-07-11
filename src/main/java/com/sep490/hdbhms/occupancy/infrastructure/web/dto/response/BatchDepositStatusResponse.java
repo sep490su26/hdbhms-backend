@@ -2,8 +2,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.sep490.hdbhms.billingandpayment.domain.valueObjects.PaymentIntentStatus;
-import com.sep490.hdbhms.occupancy.domain.valueObjects.DepositBatchStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.DepositBatchStatus;
 
 import java.util.List;
 

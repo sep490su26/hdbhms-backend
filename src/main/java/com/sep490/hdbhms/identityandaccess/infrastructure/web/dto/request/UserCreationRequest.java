@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.shared.validator.FullName;
 import com.sep490.hdbhms.shared.validator.VietnamesePhone;
 import jakarta.validation.constraints.Email;

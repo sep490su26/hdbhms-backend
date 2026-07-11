@@ -7,7 +7,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.UserModification
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PasswordResetTokenPort;
 import com.sep490.hdbhms.identityandaccess.domain.model.UserModificationHistory;
-import com.sep490.hdbhms.identityandaccess.domain.valueObjects.ModificationType;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.ModificationType;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
