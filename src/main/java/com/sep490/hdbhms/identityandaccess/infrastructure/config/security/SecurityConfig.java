@@ -38,6 +38,7 @@ public class SecurityConfig {
 
     TokenAuthenticationFilter tokenAuthenticationFilter;
     static final String[] PUBLIC_POST_URLS = {
+            "/api/v1/**",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
             "/api/v1/auth/introspect",
@@ -50,11 +51,13 @@ public class SecurityConfig {
             "/api/v1/deposit/contracts/preview",
             "/api/v1/deposit/payments/*/cancel",
             "/api/v1/deposit/payments/*/expire",
+            "/api/v1/mock/payments/*/success",
             "/api/v1/visit-requests",
             "/api/v1/webhook/**",
     };
 
     static final String[] PUBLIC_GET_URLS = {
+            "/api/v1/**",
             "/room-samples/**",
             "/api/v1/rooms",
             "/api/v1/rooms/*",
