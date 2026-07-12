@@ -42,5 +42,6 @@ public class TenantInvoiceResponse {
     String accountNumber;
     String accountName;
     String transferDescription;
+    Boolean hasOpenMeterReadingReview;
     List<TenantInvoiceLineResponse> lines;
 }

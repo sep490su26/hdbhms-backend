@@ -5,6 +5,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.Use
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingSource;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.MeterReadingReviewStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -100,4 +101,13 @@ public class MeterReadingEntity {
 
     @Column(name = "active_reading_key", insertable = false, updatable = false, length = 255)
     String activeReadingKey;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_status", nullable = false, length = 50)
+    @Builder.Default
+    MeterReadingReviewStatus reviewStatus = MeterReadingReviewStatus.NONE;
+
+    @Column(name = "review_count", nullable = false)
+    @Builder.Default
+    Integer reviewCount = 0;
 }
