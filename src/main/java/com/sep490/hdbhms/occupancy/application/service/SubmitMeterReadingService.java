@@ -43,6 +43,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
     @Override
     @Transactional
     public void submitSingleReading(SubmitSingleMeterReadingCommand command) {
+        String readingPeriod = MeterReadingPeriod.normalize(command.readingPeriod());
         User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         Room room = roomRepository.findById(command.roomId())
@@ -50,18 +51,19 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
         // Submit electricity reading
         submitMeterValue(room, MeterType.ELECTRICITY, command.electricityValue(), 
-                command.readingPeriod(), command.readingDate(), command.electricityPhotoId(), 
+                readingPeriod, command.readingDate(), command.electricityPhotoId(),
                 null, currentUser);
 
         // Submit water reading
         submitMeterValue(room, MeterType.WATER, command.waterValue(), 
-                command.readingPeriod(), command.readingDate(), command.waterPhotoId(), 
+                readingPeriod, command.readingDate(), command.waterPhotoId(),
                 null, currentUser);
     }
 
     @Override
     @Transactional
     public void submitBatchReadings(SubmitBatchMeterReadingsCommand command) {
+        String readingPeriod = MeterReadingPeriod.normalize(command.readingPeriod());
         User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         Property property = propertyRepository.findById(command.propertyId())
@@ -70,7 +72,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         // Create the batch record
         MeterReadingBatch batch = MeterReadingBatch.builder()
                 .propertyId(property.getId())
-                .readingPeriod(command.readingPeriod())
+                .readingPeriod(readingPeriod)
 //                .source(BatchSource.MANUAL)
                 .status(BatchStatus.CONFIRMED)
                 .createdById(currentUser.getId())
@@ -89,11 +91,11 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             }
 
             submitMeterValue(room, MeterType.ELECTRICITY, input.electricityValue(), 
-                    command.readingPeriod(), command.readingDate(), input.electricityPhotoId(), 
+                    readingPeriod, command.readingDate(), input.electricityPhotoId(),
                     batch, currentUser);
 
             submitMeterValue(room, MeterType.WATER, input.waterValue(), 
-                    command.readingPeriod(), command.readingDate(), input.waterPhotoId(), 
+                    readingPeriod, command.readingDate(), input.waterPhotoId(),
                     batch, currentUser);
         }
     }
@@ -145,6 +147,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
     @Override
     @Transactional
     public Long startBatch(String period, Long propertyId) {
+        String readingPeriod = MeterReadingPeriod.normalize(period);
         User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         Property property = propertyRepository.findById(propertyId)
@@ -153,7 +156,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         // Check if draft or confirmed batch already exists for this period
         // For simplicity, we just check if any batch exists
         var existingBatches = meterReadingBatchRepository.findByProperty_IdOrderByReadingPeriodDesc(propertyId).stream()
-                .filter(b -> b.getReadingPeriod().equals(period))
+                .filter(b -> MeterReadingPeriod.normalize(b.getReadingPeriod()).equals(readingPeriod))
                 .toList();
 
         if (!existingBatches.isEmpty()) {
@@ -162,7 +165,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
         MeterReadingBatch batch = MeterReadingBatch.builder()
                 .propertyId(property.getId())
-                .readingPeriod(period)
+                .readingPeriod(readingPeriod)
                 .status(BatchStatus.DRAFT)
                 .createdById(currentUser.getId())
                 .build();

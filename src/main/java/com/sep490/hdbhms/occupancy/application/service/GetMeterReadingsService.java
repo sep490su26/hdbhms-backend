@@ -9,8 +9,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,19 +21,15 @@ public class GetMeterReadingsService {
 
     JpaMeterReadingRepository meterReadingRepository;
 
-    static final DateTimeFormatter PERIOD_FMT = DateTimeFormatter.ofPattern("MM/yyyy");
-
     /**
      * Returns readings grouped by room.
      *
-     * @param period     MM/yyyy – if null, defaults to current month
+     * @param period     yyyy-MM or MM/yyyy; if null, defaults to current month
      * @param propertyId optional property filter
      */
     @Transactional(readOnly = true)
     public MeterReadingListResponse getReadings(String period, Long propertyId) {
-        String resolvedPeriod = (period != null && !period.isBlank())
-                ? period
-                : LocalDate.now().format(PERIOD_FMT);
+        String resolvedPeriod = MeterReadingPeriod.normalize(period);
 
         List<MeterReadingEntity> readings = meterReadingRepository
                 .findByPeriodAndOptionalProperty(resolvedPeriod, propertyId);
