@@ -21,8 +21,8 @@ public class NotificationTemplateDefaults {
     private final List<Definition> definitions = List.of(
             definition(
                     "ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED",
-                    "De cu nguoi dai dien phong moi",
-                    "Gui cho nguoi duoc de cu lam holder moi khi holder hien tai chuyen di.",
+                    "Đề cử người đại diện phòng mới",
+                    "Gửi cho người được đề cử làm người đại diện phòng mới khi người hiện tại chuyển đi.",
                     "ROOM_TRANSFER",
                     variables(
                             "requestId",
@@ -43,8 +43,8 @@ public class NotificationTemplateDefaults {
                             "nominatedHolderProfileId", 41L,
                             "oldRoomId", 104L,
                             "targetRoomId", 206L,
-                            "oldRoomName", "Phong 104",
-                            "targetRoomName", "Phong 206",
+                            "oldRoomName", "Phòng 104",
+                            "targetRoomName", "Phòng 206",
                             "requestedTransferDate", "2026-07-07",
                             "expectedTransferDate", "2026-07-07"
                     ),
@@ -53,8 +53,8 @@ public class NotificationTemplateDefaults {
             ),
             definition(
                     "ROOM_TRANSFER_TARGET_HOLDER_APPROVAL_REQUESTED",
-                    "Xac nhan nguoi chuyen vao phong",
-                    "Gui cho holder phong dich khi co nguoi muon chuyen vao phong cua ho.",
+                    "Xác nhận người chuyển vào phòng",
+                    "Gửi cho người đại diện phòng đích khi có người muốn chuyển vào phòng của họ.",
                     "ROOM_TRANSFER",
                     variables(
                             "requestId",
@@ -74,8 +74,8 @@ public class NotificationTemplateDefaults {
                             "requesterUserId", 12L,
                             "oldRoomId", 104L,
                             "targetRoomId", 206L,
-                            "oldRoomName", "Phong 104",
-                            "targetRoomName", "Phong 206",
+                            "oldRoomName", "Phòng 104",
+                            "targetRoomName", "Phòng 206",
                             "targetContractId", 91L,
                             "requestedTransferDate", "2026-07-07",
                             "expectedTransferDate", "2026-07-07"
@@ -85,8 +85,8 @@ public class NotificationTemplateDefaults {
             ),
             definition(
                     "ROOM_TRANSFER_MANAGER_ACTION_REQUIRED",
-                    "Yeu cau chuyen phong can quan ly xu ly",
-                    "Gui cho manager/owner khi request chuyen phong can thao tac tiep theo.",
+                    "Yêu cầu chuyển phòng cần quản lý xử lý",
+                    "Gửi cho quản lý hoặc chủ trọ khi yêu cầu chuyển phòng cần thao tác tiếp theo.",
                     "ROOM_TRANSFER",
                     variables(
                             "requestId",
@@ -104,11 +104,11 @@ public class NotificationTemplateDefaults {
                             "requestId", 680965088362752L,
                             "requestCode", "TR-680965088362752",
                             "actionType", "UPLOAD_SIGNED_CONTRACT",
-                            "actionLabel", "Tai ban hop dong da ky truc tiep",
+                            "actionLabel", "Tải bản hợp đồng đã ký trực tiếp",
                             "oldRoomId", 104L,
                             "targetRoomId", 206L,
-                            "oldRoomName", "Phong 104",
-                            "targetRoomName", "Phong 206",
+                            "oldRoomName", "Phòng 104",
+                            "targetRoomName", "Phòng 206",
                             "requestedTransferDate", "2026-07-07",
                             "expectedTransferDate", "2026-07-07"
                     ),
@@ -117,8 +117,8 @@ public class NotificationTemplateDefaults {
             ),
             definition(
                     "TENANT_PROFILE_ACCESS_REQUESTED",
-                    "Yeu cau xem ho so khach thue",
-                    "Gui cho owner khi manager yeu cau quyen xem ho so khach thue.",
+                    "Yêu cầu xem hồ sơ khách thuê",
+                    "Gửi cho chủ trọ khi quản lý yêu cầu quyền xem hồ sơ khách thuê.",
                     "CHANGE_REQUEST",
                     variables(
                             "requestId",
@@ -134,19 +134,19 @@ public class NotificationTemplateDefaults {
                             "requestId", 680965088362753L,
                             "profileId", 41L,
                             "managerId", 9L,
-                            "managerName", "Tran Thi Quan Ly",
-                            "tenantName", "Nguyen Van A",
-                            "roomName", "Phong 104",
-                            "propertyName", "Nha tro A",
-                            "reason", "Can kiem tra ho so hop dong"
+                            "managerName", "Trần Thị Quản Lý",
+                            "tenantName", "Nguyễn Văn A",
+                            "roomName", "Phòng 104",
+                            "propertyName", "Nhà trọ A",
+                            "reason", "Cần kiểm tra hồ sơ hợp đồng"
                     ),
                     "Yêu cầu xem hồ sơ khách thuê",
                     "[[${managerName}]] yêu cầu xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]. Lý do: [[${reason}]]."
             ),
             definition(
                     "TENANT_PROFILE_ACCESS_APPROVED",
-                    "Da duoc duyet xem ho so",
-                    "Gui cho manager khi owner duyet quyen xem ho so khach thue.",
+                    "Đã được duyệt xem hồ sơ",
+                    "Gửi cho quản lý khi chủ trọ duyệt quyền xem hồ sơ khách thuê.",
                     "TENANT_PROFILE",
                     variables(
                             "requestId",
@@ -160,17 +160,17 @@ public class NotificationTemplateDefaults {
                             "requestId", 680965088362753L,
                             "profileId", 41L,
                             "managerId", 9L,
-                            "tenantName", "Nguyen Van A",
-                            "roomName", "Phong 104",
-                            "propertyName", "Nha tro A"
+                            "tenantName", "Nguyễn Văn A",
+                            "roomName", "Phòng 104",
+                            "propertyName", "Nhà trọ A"
                     ),
                     "Đã được duyệt xem hồ sơ",
                     "Chủ trọ đã duyệt quyền xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]."
             ),
             definition(
                     "TENANT_PROFILE_ACCESS_REJECTED",
-                    "Yeu cau xem ho so bi tu choi",
-                    "Gui cho manager khi owner tu choi quyen xem ho so khach thue.",
+                    "Yêu cầu xem hồ sơ bị từ chối",
+                    "Gửi cho quản lý khi chủ trọ từ chối quyền xem hồ sơ khách thuê.",
                     "TENANT_PROFILE",
                     variables(
                             "requestId",
@@ -185,18 +185,18 @@ public class NotificationTemplateDefaults {
                             "requestId", 680965088362753L,
                             "profileId", 41L,
                             "managerId", 9L,
-                            "tenantName", "Nguyen Van A",
-                            "roomName", "Phong 104",
-                            "propertyName", "Nha tro A",
-                            "resolutionNote", "Chua du dieu kien truy cap"
+                            "tenantName", "Nguyễn Văn A",
+                            "roomName", "Phòng 104",
+                            "propertyName", "Nhà trọ A",
+                            "resolutionNote", "Chưa đủ điều kiện truy cập"
                     ),
                     "Yêu cầu xem hồ sơ bị từ chối",
                     "Chủ trọ đã từ chối yêu cầu xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]. Ghi chú: [[${resolutionNote}]]."
             ),
             definition(
                     "DEBT_DIRECT_VISIT_REQUIRED",
-                    "Can gap truc tiep khach thue no qua han",
-                    "Gui cho owner/manager khi phong no qua han can gap truc tiep.",
+                    "Cần gặp trực tiếp khách thuê nợ quá hạn",
+                    "Gửi cho chủ trọ hoặc quản lý khi phòng nợ quá hạn cần gặp trực tiếp.",
                     "MANAGER_TASK",
                     variables(
                             "roomName",
@@ -205,8 +205,8 @@ public class NotificationTemplateDefaults {
                             "dueDate"
                     ),
                     sampleData(
-                            "roomName", "Phong 104",
-                            "propertyName", "Nha tro A",
+                            "roomName", "Phòng 104",
+                            "propertyName", "Nhà trọ A",
                             "totalDebt", 3500000L,
                             "dueDate", "2026-07-10"
                     ),
@@ -215,8 +215,8 @@ public class NotificationTemplateDefaults {
             ),
             definition(
                     "PRE_CREATED_ACCOUNT_NOTIFICATION",
-                    "Thong bao tai khoan khach thue tao san",
-                    "Gui email/SMS thong tin tai khoan tao san cho khach thue.",
+                    "Thông báo tài khoản khách thuê tạo sẵn",
+                    "Gửi Email/SMS thông tin tài khoản tạo sẵn cho khách thuê.",
                     "TENANT_ACCOUNT_PROVISIONING",
                     variables(
                             "contractCode",
@@ -233,9 +233,9 @@ public class NotificationTemplateDefaults {
                     ),
                     sampleData(
                             "contractCode", "HD-2026-001",
-                            "tenantName", "Nguyen Van A",
-                            "propertyName", "Nha tro A",
-                            "roomName", "Phong 104",
+                            "tenantName", "Nguyễn Văn A",
+                            "propertyName", "Nhà trọ A",
+                            "roomName", "Phòng 104",
                             "loginIdentifier", "tenant@example.com",
                             "supportContact", "0900000000",
                             "contractId", 91L,

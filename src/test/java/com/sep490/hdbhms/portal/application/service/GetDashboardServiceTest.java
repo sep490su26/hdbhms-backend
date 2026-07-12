@@ -14,12 +14,14 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRep
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.portal.application.port.in.query.GetDashboardQuery;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.lang.reflect.Proxy;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 class GetDashboardServiceTest {
 
@@ -90,7 +92,7 @@ class GetDashboardServiceTest {
                 JpaRolePromotionRepository.class,
                 (method, args) -> promotionResults.get(method)
         );
-        return new GetDashboardService(properties, floors, rooms, promotions);
+        return new GetDashboardService(properties, floors, rooms, promotions, mock(JdbcTemplate.class));
     }
 
     private <T> T proxy(Class<T> type, InvocationResult results) {
