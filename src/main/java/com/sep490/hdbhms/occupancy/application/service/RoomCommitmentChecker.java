@@ -59,7 +59,7 @@ public class RoomCommitmentChecker {
                         ORDER BY
                           CASE status WHEN 'EXPIRING_SOON' THEN 0 WHEN 'ACTIVE' THEN 1 ELSE 2 END,
                           end_date ASC,
-                          id DESC
+                          lease_contract_id DESC
                         LIMIT 1
                         """,
                 rs -> rs.next() ? Optional.of(rs.getDate("expected_vacant_date").toLocalDate()) : Optional.empty(),
@@ -86,7 +86,7 @@ public class RoomCommitmentChecker {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM rooms
-                        WHERE id = ?
+                        WHERE room_id = ?
                           AND current_status = 'RESERVED'
                           AND deleted_at IS NULL
                         """,
@@ -103,7 +103,7 @@ public class RoomCommitmentChecker {
                         FROM deposit_agreements da
                         WHERE da.room_id = ?
                           AND da.status IN ('PENDING_PAYMENT', 'PAID', 'CONFIRMED')
-                          AND (? IS NULL OR da.id <> ?)
+                          AND (? IS NULL OR da.deposit_agreement_id <> ?)
                         """,
                 Integer.class,
                 roomId,
@@ -118,12 +118,39 @@ public class RoomCommitmentChecker {
                         SELECT COUNT(*)
                         FROM room_transfer_requests
                         WHERE target_room_id = ?
-                          AND status = 'APPROVED'
+                          AND status IN (
+                              'MANAGER_APPROVED',
+                              'WAITING_HOLDER_RESPONSE',
+                              'WAITING_TARGET_HOLDER_APPROVAL',
+                              'WAITING_TENANT_CONFIRMATION',
+                              'WAITING_NEW_CONTRACT',
+                              'WAITING_CONTRACT_CONFIRMATION',
+                              'WAITING_SIGNING',
+                              'WAITING_CONTRACT_SIGNING',
+                              'WAITING_PAYMENT',
+                              'WAITING_TRANSFER_DATE',
+                              'READY_FOR_HANDOVER',
+                              'WAITING_EXECUTION'
+                          )
+                          AND COALESCE(reserved_slots, 0) > 0
+                          AND (reservation_expires_at IS NULL OR reservation_expires_at >= ?)
+                        """,
+                Integer.class,
+                roomId,
+                LocalDateTime.now()
+        );
+        Integer currentTransferReservationCount = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM rooms
+                        WHERE room_id = ?
+                          AND current_status = 'RESERVED_FOR_TRANSFER'
+                          AND deleted_at IS NULL
                         """,
                 Integer.class,
                 roomId
         );
-        return count != null && count > 0;
+        return (count != null && count > 0)
+                || (currentTransferReservationCount != null && currentTransferReservationCount > 0);
     }
 
     private boolean hasFutureContract(Long roomId, Long currentContractId) {
@@ -131,7 +158,7 @@ public class RoomCommitmentChecker {
                         SELECT COUNT(*)
                         FROM lease_contracts
                         WHERE room_id = ?
-                          AND id <> ?
+                          AND lease_contract_id <> ?
                           AND deleted_at IS NULL
                           AND status IN ('DRAFT', 'PENDING_SIGNATURE')
                         """,
@@ -146,7 +173,7 @@ public class RoomCommitmentChecker {
         return jdbcTemplate.query("""
                         SELECT deposit_agreement_id
                         FROM lease_contracts
-                        WHERE id = ?
+                        WHERE lease_contract_id = ?
                         LIMIT 1
                         """,
                 rs -> rs.next() ? rs.getObject("deposit_agreement_id", Long.class) : null,

@@ -1,12 +1,17 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
+import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
+import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
@@ -23,6 +28,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.LeaseContractWebMap
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -36,11 +42,14 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @RestController
@@ -48,20 +57,40 @@ import java.util.List;
 @RequestMapping("/api/v1/lease-contracts")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LeaseContractController {
+    private static final DateTimeFormatter HDT_FILENAME_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+
     GetRoomDetailsUseCase getRoomDetailsUseCase;
     LeaseContractWebMapper leaseContractWebMapper;
     GetMyListLeaseContractsUseCase getMyListLeaseContractsUseCase;
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
     LeaseContractManagementService leaseContractManagementService;
     LeaseContractQueryService leaseContractQueryService;
+    LeaseContractDocumentService leaseContractDocumentService;
+    DownloadFileUseCase downloadFileUseCase;
     RoomCommitmentChecker roomCommitmentChecker;
     JdbcTemplate jdbcTemplate;
 
+    @GetMapping("/{id}/draft-pdf")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getDraftPdf(@PathVariable Long id) {
+        assertOwnerOrAssignedManagerCanAccessContract(id);
+        LeaseContractManagementResponse contract = leaseContractManagementService.findOne(id);
+        byte[] pdfBytes = leaseContractDocumentService.generateDraftPdf(id);
+        org.springframework.core.io.Resource resource = new org.springframework.core.io.ByteArrayResource(pdfBytes);
+        String filename = leaseContractFilename(contract);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(resource);
+    }
+
     @GetMapping("/management")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
-    public ApiResponse<List<LeaseContractManagementResponse>> getManagementContracts() {
-        return ApiResponse.<List<LeaseContractManagementResponse>>builder()
-                .data(leaseContractManagementService.findAllForManagement())
+    public ApiResponse<PageResponse<LeaseContractManagementResponse>> getManagementContracts(
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        return ApiResponse.<PageResponse<LeaseContractManagementResponse>>builder()
+                .data(leaseContractManagementService.findAllForManagement(pageable))
                 .build();
     }
 
@@ -109,14 +138,41 @@ public class LeaseContractController {
 
     @PostMapping("/{leaseContractId}/signed-file")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LeaseContractManagementResponse> uploadSignedFile(
             @PathVariable Long leaseContractId,
-            @RequestPart("file") MultipartFile file
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(required = false, defaultValue = "false") boolean replace
     ) {
+        assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.uploadSignedFile(leaseContractId, file))
+                .data(leaseContractManagementService.uploadSignedFile(leaseContractId, file, replace))
                 .build();
+    }
+
+    @GetMapping("/{leaseContractId}/signed-file")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> downloadSignedLeaseContractFile(
+            @PathVariable Long leaseContractId
+    ) {
+        assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
+        LeaseContractManagementResponse contract = leaseContractManagementService.findOne(leaseContractId);
+        if (contract.getSignedFileId() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chua co ban hop dong thue da ky.");
+        }
+
+        FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(contract.getSignedFileId()));
+        if (fileData == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay file hop dong thue da ky.");
+        }
+        String contentType = fileData.contentType() == null
+                ? org.springframework.http.MediaType.APPLICATION_OCTET_STREAM_VALUE
+                : fileData.contentType();
+        String filename = leaseContractFilename(contract);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, contentType)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
+                .body(fileData.resource());
     }
 
     @PostMapping("/{leaseContractId}/activate")
@@ -277,10 +333,13 @@ public class LeaseContractController {
                             lc.tenant_intention,
                             lc.expected_vacant_date,
                             lc.contract_file_id,
-                            fm.original_name AS contract_file_name
+                            fm.original_name AS contract_file_name,
+                            lc.signed_file_id,
+                            sfm.original_name AS signed_file_name
                         FROM lease_contracts lc
-                        LEFT JOIN file_metadata fm ON fm.id = lc.contract_file_id
-                        WHERE lc.id = ?
+                        LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
+                        WHERE lc.lease_contract_id = ?
                         LIMIT 1
                         """,
                 rs -> {
@@ -293,6 +352,10 @@ public class LeaseContractController {
                     response.setContractFileId(fileId);
                     response.setContractFileName(rs.getString("contract_file_name"));
                     response.setContractFileUrl(fileId == null ? null : "/api/v1/tenants/profiles/me/files/" + fileId);
+                    Long signedFileId = rs.getObject("signed_file_id", Long.class);
+                    response.setSignedFileId(signedFileId);
+                    response.setSignedFileName(rs.getString("signed_file_name"));
+                    response.setSignedFileUrl(signedFileId == null ? null : "/api/v1/lease-contracts/" + leaseContractId + "/signed-file");
                     return null;
                 },
                 leaseContractId
@@ -328,15 +391,41 @@ public class LeaseContractController {
         return "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể gia hạn. Vui lòng liên hệ quản lý.";
     }
 
+    private String leaseContractFilename(LeaseContractManagementResponse contract) {
+        String roomCode = withRoomPrefix(sanitizeFilenamePart(contract.getRoomCode(), "Phong-X"));
+        String date = contract.getStartDate() == null
+                ? "Chua-Ro-Ngay"
+                : HDT_FILENAME_DATE_FORMATTER.format(contract.getStartDate());
+        return "HDT_" + roomCode + "_" + date + ".pdf";
+    }
+
+    private String sanitizeFilenamePart(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        String sanitized = value.trim().replaceAll("[^a-zA-Z0-9_-]", "");
+        return sanitized.isBlank() ? fallback : sanitized;
+    }
+
+    private String withRoomPrefix(String roomCode) {
+        if (roomCode.startsWith("Phong")) {
+            return roomCode;
+        }
+        if (roomCode.regionMatches(true, 0, "P", 0, 1)) {
+            return "P" + roomCode.substring(1);
+        }
+        return "P" + roomCode;
+    }
+
     private boolean isCurrentUserPrimarySigner(Long leaseContractId, Long userId) {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM lease_contracts lc
-                        JOIN person_profiles pp ON pp.id = lc.primary_tenant_profile_id
+                        JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN tenant_account_provisionings tap
-                               ON tap.tenant_profile_id = pp.id
+                               ON tap.tenant_profile_id = pp.person_profile_id
                               AND tap.user_id = ?
-                        WHERE lc.id = ?
+                        WHERE lc.lease_contract_id = ?
                           AND lc.deleted_at IS NULL
                           AND pp.deleted_at IS NULL
                           AND (pp.user_id = ? OR tap.user_id = ?)
@@ -354,9 +443,9 @@ public class LeaseContractController {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM contract_occupants co
-                        JOIN person_profiles pp ON pp.id = co.tenant_profile_id
+                        JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
                         LEFT JOIN tenant_account_provisionings tap
-                               ON tap.tenant_profile_id = pp.id
+                               ON tap.tenant_profile_id = pp.person_profile_id
                               AND tap.user_id = ?
                         WHERE co.contract_id = ?
                           AND co.status = 'ACTIVE'
@@ -370,6 +459,51 @@ public class LeaseContractController {
                 userId
         );
         return count != null && count > 0;
+    }
+
+    private void assertOwnerOrAssignedManagerCanAccessContract(Long leaseContractId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
+        }
+        if (principal.getRole() == Role.OWNER) {
+            return;
+        }
+        if (principal.getRole() != Role.MANAGER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong nay.");
+        }
+
+        Long propertyId = jdbcTemplate.query("""
+                        SELECT r.property_id
+                        FROM lease_contracts lc
+                        JOIN rooms r ON r.room_id = lc.room_id
+                        WHERE lc.lease_contract_id = ?
+                          AND lc.deleted_at IS NULL
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getLong("property_id") : null,
+                leaseContractId
+        );
+        if (propertyId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+        }
+
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM role_promotions
+                        WHERE user_id = ?
+                          AND property_id = ?
+                          AND role = 'MANAGER'
+                          AND status = 'ACTIVE'
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                principal.getId(),
+                propertyId
+        );
+        if (count == null || count == 0) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong nay.");
+        }
     }
 
     public record LeaseContractLiquidationRequest(
@@ -417,7 +551,6 @@ public class LeaseContractController {
     public record TenantIntentionRequest(
             @NotNull(message = "Ý định khách là bắt buộc.")
             String intention,
-            @JsonAlias({"expectedMoveOutDate", "expected_vacant_date", "expectedVacantDate"})
             LocalDate expectedMoveOutDate,
             @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
             String note

@@ -13,9 +13,10 @@ public class RoomSpecifications {
 
     public static Specification<RoomEntity> idIn(List<Long> ids) {
         return (root, query, criteriaBuilder) -> {
-            if (ids == null || ids.isEmpty()) {
+            if (ids == null) {
                 return criteriaBuilder.conjunction();
             }
+            if (ids.isEmpty()) return criteriaBuilder.disjunction();
             return root.get("id").in(ids);
         };
     }
@@ -27,6 +28,10 @@ public class RoomSpecifications {
                         root.get("status"),
                         status
                 );
+    }
+
+    public static Specification<RoomEntity> notDeleted() {
+        return (root, query, criteriaBuilder) -> criteriaBuilder.isNull(root.get("deletedAt"));
     }
 
     public static Specification<RoomEntity> priceBetween(

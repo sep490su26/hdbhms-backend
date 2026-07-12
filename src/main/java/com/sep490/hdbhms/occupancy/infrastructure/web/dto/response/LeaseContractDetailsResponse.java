@@ -26,6 +26,9 @@ public class LeaseContractDetailsResponse {
     Long contractFileId;
     String contractFileName;
     String contractFileUrl;
+    Long signedFileId;
+    String signedFileName;
+    String signedFileUrl;
     String tenantIntention;
     LocalDate expectedVacantDate;
     String roleInContract;

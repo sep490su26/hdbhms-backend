@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Component
@@ -56,17 +57,30 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
                 || batch.getStatus() == DepositBatchStatus.REFUND_REQUIRED) {
             return;
         }
+        PaymentIntentEntity paymentIntent = batch.getPaymentIntentId() == null
+                ? null
+                : paymentIntentRepository.findById(batch.getPaymentIntentId()).orElse(null);
+        if (paymentIntent != null && paymentIntent.getStatus() == PaymentIntentStatus.REFUND_REQUIRED) {
+            List<DepositBatchItemEntity> items =
+                    itemRepository.findAllByBatch_IdOrderByRoom_RoomCodeAsc(batch.getId());
+            markRefundRequired(batch, items);
+            return;
+        }
 
         List<DepositBatchItemEntity> items =
                 itemRepository.findAllByBatch_IdOrderByRoom_RoomCodeAsc(batch.getId());
         LocalDateTime now = LocalDateTime.now();
+        boolean paymentAccepted = paymentIntent == null
+                || paymentIntent.getStatus() == PaymentIntentStatus.SUCCEEDED;
         boolean holdsValid = !items.isEmpty() && items.stream().allMatch(item -> {
             RoomHoldEntity hold = item.getRoomHold();
             return hold != null
-                    && hold.getExpiresAt().isAfter(now)
+                    && !hasAnotherActiveHold(item, hold, now)
+                    && (paymentAccepted || hold.getExpiresAt().isAfter(now))
                     && (hold.getStatus() == RoomHoldStatus.ACTIVE
                     || hold.getStatus() == RoomHoldStatus.PAYMENT_PROCESSING
-                    || hold.getStatus() == RoomHoldStatus.CONFIRMED);
+                    || hold.getStatus() == RoomHoldStatus.CONFIRMED
+                    || (paymentAccepted && hold.getStatus() == RoomHoldStatus.EXPIRED));
         });
 
         if (!holdsValid) {
@@ -86,6 +100,20 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
                     RoomStatus.ON_HOLD,
                     RoomStatus.RESERVED
             );
+            if (updated == 0 && item.getRoom().getCurrentStatus() == RoomStatus.VACANT) {
+                updated = roomRepository.updateRoomStatusIfCurrent(
+                        item.getRoom().getId(),
+                        RoomStatus.VACANT,
+                        RoomStatus.RESERVED
+                );
+            }
+            if (updated == 0 && item.getRoom().getCurrentStatus() == RoomStatus.SOON_VACANT) {
+                updated = roomRepository.updateRoomStatusIfCurrent(
+                        item.getRoom().getId(),
+                        RoomStatus.SOON_VACANT,
+                        RoomStatus.RESERVED
+                );
+            }
             if (updated == 0 && item.getRoom().getCurrentStatus() != RoomStatus.RESERVED) {
                 throw new IllegalStateException("Room status changed during batch payment");
             }
@@ -105,6 +133,21 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
 
         batch.setStatus(DepositBatchStatus.CONFIRMED);
         batchRepository.save(batch);
+    }
+
+    private boolean hasAnotherActiveHold(
+            DepositBatchItemEntity item,
+            RoomHoldEntity currentHold,
+            LocalDateTime now
+    ) {
+        return roomHoldRepository
+                .findFirstByRoom_IdAndStatusInAndExpiresAtAfterOrderByExpiresAtAsc(
+                        item.getRoom().getId(),
+                        List.of(RoomHoldStatus.ACTIVE, RoomHoldStatus.PAYMENT_PROCESSING),
+                        now
+                )
+                .filter(activeHold -> !Objects.equals(activeHold.getId(), currentHold.getId()))
+                .isPresent();
     }
 
     private void markRefundRequired(

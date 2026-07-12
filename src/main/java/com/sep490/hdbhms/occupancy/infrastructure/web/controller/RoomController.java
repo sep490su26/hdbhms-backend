@@ -18,6 +18,9 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateRoomRequ
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import jakarta.validation.Valid;
@@ -27,10 +30,11 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -50,6 +54,8 @@ public class RoomController {
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     GetRoomImagesByRoomIdUseCase getRoomImagesByRoomIdUseCase;
     RoomCommitmentChecker roomCommitmentChecker;
+    JpaRoomRepository roomRepository;
+    JpaFloorPlanItemRepository floorPlanItemRepository;
 
     @GetMapping
     public ApiResponse<PageResponse<RoomResponse>> getRooms(
@@ -80,17 +86,17 @@ public class RoomController {
                                             Property property = getPropertyDetailsUseCase.execute(
                                                     new GetPropertyDetailsQuery(floor.getPropertyId())
                                             );
-                                            return RoomResponse.builder()
-                                                    .id(room.getId())
-                                                    .name(room.getName())
-                                                    .areaM2(room.getAreaM2())
-                                                    .roomCode(room.getRoomCode())
-                                                    .currentStatus(room.getCurrentStatus())
-                                                    .listedPrice(room.getListedPrice())
-                                                    .maxOccupants(room.getMaxOccupants())
-                                                    .floorName(floor.getName())
-                                                    .propertyName(property.getName())
-                                                    .build();
+                                                                                        List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
+                                                    new GetRoomImagesByRoomIdQuery(room.getId())
+                                            );
+                                            RoomResponse response = roomWebMapper.toResponse(
+                                                    room,
+                                                    floor,
+                                                    property,
+                                                    roomImages
+                                            );
+                                            response.setAreaM2(room.getAreaM2());
+                                            return response;
                                         })
                         )
                 )
@@ -123,6 +129,15 @@ public class RoomController {
                         response
                 )
                 .build();
+    }
+
+    @DeleteMapping("/{roomId}")
+    @Transactional
+    public ApiResponse<Void> deleteRoom(@PathVariable Long roomId) {
+        RoomEntity room = roomRepository.findById(roomId).orElseThrow();
+        floorPlanItemRepository.deleteByProperty_IdAndRoom_Id(room.getProperty().getId(), roomId);
+        room.setDeletedAt(LocalDateTime.now());
+        return ApiResponse.<Void>builder().build();
     }
 
     @GetMapping("/id/{roomId}")
@@ -194,3 +209,4 @@ public class RoomController {
                 .build();
     }
 }
+

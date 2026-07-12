@@ -30,12 +30,12 @@ public class ManageRoomAssetService implements ManageRoomAssetUseCase {
     public RoomAssetResponse createRoomAsset(Long roomId, RoomAssetRequest request) {
         RoomAsset domain = RoomAsset.builder()
                 .roomId(roomId)
-                .assetName(request.resolvedAssetName())
-                .assetCategory(request.resolvedAssetCategory())
+                .assetName(request.assetName())
+                .assetCategory(request.assetCategory())
                 .quantity(request.quantity())
-                .currentCondition(request.resolvedCurrentCondition())
+                .currentCondition(request.currentCondition())
                 .description(request.description())
-                .fileImageId(request.resolvedFileImageId())
+                .fileImageId(request.fileImageId())
                 .build();
 
         RoomAssetEntity entity = roomAssetPersistenceMapper.toEntity(domain);
@@ -48,14 +48,14 @@ public class ManageRoomAssetService implements ManageRoomAssetUseCase {
     public RoomAssetResponse updateRoomAsset(Long roomId, Long assetId, RoomAssetRequest request) {
         RoomAssetEntity entity = getActiveAssetEntity(roomId, assetId);
 
-        entity.setAssetName(request.resolvedAssetName());
-        entity.setAssetCategory(request.resolvedAssetCategory());
+        entity.setAssetName(request.assetName());
+        entity.setAssetCategory(request.assetCategory());
         entity.setQuantity(request.quantity());
-        entity.setCurrentCondition(request.resolvedCurrentCondition());
+        entity.setCurrentCondition(request.currentCondition());
         entity.setDescription(request.description());
 
         // Update imageFile relation if provided
-        if (request.resolvedFileImageId() != null) {
+        if (request.fileImageId() != null) {
             RoomAsset updated = RoomAsset.builder()
                     .id(entity.getId())
                     .roomId(roomId)
@@ -64,7 +64,7 @@ public class ManageRoomAssetService implements ManageRoomAssetUseCase {
                     .quantity(entity.getQuantity())
                     .currentCondition(entity.getCurrentCondition())
                     .description(entity.getDescription())
-                    .fileImageId(request.resolvedFileImageId())
+                    .fileImageId(request.fileImageId())
                     .createdAt(entity.getCreatedAt())
                     .build();
             entity = roomAssetPersistenceMapper.toEntity(updated);

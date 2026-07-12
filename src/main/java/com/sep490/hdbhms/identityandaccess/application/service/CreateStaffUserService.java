@@ -70,6 +70,9 @@ public class CreateStaffUserService implements CreateStaffUserUseCase {
         );
         personProfileRepository.save(personProfile);
         sendPreCreatedAccountPort.sendAccountInformation(
+                null,
+                null,
+                user.getId(),
                 command.getEmail(),
                 command.getFullName(),
                 command.getPhone(),

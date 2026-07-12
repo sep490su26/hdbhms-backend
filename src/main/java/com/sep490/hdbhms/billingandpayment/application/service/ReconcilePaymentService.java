@@ -12,6 +12,7 @@ import com.sep490.hdbhms.billingandpayment.domain.model.PaymentAllocation;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentTransaction;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionStatus;
 import lombok.AccessLevel;
@@ -45,6 +46,7 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
                         command.getProvider(), command.getProviderTransactionId()
                 )
         ) {
+            replayPaidTransferDifferenceCompletion(command.getPaymentIntentId());
             return;
         }
         PaymentTransaction paymentTransaction = PaymentTransaction.builder()
@@ -132,6 +134,23 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
         LocalDateTime effectivePaymentTime = transactionTime == null ? LocalDateTime.now() : transactionTime;
         return paymentIntent.getExpiresAt() != null
                 && paymentIntent.getExpiresAt().isBefore(effectivePaymentTime);
+    }
+
+    private void replayPaidTransferDifferenceCompletion(Long paymentIntentId) {
+        if (paymentIntentId == null) {
+            return;
+        }
+        PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId).orElse(null);
+        if (paymentIntent == null || paymentIntent.getInvoiceId() == null) {
+            return;
+        }
+        Invoice invoice = invoiceRepository.findById(paymentIntent.getInvoiceId()).orElse(null);
+        if (invoice == null
+                || invoice.getInvoiceType() != InvoiceType.TRANSFER_DIFFERENCE
+                || invoice.getStatus() != InvoiceStatus.PAID) {
+            return;
+        }
+        completeInvoiceUseCase.execute(invoice, null);
     }
 
     private boolean canReconcile(PaymentIntent paymentIntent) {

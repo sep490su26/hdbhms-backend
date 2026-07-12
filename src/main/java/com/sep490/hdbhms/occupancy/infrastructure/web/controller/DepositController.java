@@ -12,6 +12,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvi
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
+import com.sep490.hdbhms.occupancy.application.service.DepositPaymentExpiryService;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
@@ -70,6 +71,8 @@ import vn.payos.model.v2.paymentRequests.Transaction;
 @RequestMapping("/api/v1/deposit")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositController {
+    private static final int MAX_DEPOSIT_SCHEDULE_DAYS = 14;
+
     RoomWebMapper roomWebMapper;
     BookRoomUseCase bookRoomUseCase;
     RoomRepository roomRepository;
@@ -78,6 +81,7 @@ public class DepositController {
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     DepositContractDocumentService depositContractDocumentService;
+    DepositPaymentExpiryService depositPaymentExpiryService;
     RoomCommitmentChecker roomCommitmentChecker;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     PayOSProperties payOSProperties;
@@ -86,9 +90,9 @@ public class DepositController {
     @PostMapping("/checkout")
     public ApiResponse<DepositCheckoutResponse> bookRoom(
             @Valid @RequestPart("metadata") SendDepositFormRequest request,
-            @RequestPart("id_front_file") MultipartFile idFrontFile,
-            @RequestPart("id_back_file") MultipartFile idBackFile,
-            @RequestPart("portrait_file") MultipartFile portraitFile
+            @RequestPart("idFrontFile") MultipartFile idFrontFile,
+            @RequestPart("idBackFile") MultipartFile idBackFile,
+            @RequestPart("portraitFile") MultipartFile portraitFile
     ) {
         log.info("{}", request.toString());
         PaymentIntent paymentIntent = bookRoomUseCase.initDepositForm(
@@ -124,6 +128,32 @@ public class DepositController {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
         paymentIntent = syncPayOSPaymentIfPaid(paymentIntent);
+        DepositAgreement depositAgreement = paymentIntent.getDepositAgreementId() == null
+                ? null
+                : depositAgreementRepository.findById(paymentIntent.getDepositAgreementId()).orElse(null);
+        Room room = depositAgreement == null
+                ? null
+                : roomRepository.findById(depositAgreement.getRoomId()).orElse(null);
+
+        return ApiResponse.<DepositPaymentStatusResponse>builder()
+                .data(DepositPaymentStatusResponse.builder()
+                        .paymentIntentId(paymentIntent.getId())
+                        .status(paymentIntent.getStatus())
+                        .depositStatus(depositAgreement == null ? null : depositAgreement.getStatus())
+                        .roomStatus(room == null ? null : room.getCurrentStatus())
+                        .expiresAt(paymentIntent.getExpiresAt())
+                        .paidAt(depositAgreement == null ? null : depositAgreement.getConfirmedAt())
+                        .message(buildPaymentStatusMessage(paymentIntent, depositAgreement, room))
+                        .build())
+                .build();
+    }
+
+    @PostMapping("/payments/{paymentIntentId}/expire")
+    public ApiResponse<DepositPaymentStatusResponse> expireDepositPayment(@PathVariable Long paymentIntentId) {
+        paymentIntentRepository.findById(paymentIntentId)
+                .map(this::syncPayOSPaymentIfPaid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phien thanh toan."));
+        PaymentIntent paymentIntent = depositPaymentExpiryService.expire(paymentIntentId);
         DepositAgreement depositAgreement = paymentIntent.getDepositAgreementId() == null
                 ? null
                 : depositAgreementRepository.findById(paymentIntent.getDepositAgreementId()).orElse(null);
@@ -307,24 +337,46 @@ public class DepositController {
                     "EXPECTED_SIGN_DATE_REQUIRED: Can co ngay du kien ky hop dong."
             );
         }
-        if (expectedMoveInDate.isBefore(expectedVacantDate)) {
+        LocalDate minAllowedDate = expectedVacantDate.plusDays(1);
+        LocalDate maxAllowedDate = expectedVacantDate.plusDays(MAX_DEPOSIT_SCHEDULE_DAYS);
+        if (expectedMoveInDate.isBefore(minAllowedDate)) {
             return new DepositRoomHoldStatusResponse(
                     false,
                     room.getCurrentStatus().name(),
                     null,
                     null,
                     0,
-                    "NgÃ y dá»± kiáº¿n vÃ o á»Ÿ pháº£i sau hoáº·c báº±ng ngÃ y phÃ²ng dá»± kiáº¿n trá»‘ng."
+                    "Ngày dự kiến vào ở phải sau ngày khách cũ trả phòng."
             );
         }
-        if (expectedLeaseSignDate.isBefore(expectedVacantDate)) {
+        if (expectedLeaseSignDate.isBefore(minAllowedDate)) {
             return new DepositRoomHoldStatusResponse(
                     false,
                     room.getCurrentStatus().name(),
                     null,
                     null,
                     0,
-                    "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngay den ky hop dong phai sau hoac bang ngay phong du kien trong."
+                    "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE: Ngày hẹn ký hợp đồng phải sau ngày khách cũ trả phòng."
+            );
+        }
+        if (expectedMoveInDate.isAfter(maxAllowedDate)) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ ngày khách cũ trả phòng."
+            );
+        }
+        if (expectedLeaseSignDate.isAfter(maxAllowedDate)) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "EXPECTED_SIGN_DATE_TOO_FAR_AFTER_VACANT_DATE: Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ ngày khách cũ trả phòng."
             );
         }
         return new DepositRoomHoldStatusResponse(
@@ -477,7 +529,6 @@ public class DepositController {
 
         List<DateTimeFormatter> formatters = List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
                 DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
         );
         for (DateTimeFormatter formatter : formatters) {

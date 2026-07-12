@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -25,6 +24,5 @@ public class RuleViolationResponse {
     Long invoiceLineId;
     String checkoutUrl;
     String providerOrderCode;
-    @JsonProperty("message")
     String message;
 }

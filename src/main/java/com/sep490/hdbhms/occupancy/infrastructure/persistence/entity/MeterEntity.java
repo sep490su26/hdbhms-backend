@@ -29,6 +29,7 @@ public class MeterEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "meter_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

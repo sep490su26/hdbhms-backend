@@ -27,6 +27,7 @@ public class MeterReadingImportRowEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "meter_reading_import_row_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

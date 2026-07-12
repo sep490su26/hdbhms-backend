@@ -27,6 +27,7 @@ public class PaymentAllocationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "payment_allocation_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

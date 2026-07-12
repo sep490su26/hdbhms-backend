@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface JpaContractHandoverRecordRepository extends JpaRepository<ContractHandoverRecordEntity, Long> {
     Optional<ContractHandoverRecordEntity> findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(Long contractId, HandoverType handoverType);
+
+    Optional<ContractHandoverRecordEntity> findByContract_IdAndHandoverType(Long contractId, HandoverType type);
 }

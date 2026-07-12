@@ -32,6 +32,7 @@ public class PaymentTransactionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "payment_transaction_id")
     Long id;
 
     @Enumerated(EnumType.STRING)

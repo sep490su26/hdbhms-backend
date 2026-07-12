@@ -24,6 +24,7 @@ public class MaintenanceTicketEventEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "maintenance_ticket_event_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

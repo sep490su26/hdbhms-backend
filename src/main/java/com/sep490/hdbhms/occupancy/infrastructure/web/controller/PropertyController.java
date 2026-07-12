@@ -16,6 +16,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEnt
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreatePropertyRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.UpdatePropertyRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertySimpleResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomSimpleResponse;
@@ -30,6 +31,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -130,6 +132,7 @@ public class PropertyController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<PropertyResponse> createProperty(
             @Valid @RequestBody CreatePropertyRequest request
     ) {
@@ -146,6 +149,26 @@ public class PropertyController {
                                 )
                         )
                 )
+                .build();
+    }
+
+    @PutMapping("/{propertyId}")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public ApiResponse<PropertyResponse> updateProperty(
+            @PathVariable Long propertyId,
+            @Valid @RequestBody UpdatePropertyRequest request
+    ) {
+        assertManagerCanAccessProperty(propertyId);
+        PropertyEntity property = jpaPropertyRepository.findById(propertyId)
+                .filter(item -> item.getDeletedAt() == null)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy cơ sở."));
+        property.setName(request.name().trim());
+        property.setPropertyType(request.propertyType());
+        property.setAddressLine(request.addressLine().trim());
+        property.setDescription(request.description());
+        property.setStatus(request.status());
+        return ApiResponse.<PropertyResponse>builder()
+                .data(toPropertyResponse(jpaPropertyRepository.save(property)))
                 .build();
     }
 

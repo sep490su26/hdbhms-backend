@@ -46,6 +46,8 @@ public class MeterReadingPersistenceMapper {
                 .createdById(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
                 .createdAt(entity.getCreatedAt())
                 .activeReadingKey(entity.getActiveReadingKey())
+                .reviewStatus(entity.getReviewStatus())
+                .reviewCount(entity.getReviewCount())
                 .build();
     }
 
@@ -83,6 +85,8 @@ public class MeterReadingPersistenceMapper {
                                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND))
                         : null)
                 .createdAt(domain.getCreatedAt())
+                .reviewStatus(domain.getReviewStatus())
+                .reviewCount(domain.getReviewCount())
                 .build();
     }
 }

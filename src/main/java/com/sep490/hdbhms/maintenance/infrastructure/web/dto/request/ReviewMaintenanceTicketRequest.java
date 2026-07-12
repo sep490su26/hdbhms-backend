@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -11,6 +10,5 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ReviewMaintenanceTicketRequest {
     Integer rating;
-    @JsonAlias({"feedback"})
     String comment;
 }

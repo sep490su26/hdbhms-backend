@@ -51,6 +51,7 @@ import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.ReviewMainte
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.UpdateMaintenanceTicketProgressRequest;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketDetailsResponse;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketResponse;
+import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.InternalMaintenanceCostResponse;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
@@ -67,6 +68,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
@@ -214,6 +216,74 @@ public class MaintenanceTicketController {
         return response(createManagementTicket(request));
     }
 
+    @GetMapping("/internal-costs")
+    @Transactional(readOnly = true)
+    public PageResponse<InternalMaintenanceCostResponse> getInternalMaintenanceCosts(
+            @PageableDefault(size = 10) Pageable pageable
+    ) {
+        Role role = requireRole();
+        if (role != Role.OWNER && role != Role.MANAGER && role != Role.ACCOUNTANT) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem báo cáo chi phí nội bộ.");
+        }
+        List<Long> restrictedPropertyIds = role == Role.MANAGER
+                ? restrictedPropertyIdsForCurrentManager(role)
+                : null;
+        List<InternalMaintenanceCostResponse> rows = jpaMaintenanceCostRepository.findAllByPaidByOrderByCreatedAtDesc(PaidBy.LANDLORD)
+                .stream()
+                .filter(cost -> cost.getTicket() != null
+                        && cost.getTicket().getTicketScope() == TicketScope.PROPERTY_OPERATION)
+                .filter(cost -> restrictedPropertyIds == null
+                        || restrictedPropertyIds.contains(cost.getTicket().getProperty().getId()))
+                .map(this::toInternalCostResponse)
+                .toList();
+        List<InternalMaintenanceCostResponse> pageRows = rows.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+        return PageResponse.fromPageToPageResponse(new PageImpl<>(pageRows, pageable, rows.size()));
+    }
+
+    @PostMapping("/internal")
+    @Transactional
+    public ApiResponse<MaintenanceTicketDetailsResponse> createInternalMaintenanceTicket(
+            @Valid @RequestBody CreateMaintenanceTicketRequest request
+    ) {
+        assertManagerOrOwner(requireRole());
+        validateCreatePayload(request);
+
+        Long propertyId = request.getPropertyId();
+        Long roomId = request.getRoomId();
+        if (roomId != null) {
+            RoomEntity room = jpaRoomRepository.findById(roomId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
+            propertyId = room.getProperty().getId();
+        }
+        if (propertyId == null || !jpaPropertyRepository.existsById(propertyId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn cơ sở hợp lệ.");
+        }
+        assertManagerCanAccessProperty(propertyId);
+
+        List<Long> attachmentIds = attachmentIdsPreservingOrder(request.getAttachmentIds());
+        validateImageFileIds(attachmentIds);
+        if (attachmentIds.size() > MAX_BEFORE_ATTACHMENTS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh hiện trạng.");
+        }
+
+        MaintenanceTicket ticket = saveNewTicket(
+                propertyId,
+                roomId,
+                null,
+                TicketScope.PROPERTY_OPERATION,
+                request
+        );
+        attachFiles(ticket, attachmentIds, AttachmentPhase.BEFORE, "Ảnh hiện trạng bảo trì nội bộ");
+        recordEvent(ticket.getId(), null, ticket.getStatus(), MaintenanceTicketAction.CREATE,
+                roomId == null
+                        ? "Tạo phiếu bảo trì nội bộ khu vực chung"
+                        : "Tạo phiếu bảo trì nội bộ cho phòng");
+        return response(findTicket(ticket.getId()));
+    }
+
     @PostMapping("/{id}/approve")
     @Transactional
     public ApiResponse<MaintenanceTicketDetailsResponse> approveMaintenanceTicket(@PathVariable Long id) {
@@ -332,7 +402,7 @@ public class MaintenanceTicketController {
         }
         MaintenanceTicket saved = saveRepairInformation(ticket, request, MaintenanceTicketStatus.COMPLETED);
         saveCost(saved.getId(), request);
-        if (shouldChargeTenant(request)) {
+        if (shouldChargeTenant(saved, request)) {
             collectMaintenanceCompensation(saved, request);
         }
         if (request != null && request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
@@ -688,7 +758,12 @@ public class MaintenanceTicketController {
         cost.setCostType(request.getCostType() == null ? CostType.OTHER : request.getCostType());
         cost.setDescription(description);
         cost.setAmount(amount);
-        CostResponsibility responsibility = Boolean.TRUE.equals(request.getChargeToTenant())
+        boolean internalTicket = jpaMaintenanceTicketRepository.findById(ticketId)
+                .map(ticket -> ticket.getTicketScope() == TicketScope.PROPERTY_OPERATION)
+                .orElse(false);
+        CostResponsibility responsibility = internalTicket
+                ? CostResponsibility.OWNER
+                : Boolean.TRUE.equals(request.getChargeToTenant())
                 ? CostResponsibility.TENANT
                 : request.getCostResponsibility() == null
                 ? mapPaidByToResponsibility(request.getPaidBy())
@@ -698,8 +773,29 @@ public class MaintenanceTicketController {
         jpaMaintenanceCostRepository.save(cost);
     }
 
-    private boolean shouldChargeTenant(CompleteMaintenanceTicketRequest request) {
+    private void saveInternalCost(Long ticketId, CreateMaintenanceTicketRequest request) {
+        MaintenanceCostEntity cost = MaintenanceCostEntity.builder()
+                .ticket(jpaMaintenanceTicketRepository.getReferenceById(ticketId))
+                .costType(request.getCostType() == null ? CostType.COMMON_OPERATING : request.getCostType())
+                .description(firstNonBlank(request.getAccountingNote(), request.getDescription(), "Chi phí bảo trì nội bộ"))
+                .amount(request.getActualCost())
+                .paidBy(PaidBy.LANDLORD)
+                .costResponsibility(CostResponsibility.OWNER)
+                .createdBy(jpaUserRepository.getReferenceById(currentUserId()))
+                .build();
+        if (request.getReceiptFileId() != null) {
+            FileMetadataEntity receipt = jpaFileMetadataRepository.findById(request.getReceiptFileId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy chứng từ chi phí."));
+            cost.setReceiptFile(receipt);
+        }
+        jpaMaintenanceCostRepository.save(cost);
+    }
+
+    private boolean shouldChargeTenant(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
         if (request == null) {
+            return false;
+        }
+        if (ticket.getTicketScope() == TicketScope.PROPERTY_OPERATION) {
             return false;
         }
         if (Boolean.TRUE.equals(request.getChargeToTenant())) {
@@ -891,6 +987,9 @@ public class MaintenanceTicketController {
                 .invoiceId(billing.invoiceId())
                 .invoiceCode(billing.invoiceCode())
                 .invoiceStatus(billing.invoiceStatus())
+                .paymentStatus(billing.status())
+                .chargeToTenant(isTenantCharge(cost))
+                .payer(cost.paidBy() == null ? null : cost.paidBy().name())
                 .lineType(billing.lineType())
                 .chargeAmount(billing.chargeAmount())
                 .completedAt(ticket.getCompletedAt())
@@ -951,6 +1050,9 @@ public class MaintenanceTicketController {
                 .invoiceId(billing.invoiceId())
                 .invoiceCode(billing.invoiceCode())
                 .invoiceStatus(billing.invoiceStatus())
+                .paymentStatus(billing.status())
+                .chargeToTenant(isTenantCharge(cost))
+                .payer(cost.paidBy() == null ? null : cost.paidBy().name())
                 .lineType(billing.lineType())
                 .chargeAmount(billing.chargeAmount())
                 .completedAt(ticket.getCompletedAt())
@@ -1468,6 +1570,32 @@ public class MaintenanceTicketController {
             }
         }
         return ids;
+    }
+
+    private InternalMaintenanceCostResponse toInternalCostResponse(MaintenanceCostEntity cost) {
+        MaintenanceTicketEntity ticket = cost.getTicket();
+        PropertyEntity property = ticket.getProperty();
+        RoomEntity room = ticket.getRoom();
+        return new InternalMaintenanceCostResponse(
+                ticket.getId(),
+                ticket.getTicketCode(),
+                property == null ? null : property.getId(),
+                property == null ? null : property.getName(),
+                room == null ? null : room.getId(),
+                room == null ? null : room.getRoomCode(),
+                ticket.getCategory(),
+                toBusinessStatus(ticket.getStatus()),
+                cost.getAmount(),
+                PaidBy.LANDLORD.name(),
+                "NO_CHARGE",
+                cost.getDescription(),
+                cost.getCreatedAt()
+        );
+    }
+
+    private boolean isTenantCharge(CostInfo cost) {
+        return cost.paidBy() == PaidBy.TENANT
+                || cost.costResponsibility() == CostResponsibility.TENANT;
     }
 
     private List<Long> uniqueIds(List<Long> values) {

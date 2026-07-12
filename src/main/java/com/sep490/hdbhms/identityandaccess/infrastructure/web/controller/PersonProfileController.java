@@ -56,7 +56,7 @@ public class PersonProfileController {
         }
 
         List<PersonProfileResponse.IdentityDocumentResponse> documents = jdbcTemplate.query("""
-                        SELECT id,
+                        SELECT identity_document_id AS id,
                                doc_type,
                                doc_number,
                                issued_date,
@@ -68,7 +68,7 @@ public class PersonProfileController {
                         FROM identity_documents
                         WHERE profile_id = ?
                           AND status = 'ACTIVE'
-                        ORDER BY updated_at DESC, id DESC
+                        ORDER BY updated_at DESC, identity_document_id DESC
                         LIMIT 1
                         """,
                 (rs, rowNum) -> toIdentityDocumentResponse(rs),

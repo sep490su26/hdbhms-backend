@@ -34,4 +34,12 @@ public class SpringDataInvoiceLineRepository implements InvoiceLineRepository {
         return jpaInvoiceLineRepository.findById(id)
                 .map(invoiceLinePersistenceMapper::toDomain);
     }
+
+    @Override
+    public Optional<InvoiceLine> findByInvoiceId(Long invoiceId) {
+        return jpaInvoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoiceId)
+                .stream()
+                .findFirst()
+                .map(invoiceLinePersistenceMapper::toDomain);
+    }
 }

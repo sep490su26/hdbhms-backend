@@ -21,6 +21,7 @@ public class ChangeRequestEventEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "change_request_event_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

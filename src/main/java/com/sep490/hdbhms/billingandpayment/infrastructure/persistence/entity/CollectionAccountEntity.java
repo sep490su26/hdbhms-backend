@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 public class CollectionAccountEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "collection_account_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

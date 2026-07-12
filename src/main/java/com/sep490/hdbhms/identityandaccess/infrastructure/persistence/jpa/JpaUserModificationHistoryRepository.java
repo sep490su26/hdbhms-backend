@@ -32,7 +32,7 @@ public interface JpaUserModificationHistoryRepository extends JpaRepository<User
     Instant getLatestPasswordResetTimestamp(Long accountId);
 
     @Query(value = """
-                SELECT COUNT(id) FROM hdbhms.user_modification_histories WHERE user_id = ?1 AND type = 'PASSWORD_RESET' AND changed_at >= CURDATE() AND changed_at < CURDATE() + INTERVAL ?2 DAY
+                SELECT COUNT(user_modification_history_id) FROM hdbhms.user_modification_histories WHERE user_id = ?1 AND type = 'PASSWORD_RESET' AND changed_at >= CURDATE() AND changed_at < CURDATE() + INTERVAL ?2 DAY
             """, nativeQuery = true)
     int getNumberOfPasswordResetOfTheDays(Long accountId, int days);
 }

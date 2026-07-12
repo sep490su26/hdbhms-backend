@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 public class DepositBatchEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "deposit_batch_id")
     Long id;
 
     @Column(name = "batch_code", nullable = false, length = 80)

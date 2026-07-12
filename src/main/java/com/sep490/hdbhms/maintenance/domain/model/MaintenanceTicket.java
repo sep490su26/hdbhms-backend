@@ -37,6 +37,10 @@ public class MaintenanceTicket {
     String rejectionReason;
     Long assignedToId;
     String workerName;
+    String externalRepairmanName;
+    String externalRepairmanPhone;
+    String externalRepairProvider;
+    String externalRepairNote;
     String repairmanPhone;
     String repairItems;
     LocalDateTime completedAt;

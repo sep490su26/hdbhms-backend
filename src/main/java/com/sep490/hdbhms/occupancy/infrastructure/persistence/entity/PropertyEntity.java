@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 public class PropertyEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "property_id")
     Long id;
 
     @Column(name = "property_code", nullable = false, length = 50)

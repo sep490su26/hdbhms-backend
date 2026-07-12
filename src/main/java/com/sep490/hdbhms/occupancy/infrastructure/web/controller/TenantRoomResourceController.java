@@ -4,6 +4,7 @@ import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEnti
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomAssetEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -41,6 +42,7 @@ public class TenantRoomResourceController {
     JpaRoomAssetRepository roomAssetRepository;
     JpaMeterReadingRepository meterReadingRepository;
     JpaFileMetadataRepository fileMetadataRepository;
+    LeaseContractQueryService leaseContractQueryService;
 
     @GetMapping("/assets")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
@@ -49,6 +51,7 @@ public class TenantRoomResourceController {
             @PathVariable Long roomId
     ) {
         ensureRoomExists(roomId);
+        leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
         return ApiResponse.<List<RoomAssetResponse>>builder()
                 .data(roomAssetRepository.findActiveByRoomId(roomId).stream()
                         .map(this::toAssetResponse)
@@ -63,6 +66,7 @@ public class TenantRoomResourceController {
             @PathVariable Long roomId,
             @PathVariable Long assetId
     ) {
+        leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
         return ApiResponse.<RoomAssetResponse>builder()
                 .data(toAssetResponse(findRoomAsset(roomId, assetId)))
                 .build();
@@ -79,11 +83,11 @@ public class TenantRoomResourceController {
         RoomAssetEntity asset = RoomAssetEntity.builder()
                 .room(room)
                 .assetName(requireAssetName(request))
-                .assetCategory(request.resolvedAssetCategory())
+                .assetCategory(request.assetCategory())
                 .quantity(resolveQuantity(request.quantity()))
-                .currentCondition(resolveCondition(request.resolvedCurrentCondition()))
+                .currentCondition(resolveCondition(request.currentCondition()))
                 .description(request.description())
-                .imageFile(resolveFile(request.resolvedFileImageId()))
+                .imageFile(resolveFile(request.fileImageId()))
                 .build();
         return ApiResponse.<RoomAssetResponse>builder()
                 .data(toAssetResponse(roomAssetRepository.save(asset)))
@@ -100,11 +104,11 @@ public class TenantRoomResourceController {
     ) {
         RoomAssetEntity asset = findRoomAsset(roomId, assetId);
         asset.setAssetName(requireAssetName(request));
-        asset.setAssetCategory(request.resolvedAssetCategory());
+        asset.setAssetCategory(request.assetCategory());
         asset.setQuantity(resolveQuantity(request.quantity()));
-        asset.setCurrentCondition(resolveCondition(request.resolvedCurrentCondition()));
+        asset.setCurrentCondition(resolveCondition(request.currentCondition()));
         asset.setDescription(request.description());
-        asset.setImageFile(resolveFile(request.resolvedFileImageId()));
+        asset.setImageFile(resolveFile(request.fileImageId()));
         return ApiResponse.<RoomAssetResponse>builder()
                 .data(toAssetResponse(roomAssetRepository.save(asset)))
                 .build();
@@ -130,6 +134,7 @@ public class TenantRoomResourceController {
             @PathVariable Long roomId
     ) {
         ensureRoomExists(roomId);
+        leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
         MeterReadingLatestResponse.Item electricity = null;
         MeterReadingLatestResponse.Item water = null;
         for (MeterReadingEntity reading : meterReadingRepository.findActiveByRoomIdLatestFirst(roomId)) {
@@ -187,7 +192,7 @@ public class TenantRoomResourceController {
     }
 
     private String requireAssetName(RoomAssetRequest request) {
-        String assetName = request.resolvedAssetName();
+        String assetName = request.assetName();
         if (assetName == null || assetName.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ten thiet bi la bat buoc.");
         }

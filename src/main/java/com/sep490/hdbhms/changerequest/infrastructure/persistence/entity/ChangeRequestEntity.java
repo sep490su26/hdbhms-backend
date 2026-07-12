@@ -27,6 +27,7 @@ public class ChangeRequestEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "change_request_id")
     Long id;
 
     @Column(name = "request_code", nullable = false, unique = true, length = 80)

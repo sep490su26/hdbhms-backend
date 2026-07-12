@@ -27,6 +27,9 @@ public class RoomImagePersistenceMapper {
                 .fileId(entity.getFile() != null ? entity.getFile().getId() : null)
                 .sortOrder(entity.getSortOrder())
                 .createdAt(entity.getCreatedAt())
+                .fallback(false)
+                .sourceRoomCode(null)
+                .fallbackUrl(null)
                 .build();
     }
 

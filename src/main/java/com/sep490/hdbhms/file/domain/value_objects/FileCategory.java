@@ -13,5 +13,7 @@ public enum FileCategory {
     TICKET_ATTACHMENT,
     RECEIPT,
     OCR_INPUT,
+    LEASE_CONTRACT_DRAFT,
+    HANDOVER_DOCUMENT,
     OTHER
 }

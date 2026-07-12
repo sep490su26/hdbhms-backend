@@ -28,6 +28,7 @@ public class NotificationOutboxEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "notification_outbox_id")
     Long id;
 
     @Column(name = "event_type", nullable = false, length = 100)
@@ -39,9 +40,15 @@ public class NotificationOutboxEntity {
     @Column(name = "target_id")
     Long targetId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "recipient_user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_user_id")
     UserEntity recipientUser;
+
+    @Transient
+    String recipientEmail;
+
+    @Transient
+    String recipientPhone;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -74,6 +81,9 @@ public class NotificationOutboxEntity {
 
     @Column(name = "is_read", nullable = false)
     Boolean isRead = false;
+
+    @Column(name = "read_at")
+    LocalDateTime readAt;
 
     @Column(name = "scheduled_at", nullable = false)
     LocalDateTime scheduledAt;

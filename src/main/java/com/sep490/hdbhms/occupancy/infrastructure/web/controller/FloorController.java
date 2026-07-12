@@ -10,6 +10,10 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListFloorsUseC
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetPropertyDetailsUseCase;
 import com.sep490.hdbhms.occupancy.domain.model.Floor;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateFloorRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.FloorResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.FloorWebMapper;
@@ -18,8 +22,10 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -32,6 +38,9 @@ public class FloorController {
     GetListFloorsUseCase getListFloorsUseCase;
     GetFloorDetailsUseCase getFloorDetailsUseCase;
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
+    JpaFloorRepository floorRepository;
+    JpaRoomRepository roomRepository;
+    JpaFloorPlanItemRepository floorPlanItemRepository;
 
     @GetMapping
     public ApiResponse<List<FloorResponse>> getFloors(
@@ -86,5 +95,19 @@ public class FloorController {
                         )
                 )
                 .build();
+    }
+
+    @DeleteMapping("/{floorId}")
+    @Transactional
+    public ApiResponse<Void> deleteFloor(@PathVariable Long floorId) {
+        FloorEntity floor = floorRepository.findById(floorId)
+                .orElseThrow();
+        LocalDateTime deletedAt = LocalDateTime.now();
+
+        floorPlanItemRepository.deleteByProperty_IdAndFloor_Id(floor.getProperty().getId(), floorId);
+        roomRepository.findAllByFloor_IdAndDeletedAtIsNull(floorId)
+                .forEach(room -> room.setDeletedAt(deletedAt));
+        floor.setDeletedAt(deletedAt);
+        return ApiResponse.<Void>builder().build();
     }
 }

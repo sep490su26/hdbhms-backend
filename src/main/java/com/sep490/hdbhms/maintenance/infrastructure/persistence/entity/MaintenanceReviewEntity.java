@@ -24,6 +24,7 @@ public class MaintenanceReviewEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "maintenance_review_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

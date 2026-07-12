@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.occupancy.domain.model.Floor;
+import com.sep490.hdbhms.occupancy.domain.value_objects.FloorStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -43,7 +44,7 @@ public class FloorPersistenceMapper {
                 .floorCode(domain.getFloorCode())
                 .name(domain.getName())
                 .sortOrder(domain.getSortOrder())
-                .status(domain.getStatus())
+                .status(domain.getStatus() == null ? FloorStatus.ACTIVE : domain.getStatus())
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())
                 .deletedAt(domain.getDeletedAt())

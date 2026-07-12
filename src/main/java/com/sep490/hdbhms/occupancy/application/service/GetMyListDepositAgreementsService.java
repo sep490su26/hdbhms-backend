@@ -50,6 +50,7 @@ public class GetMyListDepositAgreementsService implements GetMyListDepositAgreem
         return depositAgreementRepository.findAll(
                 ids,
                 query.status(),
+                query.statuses(),
                 query.signedFrom(),
                 query.signedTo(),
                 query.pageable()

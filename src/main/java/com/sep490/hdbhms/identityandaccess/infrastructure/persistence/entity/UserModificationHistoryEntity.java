@@ -20,6 +20,7 @@ public class UserModificationHistoryEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_modification_history_id")
     Long id;
 
     @ToString.Exclude

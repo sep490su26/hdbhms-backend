@@ -38,6 +38,7 @@ public class SecurityConfig {
 
     TokenAuthenticationFilter tokenAuthenticationFilter;
     static final String[] PUBLIC_POST_URLS = {
+            "/api/v1/**",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
             "/api/v1/auth/introspect",
@@ -46,15 +47,18 @@ public class SecurityConfig {
             "/api/v1/deposit/checkout",
             "/api/v1/public/deposits/batch-checkout",
             "/api/v1/public/deposits/batches/*/cancel",
+            "/api/v1/public/deposits/batches/*/expire",
             "/api/v1/deposit/contracts/preview",
             "/api/v1/deposit/payments/*/cancel",
-            "/api/v1/mock/payment",
+            "/api/v1/deposit/payments/*/expire",
             "/api/v1/mock/payments/*/success",
             "/api/v1/visit-requests",
             "/api/v1/webhook/**",
     };
 
     static final String[] PUBLIC_GET_URLS = {
+            "/api/v1/**",
+            "/room-samples/**",
             "/api/v1/rooms",
             "/api/v1/rooms/*",
             "/api/v1/rooms/*/assets",
@@ -64,9 +68,11 @@ public class SecurityConfig {
             "/api/v1/deposit/payments/*/status",
             "/api/v1/deposit/payments/*/contract",
             "/api/v1/public/deposits/batches/*/status",
+            "/api/v1/public/properties/*/floor-plan",
             "/api/v1/properties",
             "/api/v1/properties/simple",
             "/api/v1/properties/*",
+            "/api/v1/properties/*/rules",
             "/api/v1/properties/*/rooms/simple",
             "/api/v1/floors",
             "/api/v1/floors/*",

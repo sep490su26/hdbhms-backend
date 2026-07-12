@@ -3,6 +3,9 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,4 +20,16 @@ public class TenantInvoiceLineResponse {
     Long amount;
     String sourceType;
     Long sourceId;
+    Long meterReadingId;
+    String meterType;
+    String readingPeriod;
+    BigDecimal previousValue;
+    BigDecimal currentValue;
+    BigDecimal usageAmount;
+    LocalDate readingDate;
+    Long photoFileId;
+    String reviewStatus;
+    Integer reviewCount;
+    Long openReviewId;
+    Boolean canComplain;
 }

@@ -14,7 +14,10 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.Tenan
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
@@ -22,6 +25,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -67,6 +72,16 @@ public class TenantAccountProvisioningService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public PageResponse<TenantAccountProvisioningResponse> findProvisioningCandidates(Pageable pageable) {
+        List<TenantAccountProvisioningResponse> rows = findProvisioningCandidates();
+        List<TenantAccountProvisioningResponse> pageRows = rows.stream()
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+        return PageResponse.fromPageToPageResponse(new PageImpl<>(pageRows, pageable, rows.size()));
+    }
+
     public TenantAccountProvisioningResponse provisionPrimaryTenantAccount(
             Long contractId,
             boolean retryFailed
@@ -81,50 +96,44 @@ public class TenantAccountProvisioningService {
                     "Hợp đồng chưa có người thuê trong contract_occupants."
             );
         }
-        TenantAccountProvisioningResponse primary = findPrimary(occupants);
-        if (StringUtils.isEmpty(primary.getRecipientEmail())) {
+        List<TenantAccountProvisioningResponse> eligibleOccupants = occupants.stream()
+                .filter(this::isProvisioningEligibleContext)
+                .toList();
+        if (eligibleOccupants.isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "MISSING_EMAIL: Thiếu email người ký chính để nhận tài khoản."
+                    "NO_ACTIVE_TENANT_CONTEXT"
             );
         }
-
-        ProvisioningPreparation preparation = transactionTemplate().execute(status -> {
+        TenantAccountProvisioningResponse primary = findPrimary(eligibleOccupants);
+//        if (StringUtils.isEmpty(primary.getRecipientEmail())) {
+//            throw new ResponseStatusException(
+//                    HttpStatus.BAD_REQUEST,
+//                    "MISSING_EMAIL: Thiếu email người ký chính để nhận tài khoản."
+//            );
+//        }
+        List<Long> claimedProfileIds = transactionTemplate().execute(status -> {
             List<Long> claimed = new ArrayList<>();
-            List<Long> existingAccountsWithoutDelivery = new ArrayList<>();
-            for (TenantAccountProvisioningResponse occupant : occupants) {
+            for (TenantAccountProvisioningResponse occupant : eligibleOccupants) {
                 PreparationOutcome outcome =
                         prepareProvisioningAttempt(occupant, contractId, retryFailed);
                 if (outcome == PreparationOutcome.CLAIMED) {
                     claimed.add(occupant.getProfileId());
-                } else if (outcome == PreparationOutcome.EXISTING_ACCOUNT_WITHOUT_DELIVERY) {
-                    existingAccountsWithoutDelivery.add(occupant.getProfileId());
                 }
             }
-            return new ProvisioningPreparation(claimed, existingAccountsWithoutDelivery);
+            return claimed;
         });
 
-        List<Long> claimedProfileIds =
-                preparation == null ? List.of() : preparation.claimedProfileIds();
-        if (claimedProfileIds == null || claimedProfileIds.isEmpty()) {
-            if (preparation != null
-                    && !preparation.existingAccountsWithoutDelivery().isEmpty()) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "ACCOUNT_ALREADY_EXISTS: Tài khoản đã tồn tại nhưng không có bằng chứng "
-                                + "email cấp tài khoản đã được gửi. Hệ thống không reset hoặc gửi "
-                                + "lại mật khẩu cũ; vui lòng dùng luồng quên mật khẩu."
-                );
-            }
+        List<Long> preparedProfileIds = claimedProfileIds == null ? List.of() : claimedProfileIds;
+        if (preparedProfileIds.isEmpty()) {
             List<TenantAccountProvisioningResponse> current = findContractOccupants(contractId);
             return findPrimary(current).toBuilder()
                     .message(resolveNoSendMessage(current, retryFailed))
                     .build();
         }
-
         try {
             Integer sentCount = transactionTemplate().execute(status ->
-                    createAccountsAndSend(contractId, claimedProfileIds, primary));
+                    createAccountsAndSend(contractId, preparedProfileIds, primary));
             log.info(
                     "Provisioned tenant accounts from lease contract. contractId={}, sentCount={}",
                     contractId,
@@ -133,7 +142,7 @@ public class TenantAccountProvisioningService {
         } catch (RuntimeException exception) {
             String failureReason = shortFailureReason(exception);
             transactionTemplate().executeWithoutResult(status ->
-                    markProvisioningFailed(claimedProfileIds, contractId, failureReason));
+                    markProvisioningFailed(preparedProfileIds, contractId, failureReason));
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
                     "Gửi tài khoản thất bại. Có thể thử gửi lại sau khi xác nhận.",
@@ -141,9 +150,98 @@ public class TenantAccountProvisioningService {
             );
         }
 
-        return findPrimaryContractOccupant(contractId).toBuilder()
-                .message("Đã gửi tài khoản cho các người thuê chưa được cấp.")
+        log.info("test1");
+        List<TenantAccountProvisioningResponse> current = findContractOccupants(contractId);
+        return findPrimary(current).toBuilder()
+                .message(buildSendMessage(preparedProfileIds.size(), current))
                 .build();
+    }
+
+    public TenantAccountProvisioningResponse disableTenantContext(
+            Long contractId,
+            Long tenantProfileId,
+            String reason
+    ) {
+        String normalizedReason = validateDisableReason(reason);
+        Long disabledBy = AuthUtils.getCurrentAuthenticationId();
+        if (disabledBy == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+        }
+
+        ContractMembershipContext context = findContractMembershipContext(contractId, tenantProfileId);
+        if (!context.hasOccupant() && !Objects.equals(context.primaryTenantProfileId(), tenantProfileId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_CONTEXT_NOT_FOUND");
+        }
+
+        disableTenantContextStatus(contractId, tenantProfileId, normalizedReason, disabledBy, context);
+        return findContractOccupant(contractId, tenantProfileId).toBuilder()
+                .message("TENANT_CONTEXT_DISABLED")
+                .build();
+    }
+
+    private String validateDisableReason(String reason) {
+        String normalized = reason == null ? new String() : reason.trim();
+        if (normalized.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DISABLE_REASON_REQUIRED");
+        }
+        if (normalized.length() > 1000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DISABLE_REASON_TOO_LONG");
+        }
+        return normalized;
+    }
+
+    private boolean isProvisioningEligibleContext(TenantAccountProvisioningResponse occupant) {
+        return occupant.getOccupantStatus() != OccupantStatus.DISABLED
+                && occupant.getProvisioningStatus() != TenantAccountProvisioningStatus.DISABLED;
+    }
+
+    private void disableTenantContextStatus(
+            Long contractId,
+            Long tenantProfileId,
+            String reason,
+            Long disabledBy,
+            ContractMembershipContext context
+    ) {
+        transactionTemplate().executeWithoutResult(status -> {
+            if (context.hasOccupant()) {
+                disableExistingTenantContext(contractId, tenantProfileId, reason, disabledBy);
+            } else {
+                insertDisabledPrimaryTenantContext(contractId, tenantProfileId, reason, disabledBy, context);
+            }
+        });
+    }
+
+    private void disableExistingTenantContext(
+            Long contractId,
+            Long tenantProfileId,
+            String reason,
+            Long disabledBy
+    ) {
+        jdbcTemplate.update(
+                "UPDATE contract_occupants SET status = 'DISABLED', disabled_reason = ?, disabled_by = ?, disabled_at = NOW(6) WHERE contract_id = ? AND tenant_profile_id = ?",
+                reason,
+                disabledBy,
+                contractId,
+                tenantProfileId
+        );
+    }
+
+    private void insertDisabledPrimaryTenantContext(
+            Long contractId,
+            Long tenantProfileId,
+            String reason,
+            Long disabledBy,
+            ContractMembershipContext context
+    ) {
+        jdbcTemplate.update(
+                "INSERT INTO contract_occupants (contract_id, tenant_id, tenant_profile_id, occupant_role, move_in_date, status, disabled_reason, disabled_by, disabled_at, created_at) VALUES (?, ?, ?, 'PRIMARY', ?, 'DISABLED', ?, ?, NOW(6), NOW(6))",
+                contractId,
+                resolveTenantIdForProfile(tenantProfileId, context.propertyId()),
+                tenantProfileId,
+                context.startDate() != null ? context.startDate() : java.time.LocalDate.now(),
+                reason,
+                disabledBy
+        );
     }
 
     private PreparationOutcome prepareProvisioningAttempt(
@@ -159,17 +257,36 @@ public class TenantAccountProvisioningService {
             );
         }
 
+        if (!isProvisioningEligibleContext(occupant)) {
+            return PreparationOutcome.SKIPPED;
+        }
+
         TenantAccountProvisioningEntity provisioning =
                 findOrCreateProvisioning(occupant, contractId);
         User existingUser = resolveExistingUser(occupant, profileId);
         if (existingUser != null) {
             prepareExistingUser(occupant, existingUser);
-            boolean deliveryVerified =
-                    syncExistingUserProvisioning(provisioning, existingUser, contractId);
-            provisioningRepository.save(provisioning);
-            return deliveryVerified
-                    ? PreparationOutcome.SKIPPED
-                    : PreparationOutcome.EXISTING_ACCOUNT_WITHOUT_DELIVERY;
+            if (isActivated(existingUser.getLastLoginAt(), existingUser.isMustChangePassword())) {
+                syncExistingUserProvisioning(provisioning, existingUser, contractId);
+                provisioningRepository.save(provisioning);
+                return PreparationOutcome.SKIPPED;
+            }
+            if (provisioning.getStatus() == TenantAccountProvisioningStatus.FAILED && !retryFailed) {
+                return PreparationOutcome.SKIPPED;
+            }
+            if (provisioning.getStatus() == TenantAccountProvisioningStatus.SENT && !retryFailed) {
+                return PreparationOutcome.SKIPPED;
+            }
+            if (!List.of(
+                    TenantAccountProvisioningStatus.NOT_PROVISIONED,
+                    TenantAccountProvisioningStatus.PENDING,
+                    TenantAccountProvisioningStatus.FAILED,
+                    TenantAccountProvisioningStatus.SENT
+            ).contains(provisioning.getStatus())) {
+                return PreparationOutcome.SKIPPED;
+            }
+            claimProvisioningAttempt(provisioning, existingUser.getId(), contractId, occupant.getRecipientEmail());
+            return PreparationOutcome.CLAIMED;
         }
 
         if (provisioning.getStatus() == TenantAccountProvisioningStatus.FAILED && !retryFailed) {
@@ -177,19 +294,13 @@ public class TenantAccountProvisioningService {
         }
         if (!List.of(
                 TenantAccountProvisioningStatus.NOT_PROVISIONED,
+                TenantAccountProvisioningStatus.PENDING,
                 TenantAccountProvisioningStatus.FAILED
         ).contains(provisioning.getStatus())) {
             return PreparationOutcome.SKIPPED;
         }
 
-        provisioning.setStatus(TenantAccountProvisioningStatus.PENDING);
-        provisioning.setLatestContractId(contractId);
-        provisioning.setRecipientEmail(occupant.getRecipientEmail());
-        provisioning.setAttemptCount(Objects.requireNonNullElse(provisioning.getAttemptCount(), 0) + 1);
-        provisioning.setLastAttemptAt(LocalDateTime.now());
-        provisioning.setFailedAt(null);
-        provisioning.setFailureReason(null);
-        provisioningRepository.save(provisioning);
+        claimProvisioningAttempt(provisioning, null, contractId, occupant.getRecipientEmail());
         return PreparationOutcome.CLAIMED;
     }
 
@@ -198,6 +309,7 @@ public class TenantAccountProvisioningService {
             List<Long> claimedProfileIds,
             TenantAccountProvisioningResponse primary
     ) {
+        log.info("test");
         List<TenantAccountProvisioningResponse> occupants = findContractOccupants(contractId).stream()
                 .filter(item -> claimedProfileIds.contains(item.getProfileId()))
                 .toList();
@@ -215,6 +327,25 @@ public class TenantAccountProvisioningService {
             User existingUser = resolveExistingUser(occupant, occupant.getProfileId());
             if (existingUser != null) {
                 prepareExistingUser(occupant, existingUser);
+                if (!isActivated(existingUser.getLastLoginAt(), existingUser.isMustChangePassword())) {
+                    String temporaryPassword = RandomPasswordUtils.generatePassword(6, true, true);
+                    existingUser.issueTemporaryPassword(passwordEncoder.encode(temporaryPassword));
+                    User savedUser = userRepository.save(existingUser);
+                    ensureTenantMembership(occupant.getPropertyId(), savedUser.getId());
+                    linkProfileIfNeeded(occupant.getProfileId(), savedUser.getId());
+                    provisionedAccounts.add(new ProvisionedAccount(
+                            occupant.getProfileId(),
+                            savedUser.getId()
+                    ));
+                    credentials.add(new SendPreCreatedAccountPort.AccountCredential(
+                            occupant.getProfileId(),
+                            occupant.getFullName(),
+                            occupant.getPhone(),
+                            temporaryPassword,
+                            occupant.getRoomRole()
+                    ));
+                    continue;
+                }
                 TenantAccountProvisioningEntity provisioning =
                         getProvisioningForUpdate(occupant.getProfileId());
                 syncExistingUserProvisioning(provisioning, existingUser, contractId);
@@ -231,22 +362,36 @@ public class TenantAccountProvisioningService {
                     savedUser.getId()
             ));
             credentials.add(new SendPreCreatedAccountPort.AccountCredential(
+                    occupant.getProfileId(),
                     occupant.getFullName(),
                     occupant.getPhone(),
                     temporaryPassword,
                     occupant.getRoomRole()
             ));
         }
-
+        log.info(credentials.toString());
         if (!credentials.isEmpty()) {
+            Long recipientUserId = provisionedAccounts.stream()
+                    .filter(account -> Objects.equals(account.profileId(), primary.getProfileId()))
+                    .map(ProvisionedAccount::userId)
+                    .findFirst()
+                    .orElseGet(() -> {
+                        User existingPrimaryUser = resolveExistingUser(primary, primary.getProfileId());
+                        return existingPrimaryUser == null ? null : existingPrimaryUser.getId();
+                    });
+
             log.info(
                     "Sending tenant account email. contractId={}, accountCount={}",
                     contractId,
                     credentials.size()
             );
             sendPreCreatedAccountPort.sendAccountInformationBatch(
+                    contractId,
+                    primary.getProfileId(),
+                    recipientUserId,
                     primary.getRecipientEmail(),
                     primary.getFullName(),
+                    primary.getPhone(),
                     credentials
             );
             log.info(
@@ -256,19 +401,42 @@ public class TenantAccountProvisioningService {
             );
         }
 
-        LocalDateTime sentAt = LocalDateTime.now();
+        LocalDateTime sentAt = credentials.isEmpty() ? LocalDateTime.now() : null;
         for (ProvisionedAccount account : provisionedAccounts) {
             TenantAccountProvisioningEntity provisioning =
                     getProvisioningForUpdate(account.profileId());
             provisioning.setUserId(account.userId());
             provisioning.setLatestContractId(contractId);
-            provisioning.setStatus(TenantAccountProvisioningStatus.SENT);
+            provisioning.setStatus(
+                    credentials.isEmpty()
+                            ? TenantAccountProvisioningStatus.SENT
+                            : TenantAccountProvisioningStatus.PENDING
+            );
             provisioning.setSentAt(sentAt);
             provisioning.setFailedAt(null);
             provisioning.setFailureReason(null);
             provisioningRepository.save(provisioning);
         }
         return credentials.size();
+    }
+
+    private void claimProvisioningAttempt(
+            TenantAccountProvisioningEntity provisioning,
+            Long userId,
+            Long contractId,
+            String recipientEmail
+    ) {
+        if (userId != null) {
+            provisioning.setUserId(userId);
+        }
+        provisioning.setStatus(TenantAccountProvisioningStatus.PENDING);
+        provisioning.setLatestContractId(contractId);
+        provisioning.setRecipientEmail(recipientEmail);
+        provisioning.setAttemptCount(Objects.requireNonNullElse(provisioning.getAttemptCount(), 0) + 1);
+        provisioning.setLastAttemptAt(LocalDateTime.now());
+        provisioning.setFailedAt(null);
+        provisioning.setFailureReason(null);
+        provisioningRepository.save(provisioning);
     }
 
     private TenantAccountProvisioningEntity findOrCreateProvisioning(
@@ -384,7 +552,7 @@ public class TenantAccountProvisioningService {
             linkedUserId = jdbcTemplate.query("""
                             SELECT user_id
                             FROM person_profiles
-                            WHERE id = ?
+                            WHERE person_profile_id = ?
                               AND deleted_at IS NULL
                             LIMIT 1
                             """,
@@ -471,6 +639,53 @@ public class TenantAccountProvisioningService {
                 ));
     }
 
+    private ContractMembershipContext findContractMembershipContext(Long contractId, Long tenantProfileId) {
+        List<ContractMembershipContext> contexts = jdbcTemplate.query(
+                "SELECT lc.primary_tenant_profile_id, lc.start_date, r.property_id, EXISTS (SELECT 1 FROM contract_occupants co WHERE co.contract_id = lc.lease_contract_id AND co.tenant_profile_id = ?) AS has_occupant, EXISTS (SELECT 1 FROM person_profiles pp WHERE pp.person_profile_id = ? AND pp.deleted_at IS NULL) AS profile_exists FROM lease_contracts lc JOIN rooms r ON r.room_id = lc.room_id WHERE lc.lease_contract_id = ? AND lc.deleted_at IS NULL LIMIT 1",
+                (rs, rowNum) -> new ContractMembershipContext(
+                        getLongOrNull(rs, "primary_tenant_profile_id"),
+                        toLocalDate(rs, "start_date"),
+                        getLongOrNull(rs, "property_id"),
+                        rs.getBoolean("has_occupant"),
+                        rs.getBoolean("profile_exists")
+                ),
+                tenantProfileId,
+                tenantProfileId,
+                contractId
+        );
+        if (contexts.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "CONTRACT_NOT_FOUND");
+        }
+        ContractMembershipContext context = contexts.getFirst();
+        if (!context.profileExists()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_PROFILE_NOT_FOUND");
+        }
+        return context;
+    }
+
+    private Long resolveTenantIdForProfile(Long tenantProfileId, Long propertyId) {
+        List<Long> tenantIds = jdbcTemplate.query(
+                "SELECT t.tenant_id AS id FROM tenants t JOIN person_profiles pp ON pp.person_profile_id = ? LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.person_profile_id WHERE t.property_id = ? AND t.deleted_at IS NULL AND t.user_id = COALESCE(pp.user_id, tap.user_id) ORDER BY t.tenant_id DESC LIMIT 1",
+                (rs, rowNum) -> rs.getLong("id"),
+                tenantProfileId,
+                propertyId
+        );
+        return tenantIds.isEmpty() ? null : tenantIds.getFirst();
+    }
+
+    private TenantAccountProvisioningResponse findContractOccupant(Long contractId, Long tenantProfileId) {
+        List<TenantAccountProvisioningResponse> occupants = jdbcTemplate.query(
+                "SELECT * FROM (" + baseCandidateSql() + ") account_candidates WHERE contract_id = ? AND profile_id = ? ORDER BY role_order ASC, full_name",
+                (rs, rowNum) -> toResponse(rs),
+                contractId,
+                tenantProfileId
+        );
+        if (occupants.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_CONTEXT_NOT_FOUND");
+        }
+        return occupants.getFirst();
+    }
+
     private ContractProvisioningContext findContractContext(Long contractId) {
         try {
             return jdbcTemplate.queryForObject("""
@@ -480,13 +695,13 @@ public class TenantAccountProvisioningService {
                                 (
                                     SELECT COUNT(*)
                                     FROM contract_occupants co
-                                    WHERE co.contract_id = lc.id
+                                    WHERE co.contract_id = lc.lease_contract_id
                                       AND co.status = 'ACTIVE'
                                       AND co.tenant_profile_id IS NOT NULL
                                 ) AS occupant_count
                             FROM lease_contracts lc
-                            JOIN rooms r ON r.id = lc.room_id
-                            WHERE lc.id = ?
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            WHERE lc.lease_contract_id = ?
                               AND lc.deleted_at IS NULL
                             """,
                     (rs, rowNum) -> new ContractProvisioningContext(
@@ -557,39 +772,42 @@ public class TenantAccountProvisioningService {
         return """
                 SELECT
                     CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END AS role_order,
-                    lc.id AS contract_id,
+                    lc.lease_contract_id AS contract_id,
                     lc.contract_code,
                     lc.status AS contract_status,
                     lc.start_date,
                     lc.end_date,
                     lc.signed_at,
-                    p.id AS property_id,
+                    p.property_id AS property_id,
                     p.name AS property_name,
-                    r.id AS room_id,
+                    r.room_id AS room_id,
                     r.room_code,
                     r.current_status AS room_status,
                     co.id AS occupant_id,
-                    pp.id AS profile_id,
+                    pp.person_profile_id AS profile_id,
                     pp.full_name,
                     pp.phone,
                     pp.email,
                     COALESCE(primary_pp.email, primary_user.email) AS recipient_email,
                     co.occupant_role AS room_role,
+                    co.status AS occupant_status,
                     GREATEST((
                         SELECT COUNT(*)
                         FROM contract_occupants co_count
-                        WHERE co_count.contract_id = lc.id
+                        WHERE co_count.contract_id = lc.lease_contract_id
                           AND co_count.status = 'ACTIVE'
                     ), 1) AS room_occupant_count,
                     r.max_occupants AS room_max_occupants,
-                    u.id AS user_id,
+                    u.user_id AS user_id,
                     u.role,
                     u.status AS account_status,
                     u.must_change_password,
                     u.last_login_at,
                     u.created_at AS account_created_at,
                     CASE
-                        WHEN u.id IS NOT NULL
+                        WHEN co.status = 'DISABLED' OR tap.status = 'DISABLED'
+                            THEN 'DISABLED'
+                        WHEN u.user_id IS NOT NULL
                           AND (u.last_login_at IS NOT NULL OR u.must_change_password = FALSE)
                             THEN 'ACTIVE'
                         WHEN tap.status = 'SENT' AND tap.sent_at IS NULL
@@ -599,13 +817,16 @@ public class TenantAccountProvisioningService {
                     tap.sent_at,
                     tap.failed_at,
                     tap.failure_reason,
+                    co.disabled_reason,
+                    co.disabled_by,
+                    co.disabled_at,
                     tap.attempt_count,
                     tap.last_attempt_at,
                     CASE
                         WHEN NOT EXISTS (
                             SELECT 1
                             FROM identity_documents idoc
-                            WHERE idoc.profile_id = pp.id
+                            WHERE idoc.profile_id = pp.person_profile_id
                               AND idoc.status = 'ACTIVE'
                               AND idoc.doc_number IS NOT NULL
                               AND idoc.doc_number <> ''
@@ -615,14 +836,14 @@ public class TenantAccountProvisioningService {
                         WHEN NOT EXISTS (
                             SELECT 1
                             FROM emergency_contacts ec
-                            WHERE ec.tenant_profile_id = pp.id
+                            WHERE ec.tenant_profile_id = pp.person_profile_id
                         ) THEN 'MISSING_EMERGENCY_CONTACT'
                         ELSE 'COMPLETED'
                     END AS profile_status,
                     NOT EXISTS (
                         SELECT 1
                         FROM identity_documents idoc
-                        WHERE idoc.profile_id = pp.id
+                        WHERE idoc.profile_id = pp.person_profile_id
                           AND idoc.status = 'ACTIVE'
                           AND idoc.doc_number IS NOT NULL
                           AND idoc.doc_number <> ''
@@ -632,48 +853,55 @@ public class TenantAccountProvisioningService {
                     NOT EXISTS (
                         SELECT 1
                         FROM emergency_contacts ec
-                        WHERE ec.tenant_profile_id = pp.id
+                            WHERE ec.tenant_profile_id = pp.person_profile_id
                     ) AS missing_emergency_contact
                 FROM lease_contracts lc
-                JOIN rooms r ON r.id = lc.room_id
-                JOIN properties p ON p.id = r.property_id
-                JOIN person_profiles primary_pp ON primary_pp.id = lc.primary_tenant_profile_id
+                JOIN rooms r ON r.room_id = lc.room_id
+                JOIN properties p ON p.property_id = r.property_id
+                JOIN person_profiles primary_pp ON primary_pp.person_profile_id = lc.primary_tenant_profile_id
                 JOIN (
                     SELECT
-                        active_occupant.id,
+                        active_occupant.contract_occupant_id AS id,
                         active_occupant.contract_id,
                         active_occupant.tenant_profile_id,
-                        active_occupant.occupant_role
+                        active_occupant.occupant_role,
+                        active_occupant.status,
+                        active_occupant.disabled_reason,
+                        active_occupant.disabled_by,
+                        active_occupant.disabled_at
                     FROM contract_occupants active_occupant
-                    WHERE active_occupant.status = 'ACTIVE'
+                    WHERE active_occupant.status IN ('ACTIVE','DISABLED')
                       AND active_occupant.tenant_profile_id IS NOT NULL
 
                     UNION ALL
 
                     SELECT
                         NULL AS id,
-                        fallback_contract.id AS contract_id,
+                        fallback_contract.lease_contract_id AS contract_id,
                         fallback_contract.primary_tenant_profile_id AS tenant_profile_id,
-                        'PRIMARY' AS occupant_role
+                        'PRIMARY' AS occupant_role,
+                        'ACTIVE' AS status,
+                        NULL AS disabled_reason,
+                        NULL AS disabled_by,
+                        NULL AS disabled_at
                     FROM lease_contracts fallback_contract
                     WHERE fallback_contract.deleted_at IS NULL
                       AND NOT EXISTS (
                           SELECT 1
                           FROM contract_occupants primary_occupant
-                          WHERE primary_occupant.contract_id = fallback_contract.id
+                          WHERE primary_occupant.contract_id = fallback_contract.lease_contract_id
                             AND primary_occupant.tenant_profile_id =
                                 fallback_contract.primary_tenant_profile_id
-                            AND primary_occupant.status = 'ACTIVE'
                       )
-                ) co ON co.contract_id = lc.id
+                ) co ON co.contract_id = lc.lease_contract_id
                 JOIN person_profiles pp
-                    ON pp.id = co.tenant_profile_id
+                    ON pp.person_profile_id = co.tenant_profile_id
                     AND pp.deleted_at IS NULL
                 LEFT JOIN users primary_user
-                    ON primary_user.id = primary_pp.user_id
+                    ON primary_user.user_id = primary_pp.user_id
                     AND primary_user.deleted_at IS NULL
-                LEFT JOIN users u ON u.id = pp.user_id AND u.deleted_at IS NULL
-                LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.id
+                LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
+                LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.person_profile_id
                 WHERE lc.deleted_at IS NULL
                   AND lc.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
                 """;
@@ -707,6 +935,7 @@ public class TenantAccountProvisioningService {
                 .occupantId(getLongOrNull(rs, "occupant_id"))
                 .profileId(getLongOrNull(rs, "profile_id"))
                 .roomRole(rs.getString("room_role"))
+                .occupantStatus(parseOccupantStatus(rs.getString("occupant_status")))
                 .roomOccupantCount(getIntOrNull(rs, "room_occupant_count"))
                 .roomMaxOccupants(getIntOrNull(rs, "room_max_occupants"))
                 .userId(userId)
@@ -728,6 +957,9 @@ public class TenantAccountProvisioningService {
                 .sentAt(toLocalDateTime(rs, "sent_at"))
                 .failedAt(toLocalDateTime(rs, "failed_at"))
                 .failureReason(rs.getString("failure_reason"))
+                .disabledReason(rs.getString("disabled_reason"))
+                .disabledBy(getLongOrNull(rs, "disabled_by"))
+                .disabledAt(toLocalDateTime(rs, "disabled_at"))
                 .attemptCount(getIntOrNull(rs, "attempt_count"))
                 .lastAttemptAt(toLocalDateTime(rs, "last_attempt_at"))
                 .profileStatus(rs.getString("profile_status"))
@@ -751,6 +983,21 @@ public class TenantAccountProvisioningService {
             return "Tài khoản đang được gửi, không gửi lặp lại.";
         }
         return "Tất cả người thuê đã được cấp tài khoản, không gửi lại.";
+    }
+
+    private String buildSendMessage(
+            int sentCount,
+            List<TenantAccountProvisioningResponse> occupants
+    ) {
+        long activatedCount = occupants.stream()
+                .filter(item -> item.getProvisioningStatus() == TenantAccountProvisioningStatus.ACTIVE)
+                .count();
+        if (activatedCount > 0) {
+            return "Đã gửi " + sentCount
+                    + " tài khoản chưa kích hoạt; bỏ qua "
+                    + activatedCount + " tài khoản đã kích hoạt.";
+        }
+        return "Đã gửi " + sentCount + " tài khoản cho khách thuê chưa kích hoạt.";
     }
 
     private String resolveUserEmail(TenantAccountProvisioningResponse occupant) {
@@ -802,6 +1049,10 @@ public class TenantAccountProvisioningService {
         return AccountStatus.valueOf(value);
     }
 
+    private OccupantStatus parseOccupantStatus(String value) {
+        return StringUtils.isEmpty(value) ? null : OccupantStatus.valueOf(value);
+    }
+
     private TenantAccountProvisioningStatus parseProvisioningStatus(String value) {
         return StringUtils.isEmpty(value)
                 ? null
@@ -840,22 +1091,24 @@ public class TenantAccountProvisioningService {
     private record ProvisionedAccount(Long profileId, Long userId) {
     }
 
-    private record ProvisioningPreparation(
-            List<Long> claimedProfileIds,
-            List<Long> existingAccountsWithoutDelivery
-    ) {
-    }
-
     private enum PreparationOutcome {
         CLAIMED,
-        SKIPPED,
-        EXISTING_ACCOUNT_WITHOUT_DELIVERY
+        SKIPPED
     }
 
     private record ContractProvisioningContext(
             LeaseStatus contractStatus,
             RoomStatus roomStatus,
             int occupantCount
+    ) {
+    }
+
+    private record ContractMembershipContext(
+            Long primaryTenantProfileId,
+            java.time.LocalDate startDate,
+            Long propertyId,
+            boolean hasOccupant,
+            boolean profileExists
     ) {
     }
 }

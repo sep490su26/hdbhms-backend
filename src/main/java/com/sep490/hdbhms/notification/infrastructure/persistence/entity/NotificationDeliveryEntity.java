@@ -26,6 +26,7 @@ public class NotificationDeliveryEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "notification_delivery_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

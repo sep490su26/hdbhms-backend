@@ -1,7 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotBlank;
@@ -55,16 +53,6 @@ public class DepositContractPreviewRequest {
     LocalDate expectedLeaseSignDate;
 
     @NotNull
-    @JsonProperty("payment_cycle_months")
     Integer paymentCycleMonths;
 
-    @AssertTrue(message = "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay")
-    public boolean isExpectedMoveInDateWithinAllowedRange() {
-        return expectedMoveInDate == null || !expectedMoveInDate.isAfter(LocalDate.now().plusDays(14));
-    }
-
-    @AssertTrue(message = "Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ hôm nay")
-    public boolean isExpectedLeaseSignDateWithinAllowedRange() {
-        return expectedLeaseSignDate == null || !expectedLeaseSignDate.isAfter(LocalDate.now().plusDays(14));
-    }
 }

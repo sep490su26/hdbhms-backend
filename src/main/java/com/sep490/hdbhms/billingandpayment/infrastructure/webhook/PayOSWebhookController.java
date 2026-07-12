@@ -114,7 +114,6 @@ public class PayOSWebhookController {
 
         List<DateTimeFormatter> formatters = List.of(
                 DateTimeFormatter.ISO_LOCAL_DATE_TIME,
-                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
                 DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
         );
         for (DateTimeFormatter formatter : formatters) {

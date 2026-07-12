@@ -45,10 +45,10 @@ public class TenantFileController {
         Boolean isOwner = jdbcTemplate.queryForObject("""
                 SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END
                 FROM person_profiles pp
-                JOIN users u ON pp.user_id = u.id OR pp.phone = u.phone OR LOWER(pp.email) = LOWER(u.email)
-                LEFT JOIN identity_documents idoc ON idoc.profile_id = pp.id
-                LEFT JOIN vehicles v ON v.profile_id = pp.id
-                WHERE u.id = ? AND u.deleted_at IS NULL AND pp.deleted_at IS NULL
+                JOIN users u ON pp.user_id = u.user_id OR pp.phone = u.phone OR LOWER(pp.email) = LOWER(u.email)
+                LEFT JOIN identity_documents idoc ON idoc.profile_id = pp.person_profile_id
+                LEFT JOIN vehicles v ON v.profile_id = pp.person_profile_id
+                WHERE u.user_id = ? AND u.deleted_at IS NULL AND pp.deleted_at IS NULL
                   AND (
                       pp.portrait_file_id = ?
                       OR idoc.front_file_id = ?
@@ -63,31 +63,40 @@ public class TenantFileController {
                 SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END
                 FROM users u
                 LEFT JOIN tenants t
-                  ON t.user_id = u.id
+                  ON t.user_id = u.user_id
                  AND t.deleted_at IS NULL
                 LEFT JOIN person_profiles pp
                   ON pp.deleted_at IS NULL
                  AND (
-                    pp.user_id = u.id
+                    pp.user_id = u.user_id
                     OR (u.phone IS NOT NULL AND pp.phone = u.phone)
                     OR (u.email IS NOT NULL AND LOWER(pp.email) = LOWER(u.email))
                  )
                 LEFT JOIN lease_contracts lc
                   ON lc.deleted_at IS NULL
                  AND (
-                    lc.primary_tenant_profile_id = pp.id
-                    OR lc.id IN (
+                    (
+                        lc.primary_tenant_profile_id = pp.person_profile_id
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM contract_occupants disabled_primary
+                            WHERE disabled_primary.contract_id = lc.lease_contract_id
+                              AND disabled_primary.tenant_profile_id = pp.person_profile_id
+                              AND disabled_primary.status = 'DISABLED'
+                        )
+                    )
+                    OR lc.lease_contract_id IN (
                         SELECT co.contract_id
                         FROM contract_occupants co
-                        WHERE co.tenant_profile_id = pp.id
+                        WHERE co.tenant_profile_id = pp.person_profile_id
                           AND co.status = 'ACTIVE'
                     )
                  )
                 LEFT JOIN deposit_agreements da
-                  ON da.depositor_person_profile_id = pp.id
-                  OR da.tenant_id = t.id
-                  OR da.id = lc.deposit_agreement_id
-                WHERE u.id = ? AND u.deleted_at IS NULL
+                  ON da.depositor_person_profile_id = pp.person_profile_id
+                  OR da.tenant_id = t.tenant_id
+                  OR da.deposit_agreement_id = lc.deposit_agreement_id
+                WHERE u.user_id = ? AND u.deleted_at IS NULL
                   AND (
                       lc.contract_file_id = ?
                       OR da.contract_file_id = ?

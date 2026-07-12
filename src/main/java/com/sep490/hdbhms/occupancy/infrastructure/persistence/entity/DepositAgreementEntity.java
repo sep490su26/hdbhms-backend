@@ -33,6 +33,7 @@ public class DepositAgreementEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "deposit_agreement_id")
     Long id;
 
     @Column(name = "deposit_code", nullable = false, length = 80)

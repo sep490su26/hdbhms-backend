@@ -26,6 +26,15 @@ public class DepositAgreementSpecifications {
                         criteriaBuilder.equal(root.get("status"), status);
     }
 
+    public static Specification<DepositAgreementEntity> statusesIn(List<DepositAgreementStatus> statuses) {
+        return (root, query, criteriaBuilder) -> {
+            if (statuses == null || statuses.isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+            return root.get("status").in(statuses);
+        };
+    }
+
     public static Specification<DepositAgreementEntity> signingDateBetween(
             LocalDateTime from,
             LocalDateTime to

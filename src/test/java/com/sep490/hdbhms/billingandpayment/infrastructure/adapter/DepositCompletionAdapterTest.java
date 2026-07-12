@@ -98,7 +98,7 @@ class DepositCompletionAdapterTest {
         }
 
         @Override
-        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, java.time.LocalDateTime signedFrom, java.time.LocalDateTime signedTo, Pageable pageable) {
+        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, java.time.LocalDateTime signedFrom, java.time.LocalDateTime signedTo, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
 
@@ -170,6 +170,11 @@ class DepositCompletionAdapterTest {
         @Override
         public Optional<Room> findByRoomCode(String roomCode) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode) {
+            return false;
         }
 
         @Override

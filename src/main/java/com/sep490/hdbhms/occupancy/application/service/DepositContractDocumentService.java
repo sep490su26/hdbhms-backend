@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.lowagie.text.pdf.BaseFont;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
@@ -42,19 +43,18 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+import org.xhtmlrenderer.pdf.ITextFontResolver;
+import org.xhtmlrenderer.pdf.ITextRenderer;
 
 import java.io.*;
+import java.net.URL;
 import java.nio.file.Files;
 import java.text.Normalizer;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 @Service
@@ -64,7 +64,7 @@ import java.util.regex.Pattern;
 public class DepositContractDocumentService {
     static final long DEFAULT_DEPOSIT_AMOUNT = 2_000L;
     static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     static final NumberFormat MONEY_FORMATTER = NumberFormat.getInstance(Locale.forLanguageTag("vi-VN"));
     static final Pattern DIACRITICS = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
     static final String DEPOSIT_RECEIVER_FULL_NAME = "ĐẶNG VĂN NHUẦN";
@@ -109,8 +109,13 @@ public class DepositContractDocumentService {
     }
 
     private Long resolvePreviewDepositAmount() {
-        Long amount = environment.getProperty("app.deposit.amount", Long.class, DEFAULT_DEPOSIT_AMOUNT);
-        return amount == null || amount <= 0 ? DEFAULT_DEPOSIT_AMOUNT : amount;
+        Long amount = environment == null
+                ? DEFAULT_DEPOSIT_AMOUNT
+                : environment.getProperty("app.deposit.amount", Long.class, DEFAULT_DEPOSIT_AMOUNT);
+        if (amount == null) {
+            return DEFAULT_DEPOSIT_AMOUNT;
+        }
+        return amount <= 0 ? DEFAULT_DEPOSIT_AMOUNT : amount;
     }
 
     @Transactional(readOnly = true)
@@ -263,103 +268,137 @@ public class DepositContractDocumentService {
     private String buildTemplateHtml(ContractData data) {
         Context context = new Context();
         context.setVariables(buildTemplateVariables(data));
-        return templateEngine.process("deposit-contract-template", context);
+        return templateEngine.process("contractTemplates/html/deposit_contract_template", context);
     }
 
     private Map<String, Object> buildTemplateVariables(ContractData data) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("draftNotice", "BẢN NHÁP - CHƯA CÓ CHỮ KÝ");
         variables.put("draftDescription", "Bản dùng để in và ký trực tiếp, chưa phải bản hợp đồng đặt cọc chính thức.");
-        variables.put("issuedAt", formatDate(data.generatedAt().toLocalDate()));
-        variables.put("ownerFullName", data.owner().fullName());
+        variables.put("issuedAtDate", formatDate(data.generatedAt().toLocalDate()));
+        variables.put("issuedAtDateString", formatVietnameseDate(data.generatedAt().toLocalDate()));
+        variables.put("ownerFullNameUppercase", data.owner().fullName().toUpperCase());
         variables.put("ownerDob", data.owner().dob());
         variables.put("ownerIdNumber", data.owner().idNumber());
         variables.put("ownerIdIssuedDate", data.owner().idIssuedDate());
         variables.put("ownerIdIssuedPlace", data.owner().idIssuedPlace());
-        variables.put("contactPhoneListString", data.owner().phone());
-        variables.put("fullName", data.customerName());
+        variables.put("ownerContactPhoneListString", data.owner().phone());
+        variables.put("signerFullName", data.customerName());
+        variables.put("signerDob", formatDate(data.customerDob()));
         variables.put("dob", formatDate(data.customerDob()));
-        variables.put("idNumber", valueOrDefault(data.idNumber(), "............"));
-        variables.put("idIssueDate", formatDate(data.idIssueDate()));
-        variables.put("idIssuePlace", valueOrDefault(data.idIssuePlace(), "............"));
-        variables.put("phone", data.customerPhone());
-        variables.put("permanentAddress", valueOrDefault(data.permanentAddress(), "............"));
+        variables.put("signerIdNumber", valueOrDefault(data.idNumber(), "............"));
+        variables.put("signerIdIssuedDate", formatDate(data.idIssueDate()));
+        variables.put("signerIdIssuedPlace", valueOrDefault(data.idIssuePlace(), "............"));
+        variables.put("signerPhoneNumber", data.customerPhone());
+        variables.put("signerPermanentAddress", valueOrDefault(data.permanentAddress(), "............"));
         variables.put("roomNumber", data.roomCode());
         variables.put("propertyAddress", valueOrDefault(data.propertyAddress(), "............"));
-        variables.put("occupantNumber", data.maxOccupants() == null ? "............" : data.maxOccupants().toString());
+        variables.put("signerNumberOfOccupants", data.maxOccupants() == null ? "............" : data.maxOccupants().toString());
         variables.put("expectedMoveInDateString", formatVietnameseDate(data.expectedMoveInDate()));
         variables.put("listedPrice", formatMoney(data.listedPrice()));
         variables.put("expectedLeaseSignDate", formatDate(data.expectedLeaseSignDate()));
+        variables.put("contractDuration", "12");
+        variables.put("contractStartDate", formatVietnameseDate(data.expectedMoveInDate()));
         variables.put("depositAmount", formatMoney(data.depositAmount()));
         variables.put("depositAmountString", data.depositAmountText());
         variables.put("depositSignedDateString", formatVietnameseDate(data.generatedAt().toLocalDate()));
-        variables.put("leaseDurationMonths", "12");
         variables.put("currentYear", data.generatedAt().getYear());
         variables.put("paymentCycleMonths", data.paymentCycleMonths() != null ? data.paymentCycleMonths() : 1);
         variables.put("depositMonths", data.depositMonths() != null ? data.depositMonths() : 1);
         return variables;
     }
 
+    //    private byte[] generatePdf(ContractData data) {
+//        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+//            FontRef fontRef = loadFont(document);
+//            PdfWriter writer = new PdfWriter(document, fontRef);
+//            writer.center("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", 13);
+//            writer.center("Độc Lập – Tự Do – Hạnh Phúc", 12);
+//            writer.center("--------o0o--------", 12);
+//            writer.gap(16);
+//            writer.center("HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG", 17);
+//            writer.center("BAN NHAP - CHUA CO CHU KY", 11);
+//            writer.center("Ban dung de in va ky truc tiep, chua phai ban chinh thuc.", 10);
+//            writer.center("Mã cọc: " + data.depositCode(), 11);
+//            writer.gap(14);
+//            writer.paragraph("Hôm nay ngày " + formatDate(data.generatedAt().toLocalDate()), 11);
+//            writer.paragraph("Chúng tôi những người ký tên dưới đây gồm:", 11);
+//            writer.section("1. BÊN NHẬN TIỀN ĐẶT CỌC (BÊN A)");
+//            writer.paragraph("Ông: " + data.owner().fullName(), 11);
+//            writer.paragraph("Ngày sinh: " + data.owner().dob(), 11);
+//            writer.paragraph("CMTND/CCCD Số: " + data.owner().idNumber()
+//                    + "; Cấp ngày: " + data.owner().idIssuedDate()
+//                    + "  Nơi cấp: " + data.owner().idIssuedPlace(), 11);
+//            writer.paragraph("Điện thoại: " + data.owner().phone(), 11);
+//            writer.paragraph("Là chủ sở hữu và sử dụng hợp pháp của toàn bộ căn nhà nêu tại Điều 1 dưới đây.", 11);
+//            writer.section("2. BÊN GIAO TIỀN ĐẶT CỌC (BÊN B)");
+//            writer.paragraph("Ông/ Bà: " + data.customerName() + "    Ngày sinh: " + formatDate(data.customerDob()), 11);
+//            writer.paragraph("CMTND/ CCCD: " + valueOrDefault(data.idNumber(), "Chưa cung cấp")
+//                    + "    Cấp ngày: " + formatDate(data.idIssueDate())
+//                    + "    Nơi cấp: " + valueOrDefault(data.idIssuePlace(), "Chưa cung cấp"), 11);
+//            writer.paragraph("Điện thoại: " + data.customerPhone(), 11);
+//            writer.paragraph("Địa chỉ thường trú: " + valueOrDefault(data.permanentAddress(), "Chưa cung cấp"), 11);
+//            writer.paragraph("Sau khi bàn bạc, hai bên cùng đi đến thống nhất 1 số điều khoản như sau:", 11);
+//            writer.section("ĐIỀU 1: TIỀN ĐẶT CỌC, MỤC ĐÍCH ĐẶT CỌC");
+//            writer.paragraph("1.1 Bên B đồng ý thuê của bên A phòng số " + data.roomCode()
+//                    + ". Tòa nhà có địa chỉ: " + valueOrDefault(data.propertyAddress(), "Chưa cung cấp")
+//                    + ". Do bên A đại diện là Ban Quản Lý tòa nhà với các thỏa thuận trong hợp đồng như sau:", 11);
+//            writer.paragraph("Mục đích thuê: để ở và sinh hoạt với số lượng người đăng kí ở: "
+//                    + (data.maxOccupants() == null ? "............" : data.maxOccupants()), 11);
+//            writer.paragraph("Hợp đồng có thời hạn: ... tháng và bắt đầu tính tiền từ ngày .., tháng ..., năm "
+//                    + data.generatedAt().getYear() + ".", 11);
+//            writer.paragraph("Giá thuê phòng: " + formatMoney(data.listedPrice()) + " / 01 tháng", 11);
+//            writer.paragraph("Phương thức thanh toán: Đặt cọc ………. tháng và thanh toán ……………. tháng tiền nhà", 11);
+//            writer.paragraph("1.2 Để đảm bảo chắc chắn việc ký hợp đồng thuê phòng và trả tiền thuê phòng muộn nhất vào "
+//                    + formatDate(data.expectedLeaseSignDate()) + ", nay bên B tự nguyện đóng cho bên A số tiền là "
+//                    + formatMoney(data.depositAmount()) + " (Bằng chữ: " + data.depositAmountText()
+//                    + ") gọi là tiền đặt cọc.", 11);
+//            writer.section("ĐIỀU 2: THỎA THUẬN VỀ VIỆC GIẢI QUYẾT TIỀN ĐẶT CỌC");
+//            writer.paragraph("2.1 Từ ngày ký hợp đồng này đến ngày " + formatDate(data.expectedLeaseSignDate())
+//                    + " mà bên B không liên hệ để ký hợp đồng thuê phòng và trả tiền thuê phòng thì bên B sẽ mất toàn bộ số tiền đã đặt cọc.", 11);
+//            writer.paragraph("2.2 Nếu đến hết ngày " + formatDate(data.expectedLeaseSignDate())
+//                    + " mà bên A không ký hợp đồng cho thuê với bên B thì bên A phải trả lại cho bên B toàn bộ số tiền mà bên B đã đặt cọc.", 11);
+//            writer.section("ĐIỀU 3: CAM KẾT CỦA HAI BÊN");
+//            writer.paragraph("3.1 Hai bên xác định hoàn toàn tự nguyện khi ký hợp đồng này và cam kết cùng nhau thực hiện nghiêm túc những điều khoản trên đây.", 11);
+//            writer.paragraph("3.2 Hợp đồng này có hiệu lực từ ngày ký, hợp đồng được lập thành 02 bản, mỗi bên giữ 01 bản có giá trị pháp lý như nhau. Sau khi đọc hợp đồng cả 2 bên đã hiểu rõ quyền lợi và nghĩa vụ của mình và cùng ký tên dưới đây.", 11);
+//            writer.gap(10);
+//            writer.paragraph("Hà Nội, " + formatVietnameseDate(data.generatedAt().toLocalDate()), 11);
+//            writer.signatures(data.owner().fullName(), data.customerName());
+//            writer.close();
+//            document.save(output);
+//            return output.toByteArray();
+//        } catch (IOException e) {
+//            throw new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND);
+//        }
+//    }
     private byte[] generatePdf(ContractData data) {
-        try (PDDocument document = new PDDocument(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            FontRef fontRef = loadFont(document);
-            PdfWriter writer = new PdfWriter(document, fontRef);
-            writer.center("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", 13);
-            writer.center("Độc Lập – Tự Do – Hạnh Phúc", 12);
-            writer.center("--------o0o--------", 12);
-            writer.gap(16);
-            writer.center("HỢP ĐỒNG ĐẶT CỌC TIỀN PHÒNG", 17);
-            writer.center("BAN NHAP - CHUA CO CHU KY", 11);
-            writer.center("Ban dung de in va ky truc tiep, chua phai ban chinh thuc.", 10);
-            writer.center("Mã cọc: " + data.depositCode(), 11);
-            writer.gap(14);
-            writer.paragraph("Hôm nay ngày " + formatDate(data.generatedAt().toLocalDate()), 11);
-            writer.paragraph("Chúng tôi những người ký tên dưới đây gồm:", 11);
-            writer.section("1. BÊN NHẬN TIỀN ĐẶT CỌC (BÊN A)");
-            writer.paragraph("Ông: " + data.owner().fullName(), 11);
-            writer.paragraph("Ngày sinh: " + data.owner().dob(), 11);
-            writer.paragraph("CMTND/CCCD Số: " + data.owner().idNumber()
-                    + "; Cấp ngày: " + data.owner().idIssuedDate()
-                    + "  Nơi cấp: " + data.owner().idIssuedPlace(), 11);
-            writer.paragraph("Điện thoại: " + data.owner().phone(), 11);
-            writer.paragraph("Là chủ sở hữu và sử dụng hợp pháp của toàn bộ căn nhà nêu tại Điều 1 dưới đây.", 11);
-            writer.section("2. BÊN GIAO TIỀN ĐẶT CỌC (BÊN B)");
-            writer.paragraph("Ông/ Bà: " + data.customerName() + "    Ngày sinh: " + formatDate(data.customerDob()), 11);
-            writer.paragraph("CMTND/ CCCD: " + valueOrDefault(data.idNumber(), "Chưa cung cấp")
-                    + "    Cấp ngày: " + formatDate(data.idIssueDate())
-                    + "    Nơi cấp: " + valueOrDefault(data.idIssuePlace(), "Chưa cung cấp"), 11);
-            writer.paragraph("Điện thoại: " + data.customerPhone(), 11);
-            writer.paragraph("Địa chỉ thường trú: " + valueOrDefault(data.permanentAddress(), "Chưa cung cấp"), 11);
-            writer.paragraph("Sau khi bàn bạc, hai bên cùng đi đến thống nhất 1 số điều khoản như sau:", 11);
-            writer.section("ĐIỀU 1: TIỀN ĐẶT CỌC, MỤC ĐÍCH ĐẶT CỌC");
-            writer.paragraph("1.1 Bên B đồng ý thuê của bên A phòng số " + data.roomCode()
-                    + ". Tòa nhà có địa chỉ: " + valueOrDefault(data.propertyAddress(), "Chưa cung cấp")
-                    + ". Do bên A đại diện là Ban Quản Lý tòa nhà với các thỏa thuận trong hợp đồng như sau:", 11);
-            writer.paragraph("Mục đích thuê: để ở và sinh hoạt với số lượng người đăng kí ở: "
-                    + (data.maxOccupants() == null ? "............" : data.maxOccupants()), 11);
-            writer.paragraph("Hợp đồng có thời hạn: ... tháng và bắt đầu tính tiền từ ngày .., tháng ..., năm "
-                    + data.generatedAt().getYear() + ".", 11);
-            writer.paragraph("Giá thuê phòng: " + formatMoney(data.listedPrice()) + " / 01 tháng", 11);
-            writer.paragraph("Phương thức thanh toán: Đặt cọc ………. tháng và thanh toán ……………. tháng tiền nhà", 11);
-            writer.paragraph("1.2 Để đảm bảo chắc chắn việc ký hợp đồng thuê phòng và trả tiền thuê phòng muộn nhất vào "
-                    + formatDate(data.expectedLeaseSignDate()) + ", nay bên B tự nguyện đóng cho bên A số tiền là "
-                    + formatMoney(data.depositAmount()) + " (Bằng chữ: " + data.depositAmountText()
-                    + ") gọi là tiền đặt cọc.", 11);
-            writer.section("ĐIỀU 2: THỎA THUẬN VỀ VIỆC GIẢI QUYẾT TIỀN ĐẶT CỌC");
-            writer.paragraph("2.1 Từ ngày ký hợp đồng này đến ngày " + formatDate(data.expectedLeaseSignDate())
-                    + " mà bên B không liên hệ để ký hợp đồng thuê phòng và trả tiền thuê phòng thì bên B sẽ mất toàn bộ số tiền đã đặt cọc.", 11);
-            writer.paragraph("2.2 Nếu đến hết ngày " + formatDate(data.expectedLeaseSignDate())
-                    + " mà bên A không ký hợp đồng cho thuê với bên B thì bên A phải trả lại cho bên B toàn bộ số tiền mà bên B đã đặt cọc.", 11);
-            writer.section("ĐIỀU 3: CAM KẾT CỦA HAI BÊN");
-            writer.paragraph("3.1 Hai bên xác định hoàn toàn tự nguyện khi ký hợp đồng này và cam kết cùng nhau thực hiện nghiêm túc những điều khoản trên đây.", 11);
-            writer.paragraph("3.2 Hợp đồng này có hiệu lực từ ngày ký, hợp đồng được lập thành 02 bản, mỗi bên giữ 01 bản có giá trị pháp lý như nhau. Sau khi đọc hợp đồng cả 2 bên đã hiểu rõ quyền lợi và nghĩa vụ của mình và cùng ký tên dưới đây.", 11);
-            writer.gap(10);
-            writer.paragraph("Hà Nội, " + formatVietnameseDate(data.generatedAt().toLocalDate()), 11);
-            writer.signatures(data.owner().fullName(), data.customerName());
-            writer.close();
-            document.save(output);
+        String html = buildTemplateHtml(data);
+        return renderHtmlToPdf(html);
+    }
+
+    private byte[] renderHtmlToPdf(String html) {
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            ITextRenderer renderer = new ITextRenderer();
+            ITextFontResolver fontResolver = renderer.getFontResolver();
+
+            ClassLoader cl = getClass().getClassLoader();
+            for (String f : List.of(
+                    "fonts/times.ttf",
+                    "fonts/timesbd.ttf",
+                    "fonts/timesi.ttf",
+                    "fonts/timesbi.ttf"
+            )) {
+                URL fontUrl = cl.getResource(f);
+                if (fontUrl != null) {
+                    fontResolver.addFont(fontUrl.toExternalForm(), BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                }
+            }
+
+            renderer.setDocumentFromString(html);
+            renderer.layout();
+            renderer.createPDF(output);
             return output.toByteArray();
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND);
         }
     }

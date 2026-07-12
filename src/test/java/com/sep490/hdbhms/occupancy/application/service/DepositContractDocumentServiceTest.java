@@ -21,6 +21,11 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.IContext;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -31,10 +36,51 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DepositContractDocumentServiceTest {
+
+    @Test
+    void previewUsesRealTemplateWithoutThrowing() {
+        var service = new DepositContractDocumentService(
+                new FakeRoomRepository(),
+                new FakePropertyRepository(),
+                new FakeDepositFormRepository(),
+                command -> null,
+                query -> null,
+                defaultConfig(),
+                new FakeDepositAgreementRepository(null),
+                new ImmediateTransactionManager(),
+                realTemplateEngine(),
+                mock(org.springframework.core.env.Environment.class)
+        );
+
+        var response = assertDoesNotThrow(() -> service.preview(
+                com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositContractPreviewRequest.builder()
+                        .roomId(101L)
+                        .fullName("Nguyen Van A")
+                        .dob(LocalDate.of(2000, 1, 1))
+                        .phone("0999989898")
+                        .email("tenant@haidang.test")
+                        .idNumber("0191919191")
+                        .idIssueDate(LocalDate.of(2020, 1, 1))
+                        .idIssuePlace("HN")
+                        .permanentAddress("Ha Noi")
+                        .expectedMoveInDate(LocalDate.now().plusDays(1))
+                        .expectedLeaseSignDate(LocalDate.now().plusDays(1))
+                        .paymentCycleMonths(1)
+                        .build()
+        ));
+
+        assertNotNull(response.getHtml());
+        assertTrue(response.getHtml().contains("Nguyen Van A"));
+    }
 
     @Test
     void generateOfficialContractAfterCommitDoesNotBreakPaymentFlowWhenPdfUploadFails() {
@@ -60,7 +106,7 @@ class DepositContractDocumentServiceTest {
                 defaultConfig(),
                 new FakeDepositAgreementRepository(agreement),
                 new ImmediateTransactionManager(),
-                null,
+                mockTemplateEngine(),
                 null
         );
 
@@ -76,12 +122,32 @@ class DepositContractDocumentServiceTest {
         };
     }
 
+    private static TemplateEngine mockTemplateEngine() {
+        TemplateEngine templateEngine = mock(TemplateEngine.class);
+        when(templateEngine.process(eq("contractTemplates/html/deposit_contract_template"), any(IContext.class)))
+                .thenReturn("<html><body>mock contract</body></html>");
+        return templateEngine;
+    }
+
     private static DefaultConfig defaultConfig() {
         DefaultConfig config = new DefaultConfig();
         config.getOwner().setFullName("Hải Đăng House");
         config.getOwner().setPhone("0900000000");
         config.getOwner().setEmail("owner@haidang.test");
         return config;
+    }
+
+    private static TemplateEngine realTemplateEngine() {
+        ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
+        resolver.setPrefix("templates/");
+        resolver.setSuffix(".html");
+        resolver.setTemplateMode(TemplateMode.HTML);
+        resolver.setCharacterEncoding("UTF-8");
+        resolver.setCacheable(false);
+
+        TemplateEngine templateEngine = new SpringTemplateEngine();
+        templateEngine.setTemplateResolver(resolver);
+        return templateEngine;
     }
 
     private static final class ImmediateTransactionManager implements PlatformTransactionManager {
@@ -122,7 +188,7 @@ class DepositContractDocumentServiceTest {
         }
 
         @Override
-        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
+        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
 
@@ -171,6 +237,11 @@ class DepositContractDocumentServiceTest {
         @Override
         public Optional<Room> findByRoomCode(String roomCode) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode) {
+            return false;
         }
 
         @Override

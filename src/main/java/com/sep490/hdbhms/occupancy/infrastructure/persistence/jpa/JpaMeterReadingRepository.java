@@ -8,13 +8,19 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
-import java.util.List;
 
 public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEntity, Long> {
-    Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(Long roomId, MeterType meterType);
+    @Query("""
+            SELECT reading FROM MeterReadingEntity reading
+            WHERE reading.room.id = :roomId
+              AND reading.meter.meterType = :meterType
+              AND reading.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
+            ORDER BY reading.readingDate DESC, reading.createdAt DESC, reading.id DESC
+            """)
+    Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(
+            @Param("roomId") Long roomId,
+            @Param("meterType") MeterType meterType
+    );
     Optional<MeterReadingEntity> findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(Long meterId, String readingPeriod);
     Optional<MeterReadingEntity> findByMeter_IdAndBatchId(Long meterId, Long batchId);
     List<MeterReadingEntity> findByMeter_IdAndReadingDateBeforeOrderByReadingDateDesc(Long meterId, java.time.LocalDate readingDate);

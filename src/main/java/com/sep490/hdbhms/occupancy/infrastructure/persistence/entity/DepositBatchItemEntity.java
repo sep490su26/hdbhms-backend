@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 public class DepositBatchItemEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "deposit_batch_item_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

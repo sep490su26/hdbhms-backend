@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.UUID;
 
 @Service
 @Transactional
@@ -20,7 +21,7 @@ public class CreatePropertyService implements CreatePropertyUseCase {
     @Override
     public Property execute(CreatePropertyCommand command) {
         Property property = Property.newProperty(
-                "",
+                "CS-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(),
                 command.name(),
                 command.propertyType(),
                 command.addressLine(),

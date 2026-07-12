@@ -1,8 +1,10 @@
 package com.sep490.hdbhms.notification.application.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.notification.application.port.in.query.NotificationQueryUseCase;
 import com.sep490.hdbhms.notification.application.port.in.usecase.ManageNotificationUseCase;
 import com.sep490.hdbhms.notification.application.port.in.usecase.SendNotificationUseCase;
+import com.sep490.hdbhms.notification.application.port.out.NotificationDeliveryRepository;
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
@@ -26,8 +28,13 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.StringTemplateResolver;
 
 import jakarta.annotation.PostConstruct;
+
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -35,9 +42,11 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationService implements SendNotificationUseCase, NotificationQueryUseCase, ManageNotificationUseCase {
-
     NotificationTemplateRepository templateRepository;
     NotificationOutboxRepository outboxRepository;
+    NotificationDeliveryRepository deliveryRepository;
+    ObjectMapper objectMapper;
+    NotificationTemplateDefaults templateDefaults;
     TemplateEngine stringTemplateEngine = new TemplateEngine();
 
     @PostConstruct
@@ -49,8 +58,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
 
     @Override
     public void queueNotification(NotificationEvent event) {
-        List<NotificationTemplate> templates = templateRepository.findByTemplateKeyAndStatus(
-                event.getEventType(), TemplateStatus.ACTIVE);
+        List<NotificationTemplate> templates = resolveTemplates(event.getEventType());
 
         if (templates.isEmpty()) {
             log.warn("No active templates found for event type: {}", event.getEventType());
@@ -74,6 +82,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
                     .channel(template.getChannel())
                     .title(title)
                     .body(body)
+                    .payload(toPayload(event))
                     .status(OutboxStatus.PENDING)
                     .maxRetries(3)
                     .isRead(false)
@@ -83,6 +92,43 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
                     .build();
 
             outboxRepository.save(outbox);
+        }
+    }
+
+    private List<NotificationTemplate> resolveTemplates(String eventType) {
+        List<NotificationTemplate> dbTemplates = templateRepository.findByTemplateKeyAndStatus(
+                        eventType, TemplateStatus.ACTIVE)
+                .stream()
+                .filter(template -> !isLegacyRoomTransferTemplate(template))
+                .toList();
+        List<NotificationTemplate> defaults = templateDefaults.defaultTemplates(eventType);
+        if (defaults.isEmpty()) {
+            return dbTemplates;
+        }
+        if (dbTemplates.isEmpty()) {
+            return defaults;
+        }
+
+        Map<NotificationChannel, NotificationTemplate> templatesByChannel = new LinkedHashMap<>();
+        defaults.forEach(template -> templatesByChannel.put(template.getChannel(), template));
+        dbTemplates.forEach(template -> templatesByChannel.put(template.getChannel(), template));
+        return List.copyOf(templatesByChannel.values());
+    }
+
+    private boolean isLegacyRoomTransferTemplate(NotificationTemplate template) {
+        return "ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED".equals(template.getTemplateKey())
+                && "Xac nhan holder moi".equals(template.getTitleTemplate());
+    }
+
+    private String toPayload(NotificationEvent event) {
+        if (event.getData() == null || event.getData().isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(event.getData());
+        } catch (Exception exception) {
+            log.warn("Failed to serialize notification payload for event type {}", event.getEventType(), exception);
+            return null;
         }
     }
 
@@ -97,25 +143,44 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     }
 
     @Override
-    public long getUnreadCount(Long userId) {
-        return outboxRepository.countByRecipientUserIdAndIsReadFalse(userId);
+    public long getUnreadCount(Long userId, NotificationChannel channel) {
+        return outboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse(userId, channel);
     }
 
     @Override
     public void markAsRead(Long id, Long userId) {
         NotificationOutbox outbox = outboxRepository.findById(id)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        
-        if (!outbox.getRecipientUserId().equals(userId)) {
+
+        if (!Objects.equals(outbox.getRecipientUserId(), userId)) {
             throw new AppException(ApiErrorCode.UNAUTHORIZED);
         }
-        
-        outbox.markAsRead();
+
+        LocalDateTime readAt = LocalDateTime.now();
+        outbox.markAsRead(readAt);
         outboxRepository.save(outbox);
+        deliveryRepository.markReadByOutboxId(id, readAt);
     }
 
     @Override
     public void markAllAsRead(Long userId) {
-        outboxRepository.markAllAsRead(userId);
+        LocalDateTime readAt = LocalDateTime.now();
+        outboxRepository.markAllAsRead(userId, readAt);
+        deliveryRepository.markReadByRecipientUserId(userId, readAt);
+    }
+
+    @Override
+    public void markTargetAsRead(Long userId, String targetType, Long targetId) {
+        if (targetType == null || targetType.isBlank() || targetId == null || targetId <= 0) {
+            throw new AppException(ApiErrorCode.UNDEFINED);
+        }
+        String normalizedTargetType = targetType.trim().toUpperCase(Locale.ROOT);
+        LocalDateTime readAt = LocalDateTime.now();
+        outboxRepository.markTargetAsRead(userId, normalizedTargetType, targetId, readAt);
+        deliveryRepository.markReadByRecipientUserIdAndTarget(userId, normalizedTargetType, targetId, readAt);
+    }
+
+    public void markAllAsRead(Long userId, NotificationChannel channel) {
+        outboxRepository.markAllAsRead(userId, channel);
     }
 }

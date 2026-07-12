@@ -12,5 +12,5 @@ public interface NotificationQueryUseCase {
 
     List<NotificationOutbox> getNotificationsMobile(Long userId, NotificationChannel channel, long after, int limit);
 
-    long getUnreadCount(Long userId);
+    long getUnreadCount(Long userId, NotificationChannel channel);
 }

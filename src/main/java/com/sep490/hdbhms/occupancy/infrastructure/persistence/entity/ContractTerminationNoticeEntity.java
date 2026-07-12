@@ -30,6 +30,7 @@ public class ContractTerminationNoticeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "contract_termination_notice_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

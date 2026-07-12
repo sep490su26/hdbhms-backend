@@ -25,6 +25,7 @@ public class NotificationTemplateEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "notification_template_id")
     Long id;
 
     @Column(name = "template_key", nullable = false, length = 100)

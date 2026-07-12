@@ -24,6 +24,7 @@ public class PropertyImageEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "property_image_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

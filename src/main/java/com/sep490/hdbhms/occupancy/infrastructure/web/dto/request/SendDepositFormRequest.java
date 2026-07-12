@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -48,15 +47,12 @@ public class SendDepositFormRequest {
     Integer depositMonths;
     @NotNull
     @ValidPaymentCycle
-    @JsonProperty("payment_cycle_months")
     Integer paymentCycleMonths;
     @NotNull(message = "DEPOSIT_001")
     @Min(value = 1, message = "DEPOSIT_001")
     @Max(value = 3, message = "DEPOSIT_001")
-    @JsonProperty("occupant_count")
     Integer occupantCount;
     @Builder.Default
-    @JsonProperty("co_occupants")
     List<CoOccupantRequest> coOccupants = new ArrayList<>();
     @NotNull
     @FutureOrPresent(message = "Ngày dự kiến vào ở không được là ngày trong quá khứ")
@@ -64,16 +60,6 @@ public class SendDepositFormRequest {
     @NotNull
     @FutureOrPresent(message = "Ngày hẹn ký hợp đồng không được là ngày trong quá khứ")
     LocalDate expectedLeaseSignDate;
-
-    @AssertTrue(message = "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay")
-    public boolean isExpectedMoveInDateWithinAllowedRange() {
-        return expectedMoveInDate == null || !expectedMoveInDate.isAfter(LocalDate.now().plusDays(14));
-    }
-
-    @AssertTrue(message = "Ngày hẹn ký hợp đồng chỉ được tối đa 14 ngày kể từ hôm nay")
-    public boolean isExpectedLeaseSignDateWithinAllowedRange() {
-        return expectedLeaseSignDate == null || !expectedLeaseSignDate.isAfter(LocalDate.now().plusDays(14));
-    }
 
     @AssertTrue(message = "DEPOSIT_001")
     public boolean isCoOccupantInformationValid() {
@@ -135,7 +121,6 @@ public class SendDepositFormRequest {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class CoOccupantRequest {
         @NotBlank(message = "DEPOSIT_001")
-        @JsonProperty("full_name")
         String fullName;
         @NotBlank(message = "DEPOSIT_001")
         @Pattern(regexp = "^0\\d{9}$", message = "DEPOSIT_001")
@@ -143,7 +128,6 @@ public class SendDepositFormRequest {
         @NotNull(message = "DEPOSIT_001")
         @Min(value = 1, message = "DEPOSIT_001")
         @Max(value = 2, message = "DEPOSIT_001")
-        @JsonProperty("display_order")
         Integer displayOrder;
     }
 }

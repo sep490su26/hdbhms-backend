@@ -26,6 +26,7 @@ public class PermissionRequestEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "permission_request_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

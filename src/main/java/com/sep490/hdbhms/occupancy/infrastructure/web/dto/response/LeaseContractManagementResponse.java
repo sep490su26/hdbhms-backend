@@ -56,6 +56,12 @@ public class LeaseContractManagementResponse {
     LocalDate expectedVacantDate;
     Boolean canRenew;
     String canRenewBlockedReason;
+    Long transferRequestId;
+    String transferRequestCode;
+    String transferStatus;
+    LocalDate transferRequestedDate;
+    String transferContractRole;
+    Boolean transferActivationLocked;
 
     LeaseStatus contractStatus;
     DepositAgreementStatus depositStatus;
@@ -64,6 +70,10 @@ public class LeaseContractManagementResponse {
     Long contractFileId;
     String contractFileName;
     LocalDateTime contractFileUploadedAt;
+    Long signedFileId;
+    String signedFileName;
+    LocalDateTime signedFileUploadedAt;
+    Long signedUploadedById;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
 

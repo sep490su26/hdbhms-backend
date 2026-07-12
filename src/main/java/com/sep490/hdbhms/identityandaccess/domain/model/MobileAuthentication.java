@@ -8,6 +8,7 @@ public record MobileAuthentication(
         Role role,
         Long tenantId,
         Long propertyId,
+        boolean mustChangePassword,
         boolean authorized
 ) implements Authentication {
 }

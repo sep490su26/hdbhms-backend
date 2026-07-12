@@ -32,4 +32,13 @@ public class AccountSpecifications {
                 role == null ? criteriaBuilder.conjunction() :
                         criteriaBuilder.equal(root.get("role"), role);
     }
+
+    public static Specification<UserEntity> rolesIn(List<Role> roles) {
+        return (root, query, criteriaBuilder) -> {
+            if (roles == null || roles.isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+            return root.get("role").in(roles);
+        };
+    }
 }

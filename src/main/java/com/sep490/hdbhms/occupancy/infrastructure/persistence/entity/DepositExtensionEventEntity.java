@@ -25,6 +25,7 @@ public class DepositExtensionEventEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "deposit_extension_event_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

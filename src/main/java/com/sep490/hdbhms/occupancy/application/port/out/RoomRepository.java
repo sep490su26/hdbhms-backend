@@ -19,6 +19,8 @@ public interface RoomRepository {
 
     Optional<Room> findByRoomCode(String roomCode);
 
+    boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode);
+
     int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus);
 
     List<Room> findAll();

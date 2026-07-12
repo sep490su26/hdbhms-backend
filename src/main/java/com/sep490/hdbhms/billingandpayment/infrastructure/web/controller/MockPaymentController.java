@@ -13,7 +13,9 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +28,8 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
+@Profile({"dev", "test", "local"})
+@ConditionalOnProperty(name = "app.mock-payment.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/mock")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)

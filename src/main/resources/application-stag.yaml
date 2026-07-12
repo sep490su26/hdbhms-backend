@@ -1,7 +1,7 @@
 spring:
   config:
     activate:
-      on-profile: dev
+      on-profile: stag
     import: optional:file:.env.stag[.properties]
   mvc:
     pathmatch:

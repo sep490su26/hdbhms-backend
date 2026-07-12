@@ -29,6 +29,7 @@ public class MaintenanceCostEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "maintenance_cost_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
