@@ -19,6 +19,9 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(
         name = "meter_reading_batches",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_mrb_property_period", columnNames = {"property_id", "reading_period"})
+        },
         indexes = {
                 @Index(name = "idx_reading_batch", columnList = "property_id, reading_period, status")
         }

@@ -100,6 +100,10 @@ public enum ApiErrorCode {
     METER_READING_IMPORT_ROW_NOT_FOUND(40904, "Meter reading import row not found", "Không tìm thấy dòng import", HttpStatus.NOT_FOUND),
     METER_READING_ANOMALY_NOT_FOUND(40905, "Meter reading anomaly not found", "Không tìm thấy bất thường chỉ số", HttpStatus.NOT_FOUND),
     UTILITY_TARIFF_NOT_FOUND(40906, "Utility tariff not found", "Không tìm thấy bảng giá điện nước", HttpStatus.NOT_FOUND),
+    INVALID_METER_READING_VALUE(40907, "Invalid meter reading value", "Chỉ số mới không được nhỏ hơn chỉ số cũ", HttpStatus.BAD_REQUEST),
+    METER_READING_BATCH_CANCELLED(40908, "Meter reading batch cancelled", "Đợt chốt điện nước đã bị hủy", HttpStatus.BAD_REQUEST),
+    METER_READING_ROOM_NOT_ELIGIBLE(40909, "Meter reading room not eligible", "Phòng không có hợp đồng thuê phát sinh trong kỳ", HttpStatus.BAD_REQUEST),
+    METER_READING_NO_ELIGIBLE_ROOMS(40910, "No rooms require meter reading", "Không có phòng cần chốt điện nước trong kỳ này", HttpStatus.BAD_REQUEST),
 
     // --- BILLING & PAYMENT (30xxx) ---
     TRANSFER_SETTLEMENT_NOT_FOUND(30101, "Transfer settlement not found", "Không tìm thấy quyết toán chuyển phòng", HttpStatus.NOT_FOUND),

@@ -25,6 +25,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.Billi
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.ManualPaymentResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.RentOverrideResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
+import com.sep490.hdbhms.notification.application.service.NotificationBroadcastService;
+import com.sep490.hdbhms.notification.infrastructure.web.dto.request.SendNotificationBroadcastRequest;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ContractEventType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
@@ -44,8 +46,11 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +72,7 @@ public class BillingManagementService {
     JpaLeaseContractRepository leaseContractRepository;
     JpaRoomRepository roomRepository;
     JpaUserRepository userRepository;
+    NotificationBroadcastService notificationBroadcastService;
     JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
@@ -210,6 +216,49 @@ public class BillingManagementService {
         return new ManualPaymentResponse(toInvoiceResponse(invoice), toPaymentHistory(allocation));
     }
 
+    @Transactional
+    public Map<String, Object> sendOverdueWarning(Long invoiceId, Long currentUserId) {
+        if (invoiceId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn hóa đơn.");
+        }
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+        if (invoice.getRoom() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hóa đơn chưa gắn với phòng.");
+        }
+        if (!isOverdueOrExpired(invoice)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ gửi cảnh báo cho hóa đơn đã hết hạn.");
+        }
+
+        String invoiceCode = defaultText(invoice.getInvoiceCode(), "hóa đơn #" + invoice.getId());
+        String roomCode = invoice.getRoom().getRoomCode();
+        String propertyName = invoice.getProperty() == null ? "" : invoice.getProperty().getName();
+        String dueDate = invoice.getDueDate() == null
+                ? "đã quá hạn"
+                : invoice.getDueDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String totalDebt = formatMoney(safe(invoice.getRemainingAmount()));
+
+        var result = notificationBroadcastService.send(SendNotificationBroadcastRequest.builder()
+                .scopeType("ROOM")
+                .scopeIds(List.of(invoice.getRoom().getId()))
+                .roles(List.of("TENANT"))
+                .channels(List.of("WEB", "PUSH"))
+                .title("Cảnh báo hóa đơn quá hạn " + invoiceCode)
+                .body("Hóa đơn " + invoiceCode
+                        + " của phòng " + roomCode
+                        + (propertyName.isBlank() ? "" : " tại " + propertyName)
+                        + " đã hết hạn thanh toán từ " + dueDate
+                        + ". Số tiền còn phải thanh toán: " + totalDebt + ".")
+                .build(), currentUserId);
+
+        return Map.of(
+                "invoiceId", invoice.getId(),
+                "invoiceCode", invoiceCode,
+                "recipientCount", result.recipientCount(),
+                "outboxCount", result.outboxCount()
+        );
+    }
+
     private void applyOverrideToInvoice(InvoiceEntity invoice, long newRent, long oldRent) {
         var existingLine = invoiceLineRepository
                 .findFirstByInvoice_IdAndLineTypeOrderByIdAsc(invoice.getId(), InvoiceLineType.ROOM_RENT);
@@ -261,6 +310,7 @@ public class BillingManagementService {
                 invoice.getId(),
                 invoice.getInvoiceCode(),
                 invoice.getInvoiceType() == null ? null : invoice.getInvoiceType().name(),
+                invoice.getInvoiceReason() == null ? null : invoice.getInvoiceReason().name(),
                 invoice.getBillingPeriod(),
                 invoice.getStatus() == null ? null : invoice.getStatus().name(),
                 property == null ? null : property.getId(),
@@ -409,6 +459,19 @@ public class BillingManagementService {
 
     private String defaultText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private boolean isOverdueOrExpired(InvoiceEntity invoice) {
+        if (invoice.getStatus() == InvoiceStatus.OVERDUE) {
+            return true;
+        }
+        return safe(invoice.getRemainingAmount()) > 0
+                && invoice.getDueDate() != null
+                && invoice.getDueDate().isBefore(LocalDateTime.now());
+    }
+
+    private String formatMoney(long value) {
+        return java.text.NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN")).format(value) + " đ";
     }
 
     private LocalDateTime toLocalDateTime(Instant instant) {

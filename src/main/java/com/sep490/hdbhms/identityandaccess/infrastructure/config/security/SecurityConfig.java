@@ -6,9 +6,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -80,7 +80,9 @@ public class SecurityConfig {
             "/api/v1/health",
             "/api/v1/webhook/**",
     };
-
+    static final String[] PUBLIC_PUT_URLS = {
+            "/api/v1/**",
+    };
     static final String[] PUBLIC_DOC_URLS = {
             "/docs/**",
             "/api-docs/**",
@@ -120,13 +122,14 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(
-                                authorizeRequests ->
-                                        authorizeRequests
+                        authorizeRequests ->
+                                authorizeRequests
                                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                         .requestMatchers("/error").permitAll()
                                         .requestMatchers(toRequestMatchers(HttpMethod.GET, PUBLIC_GET_URLS)).permitAll()
                                         .requestMatchers(toRequestMatchers(HttpMethod.POST, PUBLIC_POST_URLS)).permitAll()
+                                        .requestMatchers(toRequestMatchers(HttpMethod.PUT, PUBLIC_PUT_URLS)).permitAll()
                                         .requestMatchers(PUBLIC_DOC_URLS).permitAll()
                                         .anyRequest().authenticated()
                 )

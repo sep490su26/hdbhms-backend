@@ -43,7 +43,9 @@ public class MeterReading {
     LocalDateTime createdAt;
     String activeReadingKey;
     @Builder.Default
+    @Setter
     MeterReadingReviewStatus reviewStatus = MeterReadingReviewStatus.NONE;
     @Builder.Default
+    @Setter
     Integer reviewCount = 0;
 }

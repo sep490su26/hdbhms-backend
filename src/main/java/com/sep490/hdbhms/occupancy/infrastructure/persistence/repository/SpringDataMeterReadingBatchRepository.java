@@ -30,8 +30,8 @@ public class SpringDataMeterReadingBatchRepository implements MeterReadingBatchR
     }
 
     @Override
-    public List<MeterReadingBatch> findByProperty_IdOrderByReadingPeriodDesc(Long propertyId) {
-        return jpaMeterReadingBatchRepository.findByProperty_IdOrderByReadingPeriodDesc(propertyId).stream()
+    public List<MeterReadingBatch> findByPropertyIdAndReadingPeriodOrderByIdDesc(Long propertyId, String readingPeriod) {
+        return jpaMeterReadingBatchRepository.findAllByProperty_IdAndReadingPeriodOrderByIdDesc(propertyId, readingPeriod).stream()
                 .map(meterReadingBatchPersistenceMapper::toDomain)
                 .toList();
     }

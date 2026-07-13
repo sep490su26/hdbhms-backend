@@ -1,7 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetFloorDetailsQuery;
-import com.sep490.hdbhms.occupancy.application.port.in.query.GetListRoomsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomImagesByRoomIdQuery;
@@ -16,20 +15,16 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LatestMeterRe
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateRoomRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,7 +41,6 @@ public class RoomController {
     RoomWebMapper roomWebMapper;
     BookRoomUseCase bookRoomUseCase;
     CreateRoomUseCase createRoomUseCase;
-    GetListRoomsUseCase getListRoomsUseCase;
     GetLatestMeterReadingsService getLatestMeterReadingsService;
     GetRoomByCodeUseCase getRoomByCodeUseCase;
     GetRoomDetailsUseCase getRoomDetailsUseCase;
@@ -56,52 +50,6 @@ public class RoomController {
     RoomCommitmentChecker roomCommitmentChecker;
     JpaRoomRepository roomRepository;
     JpaFloorPlanItemRepository floorPlanItemRepository;
-
-    @GetMapping
-    public ApiResponse<PageResponse<RoomResponse>> getRooms(
-            @RequestParam(defaultValue = "1") Long propertyId,
-            @RequestParam(required = false) Long floorId,
-            @RequestParam(required = false) RoomStatus status,
-            @RequestParam(required = false) Long minPrice,
-            @RequestParam(required = false) Long maxPrice,
-            @PageableDefault(size = 20) Pageable pageable
-    ) {
-        return ApiResponse.<PageResponse<RoomResponse>>builder()
-                .data(
-                        PageResponse.fromPageToPageResponse(
-                                getListRoomsUseCase.execute(
-                                                new GetListRoomsQuery(
-                                                        propertyId,
-                                                        floorId,
-                                                        status,
-                                                        minPrice,
-                                                        maxPrice,
-                                                        pageable
-                                                )
-                                        )
-                                        .map(room -> {
-                                            Floor floor = getFloorDetailsUseCase.execute(
-                                                    new GetFloorDetailsQuery(room.getFloorId())
-                                            );
-                                            Property property = getPropertyDetailsUseCase.execute(
-                                                    new GetPropertyDetailsQuery(floor.getPropertyId())
-                                            );
-                                                                                        List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
-                                                    new GetRoomImagesByRoomIdQuery(room.getId())
-                                            );
-                                            RoomResponse response = roomWebMapper.toResponse(
-                                                    room,
-                                                    floor,
-                                                    property,
-                                                    roomImages
-                                            );
-                                            response.setAreaM2(room.getAreaM2());
-                                            return response;
-                                        })
-                        )
-                )
-                .build();
-    }
 
     @PostMapping
     public ApiResponse<RoomDetailsResponse> createRoom(
@@ -209,4 +157,3 @@ public class RoomController {
                 .build();
     }
 }
-

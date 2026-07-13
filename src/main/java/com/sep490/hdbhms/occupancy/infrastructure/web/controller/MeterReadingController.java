@@ -57,7 +57,7 @@ public class MeterReadingController {
     /**
      * GET /api/v1/meter-readings/batch-status?period=MM/yyyy&propertyId=1
      * <p>
-     * Returns all active rooms with their previous and current meter readings for the batch input UI.
+     * Returns rooms that have lease contracts overlapping the period for the batch input UI.
      */
     @GetMapping("/batch-status")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")

@@ -49,7 +49,7 @@ public class RoomEntity {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "current_status", nullable = false, length = 50)
-    RoomStatus currentStatus = RoomStatus.VACANT;
+    RoomStatus currentStatus = RoomStatus.DRAFT;
 
     @Builder.Default
     @Column(name = "max_occupants", nullable = false, columnDefinition = "TINYINT UNSIGNED")

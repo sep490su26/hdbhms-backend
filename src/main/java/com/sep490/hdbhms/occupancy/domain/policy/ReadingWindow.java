@@ -11,14 +11,14 @@ public class ReadingWindow {
     //TODO: Change these to 25, 16 is only for testing-purpose
     public static boolean isOpen(LocalDate date) {
         int day = date.getDayOfMonth();
-        return day >= 16 || day <= 10;
+        return day >= 10 || day <= 5;
     }
 
     public static LocalDate calculateNextOpenDate(LocalDate date) {
         int day = date.getDayOfMonth();
-        if (day >= 16 || day <= 10) {
+        if (day >= 10 || day <= 5) {
             return null;
         }
-        return date.withDayOfMonth(16);
+        return date.withDayOfMonth(10);
     }
 }

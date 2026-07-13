@@ -25,7 +25,7 @@ public class Room {
     @Builder.Default
     Long listedPrice = 0L;
     @Builder.Default
-    RoomStatus currentStatus = RoomStatus.VACANT;
+    RoomStatus currentStatus = RoomStatus.DRAFT;
     @Builder.Default
     Integer maxOccupants = 3;
 

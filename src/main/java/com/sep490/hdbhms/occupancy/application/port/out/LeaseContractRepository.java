@@ -5,6 +5,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -25,4 +26,19 @@ public interface LeaseContractRepository {
     boolean isTenantHasAnyActiveContract(Long tenantId);
 
     Optional<LeaseContract> findFirstActiveContract(Long roomId, List<LeaseStatus> statuses);
+
+    long countMeterReadingRoomsByPeriod(
+            Long propertyId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd
+    );
+
+    boolean roomRequiresMeterReadingForPeriod(
+            Long propertyId,
+            Long roomId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd
+    );
 }

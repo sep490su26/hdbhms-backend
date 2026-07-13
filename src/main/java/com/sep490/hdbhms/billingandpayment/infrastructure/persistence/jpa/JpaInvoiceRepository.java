@@ -21,6 +21,21 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
             InvoiceStatus status
     );
 
+    Optional<InvoiceEntity> findFirstByLeastContract_IdAndBillingPeriodAndInvoiceTypeAndStatusNotOrderByIdDesc(
+            Long leaseContractId,
+            String billingPeriod,
+            InvoiceType invoiceType,
+            InvoiceStatus status
+    );
+
+    Optional<InvoiceEntity> findFirstByLeastContract_IdAndBillingPeriodAndInvoiceTypeAndInvoiceReasonAndStatusNotOrderByIdDesc(
+            Long leaseContractId,
+            String billingPeriod,
+            InvoiceType invoiceType,
+            com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason invoiceReason,
+            InvoiceStatus status
+    );
+
     Optional<InvoiceEntity> findFirstByRoom_IdAndBillingPeriodAndInvoiceTypeAndStatusNotOrderByIdDesc(
             Long roomId,
             String billingPeriod,

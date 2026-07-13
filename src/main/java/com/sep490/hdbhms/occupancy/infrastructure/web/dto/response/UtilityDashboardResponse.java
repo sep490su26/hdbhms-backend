@@ -13,6 +13,8 @@ import java.time.LocalDate;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UtilityDashboardResponse {
 
+    Long propertyId;
+    String propertyName;
     boolean canCreateCurrentPeriod;
     LocalDate nextAvailableDate;
     CurrentPeriodInfo currentPeriod;

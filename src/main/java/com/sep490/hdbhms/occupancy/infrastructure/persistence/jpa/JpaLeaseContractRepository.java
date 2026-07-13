@@ -1,10 +1,14 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,6 +33,94 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
     Optional<LeaseContractEntity> findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(
             Long roomId,
             List<LeaseStatus> statuses
+    );
+
+    @Query("""
+            SELECT DISTINCT room FROM LeaseContractEntity contract
+            JOIN contract.room room
+            LEFT JOIN ContractLiquidationEntity liquidation
+              ON liquidation.contract.id = contract.id
+             AND liquidation.status = com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus.CONFIRMED
+            WHERE contract.deletedAt IS NULL
+              AND room.deletedAt IS NULL
+              AND contract.status IN :statuses
+              AND (:propertyId IS NULL OR room.property.id = :propertyId)
+              AND COALESCE(contract.rentStartDate, contract.startDate) <= :periodEnd
+              AND (COALESCE(liquidation.liquidationDate, contract.endDate) IS NULL
+                   OR COALESCE(liquidation.liquidationDate, contract.endDate) >= :periodStart)
+            ORDER BY room.sortOrder ASC, room.roomCode ASC
+            """)
+    List<RoomEntity> findMeterReadingRoomsByPeriod(
+            @Param("propertyId") Long propertyId,
+            @Param("statuses") List<LeaseStatus> statuses,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT room.id) FROM LeaseContractEntity contract
+            JOIN contract.room room
+            LEFT JOIN ContractLiquidationEntity liquidation
+              ON liquidation.contract.id = contract.id
+             AND liquidation.status = com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus.CONFIRMED
+            WHERE contract.deletedAt IS NULL
+              AND room.deletedAt IS NULL
+              AND contract.status IN :statuses
+              AND (:propertyId IS NULL OR room.property.id = :propertyId)
+              AND COALESCE(contract.rentStartDate, contract.startDate) <= :periodEnd
+              AND (COALESCE(liquidation.liquidationDate, contract.endDate) IS NULL
+                   OR COALESCE(liquidation.liquidationDate, contract.endDate) >= :periodStart)
+            """)
+    long countMeterReadingRoomsByPeriod(
+            @Param("propertyId") Long propertyId,
+            @Param("statuses") List<LeaseStatus> statuses,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+            SELECT COUNT(contract) FROM LeaseContractEntity contract
+            JOIN contract.room room
+            LEFT JOIN ContractLiquidationEntity liquidation
+              ON liquidation.contract.id = contract.id
+             AND liquidation.status = com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus.CONFIRMED
+            WHERE contract.deletedAt IS NULL
+              AND room.deletedAt IS NULL
+              AND contract.status IN :statuses
+              AND room.id = :roomId
+              AND room.property.id = :propertyId
+              AND COALESCE(contract.rentStartDate, contract.startDate) <= :periodEnd
+              AND (COALESCE(liquidation.liquidationDate, contract.endDate) IS NULL
+                   OR COALESCE(liquidation.liquidationDate, contract.endDate) >= :periodStart)
+            """)
+    long countMeterReadingRoomContractsByPeriod(
+            @Param("propertyId") Long propertyId,
+            @Param("roomId") Long roomId,
+            @Param("statuses") List<LeaseStatus> statuses,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+            SELECT contract FROM LeaseContractEntity contract
+            JOIN contract.room room
+            LEFT JOIN ContractLiquidationEntity liquidation
+              ON liquidation.contract.id = contract.id
+             AND liquidation.status = com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus.CONFIRMED
+            WHERE contract.deletedAt IS NULL
+              AND room.deletedAt IS NULL
+              AND contract.status IN :statuses
+              AND room.id = :roomId
+              AND COALESCE(contract.rentStartDate, contract.startDate) <= :periodEnd
+              AND (COALESCE(liquidation.liquidationDate, contract.endDate) IS NULL
+                   OR COALESCE(liquidation.liquidationDate, contract.endDate) >= :periodStart)
+            ORDER BY contract.id DESC
+            """)
+    List<LeaseContractEntity> findMeterReadingContractsByRoomAndPeriod(
+            @Param("roomId") Long roomId,
+            @Param("statuses") List<LeaseStatus> statuses,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd
     );
 
     boolean existsByPrimaryTenantProfile_Id(Long tenantProfileId);
