@@ -10,6 +10,8 @@ public record GetListDepositAgreementsQuery(
         Long userId,
         DepositAgreementStatus status,
         List<DepositAgreementStatus> statuses,
+        String search,
+        Long floorId,
         LocalDateTime signedFrom,
         LocalDateTime signedTo,
         Pageable pageable

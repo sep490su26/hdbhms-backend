@@ -51,6 +51,8 @@ public class GetMyListDepositAgreementsService implements GetMyListDepositAgreem
                 ids,
                 query.status(),
                 query.statuses(),
+                query.search(),
+                query.floorId(),
                 query.signedFrom(),
                 query.signedTo(),
                 query.pageable()

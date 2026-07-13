@@ -22,7 +22,10 @@ public class BatchMeterReadingRequest {
     Long propertyId;
 
     @NotBlank(message = "Reading period is required")
-    @Pattern(regexp = "^(0[1-9]|1[0-2])/\\d{4}$", message = "Reading period must be in MM/yyyy format")
+    @Pattern(
+            regexp = "^(?:(0?[1-9]|1[0-2])[-/]\\d{4}|\\d{4}-(0?[1-9]|1[0-2]))$",
+            message = "Reading period must be in MM-yyyy format"
+    )
     String readingPeriod;
 
     @NotNull(message = "Reading date is required")

@@ -154,7 +154,7 @@ public class SecurityConfig {
                 "X-Requested-With",
                 "X-Client-Type"
         ));
-        configuration.setExposedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setExposedHeaders(List.of("Authorization", "Content-Type", "Content-Disposition"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

@@ -36,7 +36,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -112,7 +111,7 @@ public class ManageContractHandoverService {
         var latestReadingOpt = meterReadingRepository.findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(roomId, meterType);
         BigDecimal prevValue = latestReadingOpt.map(MeterReadingEntity::getCurrentValue).orElse(BigDecimal.ZERO);
 
-        String currentPeriod = readingDate.format(DateTimeFormatter.ofPattern("MM/yyyy"));
+        String currentPeriod = MeterReadingPeriod.from(readingDate);
         
         int nextRevision = 1;
         var existingPeriodReadingOpt = meterReadingRepository.findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(activeMeter.getId(), currentPeriod);

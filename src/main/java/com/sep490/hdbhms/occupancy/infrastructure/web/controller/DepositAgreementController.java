@@ -18,19 +18,29 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListDepositA
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.FloorRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
+import com.sep490.hdbhms.occupancy.application.service.DepositAgreementDashboardService;
+import com.sep490.hdbhms.occupancy.application.service.DepositAgreementLifecycleService;
+import com.sep490.hdbhms.occupancy.application.service.DepositLifecyclePolicy;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
+import com.sep490.hdbhms.occupancy.domain.model.Floor;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositAgreementManagementUpdateRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositAgreementStatusUpdateRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositContactRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositExtensionRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositForfeitureRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementSignedFileResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositContractPreviewResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositDashboardSummaryResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositFilterOptionsResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -41,6 +51,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -58,6 +69,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @RestController
@@ -66,10 +78,8 @@ import java.util.Set;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositAgreementController {
     private static final Set<DepositAgreementStatus> MANAGER_UPDATEABLE_STATUSES = EnumSet.of(
-            DepositAgreementStatus.PAID,
             DepositAgreementStatus.CONVERTED_TO_LEASE,
-            DepositAgreementStatus.REFUNDED,
-            DepositAgreementStatus.FORFEITED
+            DepositAgreementStatus.REFUNDED
     );
     private static final Set<DepositAgreementStatus> MANAGER_INFO_UPDATEABLE_STATUSES = EnumSet.of(
             DepositAgreementStatus.PENDING_PAYMENT,
@@ -93,11 +103,14 @@ public class DepositAgreementController {
     GetRoomDetailsUseCase getRoomDetailsUseCase;
     PropertyRepository propertyRepository;
     DepositFormRepository depositFormRepository;
+    FloorRepository floorRepository;
     DepositAgreementRepository depositAgreementRepository;
     RoomRepository roomRepository;
     GetMyListDepositAgreementsUseCase getMyListDepositAgreementsUseCase;
     GetDepositAgreementDetailsUseCase getDepositAgreementDetailsUseCase;
     DepositContractDocumentService depositContractDocumentService;
+    DepositAgreementLifecycleService depositAgreementLifecycleService;
+    DepositAgreementDashboardService depositAgreementDashboardService;
     UploadFileUseCase uploadFileUseCase;
     DownloadFileUseCase downloadFileUseCase;
     JpaFileMetadataRepository fileMetadataRepository;
@@ -106,27 +119,33 @@ public class DepositAgreementController {
     public ApiResponse<PageResponse<DepositAgreementResponse>> getDepositAgreements(
             @RequestParam(required = false) DepositAgreementStatus status,
             @RequestParam(required = false) List<DepositAgreementStatus> statuses,
+            @RequestParam(required = false, name = "q") String search,
+            @RequestParam(required = false) Long floorId,
             @RequestParam(required = false) LocalDateTime signedFrom,
             @RequestParam(required = false) LocalDateTime signedTo,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return listDepositAgreements(status, statuses, signedFrom, signedTo, pageable);
+        return listDepositAgreements(status, statuses, search, floorId, signedFrom, signedTo, pageable);
     }
 
     @GetMapping("/me")
     public ApiResponse<PageResponse<DepositAgreementResponse>> getMyDepositAgreements(
             @RequestParam(required = false) DepositAgreementStatus status,
             @RequestParam(required = false) List<DepositAgreementStatus> statuses,
+            @RequestParam(required = false, name = "q") String search,
+            @RequestParam(required = false) Long floorId,
             @RequestParam(required = false) LocalDateTime signedFrom,
             @RequestParam(required = false) LocalDateTime signedTo,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return listDepositAgreements(status, statuses, signedFrom, signedTo, pageable);
+        return listDepositAgreements(status, statuses, search, floorId, signedFrom, signedTo, pageable);
     }
 
     private ApiResponse<PageResponse<DepositAgreementResponse>> listDepositAgreements(
             DepositAgreementStatus status,
             List<DepositAgreementStatus> statuses,
+            String search,
+            Long floorId,
             LocalDateTime signedFrom,
             LocalDateTime signedTo,
             Pageable pageable
@@ -140,6 +159,8 @@ public class DepositAgreementController {
                                                 userId,
                                                 status,
                                                 statuses,
+                                                search,
+                                                floorId,
                                                 signedFrom,
                                                 signedTo,
                                                 pageable
@@ -147,6 +168,26 @@ public class DepositAgreementController {
                                 ).map(this::toListResponse)
                         )
                 )
+                .build();
+    }
+
+    @GetMapping("/summary")
+    public ApiResponse<DepositDashboardSummaryResponse> getDashboardSummary() {
+        var summary = depositAgreementDashboardService.getSummary(AuthUtils.getCurrentAuthenticationId());
+        return ApiResponse.<DepositDashboardSummaryResponse>builder()
+                .data(new DepositDashboardSummaryResponse(
+                        summary.totalHeldAmount(), summary.heldCount(), summary.convertedCount()
+                ))
+                .build();
+    }
+
+    @GetMapping("/filter-options")
+    public ApiResponse<DepositFilterOptionsResponse> getFilterOptions() {
+        var floors = depositAgreementDashboardService.getFloorOptions(AuthUtils.getCurrentAuthenticationId()).stream()
+                .map(floor -> new DepositFilterOptionsResponse.FloorOption(floor.id(), floor.name()))
+                .toList();
+        return ApiResponse.<DepositFilterOptionsResponse>builder()
+                .data(new DepositFilterOptionsResponse(floors))
                 .build();
     }
 
@@ -176,7 +217,7 @@ public class DepositAgreementController {
         if (!MANAGER_UPDATEABLE_STATUSES.contains(nextStatus)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Trạng thái cọc không hợp lệ. Chỉ hỗ trợ: đã đặt cọc, đã nhận phòng, đã hoàn cọc, mất cọc."
+                    "Trạng thái cọc không hợp lệ. Mất cọc phải được xử lý qua hành động có kiểm tra quá hạn."
             );
         }
 
@@ -202,10 +243,24 @@ public class DepositAgreementController {
             @Valid @RequestBody DepositAgreementManagementUpdateRequest request
     ) {
         assertOwnerOrManager();
-        validateManagementInfoUpdate(request);
 
         DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
                 new GetDepositAgreementDetailsQuery(depositAgreementId)
+        );
+        DepositForm currentDepositForm = getDepositForm(depositAgreement);
+        LocalDate currentMoveInDate = resolveExpectedMoveInDate(depositAgreement, currentDepositForm);
+        LocalDate currentLeaseSignDate = resolveExpectedLeaseSignDate(depositAgreement, currentDepositForm);
+        if (depositAgreement.getStatus() != DepositAgreementStatus.PENDING_PAYMENT
+                && (!Objects.equals(currentMoveInDate, request.expectedMoveInDate())
+                || !Objects.equals(currentLeaseSignDate, request.expectedLeaseSignDate()))) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Ngày hẹn của cọc đã thanh toán chỉ được thay đổi qua hành động gia hạn."
+            );
+        }
+        validateManagementInfoUpdate(
+                request,
+                depositAgreement.getStatus() == DepositAgreementStatus.PENDING_PAYMENT
         );
         if (!MANAGER_INFO_UPDATEABLE_STATUSES.contains(depositAgreement.getStatus())) {
             throw new ResponseStatusException(
@@ -237,6 +292,46 @@ public class DepositAgreementController {
         return ApiResponse.<DepositAgreementDetailsResponse>builder()
                 .data(toDetailsResponse(savedDepositAgreement, room))
                 .build();
+    }
+
+    @PostMapping("/{depositAgreementId}/contact-events")
+    public ApiResponse<DepositAgreementDetailsResponse> recordDepositContact(
+            @PathVariable Long depositAgreementId,
+            @Valid @RequestBody DepositContactRequest request
+    ) {
+        assertOwnerOrManager();
+        depositAgreementLifecycleService.recordContact(
+                depositAgreementId,
+                AuthUtils.getCurrentAuthenticationId(),
+                request.outcome(),
+                request.note()
+        );
+        return currentDetailsResponse(depositAgreementId);
+    }
+
+    @PostMapping("/{depositAgreementId}/extensions")
+    public ApiResponse<DepositAgreementDetailsResponse> extendDeposit(
+            @PathVariable Long depositAgreementId,
+            @Valid @RequestBody DepositExtensionRequest request
+    ) {
+        assertOwnerOrManager();
+        depositAgreementLifecycleService.extend(
+                depositAgreementId,
+                AuthUtils.getCurrentAuthenticationId(),
+                request.additionalDays(),
+                request.reason()
+        );
+        return currentDetailsResponse(depositAgreementId);
+    }
+
+    @PostMapping("/{depositAgreementId}/forfeit")
+    public ApiResponse<DepositAgreementDetailsResponse> forfeitDeposit(
+            @PathVariable Long depositAgreementId,
+            @Valid @RequestBody DepositForfeitureRequest request
+    ) {
+        assertOwner();
+        depositAgreementLifecycleService.forfeit(depositAgreementId, request.reason());
+        return currentDetailsResponse(depositAgreementId);
     }
 
     @GetMapping("/{depositAgreementId}/contract")
@@ -357,12 +452,16 @@ public class DepositAgreementController {
     private DepositAgreementResponse toListResponse(DepositAgreement depositAgreement) {
         Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(depositAgreement.getRoomId()));
         Property property = propertyRepository.findById(room.getPropertyId()).orElse(null);
+        Floor floor = floorRepository.findById(room.getFloorId()).orElse(null);
         DepositForm depositForm = getDepositForm(depositAgreement);
+        var lifecycle = depositAgreementLifecycleService.snapshot(depositAgreement.getId());
         return DepositAgreementResponse.builder()
                 .id(depositAgreement.getId())
                 .depositCode(depositAgreement.getDepositCode())
                 .roomCode(room.getRoomCode())
                 .propertyName(property != null ? property.getName() : null)
+                .floorId(room.getFloorId())
+                .floorName(floor != null ? floor.getName() : null)
                 .depositorFullName(depositForm != null ? depositForm.getFullName() : null)
                 .depositorPhone(depositForm != null ? depositForm.getPhone() : null)
                 .depositorEmail(depositForm != null ? depositForm.getEmail() : null)
@@ -385,18 +484,33 @@ public class DepositAgreementController {
                 .canDownloadDraft(true)
                 .canUploadSignedFile(canUploadSignedFile(depositAgreement))
                 .canViewSignedFile(depositAgreement.getSignedFileId() != null)
+                .extensionCount(lifecycle.extensionCount())
+                .maxExtensions(lifecycle.maxExtensions())
+                .depositExpiresAt(lifecycle.depositExpiresAt())
+                .forfeitureDecisionDate(lifecycle.forfeitureDecisionDate())
+                .overdueDays(lifecycle.overdueDays())
+                .latestContactOutcome(lifecycle.latestContactOutcome())
+                .lastContactedAt(lifecycle.lastContactedAt())
+                .lastContactNote(lifecycle.lastContactNote())
+                .contactRequired(lifecycle.contactRequired())
+                .canExtend(lifecycle.canExtend())
+                .canForfeit(lifecycle.forfeitureEligible() && currentRole() == Role.OWNER)
                 .build();
     }
 
     private DepositAgreementDetailsResponse toDetailsResponse(DepositAgreement depositAgreement, Room room) {
         Property property = propertyRepository.findById(room.getPropertyId()).orElse(null);
+        Floor floor = floorRepository.findById(room.getFloorId()).orElse(null);
         DepositForm depositForm = getDepositForm(depositAgreement);
+        var lifecycle = depositAgreementLifecycleService.snapshot(depositAgreement.getId());
         return DepositAgreementDetailsResponse.builder()
                 .id(depositAgreement.getId())
                 .depositCode(depositAgreement.getDepositCode())
                 .roomCode(room.getRoomCode())
                 .propertyName(property != null ? property.getName() : null)
                 .propertyAddress(property != null ? property.getAddressLine() : null)
+                .floorId(room.getFloorId())
+                .floorName(floor != null ? floor.getName() : null)
                 .depositorFullName(depositForm != null ? depositForm.getFullName() : null)
                 .depositorPhone(depositForm != null ? depositForm.getPhone() : null)
                 .depositorEmail(depositForm != null ? depositForm.getEmail() : null)
@@ -428,6 +542,17 @@ public class DepositAgreementController {
                 .portraitFileUrl(fileDownloadUrl(depositForm != null ? depositForm.getPortraitFileId() : null))
                 .note(depositAgreement.getNote())
                 .createdAt(depositAgreement.getCreatedAt())
+                .extensionCount(lifecycle.extensionCount())
+                .maxExtensions(lifecycle.maxExtensions())
+                .depositExpiresAt(lifecycle.depositExpiresAt())
+                .forfeitureDecisionDate(lifecycle.forfeitureDecisionDate())
+                .overdueDays(lifecycle.overdueDays())
+                .latestContactOutcome(lifecycle.latestContactOutcome())
+                .lastContactedAt(lifecycle.lastContactedAt())
+                .lastContactNote(lifecycle.lastContactNote())
+                .contactRequired(lifecycle.contactRequired())
+                .canExtend(lifecycle.canExtend())
+                .canForfeit(lifecycle.forfeitureEligible() && currentRole() == Role.OWNER)
                 .build();
     }
 
@@ -500,7 +625,10 @@ public class DepositAgreementController {
         return depositForm != null ? depositForm.getExpectedLeaseSignDate() : null;
     }
 
-    private void validateManagementInfoUpdate(DepositAgreementManagementUpdateRequest request) {
+    private void validateManagementInfoUpdate(
+            DepositAgreementManagementUpdateRequest request,
+            boolean scheduleChangesAllowed
+    ) {
         String normalizedPhone = normalizePhone(request.depositorPhone());
         if (!normalizedPhone.matches("^0\\d{9}$")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại phải bắt đầu bằng 0 và có đúng 10 chữ số.");
@@ -510,10 +638,10 @@ public class DepositAgreementController {
         }
 
         LocalDate today = LocalDate.now();
-        if (request.expectedLeaseSignDate().isBefore(today)) {
+        if (scheduleChangesAllowed && request.expectedLeaseSignDate().isBefore(today)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày ký hợp đồng dự kiến không được là ngày quá khứ.");
         }
-        if (request.expectedMoveInDate().isBefore(today)) {
+        if (scheduleChangesAllowed && request.expectedMoveInDate().isBefore(today)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày vào ở dự kiến không được là ngày quá khứ.");
         }
         if (request.expectedMoveInDate().isBefore(request.expectedLeaseSignDate())) {
@@ -547,6 +675,33 @@ public class DepositAgreementController {
         if (role != Role.OWNER && role != Role.MANAGER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền cập nhật trạng thái cọc.");
         }
+    }
+
+    private void assertOwner() {
+        if (currentRole() != Role.OWNER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ chủ trọ được quyết định xử lý mất cọc.");
+        }
+    }
+
+    private Role currentRole() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            return null;
+        }
+        return principal.getRole();
+    }
+
+    private ApiResponse<DepositAgreementDetailsResponse> currentDetailsResponse(Long depositAgreementId) {
+        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
+                new GetDepositAgreementDetailsQuery(depositAgreementId)
+        );
+        if (!DepositLifecyclePolicy.isActive(depositAgreement.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể thay đổi khoản cọc đã kết thúc xử lý.");
+        }
+        Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(depositAgreement.getRoomId()));
+        return ApiResponse.<DepositAgreementDetailsResponse>builder()
+                .data(toDetailsResponse(depositAgreement, room))
+                .build();
     }
 
     private void assertCanAccessContract(DepositAgreement depositAgreement) {

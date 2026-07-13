@@ -61,6 +61,7 @@ public class DepositAgreement {
                 .amount(amount)
                 .expectedMoveInDate(expectedMoveInDate)
                 .expectedLeaseSignDate(expectedLeaseSignDate)
+                .depositExpiresAt(expectedMoveInDate.plusDays(14))
                 .paymentDueAt(paymentDueAt)
                 .build();
     }

@@ -188,7 +188,7 @@ class DepositContractDocumentServiceTest {
         }
 
         @Override
-        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
+        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, String search, Long floorId, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
             throw new UnsupportedOperationException();
         }
 

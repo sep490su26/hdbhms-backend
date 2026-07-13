@@ -20,11 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,15 +35,10 @@ public class GetBatchMeterReadingsService {
     JpaMeterReadingRepository meterReadingRepository;
     JpaMeterReadingBatchRepository batchRepository;
 
-    static final DateTimeFormatter PERIOD_FMT = DateTimeFormatter.ofPattern("MM/yyyy");
-
     @Transactional(readOnly = true)
     public BatchMeterReadingStatusResponse getBatchStatus(String period, Long propertyId) {
-        String resolvedPeriod = (period != null && !period.isBlank())
-                ? period
-                : LocalDate.now().format(PERIOD_FMT);
-
-        YearMonth ym = YearMonth.parse(resolvedPeriod, PERIOD_FMT);
+        String resolvedPeriod = MeterReadingPeriod.normalize(period);
+        YearMonth ym = MeterReadingPeriod.parse(resolvedPeriod);
         LocalDate startOfPeriod = ym.atDay(1);
 
         // 1. Fetch all rooms
@@ -119,8 +113,6 @@ public class GetBatchMeterReadingsService {
 
     @Transactional(readOnly = true)
     public MeterReadingBatchHistoryResponse getBatchHistory(Long propertyId) {
-        String currentPeriod = LocalDate.now().format(PERIOD_FMT);
-
         List<com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingBatchEntity> batches;
         if (propertyId != null) {
             batches = batchRepository.findByProperty_IdOrderByReadingPeriodDesc(propertyId);
@@ -129,10 +121,11 @@ public class GetBatchMeterReadingsService {
         }
 
         List<MeterReadingBatchHistoryResponse.BatchHistoryItem> history = batches.stream().map(b -> {
-            YearMonth ym = YearMonth.parse(b.getReadingPeriod(), PERIOD_FMT);
+            String period = MeterReadingPeriod.normalize(b.getReadingPeriod());
+            YearMonth ym = MeterReadingPeriod.parse(period);
             return MeterReadingBatchHistoryResponse.BatchHistoryItem.builder()
                     .batchId(b.getId())
-                    .period(b.getReadingPeriod())
+                    .period(period)
                     .isCurrent(b.getStatus() == BatchStatus.DRAFT)
                     .startDate(ym.atDay(1))
                     .endDate(ym.atEndOfMonth())
@@ -141,7 +134,9 @@ public class GetBatchMeterReadingsService {
                     .completedRooms(b.getCompletedRooms())
                     .anomalyCount(b.getAnomalyCount())
                     .build();
-        }).collect(Collectors.toList());
+        }).sorted(Comparator.comparing(
+                (MeterReadingBatchHistoryResponse.BatchHistoryItem item) -> MeterReadingPeriod.parse(item.getPeriod())
+        ).reversed()).collect(Collectors.toList());
 
         return MeterReadingBatchHistoryResponse.builder()
                 .history(history)
@@ -167,7 +162,7 @@ public class GetBatchMeterReadingsService {
                     .currentPeriod(
                             UtilityDashboardResponse.CurrentPeriodInfo.builder()
                             .id(batch.getId())
-                            .readingPeriod(batch.getReadingPeriod())
+                            .readingPeriod(MeterReadingPeriod.normalize(batch.getReadingPeriod()))
                             .status(batch.getStatus())
                             .build()
                     )

@@ -85,6 +85,7 @@ public class DepositForm {
                 .phone(phone)
                 .expectedMoveInDate(expectedMoveInDate)
                 .expectedLeaseSignDate(expectedLeaseSignDate)
+                .depositExpiresAt(expectedMoveInDate.plusDays(14))
                 .build();
     }
 
