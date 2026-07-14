@@ -108,7 +108,12 @@ public class ManageContractHandoverService {
             return meterReadingRepository.save(existingReading);
         }
 
-        var latestReadingOpt = meterReadingRepository.findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(roomId, meterType);
+        var latestReadingOpt = meterReadingRepository
+                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                        roomId,
+                        meterType,
+                        ReadingStatus.VOIDED
+                );
         BigDecimal prevValue = latestReadingOpt.map(MeterReadingEntity::getCurrentValue).orElse(BigDecimal.ZERO);
 
         String currentPeriod = MeterReadingPeriod.from(readingDate);
