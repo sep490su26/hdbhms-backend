@@ -7,6 +7,11 @@ public record TransactionExportRequest(
         String tenantName,
         LocalDate fromDate,
         LocalDate toDate,
+        String periodType,
+        String billingPeriod,
+        Integer year,
+        LocalDate issueFromDate,
+        LocalDate issueToDate,
         String format
 ) {
 }

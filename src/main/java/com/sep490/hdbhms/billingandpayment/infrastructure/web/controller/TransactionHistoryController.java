@@ -43,7 +43,18 @@ public class TransactionHistoryController {
     ) {
         return ApiResponse.<PageResponse<TransactionHistoryResponse>>builder()
                 .data(transactionHistoryService.getTransactions(
-                        new TransactionExportRequest(roomId, tenantName, fromDate, toDate, null),
+                        new TransactionExportRequest(
+                                roomId,
+                                tenantName,
+                                fromDate,
+                                toDate,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                        ),
                         pageable
                 ))
                 .build();
@@ -55,10 +66,26 @@ public class TransactionHistoryController {
             @RequestParam(required = false) String tenantName,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
+            @RequestParam(defaultValue = "ALL") String periodType,
+            @RequestParam(required = false) String billingPeriod,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issueFromDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate issueToDate,
             @RequestParam(defaultValue = "excel") String format
     ) {
         var file = transactionHistoryService.exportTransactions(
-                new TransactionExportRequest(roomId, tenantName, fromDate, toDate, format)
+                new TransactionExportRequest(
+                        roomId,
+                        tenantName,
+                        fromDate,
+                        toDate,
+                        periodType,
+                        billingPeriod,
+                        year,
+                        issueFromDate,
+                        issueToDate,
+                        format
+                )
         );
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(file.filename()))
