@@ -16,7 +16,28 @@ public interface DepositAgreementRepository {
 
     List<DepositAgreement> findAll();
 
-    Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable);
+    Page<DepositAgreement> findAll(
+            List<Long> ids,
+            DepositAgreementStatus status,
+            List<DepositAgreementStatus> statuses,
+            String search,
+            Long floorId,
+            LocalDateTime signedFrom,
+            LocalDateTime signedTo,
+            Pageable pageable
+    );
+
+    default long countByStatuses(List<Long> ids, List<DepositAgreementStatus> statuses) {
+        return 0;
+    }
+
+    default long sumAmountByStatuses(List<Long> ids, List<DepositAgreementStatus> statuses) {
+        return 0;
+    }
+
+    default List<Long> findDistinctFloorIds(List<Long> ids, List<DepositAgreementStatus> statuses) {
+        return List.of();
+    }
 
     List<DepositAgreement> findAllByTenantId(Long tenantId);
 

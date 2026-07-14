@@ -37,11 +37,31 @@ public class PermissionGrant {
             String reason,
             PermissionGrantDurationCode durationCode
     ) {
+        return accessGrant(
+                granteeUserId,
+                TargetType.TENANT_PROFILE,
+                profileId,
+                sourceChangeRequestId,
+                grantedBy,
+                reason,
+                durationCode
+        );
+    }
+
+    public static PermissionGrant accessGrant(
+            Long granteeUserId,
+            TargetType targetType,
+            Long targetId,
+            Long sourceChangeRequestId,
+            Long grantedBy,
+            String reason,
+            PermissionGrantDurationCode durationCode
+    ) {
         LocalDateTime now = LocalDateTime.now();
         return PermissionGrant.builder()
                 .granteeUserId(granteeUserId)
-                .targetType(TargetType.TENANT_PROFILE)
-                .targetId(profileId)
+                .targetType(targetType)
+                .targetId(targetId)
                 .sourceChangeRequestId(sourceChangeRequestId)
                 .grantedBy(grantedBy)
                 .reason(reason)

@@ -89,9 +89,8 @@ SELECT cr.requester_id,
        NOW(6),
        NOW(6)
 FROM hdbhms.change_requests cr
-WHERE cr.request_type = 'TENANT_PROFILE_ACCESS'
+WHERE cr.request_type IN ('TENANT_PROFILE_ACCESS', 'PERMISSION_ACCESS')
   AND cr.status = 'APPROVED'
-  AND cr.target_type = 'TENANT_PROFILE'
   AND cr.target_id IS NOT NULL
   AND NOT EXISTS (
       SELECT 1

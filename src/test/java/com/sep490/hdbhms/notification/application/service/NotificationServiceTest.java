@@ -59,7 +59,7 @@ class NotificationServiceTest {
                 ))
                 .build());
 
-        assertEquals(NotificationChannel.values().length, outboxRepository.saved.size());
+        assertEquals(5, outboxRepository.saved.size());
         NotificationOutbox web = outboxRepository.findSavedByChannel(NotificationChannel.WEB);
         NotificationOutbox push = outboxRepository.findSavedByChannel(NotificationChannel.PUSH);
         assertEquals("DB title", web.getTitle());

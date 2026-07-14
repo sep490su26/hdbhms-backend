@@ -53,14 +53,44 @@ public class SpringDataDepositAgreementRepository implements DepositAgreementRep
     }
 
     @Override
-    public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
+    public Page<DepositAgreement> findAll(
+            List<Long> ids,
+            DepositAgreementStatus status,
+            List<DepositAgreementStatus> statuses,
+            String search,
+            Long floorId,
+            LocalDateTime signedFrom,
+            LocalDateTime signedTo,
+            Pageable pageable
+    ) {
         Specification<DepositAgreementEntity> specification = Specification
                 .where(DepositAgreementSpecifications.idIn(ids))
                 .and(DepositAgreementSpecifications.statusIn(status))
                 .and(DepositAgreementSpecifications.statusesIn(statuses))
+                .and(DepositAgreementSpecifications.matchesSearch(search))
+                .and(DepositAgreementSpecifications.onFloor(floorId))
                 .and(DepositAgreementSpecifications.signingDateBetween(signedFrom, signedTo));
         return jpaDepositAgreementRepository.findAll(specification, pageable)
                 .map(depositAgreementPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public long countByStatuses(List<Long> ids, List<DepositAgreementStatus> statuses) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return jpaDepositAgreementRepository.countByIdsAndStatuses(ids, statuses);
+    }
+
+    @Override
+    public long sumAmountByStatuses(List<Long> ids, List<DepositAgreementStatus> statuses) {
+        if (ids == null || ids.isEmpty()) return 0;
+        Long total = jpaDepositAgreementRepository.sumAmountByIdsAndStatuses(ids, statuses);
+        return total == null ? 0 : total;
+    }
+
+    @Override
+    public List<Long> findDistinctFloorIds(List<Long> ids, List<DepositAgreementStatus> statuses) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return jpaDepositAgreementRepository.findDistinctFloorIds(ids, statuses);
     }
 
     @Override

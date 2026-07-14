@@ -19,6 +19,9 @@ public record TransactionHistoryResponse(
         Long invoiceId,
         String invoiceCode,
         String payerName,
-        String content
+        String content,
+        String billingPeriod,
+        LocalDateTime invoiceIssueDate,
+        LocalDateTime invoiceDueDate
 ) {
 }

@@ -3,11 +3,20 @@ package com.sep490.hdbhms.billingandpayment.application.service;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.TransactionExportRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TransactionHistoryResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
-import com.sep490.hdbhms.shared.utils.ExcelUtils;
 import com.sep490.hdbhms.shared.utils.PdfUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.apache.poi.ooxml.POIXMLException;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -23,7 +34,9 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -36,6 +49,11 @@ public class TransactionHistoryService {
     static final String EXCEL_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     static final String PDF_CONTENT_TYPE = "application/pdf";
     static final DateTimeFormatter EXPORT_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    static final DateTimeFormatter EXPORT_MONTH_FILENAME = DateTimeFormatter.ofPattern("MM-yyyy");
+    static final DateTimeFormatter EXPORT_DAY_FILENAME = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    static final String EXCEL_TEMPLATE_PATH = "templates/Template danh sách hóa đơn.xlsx";
+    // The supplied template uses row 0 for the title and row 1 for headers.
+    static final int TEMPLATE_DATA_START_ROW_INDEX = 2;
     static final Pattern DIACRITICS = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
     static final Pattern NON_ASCII = Pattern.compile("[^\\x20-\\x7E]");
 
@@ -78,8 +96,63 @@ public class TransactionHistoryService {
                 invoice.invoice_id,
                 invoice.invoice_code,
                 payment.payer_name,
-                payment.content
+                payment.content,
+                invoice.billing_period,
+                invoice.issue_date,
+                invoice.due_date
             """ + BASE_FROM;
+
+    static final String INVOICE_EXPORT_FROM = """
+            FROM invoices invoice
+            LEFT JOIN rooms invoice_room
+              ON invoice_room.room_id = invoice.room_id
+            LEFT JOIN deposit_agreements deposit
+              ON deposit.deposit_agreement_id = invoice.deposit_agreement_id
+            LEFT JOIN rooms deposit_room
+              ON deposit_room.room_id = deposit.room_id
+            LEFT JOIN properties property
+              ON property.property_id = invoice.property_id
+            LEFT JOIN lease_contracts contract
+              ON contract.lease_contract_id = invoice.lease_contract_id
+            LEFT JOIN person_profiles tenant_profile
+              ON tenant_profile.person_profile_id = contract.primary_tenant_profile_id
+            LEFT JOIN person_profiles depositor_profile
+              ON depositor_profile.person_profile_id = deposit.depositor_person_profile_id
+            LEFT JOIN payment_allocations allocation
+              ON allocation.payment_allocation_id = (
+                    SELECT latest_allocation.payment_allocation_id
+                    FROM payment_allocations latest_allocation
+                    WHERE latest_allocation.invoice_id = invoice.invoice_id
+                    ORDER BY latest_allocation.allocated_at DESC,
+                             latest_allocation.payment_allocation_id DESC
+                    LIMIT 1
+              )
+            LEFT JOIN payment_transactions payment
+              ON payment.payment_transaction_id = allocation.payment_transaction_id
+            """;
+
+    static final String INVOICE_EXPORT_SELECT = """
+            SELECT
+                invoice.invoice_id AS payment_allocation_id,
+                payment.payment_transaction_id,
+                COALESCE(NULLIF(payment.provider_transaction_id, ''), '') AS transaction_code,
+                payment.transaction_time,
+                COALESCE(invoice_room.room_id, deposit_room.room_id) AS room_id,
+                COALESCE(invoice_room.room_code, deposit_room.room_code) AS room_code,
+                property.name AS property_name,
+                COALESCE(tenant_profile.full_name, depositor_profile.full_name, payment.payer_name, '') AS tenant_name,
+                invoice.total_amount AS amount,
+                invoice.invoice_type,
+                invoice.status,
+                payment.provider,
+                invoice.invoice_id,
+                invoice.invoice_code,
+                payment.payer_name,
+                payment.content,
+                invoice.billing_period,
+                invoice.issue_date,
+                invoice.due_date
+            """ + INVOICE_EXPORT_FROM;
 
     JdbcTemplate jdbcTemplate;
 
@@ -129,9 +202,9 @@ public class TransactionHistoryService {
         try {
             return switch (format) {
                 case "excel", "xlsx" -> new ExportedFile(
-                        ExcelUtils.generateExcel(rows, excelHeaders(), this::toExcelRow, false),
+                        generateExcelFromTemplate(rows),
                         EXCEL_CONTENT_TYPE,
-                        "lich-su-thanh-toan-" + LocalDate.now() + ".xlsx"
+                        excelFilename(request)
                 );
                 case "pdf" -> new ExportedFile(
                         PdfUtils.generatePdfTable(rows, pdfHeaders(), this::toPdfRow, "Transaction history"),
@@ -140,7 +213,7 @@ public class TransactionHistoryService {
                 );
                 default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Định dạng xuất không hợp lệ");
             };
-        } catch (IOException exception) {
+        } catch (IOException | POIXMLException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file thất bại, vui lòng thử lại");
         }
     }
@@ -149,7 +222,7 @@ public class TransactionHistoryService {
         var params = new ArrayList<Object>();
         String where = buildWhere(request, params);
         return jdbcTemplate.query(
-                BASE_SELECT + where + " ORDER BY payment.transaction_time DESC, allocation.payment_allocation_id DESC",
+                INVOICE_EXPORT_SELECT + where + " ORDER BY invoice.issue_date DESC, invoice.invoice_id DESC",
                 this::mapRow,
                 params.toArray()
         );
@@ -178,7 +251,82 @@ public class TransactionHistoryService {
             where.append(" AND payment.transaction_time <= ?");
             params.add(request.toDate().atTime(LocalTime.MAX));
         }
+        appendInvoicePeriodFilter(request, where, params);
         return where.toString();
+    }
+
+    private void appendInvoicePeriodFilter(
+            TransactionExportRequest request,
+            StringBuilder where,
+            List<Object> params
+    ) {
+        String periodType = normalizedPeriodType(request.periodType());
+        if ("ALL".equals(periodType)) {
+            return;
+        }
+        switch (periodType) {
+            case "MONTH" -> {
+                YearMonth period = requireBillingPeriod(request.billingPeriod());
+                where.append(" AND invoice.billing_period = ?");
+                params.add(period.toString());
+            }
+            case "YEAR" -> {
+                int year = requireBillingYear(request.year());
+                where.append(" AND invoice.billing_period LIKE ?");
+                params.add(year + "-%");
+            }
+            case "DATE_RANGE" -> {
+                InvoiceIssueDateRange dateRange = requireIssueDateRange(request);
+                where.append(" AND invoice.issue_date >= ? AND invoice.issue_date <= ?");
+                params.add(dateRange.fromDate().atStartOfDay());
+                params.add(dateRange.toDate().atTime(LocalTime.MAX));
+            }
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phạm vi xuất hóa đơn không hợp lệ");
+        }
+    }
+
+    private String excelFilename(TransactionExportRequest request) {
+        return switch (normalizedPeriodType(request == null ? null : request.periodType())) {
+            case "MONTH" -> "Hóa đơn tháng "
+                    + EXPORT_MONTH_FILENAME.format(requireBillingPeriod(request.billingPeriod()))
+                    + ".xlsx";
+            case "YEAR" -> "Hóa đơn năm " + requireBillingYear(request.year()) + ".xlsx";
+            case "DATE_RANGE" -> {
+                InvoiceIssueDateRange dateRange = requireIssueDateRange(request);
+                yield "Hóa đơn từ " + EXPORT_DAY_FILENAME.format(dateRange.fromDate())
+                        + " đến " + EXPORT_DAY_FILENAME.format(dateRange.toDate()) + ".xlsx";
+            }
+            case "ALL" -> "Danh sách tất cả hóa đơn.xlsx";
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phạm vi xuất hóa đơn không hợp lệ");
+        };
+    }
+
+    private String normalizedPeriodType(String value) {
+        return value == null || value.isBlank() ? "ALL" : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private YearMonth requireBillingPeriod(String value) {
+        try {
+            return YearMonth.parse(value == null ? "" : value.trim());
+        } catch (DateTimeParseException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tháng hóa đơn không hợp lệ");
+        }
+    }
+
+    private int requireBillingYear(Integer value) {
+        if (value == null || value < 1900 || value > 2100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Năm hóa đơn không hợp lệ");
+        }
+        return value;
+    }
+
+    private InvoiceIssueDateRange requireIssueDateRange(TransactionExportRequest request) {
+        LocalDate fromDate = request == null ? null : request.issueFromDate();
+        LocalDate toDate = request == null ? null : request.issueToDate();
+        if (fromDate == null || toDate == null || fromDate.isAfter(toDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khoảng ngày phát hành hóa đơn không hợp lệ");
+        }
+        return new InvoiceIssueDateRange(fromDate, toDate);
     }
 
     private TransactionHistoryResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -200,7 +348,10 @@ public class TransactionHistoryService {
                 rs.getLong("invoice_id"),
                 rs.getString("invoice_code"),
                 rs.getString("payer_name"),
-                rs.getString("content")
+                rs.getString("content"),
+                rs.getString("billing_period"),
+                toLocalDateTime(rs, "issue_date"),
+                toLocalDateTime(rs, "due_date")
         );
     }
 
@@ -214,20 +365,121 @@ public class TransactionHistoryService {
         return invoiceType == null || invoiceType.isBlank() ? "OTHER" : invoiceType;
     }
 
-    private List<String> excelHeaders() {
-        return List.of("Mã GD", "Ngày", "Phòng", "Khách thuê", "Số tiền", "Loại", "Trạng thái");
+    private byte[] generateExcelFromTemplate(List<TransactionHistoryResponse> rows) throws IOException {
+        ClassPathResource template = new ClassPathResource(EXCEL_TEMPLATE_PATH);
+        try (
+                InputStream inputStream = template.getInputStream();
+                XSSFWorkbook workbook = new XSSFWorkbook(inputStream);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+        ) {
+            if (workbook.getNumberOfSheets() == 0) {
+                throw new IOException("Excel template does not contain a worksheet");
+            }
+            Sheet sheet = workbook.getSheetAt(0);
+            ExcelDataStyles styles = createExcelDataStyles(workbook);
+            for (int index = 0; index < rows.size(); index++) {
+                writeExcelRow(getOrCreateTemplateRow(sheet, TEMPLATE_DATA_START_ROW_INDEX + index), rows.get(index), styles);
+            }
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
     }
 
-    private List<Object> toExcelRow(TransactionHistoryResponse item) {
-        return List.of(
-                text(item.transactionCode()),
-                formatDateTime(item.transactionTime()),
-                text(item.roomCode()),
-                text(item.tenantName()),
-                item.amount() == null ? 0L : item.amount(),
-                text(item.paymentType()),
-                text(item.status())
-        );
+    private Row getOrCreateTemplateRow(Sheet sheet, int rowIndex) {
+        Row row = sheet.getRow(rowIndex);
+        if (row != null) {
+            return row;
+        }
+
+        Row templateRow = sheet.getRow(TEMPLATE_DATA_START_ROW_INDEX);
+        row = sheet.createRow(rowIndex);
+        if (templateRow != null) {
+            row.setHeight(templateRow.getHeight());
+            for (int column = 0; column < 9; column++) {
+                Cell templateCell = templateRow.getCell(column);
+                if (templateCell != null) {
+                    row.createCell(column).setCellStyle(templateCell.getCellStyle());
+                }
+            }
+        }
+        return row;
+    }
+
+    private ExcelDataStyles createExcelDataStyles(XSSFWorkbook workbook) {
+        Font font = workbook.createFont();
+        font.setFontName("Arial");
+        font.setFontHeightInPoints((short) 11);
+
+        CellStyle textStyle = createCellStyle(workbook, font, HorizontalAlignment.LEFT);
+        CellStyle amountStyle = createCellStyle(workbook, font, HorizontalAlignment.RIGHT);
+        amountStyle.setDataFormat(workbook.createDataFormat().getFormat("#,##0 \"đ\""));
+        CellStyle dateTimeStyle = createCellStyle(workbook, font, HorizontalAlignment.CENTER);
+        dateTimeStyle.setDataFormat(workbook.createDataFormat().getFormat("hh:mm dd/MM/yyyy"));
+        return new ExcelDataStyles(textStyle, amountStyle, dateTimeStyle);
+    }
+
+    private CellStyle createCellStyle(XSSFWorkbook workbook, Font font, HorizontalAlignment alignment) {
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        style.setAlignment(alignment);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    private void writeExcelRow(Row row, TransactionHistoryResponse item, ExcelDataStyles styles) {
+        setTextCell(row, 0, item.transactionCode(), styles.text());
+        setTextCell(row, 1, item.tenantName() == null ? item.payerName() : item.tenantName(), styles.text());
+        setTextCell(row, 2, item.roomCode(), styles.text());
+        setTextCell(row, 3, item.billingPeriod(), styles.text());
+        setAmountCell(row, 4, item.amount(), styles.amount());
+        setDateTimeCell(row, 5, item.invoiceIssueDate(), styles.dateTime());
+        setDateTimeCell(row, 6, item.invoiceDueDate(), styles.dateTime());
+        setDateTimeCell(row, 7, item.transactionTime(), styles.dateTime());
+        setTextCell(row, 8, invoiceTypeLabel(item.invoiceType()), styles.text());
+    }
+
+    private void setTextCell(Row row, int column, String value, CellStyle style) {
+        Cell cell = row.getCell(column);
+        if (cell == null) {
+            cell = row.createCell(column);
+        }
+        cell.setCellStyle(style);
+        cell.setCellValue(text(value));
+    }
+
+    private void setAmountCell(Row row, int column, Long value, CellStyle style) {
+        Cell cell = row.getCell(column);
+        if (cell == null) {
+            cell = row.createCell(column);
+        }
+        cell.setCellStyle(style);
+        cell.setCellValue(value == null ? 0D : value.doubleValue());
+    }
+
+    private void setDateTimeCell(Row row, int column, LocalDateTime value, CellStyle style) {
+        Cell cell = row.getCell(column);
+        if (cell == null) {
+            cell = row.createCell(column);
+        }
+        cell.setCellStyle(style);
+        if (value == null) {
+            cell.setBlank();
+        } else {
+            cell.setCellValue(value);
+        }
+    }
+
+    private String invoiceTypeLabel(String invoiceType) {
+        return switch (invoiceType == null ? "" : invoiceType) {
+            case "DEPOSIT" -> "Cọc";
+            case "RENT" -> "Tiền phòng";
+            case "UTILITY" -> "Điện nước";
+            case "FINAL_SETTLEMENT" -> "Tất toán";
+            case "COMPENSATION" -> "Bồi thường";
+            case "OPERATING_REIMBURSEMENT" -> "Hoàn chi";
+            case "TRANSFER_DIFFERENCE" -> "Chuyển phòng";
+            default -> "Khác";
+        };
     }
 
     private List<String> pdfHeaders() {
@@ -275,5 +527,11 @@ public class TransactionHistoryService {
     }
 
     public record ExportedFile(byte[] bytes, String contentType, String filename) {
+    }
+
+    private record ExcelDataStyles(CellStyle text, CellStyle amount, CellStyle dateTime) {
+    }
+
+    private record InvoiceIssueDateRange(LocalDate fromDate, LocalDate toDate) {
     }
 }

@@ -38,7 +38,7 @@ public class MeterReadingBatchEntity {
     PropertyEntity property;
 
     @Column(name = "reading_period", nullable = false, length = 7, columnDefinition = "CHAR(7)")
-    String readingPeriod;  // YYYY-MM
+    String readingPeriod;  // MM-yyyy
 
     @Column(name = "total_rooms", nullable = false)
     @Builder.Default

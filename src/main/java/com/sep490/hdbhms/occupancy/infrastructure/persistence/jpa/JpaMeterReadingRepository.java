@@ -86,7 +86,7 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
             JOIN FETCH reading.meter meter
             WHERE reading.room.id = :roomId
               AND reading.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
-            ORDER BY reading.readingPeriod DESC, reading.readingDate DESC, reading.createdAt DESC, reading.id DESC
+            ORDER BY reading.readingDate DESC, reading.createdAt DESC, reading.id DESC
             """)
     List<MeterReadingEntity> findActiveByRoomIdLatestFirst(@Param("roomId") Long roomId);
 

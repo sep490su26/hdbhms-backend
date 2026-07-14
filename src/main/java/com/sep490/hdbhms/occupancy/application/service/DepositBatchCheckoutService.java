@@ -151,6 +151,7 @@ public class DepositBatchCheckoutService {
                     .occupantCount(roomRequest.getOccupantCount())
                     .expectedMoveInDate(request.getExpectedMoveInDate())
                     .expectedLeaseSignDate(request.getExpectedLeaseSignDate())
+                    .depositExpiresAt(request.getExpectedMoveInDate().plusDays(DepositLifecyclePolicy.FORFEITURE_WAIT_DAYS))
                     .paymentDueAt(holdExpiresAt)
                     .status(DepositFormStatus.APPROVED)
                     .confirmedAt(LocalDateTime.now())
@@ -166,6 +167,7 @@ public class DepositBatchCheckoutService {
                     .amount(DEPOSIT_AMOUNT_PER_ROOM)
                     .expectedMoveInDate(request.getExpectedMoveInDate())
                     .expectedLeaseSignDate(request.getExpectedLeaseSignDate())
+                    .depositExpiresAt(request.getExpectedMoveInDate().plusDays(DepositLifecyclePolicy.FORFEITURE_WAIT_DAYS))
                     .paymentDueAt(holdExpiresAt)
                     .status(DepositAgreementStatus.PENDING_PAYMENT)
                     .build());

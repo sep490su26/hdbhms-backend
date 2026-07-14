@@ -38,7 +38,7 @@ public class MeterReadingController {
     SubmitMeterReadingUseCase submitMeterReadingUseCase;
 
     /**
-     * GET /api/v1/meter-readings?period=MM/yyyy&propertyId=1
+     * GET /api/v1/meter-readings?period=MM-yyyy&propertyId=1
      * <p>
      * Returns readings grouped by room.
      * - period: defaults to current month if omitted
@@ -55,7 +55,7 @@ public class MeterReadingController {
     }
 
     /**
-     * GET /api/v1/meter-readings/batch-status?period=MM/yyyy&propertyId=1
+     * GET /api/v1/meter-readings/batch-status?period=MM-yyyy&propertyId=1
      * <p>
      * Returns rooms that have lease contracts overlapping the period for the batch input UI.
      */

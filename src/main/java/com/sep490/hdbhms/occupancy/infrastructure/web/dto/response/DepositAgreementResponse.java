@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.DepositContactOutcome;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -17,6 +18,8 @@ public class DepositAgreementResponse {
     String depositCode;
     String roomCode;
     String propertyName;
+    Long floorId;
+    String floorName;
     String depositorFullName;
     String depositorPhone;
     String depositorEmail;
@@ -39,4 +42,15 @@ public class DepositAgreementResponse {
     Boolean canDownloadDraft;
     Boolean canUploadSignedFile;
     Boolean canViewSignedFile;
+    Integer extensionCount;
+    Integer maxExtensions;
+    LocalDate depositExpiresAt;
+    LocalDate forfeitureDecisionDate;
+    Long overdueDays;
+    DepositContactOutcome latestContactOutcome;
+    LocalDateTime lastContactedAt;
+    String lastContactNote;
+    Boolean contactRequired;
+    Boolean canExtend;
+    Boolean canForfeit;
 }

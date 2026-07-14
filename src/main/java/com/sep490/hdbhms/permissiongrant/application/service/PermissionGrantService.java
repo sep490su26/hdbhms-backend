@@ -35,16 +35,32 @@ public class PermissionGrantService {
     @Transactional
     public PermissionGrant grantTenantProfileAccess(ChangeRequest request, Long ownerId, String durationCode) {
         if (request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS
-                || request.getTargetType() != TargetType.TENANT_PROFILE
+                || request.getTargetType() != TargetType.TENANT_PROFILE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid tenant profile access request.");
+        }
+        return grantAccess(request, ownerId, durationCode);
+    }
+
+    @Transactional
+    public PermissionGrant grantAccess(ChangeRequest request, Long ownerId, String durationCode) {
+        if ((request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS
+                && request.getRequestType() != RequestType.PERMISSION_ACCESS)
+                || request.getTargetType() == null
                 || request.getRequesterId() == null
                 || request.getTargetId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid tenant profile access request.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid permission access request.");
         }
 
         PermissionGrantDurationCode duration = resolveDuration(durationCode);
-        Optional<PermissionGrant> existingGrant = findActiveTenantProfileGrant(request.getRequesterId(), request.getTargetId());
-        PermissionGrant grant = existingGrant.orElseGet(() -> PermissionGrant.tenantProfileGrant(
+        Optional<PermissionGrant> existingGrant = permissionGrantRepository.findActive(
                 request.getRequesterId(),
+                request.getTargetType(),
+                request.getTargetId(),
+                LocalDateTime.now()
+        );
+        PermissionGrant grant = existingGrant.orElseGet(() -> PermissionGrant.accessGrant(
+                request.getRequesterId(),
+                request.getTargetType(),
                 request.getTargetId(),
                 request.getId(),
                 ownerId,

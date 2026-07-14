@@ -1,5 +1,32 @@
 ALTER TABLE hdbhms.room_transfer_requests
     MODIFY COLUMN status ENUM (
+        'WAITING_APPROVAL',
+        'REQUESTED',
+        'CANCELLED',
+        'REJECTED',
+        'WAITING_MANAGER_APPROVAL',
+        'MANAGER_APPROVED',
+        'WAITING_HOLDER_RESPONSE',
+        'WAITING_TARGET_HOLDER_APPROVAL',
+        'WAITING_TENANT_CONFIRMATION',
+        'WAITING_NEW_CONTRACT',
+        'WAITING_CONTRACT_CONFIRMATION',
+        'WAITING_SIGNING',
+        'WAITING_CONTRACT_SIGNING',
+        'WAITING_PAYMENT',
+        'WAITING_EXECUTION',
+        'READY_FOR_HANDOVER',
+        'EXECUTED',
+        'COMPLETED',
+        'EXPIRED'
+    ) NOT NULL DEFAULT 'REQUESTED';
+
+UPDATE hdbhms.room_transfer_requests
+SET status = 'WAITING_MANAGER_APPROVAL'
+WHERE status = 'WAITING_APPROVAL';
+
+ALTER TABLE hdbhms.room_transfer_requests
+    MODIFY COLUMN status ENUM (
         'REQUESTED',
         'CANCELLED',
         'REJECTED',

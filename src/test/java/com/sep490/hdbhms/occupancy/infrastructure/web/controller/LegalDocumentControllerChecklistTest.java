@@ -17,9 +17,12 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseCon
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.FloorRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
+import com.sep490.hdbhms.occupancy.application.service.DepositAgreementDashboardService;
+import com.sep490.hdbhms.occupancy.application.service.DepositAgreementLifecycleService;
 import com.sep490.hdbhms.occupancy.application.service.HandoverDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
@@ -222,11 +225,14 @@ class LegalDocumentControllerChecklistTest {
                 getRoom,
                 mock(PropertyRepository.class),
                 depositFormRepository,
+                mock(FloorRepository.class),
                 mock(DepositAgreementRepository.class),
                 mock(RoomRepository.class),
                 mock(GetMyListDepositAgreementsUseCase.class),
                 getDetails,
                 documentService,
+                mock(DepositAgreementLifecycleService.class),
+                mock(DepositAgreementDashboardService.class),
                 mock(UploadFileUseCase.class),
                 downloadUseCase,
                 mock(JpaFileMetadataRepository.class)
