@@ -233,6 +233,7 @@ public class LeaseContractController {
                         request.monthlyRent(),
                         request.paymentCycleMonths(),
                         request.depositAmount(),
+                        request.newContractCode(),
                         request.note()
                 ))
                 .build();

@@ -3,6 +3,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -56,6 +57,7 @@ public class LeaseContractManagementResponse {
     LocalDate expectedVacantDate;
     Boolean canRenew;
     String canRenewBlockedReason;
+    Boolean canLiquidate;
     Long transferRequestId;
     String transferRequestCode;
     String transferStatus;
@@ -77,6 +79,18 @@ public class LeaseContractManagementResponse {
     Long handoverSignedFileId;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
+
+    Long liquidationId;
+    LocalDate liquidationDate;
+    String liquidationReason;
+    Long liquidationDepositAmount;
+    Long liquidationDepositDeductionAmount;
+    String liquidationDepositDeductionReason;
+    Long liquidationDepositRefundAmount;
+    Long liquidationFinalInvoiceId;
+    Long liquidationSignedFileId;
+    LiquidationStatus liquidationStatus;
+    LocalDateTime liquidationCreatedAt;
 
     Boolean accountProvisioned;
     Boolean emailAvailable;

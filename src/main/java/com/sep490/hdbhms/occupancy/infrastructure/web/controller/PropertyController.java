@@ -11,7 +11,9 @@ import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQ
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.CreatePropertyUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListPropertiesUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetPropertyDetailsUseCase;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.UtilityTariffEntity;
@@ -52,6 +54,12 @@ import java.util.Objects;
 @RequestMapping("/api/v1/properties")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PropertyController {
+    private static final List<LeaseStatus> ROOM_OCCUPANCY_CONTRACT_STATUSES = List.of(
+            LeaseStatus.ACTIVE,
+            LeaseStatus.EXPIRING_SOON,
+            LeaseStatus.TERMINATION_PENDING
+    );
+
     PropertyWebMapper propertyWebMapper;
     CreatePropertyUseCase createPropertyUseCase;
     GetListPropertiesUseCase getListPropertiesUseCase;
@@ -200,6 +208,7 @@ public class PropertyController {
     }
 
     @PutMapping("/{propertyId}")
+    @Transactional
     @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<PropertyResponse> updateProperty(
             @PathVariable Long propertyId,
@@ -213,8 +222,7 @@ public class PropertyController {
         property.setPropertyType(request.propertyType());
         property.setAddressLine(request.addressLine().trim());
         property.setDescription(request.description());
-        validateCanChangeStatus(property, request.status());
-        property.setStatus(request.status());
+        applyPropertyStatusChange(property, request.status());
         return ApiResponse.<PropertyResponse>builder()
                 .data(toPropertyResponse(jpaPropertyRepository.save(property)))
                 .build();
@@ -229,8 +237,7 @@ public class PropertyController {
     ) {
         assertManagerCanAccessProperty(propertyId);
         PropertyEntity property = findProperty(propertyId);
-        validateCanChangeStatus(property, request.status());
-        property.setStatus(request.status());
+        applyPropertyStatusChange(property, request.status());
         return ApiResponse.<PropertyResponse>builder()
                 .data(toPropertyResponse(jpaPropertyRepository.save(property)))
                 .build();
@@ -288,6 +295,20 @@ public class PropertyController {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Cơ sở chưa có phòng nên không thể đổi trạng thái."
+            );
+        }
+    }
+
+    private void applyPropertyStatusChange(PropertyEntity property, PropertyStatus nextStatus) {
+        boolean activatingProperty = property.getStatus() != PropertyStatus.ACTIVE
+                && nextStatus == PropertyStatus.ACTIVE;
+        validateCanChangeStatus(property, nextStatus);
+        property.setStatus(nextStatus);
+        if (activatingProperty) {
+            jpaRoomRepository.updateRoomsWithoutActiveContractsToStatus(
+                    property.getId(),
+                    ROOM_OCCUPANCY_CONTRACT_STATUSES,
+                    RoomStatus.VACANT
             );
         }
     }

@@ -117,6 +117,17 @@ public class LeaseContractManagementService {
                     previous_contract.contract_code AS previous_contract_code,
                     lc.tenant_intention,
                     lc.expected_vacant_date,
+                    cl.contract_liquidation_id AS liquidation_id,
+                    cl.liquidation_date,
+                    cl.reason AS liquidation_reason,
+                    cl.deposit_amount AS liquidation_deposit_amount,
+                    cl.deposit_deduction_amount AS liquidation_deposit_deduction_amount,
+                    cl.deposit_deduction_reason AS liquidation_deposit_deduction_reason,
+                    cl.deposit_refund_amount AS liquidation_deposit_refund_amount,
+                    cl.final_invoice_id AS liquidation_final_invoice_id,
+                    cl.signed_file_id AS liquidation_signed_file_id,
+                    cl.status AS liquidation_status,
+                    cl.created_at AS liquidation_created_at,
                     tr.room_transfer_request_id AS transfer_request_id,
                     tr.request_code AS transfer_request_code,
                     tr.status AS transfer_status,
@@ -187,6 +198,7 @@ public class LeaseContractManagementService {
                 LEFT JOIN person_profiles pp ON pp.person_profile_id = da.depositor_person_profile_id
                 LEFT JOIN lease_contracts lc ON lc.deposit_agreement_id = da.deposit_agreement_id AND lc.deleted_at IS NULL
                 LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
+                LEFT JOIN contract_liquidations cl ON cl.contract_id = lc.lease_contract_id
                 LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                 LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                 LEFT JOIN room_transfer_requests tr
@@ -233,6 +245,17 @@ public class LeaseContractManagementService {
                     previous_contract.contract_code AS previous_contract_code,
                     lc.tenant_intention,
                     lc.expected_vacant_date,
+                    cl.contract_liquidation_id AS liquidation_id,
+                    cl.liquidation_date,
+                    cl.reason AS liquidation_reason,
+                    cl.deposit_amount AS liquidation_deposit_amount,
+                    cl.deposit_deduction_amount AS liquidation_deposit_deduction_amount,
+                    cl.deposit_deduction_reason AS liquidation_deposit_deduction_reason,
+                    cl.deposit_refund_amount AS liquidation_deposit_refund_amount,
+                    cl.final_invoice_id AS liquidation_final_invoice_id,
+                    cl.signed_file_id AS liquidation_signed_file_id,
+                    cl.status AS liquidation_status,
+                    cl.created_at AS liquidation_created_at,
                     tr.room_transfer_request_id AS transfer_request_id,
                     tr.request_code AS transfer_request_code,
                     tr.status AS transfer_status,
@@ -300,6 +323,7 @@ public class LeaseContractManagementService {
                 LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
                 LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                 LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
+                LEFT JOIN contract_liquidations cl ON cl.contract_id = lc.lease_contract_id
                 LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                 LEFT JOIN room_transfer_requests tr
                   ON tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id
@@ -445,6 +469,7 @@ public class LeaseContractManagementService {
             Long monthlyRent,
             Integer paymentCycleMonths,
             Long depositAmount,
+            String requestedContractCode,
             String note
     ) {
         assertOwnerCanRenew();
@@ -499,7 +524,7 @@ public class LeaseContractManagementService {
             );
         }
 
-        String newContractCode = resolveRenewalContractCode(oldContract);
+        String newContractCode = resolveRenewalContractCode(oldContract, requestedContractCode);
         LeaseContractEntity newContract = LeaseContractEntity.builder()
                 .contractCode(newContractCode)
                 .room(room)
@@ -1016,6 +1041,17 @@ public class LeaseContractManagementService {
                             previous_contract.contract_code AS previous_contract_code,
                             lc.tenant_intention,
                             lc.expected_vacant_date,
+                            cl.contract_liquidation_id AS liquidation_id,
+                            cl.liquidation_date,
+                            cl.reason AS liquidation_reason,
+                            cl.deposit_amount AS liquidation_deposit_amount,
+                            cl.deposit_deduction_amount AS liquidation_deposit_deduction_amount,
+                            cl.deposit_deduction_reason AS liquidation_deposit_deduction_reason,
+                            cl.deposit_refund_amount AS liquidation_deposit_refund_amount,
+                            cl.final_invoice_id AS liquidation_final_invoice_id,
+                            cl.signed_file_id AS liquidation_signed_file_id,
+                            cl.status AS liquidation_status,
+                            cl.created_at AS liquidation_created_at,
                             tr.room_transfer_request_id AS transfer_request_id,
                             tr.request_code AS transfer_request_code,
                             tr.status AS transfer_status,
@@ -1083,6 +1119,7 @@ public class LeaseContractManagementService {
                         LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
                         LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
+                        LEFT JOIN contract_liquidations cl ON cl.contract_id = lc.lease_contract_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                         LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                         LEFT JOIN room_transfer_requests tr
@@ -1475,15 +1512,11 @@ public class LeaseContractManagementService {
         );
     }
 
-    private String resolveRenewalContractCode(LeaseContractEntity oldContract) {
-        LeaseContractEntity rootContract = oldContract;
-        int renewalNumber = 1;
-        while (rootContract.getPreviousContract() != null) {
-            rootContract = rootContract.getPreviousContract();
-            renewalNumber++;
+    private String resolveRenewalContractCode(LeaseContractEntity oldContract, String requestedContractCode) {
+        String contractCode = requestedContractCode == null ? "" : requestedContractCode.trim();
+        if (contractCode.isBlank()) {
+            contractCode = generateRenewalContractCode(oldContract);
         }
-
-        String contractCode = rootContract.getContractCode() + "-R" + renewalNumber;
         if (contractCode.length() > 80) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ma hop dong moi khong duoc vuot qua 80 ky tu.");
         }
@@ -1491,6 +1524,17 @@ public class LeaseContractManagementService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ma hop dong moi da ton tai.");
         }
         return contractCode;
+    }
+
+    private String generateRenewalContractCode(LeaseContractEntity oldContract) {
+        LeaseContractEntity rootContract = oldContract;
+        int renewalNumber = 1;
+        while (rootContract.getPreviousContract() != null) {
+            rootContract = rootContract.getPreviousContract();
+            renewalNumber++;
+        }
+
+        return rootContract.getContractCode() + "-R" + renewalNumber;
     }
 
     private Long resolveTenantIdForProfile(Long profileId, Long propertyId) {
@@ -1751,6 +1795,7 @@ public class LeaseContractManagementService {
                 .canRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
                         ? null
                         : renewBlockedReason(renewBlocker))
+                .canLiquidate(leaseContractId != null && isLiquidatableContractStatus(parsedContractStatus))
                 .transferRequestId(transferRequestId)
                 .transferRequestCode(rs.getString("transfer_request_code"))
                 .transferStatus(transferStatus)
@@ -1770,6 +1815,17 @@ public class LeaseContractManagementService {
                 .handoverSignedFileId(getLongOrNull(rs, "handover_signed_file_id"))
                 .signedAt(toLocalDateTime(rs, "signed_at"))
                 .createdAt(toLocalDateTime(rs, "created_at"))
+                .liquidationId(getLongOrNull(rs, "liquidation_id"))
+                .liquidationDate(toLocalDate(rs, "liquidation_date"))
+                .liquidationReason(rs.getString("liquidation_reason"))
+                .liquidationDepositAmount(getLongOrNull(rs, "liquidation_deposit_amount"))
+                .liquidationDepositDeductionAmount(getLongOrNull(rs, "liquidation_deposit_deduction_amount"))
+                .liquidationDepositDeductionReason(rs.getString("liquidation_deposit_deduction_reason"))
+                .liquidationDepositRefundAmount(getLongOrNull(rs, "liquidation_deposit_refund_amount"))
+                .liquidationFinalInvoiceId(getLongOrNull(rs, "liquidation_final_invoice_id"))
+                .liquidationSignedFileId(getLongOrNull(rs, "liquidation_signed_file_id"))
+                .liquidationStatus(parseEnum(LiquidationStatus.class, rs.getString("liquidation_status")))
+                .liquidationCreatedAt(toLocalDateTime(rs, "liquidation_created_at"))
                 .accountProvisioned(userId != null)
                 .emailAvailable(rs.getString("email") != null && !rs.getString("email").isBlank())
                 .build();
@@ -1806,6 +1862,13 @@ public class LeaseContractManagementService {
         return contractStatus == LeaseStatus.ACTIVE
                 || contractStatus == LeaseStatus.EXPIRING_SOON
                 || contractStatus == LeaseStatus.EXPIRED;
+    }
+
+    private boolean isLiquidatableContractStatus(LeaseStatus contractStatus) {
+        return contractStatus == LeaseStatus.ACTIVE
+                || contractStatus == LeaseStatus.EXPIRING_SOON
+                || contractStatus == LeaseStatus.EXPIRED
+                || contractStatus == LeaseStatus.TERMINATION_PENDING;
     }
 
     private String renewBlockedReason(RoomCommitmentChecker.Blocker blocker) {

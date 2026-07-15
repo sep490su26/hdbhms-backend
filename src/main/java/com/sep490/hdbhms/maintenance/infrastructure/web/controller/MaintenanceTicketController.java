@@ -400,7 +400,7 @@ public class MaintenanceTicketController {
         if (amount != null && amount < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí thực tế không được âm.");
         }
-        MaintenanceTicket saved = saveRepairInformation(ticket, request, MaintenanceTicketStatus.COMPLETED);
+        MaintenanceTicket saved = saveRepairInformation(ticket, request, targetStatusAfterManagerCompletion());
         saveCost(saved.getId(), request);
         if (shouldChargeTenant(saved, request)) {
             collectMaintenanceCompensation(saved, request);
@@ -408,7 +408,7 @@ public class MaintenanceTicketController {
         if (request != null && request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
             attachFiles(saved, request.getAttachmentIds(), AttachmentPhase.AFTER, "Upload ảnh sau sửa");
         }
-        recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(), MaintenanceTicketAction.CONFIRM_COMPLETED,
+        recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(), MaintenanceTicketAction.REQUEST_CONFIRMATION,
                 firstNonBlank(request == null ? null : request.getCompletionNote(),
                         "Đã hoàn tất xử lý phiếu sự cố"));
         return response(saved);
@@ -1570,6 +1570,10 @@ public class MaintenanceTicketController {
             }
         }
         return ids;
+    }
+
+    static MaintenanceTicketStatus targetStatusAfterManagerCompletion() {
+        return MaintenanceTicketStatus.WAITING_CONFIRMATION;
     }
 
     private InternalMaintenanceCostResponse toInternalCostResponse(MaintenanceCostEntity cost) {
