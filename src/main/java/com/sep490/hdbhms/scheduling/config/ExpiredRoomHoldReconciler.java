@@ -1,9 +1,11 @@
 package com.sep490.hdbhms.scheduling.config;
 
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.occupancy.application.service.RoomDepositLockService;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomDepositFailureReason;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import lombok.AccessLevel;
@@ -25,6 +27,7 @@ public class ExpiredRoomHoldReconciler {
     RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
     RoomCommitmentChecker roomCommitmentChecker;
+    RoomDepositLockService roomDepositLockService;
 
     @Transactional
     @Scheduled(fixedDelay = 60_000, initialDelay = 15_000)
@@ -33,10 +36,20 @@ public class ExpiredRoomHoldReconciler {
         List<RoomHold> expiredHolds = roomHoldRepository.findExpiredUnconfirmedHolds(now);
 
         for (RoomHold roomHold : expiredHolds) {
+            boolean released = false;
             if (roomHold.getStatus() == RoomHoldStatus.ACTIVE
                     || roomHold.getStatus() == RoomHoldStatus.PAYMENT_PROCESSING) {
                 roomHold.releaseOnAutoExpired();
                 roomHoldRepository.save(roomHold);
+                released = true;
+            }
+            if (released) {
+                roomDepositLockService.recordFailure(
+                        roomHold.getRoomId(),
+                        roomHold.getId(),
+                        null,
+                        RoomDepositFailureReason.PAYMENT_EXPIRED
+                );
             }
 
             boolean stillHasActiveHold = roomHoldRepository.existsByRoomIdAndStatusIn(

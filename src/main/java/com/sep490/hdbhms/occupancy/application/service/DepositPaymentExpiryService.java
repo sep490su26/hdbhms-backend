@@ -10,6 +10,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomDepositFailureReason;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import lombok.AccessLevel;
@@ -33,6 +34,7 @@ public class DepositPaymentExpiryService {
     RoomRepository roomRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     RoomCommitmentChecker roomCommitmentChecker;
+    RoomDepositLockService roomDepositLockService;
 
     public PaymentIntent expire(Long paymentIntentId) {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
@@ -53,7 +55,15 @@ public class DepositPaymentExpiryService {
         DepositAgreement depositAgreement = depositAgreementRepository.findById(paymentIntent.getDepositAgreementId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay thong tin dat coc."));
         if (depositAgreement.getStatus() == DepositAgreementStatus.PENDING_PAYMENT) {
-            expireRoomHold(depositAgreement.getRoomHoldId(), now);
+            boolean expiredHold = expireRoomHold(depositAgreement.getRoomHoldId(), now);
+            if (expiredHold) {
+                roomDepositLockService.recordFailure(
+                        depositAgreement.getRoomId(),
+                        depositAgreement.getRoomHoldId(),
+                        paymentIntent.getId(),
+                        RoomDepositFailureReason.PAYMENT_EXPIRED
+                );
+            }
         }
 
         if (paymentIntent.getStatus() == PaymentIntentStatus.PENDING
@@ -64,16 +74,16 @@ public class DepositPaymentExpiryService {
         return paymentIntent;
     }
 
-    private void expireRoomHold(Long roomHoldId, LocalDateTime now) {
+    private boolean expireRoomHold(Long roomHoldId, LocalDateTime now) {
         if (roomHoldId == null) {
-            return;
+            return false;
         }
         RoomHold roomHold = roomHoldRepository.findById(roomHoldId).orElse(null);
         if (roomHold == null
                 || (roomHold.getStatus() != RoomHoldStatus.ACTIVE
                 && roomHold.getStatus() != RoomHoldStatus.PAYMENT_PROCESSING)
                 || !isDue(roomHold.getExpiresAt(), now)) {
-            return;
+            return false;
         }
 
         roomHold.releaseOnAutoExpired();
@@ -84,6 +94,7 @@ public class DepositPaymentExpiryService {
                 RoomStatus.ON_HOLD,
                 roomStatusAfterHoldRelease(roomHold.getRoomId())
         );
+        return true;
     }
 
     private RoomStatus roomStatusAfterHoldRelease(Long roomId) {

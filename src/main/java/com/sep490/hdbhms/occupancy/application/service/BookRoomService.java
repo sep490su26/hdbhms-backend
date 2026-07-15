@@ -37,6 +37,7 @@ import java.util.List;
 public class BookRoomService implements BookRoomUseCase {
     private static final long ROOM_HOLD_DURATION_MINUTES = 5;
     private static final int MAX_DEPOSIT_SCHEDULE_DAYS = 14;
+    private static final String ROOM_DEPOSIT_LOCKED_PREFIX = "ROOM_DEPOSIT_LOCKED: ";
 
     RoomRepository roomRepository;
     RoomHoldRepository roomHoldRepository;
@@ -45,6 +46,7 @@ public class BookRoomService implements BookRoomUseCase {
     SendDepositPaymentPort sendDepositPaymentPort;
     CreateRoomHoldTaskPort createRoomHoldTaskPort;
     RoomCommitmentChecker roomCommitmentChecker;
+    RoomDepositLockService roomDepositLockService;
 
     @Override
     public PaymentIntent initDepositForm(SendDepositFormCommand command) {
@@ -103,10 +105,16 @@ public class BookRoomService implements BookRoomUseCase {
     private void ensureRoomAvailableForBooking(Long roomId, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
         String unavailableReason = getUnavailableReason(roomId, expectedMoveInDate, expectedLeaseSignDate);
         if (unavailableReason != null) {
-            HttpStatus status = unavailableReason.startsWith("EXPECTED_")
-                    ? HttpStatus.UNPROCESSABLE_ENTITY
-                    : HttpStatus.CONFLICT;
-            throw new ResponseStatusException(status, unavailableReason);
+            boolean locked = unavailableReason.startsWith(ROOM_DEPOSIT_LOCKED_PREFIX);
+            HttpStatus status = HttpStatus.CONFLICT;
+            if (locked) {
+                status = HttpStatus.LOCKED;
+            } else if (unavailableReason.startsWith("EXPECTED_")) {
+                status = HttpStatus.UNPROCESSABLE_ENTITY;
+            }
+            throw new ResponseStatusException(status, locked
+                    ? unavailableReason.substring(ROOM_DEPOSIT_LOCKED_PREFIX.length())
+                    : unavailableReason);
         }
     }
 
@@ -114,6 +122,11 @@ public class BookRoomService implements BookRoomUseCase {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         LocalDateTime now = LocalDateTime.now();
+
+        RoomDepositLockService.RoomDepositLock lock = roomDepositLockService.getActiveLock(roomId).orElse(null);
+        if (lock != null) {
+            return ROOM_DEPOSIT_LOCKED_PREFIX + roomDepositLockService.buildLockMessage(lock.remainingSeconds());
+        }
 
         RoomHold activeHold = roomHoldRepository.findActiveHoldByRoomId(roomId, now).orElse(null);
         if (activeHold != null) {

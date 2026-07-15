@@ -17,6 +17,7 @@ public record FloorPlanItemResponse(
         Map<String, Object> metadata,
         RoomStatus publicStatus,
         Long monthlyRent,
-        BigDecimal area
+        BigDecimal area,
+        Integer maxOccupants
 ) {
 }

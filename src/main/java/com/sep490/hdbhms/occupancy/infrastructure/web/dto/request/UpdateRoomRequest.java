@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -33,6 +35,9 @@ public class UpdateRoomRequest {
 
     @Min(value = 0, message = "sortOrder must not be negative")
     Integer sortOrder;
+
+    @JsonAlias("status")
+    RoomStatus currentStatus;
 
     String publicNote;
 }

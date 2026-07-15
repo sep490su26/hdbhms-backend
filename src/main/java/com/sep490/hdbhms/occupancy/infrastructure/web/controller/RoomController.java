@@ -116,7 +116,12 @@ public class RoomController {
         room.setAreaM2(request.getAreaM2());
         room.setListedPrice(request.getListedPrice() == null ? 0L : request.getListedPrice());
         room.setMaxOccupants(request.getMaxOccupants() == null ? 3 : request.getMaxOccupants());
-        room.setSortOrder(request.getSortOrder() == null ? 0 : request.getSortOrder());
+        if (request.getSortOrder() != null) {
+            room.setSortOrder(request.getSortOrder());
+        }
+        if (request.getCurrentStatus() != null) {
+            room.setCurrentStatus(request.getCurrentStatus());
+        }
         room.setPublicNote(request.getPublicNote() == null ? null : request.getPublicNote().trim());
 
         if (movedFloor) {

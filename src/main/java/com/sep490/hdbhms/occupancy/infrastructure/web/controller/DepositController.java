@@ -13,6 +13,7 @@ import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRep
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.DepositPaymentExpiryService;
+import com.sep490.hdbhms.occupancy.application.service.RoomDepositLockService;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
@@ -23,6 +24,7 @@ import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomDepositFailureReason;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositContractPreviewRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SendDepositFormRequest;
@@ -82,6 +84,7 @@ public class DepositController {
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     DepositContractDocumentService depositContractDocumentService;
     DepositPaymentExpiryService depositPaymentExpiryService;
+    RoomDepositLockService roomDepositLockService;
     RoomCommitmentChecker roomCommitmentChecker;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     PayOSProperties payOSProperties;
@@ -233,6 +236,12 @@ public class DepositController {
                 RoomStatus.ON_HOLD,
                 roomStatusAfterHoldRelease(depositAgreement.getRoomId())
         );
+        roomDepositLockService.recordFailure(
+                depositAgreement.getRoomId(),
+                roomHold.getId(),
+                paymentIntent.getId(),
+                RoomDepositFailureReason.PAYMENT_CANCELLED
+        );
 
         return ApiResponse.<DepositRoomHoldStatusResponse>builder()
                 .data(resolveRoomHoldStatus(String.valueOf(depositAgreement.getRoomId()), null, null))
@@ -242,6 +251,18 @@ public class DepositController {
     private DepositRoomHoldStatusResponse resolveRoomHoldStatus(String roomIdentifier, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
         Room room = resolveRoom(roomIdentifier);
         LocalDateTime now = LocalDateTime.now();
+        RoomDepositLockService.RoomDepositLock lock = roomDepositLockService.getActiveLock(room.getId()).orElse(null);
+        if (lock != null) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    "LOCKED",
+                    lock.lockedUntil(),
+                    lock.remainingSeconds(),
+                    roomDepositLockService.buildLockMessage(lock.remainingSeconds())
+            );
+        }
+
         RoomHold activeHold = roomHoldRepository.findActiveHoldByRoomId(room.getId(), now).orElse(null);
 
         if (activeHold != null) {

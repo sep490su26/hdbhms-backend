@@ -207,6 +207,7 @@ public class FloorPlanController {
         }
 
         readNonNegativeLong(metadata.get("listedPrice")).ifPresent(room::setListedPrice);
+        readPositiveInteger(metadata.get("maxOccupants")).ifPresent(room::setMaxOccupants);
         readNonNegativeDecimal(metadata.get("areaSqm")).ifPresent(room::setAreaM2);
     }
 
@@ -240,6 +241,22 @@ public class FloorPlanController {
             return parsed == null || parsed.signum() < 0 ? Optional.empty() : Optional.of(parsed);
         } catch (RuntimeException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Diện tích phòng không hợp lệ.");
+        }
+    }
+
+    private Optional<Integer> readPositiveInteger(Object value) {
+        if (value == null) {
+            return Optional.empty();
+        }
+        try {
+            Integer parsed = switch (value) {
+                case Number number -> number.intValue();
+                case String text -> Integer.parseInt(text.replaceAll("[^0-9]", ""));
+                default -> null;
+            };
+            return parsed == null || parsed < 1 ? Optional.empty() : Optional.of(parsed);
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sức chứa phòng không hợp lệ.");
         }
     }
 
@@ -296,7 +313,8 @@ public class FloorPlanController {
                 fromJson(item.getMetadata()),
                 room == null ? null : room.getCurrentStatus(),
                 room == null ? null : room.getListedPrice(),
-                room == null ? null : room.getAreaM2()
+                room == null ? null : room.getAreaM2(),
+                room == null ? null : room.getMaxOccupants()
         );
     }
 }
