@@ -34,6 +34,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @RestController
@@ -53,9 +54,10 @@ public class FileMetadataController {
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<FileMetadataResponse> upload(
             @RequestPart("file") MultipartFile file,
-            @RequestParam(value = "category", defaultValue = "OTHER") FileCategory category,
+            @RequestParam(value = "category", defaultValue = "OTHER") String category,
             @RequestParam(value = "isSensitive", defaultValue = "false") boolean isSensitive
     ) {
+        FileCategory fileCategory = parseFileCategory(category);
         return ApiResponse.<FileMetadataResponse>builder()
                 .data(
                         fileMetadataWebMapper.toSuccessResponse(
@@ -63,7 +65,7 @@ public class FileMetadataController {
                                         new UploadFileCommand(
                                                 AuthUtils.getCurrentAuthenticationId(),
                                                 file,
-                                                category,
+                                                fileCategory,
                                                 isSensitive
                                         )
                                 )
@@ -76,17 +78,33 @@ public class FileMetadataController {
     @ResponseStatus(HttpStatus.CREATED)
     ApiResponse<BatchFileResponse> upload(
             @RequestParam("files") List<MultipartFile> files,
-            @RequestParam("category") FileCategory category,
+            @RequestParam("category") String category,
             @RequestParam("isSensitive") boolean isSensitive
     ) {
+        FileCategory fileCategory = parseFileCategory(category);
         return ApiResponse.<BatchFileResponse>builder()
                 .data(uploadBatchFileService.execute(new UploadBatchFileCommand(
                         AuthUtils.getCurrentAuthenticationId(),
                         files,
-                        category,
+                        fileCategory,
                         isSensitive
                 )))
                 .build();
+    }
+
+    static FileCategory parseFileCategory(String category) {
+        if (category == null || category.isBlank()) {
+            return FileCategory.OTHER;
+        }
+        String normalizedCategory = category.trim()
+                .replace('-', '_')
+                .replace(' ', '_')
+                .toUpperCase(Locale.ROOT);
+        try {
+            return FileCategory.valueOf(normalizedCategory);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file category: " + category);
+        }
     }
 
     @GetMapping("/download/{fileId}")
