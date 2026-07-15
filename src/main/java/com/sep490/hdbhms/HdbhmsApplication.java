@@ -1,7 +1,6 @@
 package com.sep490.hdbhms;
 
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
-import com.sep490.hdbhms.billingandpayment.infrastructure.config.VNPayProperties;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.ResetPasswordConfig;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.AuthProperties;
@@ -19,7 +18,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         DefaultConfig.class,
         FileProperties.class,
         ResetPasswordConfig.class,
-        VNPayProperties.class,
         PayOSProperties.class,
         TwillioProperties.class,
         ESmsProperties.class,

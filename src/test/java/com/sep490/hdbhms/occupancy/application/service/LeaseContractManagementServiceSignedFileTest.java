@@ -8,9 +8,12 @@ import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEnti
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
@@ -32,13 +35,17 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -167,13 +174,78 @@ class LeaseContractManagementServiceSignedFileTest {
         assertTrue(exception.getReason().contains("hop dong dat coc da ky"));
     }
 
+    @Test
+    void activateHandoverCheckDoesNotRequireSignedDocument() {
+        var jdbcTemplate = mock(JdbcTemplate.class);
+        var leaseContractRepository = mock(JpaLeaseContractRepository.class);
+        var room = RoomEntity.builder()
+                .id(8L)
+                .currentStatus(RoomStatus.MAINTENANCE)
+                .build();
+        var contract = LeaseContractEntity.builder()
+                .id(99L)
+                .status(LeaseStatus.PENDING_SIGNATURE)
+                .signedFile(FileMetadataEntity.builder().id(22L).build())
+                .primaryTenantProfile(PersonProfileEntity.builder().id(44L).build())
+                .startDate(LocalDate.of(2026, 7, 15))
+                .endDate(LocalDate.of(2027, 7, 14))
+                .room(room)
+                .build();
+
+        when(leaseContractRepository.findById(99L)).thenReturn(Optional.of(contract));
+        when(jdbcTemplate.queryForObject(
+                anyString(),
+                eq(Integer.class),
+                any(Object[].class)
+        )).thenReturn(0, 1);
+
+        var service = newService(
+                jdbcTemplate,
+                mock(UploadFileService.class),
+                mock(JpaFileMetadataRepository.class),
+                leaseContractRepository
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.activate(99L)
+        );
+
+        assertTrue(exception.getReason().contains("Phong phai o trang thai"));
+        var sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(jdbcTemplate, times(2)).queryForObject(
+                sqlCaptor.capture(),
+                eq(Integer.class),
+                any(Object[].class)
+        );
+        String handoverSql = sqlCaptor.getAllValues().stream()
+                .filter(sql -> sql.contains("contract_handover_records"))
+                .findFirst()
+                .orElseThrow();
+        assertFalse(handoverSql.contains("signed_document_id"));
+    }
+
     private static LeaseContractManagementService newService(
             UploadFileService uploadFileService,
             JpaFileMetadataRepository fileMetadataRepository,
             JpaLeaseContractRepository leaseContractRepository
     ) {
-        return new LeaseContractManagementService(
+        return newService(
                 mock(JdbcTemplate.class),
+                uploadFileService,
+                fileMetadataRepository,
+                leaseContractRepository
+        );
+    }
+
+    private static LeaseContractManagementService newService(
+            JdbcTemplate jdbcTemplate,
+            UploadFileService uploadFileService,
+            JpaFileMetadataRepository fileMetadataRepository,
+            JpaLeaseContractRepository leaseContractRepository
+    ) {
+        return new LeaseContractManagementService(
+                jdbcTemplate,
                 uploadFileService,
                 mock(JpaRoomRepository.class),
                 fileMetadataRepository,

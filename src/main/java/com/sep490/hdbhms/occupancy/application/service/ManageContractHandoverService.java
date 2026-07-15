@@ -37,6 +37,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Service
@@ -255,6 +256,7 @@ public class ManageContractHandoverService {
                         .build());
             }
         }
+        softDeleteAssets(roomId, request.getDeletedAssetIds());
 
         return SubmitHandoverResponse.builder()
                 .handoverRecordId(record.getId())
@@ -265,6 +267,21 @@ public class ManageContractHandoverService {
                 .waterReadingId(waterReading.getId())
                 .assets(assetResults)
                 .build();
+    }
+
+    void softDeleteAssets(Long roomId, List<Long> assetIds) {
+        if (assetIds == null || assetIds.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime deletedAt = LocalDateTime.now();
+        for (Long assetId : new LinkedHashSet<>(assetIds)) {
+            RoomAssetEntity entity = roomAssetRepository
+                    .findByIdAndRoom_IdAndDeletedAtIsNull(assetId, roomId)
+                    .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_ASSET_NOT_FOUND));
+            entity.setDeletedAt(deletedAt);
+            roomAssetRepository.save(entity);
+        }
     }
 
     @Transactional(readOnly = true)

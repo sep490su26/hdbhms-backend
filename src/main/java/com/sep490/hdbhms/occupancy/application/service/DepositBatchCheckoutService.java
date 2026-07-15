@@ -29,7 +29,6 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.BatchDepositS
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -68,7 +67,6 @@ public class DepositBatchCheckoutService {
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     OtpCodeGenerator otpCodeGenerator;
     ExternalPaymentPort externalPaymentPort;
-    Environment environment;
     ObjectMapper objectMapper;
     JdbcTemplate jdbcTemplate;
     RoomCommitmentChecker roomCommitmentChecker;
@@ -228,7 +226,7 @@ public class DepositBatchCheckoutService {
                 .invoice(invoice)
                 .depositBatch(batch)
                 .amount(totalAmount)
-                .provider(resolveProvider())
+                .provider(PaymentIntentProvider.PAYOS)
                 .paymentContent(batch.getBatchCode())
                 .status(PaymentIntentStatus.PENDING)
                 .expiresAt(holdExpiresAt)
@@ -684,12 +682,6 @@ public class DepositBatchCheckoutService {
                     "Không thể upload file định danh."
             );
         }
-    }
-
-    private PaymentIntentProvider resolveProvider() {
-        return "payos".equalsIgnoreCase(environment.getProperty("app.payment.provider", "vnpay"))
-                ? PaymentIntentProvider.PAYOS
-                : PaymentIntentProvider.BANK_TRANSFER;
     }
 
     private String generateBatchCode() {

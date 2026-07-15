@@ -17,7 +17,6 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContra
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.env.Environment;
 
 import java.lang.reflect.Proxy;
 import java.util.List;
@@ -59,20 +58,11 @@ class IssuedInvoiceChargeServiceTest {
             }
             return null;
         });
-        Environment environment = proxy(Environment.class, (method, arguments) -> {
-            if ("getProperty".equals(method.getName()) && arguments.length >= 1
-                    && "app.payment.provider".equals(arguments[0])) {
-                return "payos";
-            }
-            return defaultValue(method.getReturnType());
-        });
-
         IssuedInvoiceChargeService service = new IssuedInvoiceChargeService(
                 passthroughRepository(JpaInvoiceRepository.class),
                 passthroughRepository(JpaInvoiceLineRepository.class),
                 passthroughRepository(JpaPaymentIntentRepository.class),
                 externalPaymentPort,
-                environment,
                 new ObjectMapper()
         );
         PropertyEntity property = PropertyEntity.builder().id(1L).name("Hai Dang").build();

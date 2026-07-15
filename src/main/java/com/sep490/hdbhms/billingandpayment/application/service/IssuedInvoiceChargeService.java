@@ -21,7 +21,6 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +42,6 @@ public class IssuedInvoiceChargeService {
     JpaInvoiceLineRepository invoiceLineRepository;
     JpaPaymentIntentRepository paymentIntentRepository;
     ExternalPaymentPort externalPaymentPort;
-    Environment environment;
     ObjectMapper objectMapper;
 
     @Transactional
@@ -96,7 +94,7 @@ public class IssuedInvoiceChargeService {
         PaymentIntentEntity paymentIntent = paymentIntentRepository.save(PaymentIntentEntity.builder()
                 .invoice(invoice)
                 .amount(amount)
-                .provider(resolveProvider())
+                .provider(PaymentIntentProvider.PAYOS)
                 .paymentContent(invoice.getInvoiceCode())
                 .status(PaymentIntentStatus.PENDING)
                 .expiresAt(expiresAt)
@@ -193,7 +191,7 @@ public class IssuedInvoiceChargeService {
                 .orElseGet(() -> paymentIntentRepository.save(PaymentIntentEntity.builder()
                         .invoice(issuedInvoice)
                         .amount(issuedInvoice.getRemainingAmount())
-                        .provider(resolveProvider())
+                        .provider(PaymentIntentProvider.PAYOS)
                         .paymentContent(issuedInvoice.getInvoiceCode())
                         .status(PaymentIntentStatus.PENDING)
                         .expiresAt(paymentExpiresAt)
@@ -215,12 +213,6 @@ public class IssuedInvoiceChargeService {
         paymentIntent = paymentIntentRepository.save(paymentIntent);
 
         return new IssuedChargeResult(issuedInvoice, line, paymentIntent, checkout);
-    }
-
-    private PaymentIntentProvider resolveProvider() {
-        return "payos".equalsIgnoreCase(environment.getProperty("app.payment.provider", "vnpay"))
-                ? PaymentIntentProvider.PAYOS
-                : PaymentIntentProvider.BANK_TRANSFER;
     }
 
     private String buildInvoiceCode(Long ticketId, LocalDateTime now) {
