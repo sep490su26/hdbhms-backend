@@ -66,15 +66,9 @@ app:
       password: ${OWNER_PASSWORD}
       full-name: ${OWNER_FULL_NAME}
   payment:
-    provider: ${APP_PAYMENT_PROVIDER:vnpay}
     payos:
       client-id: ${PAYOS_CLIENT_ID:${PAY_OS_CLIENT_ID:}}
       api-key: ${PAYOS_API_KEY:${PAY_OS_API_KEY:}}
       checksum-key: ${PAYOS_CHECKSUM_KEY:${PAY_OS_CHECKSUM_KEY:}}
       return-url: ${PAYOS_RETURN_URL:}
       cancel-url: ${PAYOS_CANCEL_URL:}
-    vnpay:
-      tmn-code: ${VNPAY_TMN_CODE}
-      hash-secret: ${VNPAY_HASH_SECRET}
-      url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-      return-url: ${VNPAY_RETURN_URL:}

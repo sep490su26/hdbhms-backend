@@ -169,6 +169,14 @@ public class LeaseContractManagementService {
                     sfm.created_at AS signed_file_uploaded_at,
                     lc.signed_uploaded_by,
                     lc.signed_at,
+                    (
+                        SELECT handover.signed_document_id
+                        FROM contract_handover_records handover
+                        WHERE handover.contract_id = lc.lease_contract_id
+                          AND handover.handover_type = 'MOVE_IN'
+                        ORDER BY handover.contract_handover_record_id DESC
+                        LIMIT 1
+                    ) AS handover_signed_file_id,
                     COALESCE(lc.created_at, da.created_at) AS created_at,
                     u.user_id AS user_id,
                     u.last_login_at
@@ -274,6 +282,14 @@ public class LeaseContractManagementService {
                     sfm.created_at AS signed_file_uploaded_at,
                     lc.signed_uploaded_by,
                     lc.signed_at,
+                    (
+                        SELECT handover.signed_document_id
+                        FROM contract_handover_records handover
+                        WHERE handover.contract_id = lc.lease_contract_id
+                          AND handover.handover_type = 'MOVE_IN'
+                        ORDER BY handover.contract_handover_record_id DESC
+                        LIMIT 1
+                    ) AS handover_signed_file_id,
                     lc.created_at,
                     u.user_id AS user_id,
                     u.last_login_at
@@ -787,7 +803,6 @@ public class LeaseContractManagementService {
                               AND handover_type = 'MOVE_IN'
                               AND electricity_reading_id IS NOT NULL
                               AND water_reading_id IS NOT NULL
-                              AND signed_document_id IS NOT NULL
                             """,
                     Integer.class,
                     leaseContractId
@@ -795,7 +810,7 @@ public class LeaseContractManagementService {
             if (handoverCount == null || handoverCount == 0) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Cần hoàn thành bàn giao phòng (nhập số điện/nước và upload biên bản bàn giao đã ký) trước khi kích hoạt hợp đồng."
+                        "Cần hoàn thành bàn giao phòng và nhập số điện/nước trước khi kích hoạt hợp đồng."
                 );
             }
         }
@@ -1048,6 +1063,14 @@ public class LeaseContractManagementService {
                             sfm.created_at AS signed_file_uploaded_at,
                             lc.signed_uploaded_by,
                             lc.signed_at,
+                            (
+                                SELECT handover.signed_document_id
+                                FROM contract_handover_records handover
+                                WHERE handover.contract_id = lc.lease_contract_id
+                                  AND handover.handover_type = 'MOVE_IN'
+                                ORDER BY handover.contract_handover_record_id DESC
+                                LIMIT 1
+                            ) AS handover_signed_file_id,
                             lc.created_at,
                             u.user_id AS user_id,
                             u.last_login_at
@@ -1155,16 +1178,32 @@ public class LeaseContractManagementService {
         } else if (leaseContractRepository.existsByRoom_IdAndStatusInAndDeletedAtIsNull(room.getId(), BLOCKING_ACTIVE_CONTRACT_STATUSES)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phong da co hop dong dang hieu luc.");
         }
-        if (leaseContractRepository.existsByRoom_IdAndStatusInAndDeletedAtIsNull(
-                room.getId(),
-                List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE)
-        )) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "FUTURE_CONTRACT_EXISTS: Phong da co hop dong tuong lai.");
-        }
+        assertRoomHasNoPendingContract(room);
         Integer maxOccupants = room.getMaxOccupants() != null ? room.getMaxOccupants() : 3;
         if (occupantsCount > maxOccupants) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "So nguoi o vuot qua so nguoi toi da cua phong.");
         }
+    }
+
+    void assertRoomHasNoPendingContract(RoomEntity room) {
+        leaseContractRepository
+                .findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(
+                        room.getId(),
+                        List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE)
+                )
+                .ifPresent(contract -> {
+                    String roomCode = room.getRoomCode() != null ? room.getRoomCode() : String.valueOf(room.getId());
+                    String contractCode = contract.getContractCode() != null
+                            ? contract.getContractCode()
+                            : "#" + contract.getId();
+                    throw new ResponseStatusException(
+                            HttpStatus.CONFLICT,
+                            "FUTURE_CONTRACT_EXISTS: Phòng " + roomCode
+                                    + " đã có hợp đồng " + contractCode
+                                    + " ở trạng thái " + contract.getStatus()
+                                    + ". Vui lòng xử lý hợp đồng này trước."
+                    );
+                });
     }
 
     private void validateSoonVacantMoveInDate(Long roomId, LocalDate expectedMoveInDate) {
@@ -1726,6 +1765,7 @@ public class LeaseContractManagementService {
                 .signedFileName(rs.getString("signed_file_name"))
                 .signedFileUploadedAt(toLocalDateTime(rs, "signed_file_uploaded_at"))
                 .signedUploadedById(getLongOrNull(rs, "signed_uploaded_by"))
+                .handoverSignedFileId(getLongOrNull(rs, "handover_signed_file_id"))
                 .signedAt(toLocalDateTime(rs, "signed_at"))
                 .createdAt(toLocalDateTime(rs, "created_at"))
                 .accountProvisioned(userId != null)

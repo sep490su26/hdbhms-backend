@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.adapter;
 
-
 import com.sep490.hdbhms.billingandpayment.application.port.out.ExternalPaymentPort;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
@@ -11,7 +10,6 @@ import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import vn.payos.exception.PayOSException;
@@ -23,7 +21,6 @@ import java.time.ZoneId;
 import java.util.Map;
 
 @Component
-@ConditionalOnProperty(name = "app.payment.provider", havingValue = "payos")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PayOSAdapter implements ExternalPaymentPort {

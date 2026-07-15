@@ -33,7 +33,6 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -68,7 +67,6 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     PaymentIntentRepository paymentIntentRepository;
     DepositAgreementRepository depositAgreementRepository;
     DefaultConfig defaultConfig;
-    Environment environment;
     ObjectMapper objectMapper;
 
     @Override
@@ -105,7 +103,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 invoice.getId(),
                 depositAgreement.getId(),
                 depositAmount,
-                resolveDepositPaymentProvider(),
+                PaymentIntentProvider.PAYOS,
                 depositAgreement.getDepositCode(),
                 roomHold.getExpiresAt()
         );
@@ -128,14 +126,6 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
 
     private Long resolveDepositAmount() {
         return DEPOSIT_AMOUNT;
-    }
-
-    private PaymentIntentProvider resolveDepositPaymentProvider() {
-        String provider = environment.getProperty("app.payment.provider", "vnpay");
-        if ("payos".equalsIgnoreCase(provider)) {
-            return PaymentIntentProvider.PAYOS;
-        }
-        return PaymentIntentProvider.BANK_TRANSFER;
     }
 
     private String toCheckoutPayload(

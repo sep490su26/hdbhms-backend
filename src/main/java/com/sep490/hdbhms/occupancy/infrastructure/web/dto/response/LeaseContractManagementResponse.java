@@ -74,6 +74,7 @@ public class LeaseContractManagementResponse {
     String signedFileName;
     LocalDateTime signedFileUploadedAt;
     Long signedUploadedById;
+    Long handoverSignedFileId;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
 

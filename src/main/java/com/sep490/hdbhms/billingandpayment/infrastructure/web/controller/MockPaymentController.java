@@ -57,19 +57,6 @@ public class MockPaymentController {
             );
         }
 
-//        Long amount = Long.parseLong(params.get("vnp_Amount")) / 100;
-//        reconcilePaymentUseCase.execute(
-//                ReconcilePaymentCommand.builder()
-//                        .orderCode(8L)
-//                        .provider(TransactionProvider.BANK)
-//                        .providerTransactionId("")
-//                        .amount(1L)
-//                        .content("")
-//                        .transactionTime(LocalDateTime.now())
-//                        .rawPayload("")
-//                        .build()
-//        );
-
         Long amount = resolveAmount(request.getPaymentIntentId(), request);
         reconcile(request.getPaymentIntentId(), amount);
         return ApiResponse.<Void>builder().build();

@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * Single-shot request that creates or updates a complete handover record:
  *  - meter readings (electricity + water)
- *  - room assets (upsert by id)
+ *  - room assets (upsert by id and soft-delete by deletedAssetIds)
  *  - the ContractHandoverRecord itself (CONFIRMED on success)
  */
 @Data
@@ -41,6 +41,9 @@ public class SubmitHandoverRequest {
 
     @Valid
     List<AssetInput> assets;
+
+    /** Existing room assets that should be soft-deleted with this submission. */
+    List<@NotNull @Positive Long> deletedAssetIds;
 
     // ─────────────────────────────────────────────────────────────────────
 
@@ -71,7 +74,7 @@ public class SubmitHandoverRequest {
         String assetCategory;
 
         @NotNull(message = "Số lượng là bắt buộc")
-        @Min(value = 1, message = "Số lượng tối thiểu là 1")
+        @PositiveOrZero(message = "Số lượng không được âm")
         Integer quantity;
 
         @NotNull(message = "Tình trạng là bắt buộc")
