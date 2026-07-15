@@ -15,12 +15,14 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.UtilityTariffEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaUtilityTariffRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreatePropertyRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.PropertyUtilitySettingsRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.UpdatePropertyRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.UpdatePropertyStatusRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyUtilitySettingsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertySimpleResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse;
@@ -56,6 +58,7 @@ public class PropertyController {
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
     JpaPropertyRepository jpaPropertyRepository;
     JpaRoomRepository jpaRoomRepository;
+    JpaFloorPlanItemRepository jpaFloorPlanItemRepository;
     JpaUtilityTariffRepository jpaUtilityTariffRepository;
     JpaRolePromotionRepository jpaRolePromotionRepository;
 
@@ -150,7 +153,7 @@ public class PropertyController {
 
     @PutMapping("/{propertyId}/utility-settings")
     @Transactional
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<PropertyUtilitySettingsResponse> updateUtilitySettings(
             @PathVariable Long propertyId,
             @RequestBody PropertyUtilitySettingsRequest request
@@ -176,7 +179,7 @@ public class PropertyController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<PropertyResponse> createProperty(
             @Valid @RequestBody CreatePropertyRequest request
     ) {
@@ -197,7 +200,7 @@ public class PropertyController {
     }
 
     @PutMapping("/{propertyId}")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<PropertyResponse> updateProperty(
             @PathVariable Long propertyId,
             @Valid @RequestBody UpdatePropertyRequest request
@@ -210,6 +213,23 @@ public class PropertyController {
         property.setPropertyType(request.propertyType());
         property.setAddressLine(request.addressLine().trim());
         property.setDescription(request.description());
+        validateCanChangeStatus(property, request.status());
+        property.setStatus(request.status());
+        return ApiResponse.<PropertyResponse>builder()
+                .data(toPropertyResponse(jpaPropertyRepository.save(property)))
+                .build();
+    }
+
+    @PatchMapping("/{propertyId}/status")
+    @Transactional
+    @PreAuthorize("hasRole('OWNER')")
+    public ApiResponse<PropertyResponse> updatePropertyStatus(
+            @PathVariable Long propertyId,
+            @Valid @RequestBody UpdatePropertyStatusRequest request
+    ) {
+        assertManagerCanAccessProperty(propertyId);
+        PropertyEntity property = findProperty(propertyId);
+        validateCanChangeStatus(property, request.status());
         property.setStatus(request.status());
         return ApiResponse.<PropertyResponse>builder()
                 .data(toPropertyResponse(jpaPropertyRepository.save(property)))
@@ -243,6 +263,33 @@ public class PropertyController {
         return jpaPropertyRepository.findById(propertyId)
                 .filter(property -> property.getDeletedAt() == null)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy cơ sở."));
+    }
+
+    private void validateCanChangeStatus(PropertyEntity property, PropertyStatus nextStatus) {
+        if (property.getStatus() == nextStatus) {
+            return;
+        }
+
+        boolean hasRooms = jpaRoomRepository.existsByProperty_IdAndDeletedAtIsNull(property.getId());
+        boolean hasFloorPlan = jpaFloorPlanItemRepository.existsByProperty_Id(property.getId());
+        if (!hasRooms && !hasFloorPlan) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cơ sở cần có sơ đồ tầng và ít nhất một phòng trước khi đổi trạng thái."
+            );
+        }
+        if (!hasFloorPlan) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cơ sở chưa có sơ đồ tầng nên không thể đổi trạng thái."
+            );
+        }
+        if (!hasRooms) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cơ sở chưa có phòng nên không thể đổi trạng thái."
+            );
+        }
     }
 
     private PropertyUtilitySettingsResponse buildUtilitySettingsResponse(PropertyEntity property) {

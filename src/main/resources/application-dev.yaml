@@ -67,7 +67,7 @@ app:
       dump-candidates: ${IDENTITY_VERIFICATION_DUMP_CANDIDATES:false}
       dump-directory: ${IDENTITY_VERIFICATION_DUMP_DIRECTORY:.debug/identity-verification}
   reset-password:
-    web-confirmation-url: localhost:3000//confirm-reset
+    web-confirmation-url: ${APP_RESET_PASSWORD_WEB_CONFIRMATION_URL:http://localhost:3000/confirm-reset}
     mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
   file:
     download:

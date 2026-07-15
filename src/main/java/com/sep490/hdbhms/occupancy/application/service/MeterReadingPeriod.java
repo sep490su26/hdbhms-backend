@@ -5,8 +5,10 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 
 final class MeterReadingPeriod {
-    private static final DateTimeFormatter CANONICAL = DateTimeFormatter.ofPattern("uuuu-MM");
-    private static final DateTimeFormatter LEGACY = DateTimeFormatter.ofPattern("M/uuuu");
+    private static final DateTimeFormatter CANONICAL = DateTimeFormatter.ofPattern("MM-uuuu");
+    private static final DateTimeFormatter MONTH_YEAR_DASH = DateTimeFormatter.ofPattern("M-uuuu");
+    private static final DateTimeFormatter MONTH_YEAR_SLASH = DateTimeFormatter.ofPattern("M/uuuu");
+    private static final DateTimeFormatter YEAR_MONTH_DASH = DateTimeFormatter.ofPattern("uuuu-M");
 
     private MeterReadingPeriod() {
     }
@@ -26,9 +28,12 @@ final class MeterReadingPeriod {
 
         String period = value.trim();
         if (period.contains("/")) {
-            return YearMonth.parse(period, LEGACY).format(CANONICAL);
+            return YearMonth.parse(period, MONTH_YEAR_SLASH).format(CANONICAL);
         }
-        return YearMonth.parse(period, CANONICAL).format(CANONICAL);
+        if (period.indexOf('-') == 4) {
+            return YearMonth.parse(period, YEAR_MONTH_DASH).format(CANONICAL);
+        }
+        return YearMonth.parse(period, MONTH_YEAR_DASH).format(CANONICAL);
     }
 
     static YearMonth parse(String value) {

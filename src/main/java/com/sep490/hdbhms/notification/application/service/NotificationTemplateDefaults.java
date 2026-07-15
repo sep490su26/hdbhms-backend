@@ -115,11 +115,12 @@ public class NotificationTemplateDefaults {
                     "Yêu cầu chuyển phòng cần xử lý",
                     "Yêu cầu [[${requestCode}]] đang cần quản lý xử lý: [[${actionLabel}]]. Chuyển từ [[${oldRoomName}]] sang [[${targetRoomName}]], ngày dự kiến chuyển [[${expectedTransferDate}]]."
             ),
-            definition(
+            definitionForChannels(
                     "TENANT_PROFILE_ACCESS_REQUESTED",
                     "Yêu cầu xem hồ sơ khách thuê",
                     "Gửi cho chủ trọ khi quản lý yêu cầu quyền xem hồ sơ khách thuê.",
                     "CHANGE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
                     variables(
                             "requestId",
                             "profileId",
@@ -143,11 +144,12 @@ public class NotificationTemplateDefaults {
                     "Yêu cầu xem hồ sơ khách thuê",
                     "[[${managerName}]] yêu cầu xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]. Lý do: [[${reason}]]."
             ),
-            definition(
+            definitionForChannels(
                     "TENANT_PROFILE_ACCESS_APPROVED",
                     "Đã được duyệt xem hồ sơ",
                     "Gửi cho quản lý khi chủ trọ duyệt quyền xem hồ sơ khách thuê.",
                     "TENANT_PROFILE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
                     variables(
                             "requestId",
                             "profileId",
@@ -167,11 +169,12 @@ public class NotificationTemplateDefaults {
                     "Đã được duyệt xem hồ sơ",
                     "Chủ trọ đã duyệt quyền xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]."
             ),
-            definition(
+            definitionForChannels(
                     "TENANT_PROFILE_ACCESS_REJECTED",
                     "Yêu cầu xem hồ sơ bị từ chối",
                     "Gửi cho quản lý khi chủ trọ từ chối quyền xem hồ sơ khách thuê.",
                     "TENANT_PROFILE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
                     variables(
                             "requestId",
                             "profileId",
@@ -192,6 +195,41 @@ public class NotificationTemplateDefaults {
                     ),
                     "Yêu cầu xem hồ sơ bị từ chối",
                     "Chủ trọ đã từ chối yêu cầu xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]. Ghi chú: [[${resolutionNote}]]."
+            ),
+            definitionForChannels(
+                    "VISIT_REQUEST_CREATED",
+                    "Khách đặt lịch xem phòng",
+                    "Gửi cho chủ trọ và quản lý khi có khách đặt lịch xem phòng.",
+                    "VISIT_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "visitRequestId",
+                            "visitorName",
+                            "visitorPhone",
+                            "visitorEmail",
+                            "propertyId",
+                            "propertyName",
+                            "roomId",
+                            "roomName",
+                            "preferredStart",
+                            "notes",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "visitRequestId", 680965088362754L,
+                            "visitorName", "Nguyễn Văn A",
+                            "visitorPhone", "0912345678",
+                            "visitorEmail", "khach@example.com",
+                            "propertyId", 2L,
+                            "propertyName", "Nhà trọ Hải Đăng",
+                            "roomId", 101L,
+                            "roomName", "Phòng 101",
+                            "preferredStart", "2026-07-16T09:30",
+                            "notes", "Muốn xem phòng buổi sáng",
+                            "targetRoute", "/dashboard/viewing-customers"
+                    ),
+                    "Có khách đặt lịch xem phòng",
+                    "[[${visitorName}]] ([[${visitorPhone}]]) đặt lịch xem [[${roomName}]] tại [[${propertyName}]] lúc [[${preferredStart}]]."
             ),
             definition(
                     "DEBT_DIRECT_VISIT_REQUIRED",
@@ -246,6 +284,169 @@ public class NotificationTemplateDefaults {
                     ),
                     "Thông tin tài khoản thuê phòng",
                     "Tài khoản thuê phòng của [[${tenantName}]] cho hợp đồng [[${contractCode}]] tại [[${roomName}]] - [[${propertyName}]] đã được tạo. Tên đăng nhập: [[${loginIdentifier}]]. Cần hỗ trợ liên hệ [[${supportContact}]]."
+            ),
+            definitionForChannels(
+                    "INVOICE_OVERDUE",
+                    "Cảnh báo hóa đơn quá hạn",
+                    "Gửi cho khách thuê khi hóa đơn đã hết hạn thanh toán.",
+                    "INVOICE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "invoiceId",
+                            "invoiceCode",
+                            "roomCode",
+                            "propertyName",
+                            "remainingAmount",
+                            "dueDate"
+                    ),
+                    sampleData(
+                            "invoiceId", 91L,
+                            "invoiceCode", "INV-2026-07-001",
+                            "roomCode", "404",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "remainingAmount", 1250000L,
+                            "dueDate", "2026-07-10"
+                    ),
+                    "Hóa đơn [[${invoiceCode}]] đã quá hạn",
+                    "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] tại [[${propertyName}]] đã quá hạn từ [[${dueDate}]]. Số tiền còn phải thanh toán: [[${remainingAmount}]] VND."
+            ),
+            definitionForChannels(
+                    "INVOICE_PAID",
+                    "Hóa đơn đã thanh toán",
+                    "Gửi cho khách thuê khi hóa đơn được ghi nhận đã thanh toán đủ.",
+                    "INVOICE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "invoiceId",
+                            "invoiceCode",
+                            "roomCode",
+                            "propertyName",
+                            "paymentAmount",
+                            "paidAmount"
+                    ),
+                    sampleData(
+                            "invoiceId", 91L,
+                            "invoiceCode", "INV-2026-07-001",
+                            "roomCode", "404",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "paymentAmount", 1250000L,
+                            "paidAmount", 1250000L
+                    ),
+                    "Đã ghi nhận thanh toán hóa đơn [[${invoiceCode}]]",
+                    "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] đã được thanh toán đủ. Số tiền ghi nhận: [[${paymentAmount}]] VND."
+            ),
+            definitionForChannels(
+                    "INVOICE_PARTIALLY_PAID",
+                    "Hóa đơn thanh toán một phần",
+                    "Gửi cho khách thuê khi hóa đơn được ghi nhận thanh toán một phần.",
+                    "INVOICE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "invoiceId",
+                            "invoiceCode",
+                            "roomCode",
+                            "propertyName",
+                            "paymentAmount",
+                            "remainingAmount"
+                    ),
+                    sampleData(
+                            "invoiceId", 91L,
+                            "invoiceCode", "INV-2026-07-001",
+                            "roomCode", "404",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "paymentAmount", 500000L,
+                            "remainingAmount", 750000L
+                    ),
+                    "Đã ghi nhận thanh toán một phần",
+                    "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] đã ghi nhận [[${paymentAmount}]] VND. Số tiền còn lại: [[${remainingAmount}]] VND."
+            ),
+            definitionForChannels(
+                    "EXPENSE_APPROVAL_REQUESTED",
+                    "Yêu cầu chi cần duyệt",
+                    "Gửi cho chủ trọ khi quản lý tạo yêu cầu chi.",
+                    "EXPENSE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "expenseCode",
+                            "expenseType",
+                            "propertyName",
+                            "roomCode",
+                            "amount",
+                            "description"
+                    ),
+                    sampleData(
+                            "expenseCode", "EXP-202607-001",
+                            "expenseType", "MAINTENANCE",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "roomCode", "404",
+                            "amount", 3200000L,
+                            "description", "Sửa điều hòa"
+                    ),
+                    "Có yêu cầu chi mới cần duyệt",
+                    "Yêu cầu chi [[${expenseCode}]] tại [[${propertyName}]] cần duyệt. Số tiền: [[${amount}]] VND. Nội dung: [[${description}]]."
+            ),
+            definitionForChannels(
+                    "EXPENSE_APPROVED",
+                    "Yêu cầu chi đã được duyệt",
+                    "Gửi cho người tạo khi chủ trọ duyệt yêu cầu chi.",
+                    "EXPENSE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "expenseCode",
+                            "amount",
+                            "propertyName",
+                            "status"
+                    ),
+                    sampleData(
+                            "expenseCode", "EXP-202607-001",
+                            "amount", 3200000L,
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "status", "READY_FOR_PAYMENT"
+                    ),
+                    "Yêu cầu chi [[${expenseCode}]] đã được duyệt",
+                    "Chủ trọ đã duyệt yêu cầu chi [[${expenseCode}]] với số tiền [[${amount}]] VND. Trạng thái hiện tại: [[${status}]]."
+            ),
+            definitionForChannels(
+                    "EXPENSE_REJECTED",
+                    "Yêu cầu chi bị từ chối",
+                    "Gửi cho người tạo khi chủ trọ từ chối yêu cầu chi.",
+                    "EXPENSE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "expenseCode",
+                            "amount",
+                            "propertyName",
+                            "resolutionNote"
+                    ),
+                    sampleData(
+                            "expenseCode", "EXP-202607-001",
+                            "amount", 3200000L,
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "resolutionNote", "Thiếu báo giá"
+                    ),
+                    "Yêu cầu chi [[${expenseCode}]] bị từ chối",
+                    "Chủ trọ đã từ chối yêu cầu chi [[${expenseCode}]]. Lý do: [[${resolutionNote}]]."
+            ),
+            definitionForChannels(
+                    "EXPENSE_PAID",
+                    "Khoản chi đã được thanh toán",
+                    "Gửi cho người tạo khi chủ trọ ghi nhận đã thanh toán khoản chi.",
+                    "EXPENSE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "expenseCode",
+                            "amount",
+                            "propertyName",
+                            "status"
+                    ),
+                    sampleData(
+                            "expenseCode", "EXP-202607-001",
+                            "amount", 3200000L,
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "status", "PAID"
+                    ),
+                    "Đã thanh toán yêu cầu chi [[${expenseCode}]]",
+                    "Chủ trọ đã ghi nhận thanh toán yêu cầu chi [[${expenseCode}]] với số tiền [[${amount}]] VND."
             )
     );
 
@@ -287,7 +488,7 @@ public class NotificationTemplateDefaults {
             String titleTemplate,
             String bodyTemplate
     ) {
-        return new Definition(
+        return definitionForChannels(
                 eventType,
                 displayName,
                 description,
@@ -295,7 +496,31 @@ public class NotificationTemplateDefaults {
                 ALL_CHANNELS,
                 variables,
                 sampleData,
-                allChannelTemplates(titleTemplate, bodyTemplate)
+                titleTemplate,
+                bodyTemplate
+        );
+    }
+
+    private Definition definitionForChannels(
+            String eventType,
+            String displayName,
+            String description,
+            String targetType,
+            List<NotificationChannel> channels,
+            List<Variable> variables,
+            Map<String, Object> sampleData,
+            String titleTemplate,
+            String bodyTemplate
+    ) {
+        return new Definition(
+                eventType,
+                displayName,
+                description,
+                targetType,
+                channels,
+                variables,
+                sampleData,
+                channelTemplates(channels, titleTemplate, bodyTemplate)
         );
     }
 
@@ -314,8 +539,16 @@ public class NotificationTemplateDefaults {
     }
 
     private Map<NotificationChannel, DefaultTemplate> allChannelTemplates(String titleTemplate, String bodyTemplate) {
+        return channelTemplates(ALL_CHANNELS, titleTemplate, bodyTemplate);
+    }
+
+    private Map<NotificationChannel, DefaultTemplate> channelTemplates(
+            List<NotificationChannel> channels,
+            String titleTemplate,
+            String bodyTemplate
+    ) {
         Map<NotificationChannel, DefaultTemplate> templates = new EnumMap<>(NotificationChannel.class);
-        for (NotificationChannel channel : ALL_CHANNELS) {
+        for (NotificationChannel channel : channels) {
             templates.put(channel, new DefaultTemplate(titleTemplate, bodyTemplate));
         }
         return Collections.unmodifiableMap(templates);

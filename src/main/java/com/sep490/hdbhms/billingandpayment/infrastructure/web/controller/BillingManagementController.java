@@ -72,6 +72,23 @@ public class BillingManagementController {
                 .build();
     }
 
+    @PostMapping("/mock/overdue/{invoiceId}")
+    public ApiResponse<BillingInvoiceResponse> mockMakeInvoiceOverdue(
+            @PathVariable Long invoiceId,
+            @RequestParam(required = false) Integer daysPastDue
+    ) {
+        return ApiResponse.<BillingInvoiceResponse>builder()
+                .data(billingManagementService.mockMakeInvoiceOverdue(invoiceId, daysPastDue))
+                .build();
+    }
+
+    @PostMapping("/mock/overdue-warnings/run")
+    public ApiResponse<Map<String, Object>> runMockOverdueWarnings() {
+        return ApiResponse.<Map<String, Object>>builder()
+                .data(billingManagementService.processOverdueWarnings(AuthUtils.getCurrentAuthenticationId()))
+                .build();
+    }
+
     @PostMapping("/mock/utility/rooms/{roomId}")
     public ApiResponse<MockUtilityInvoiceResponse> createMockUtilityInvoiceForRoom(
             @PathVariable Long roomId,

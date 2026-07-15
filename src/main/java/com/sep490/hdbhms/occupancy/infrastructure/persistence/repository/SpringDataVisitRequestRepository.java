@@ -52,6 +52,7 @@ public class SpringDataVisitRequestRepository implements VisitRequestRepository 
             String propertyCode,
             String roomCode,
             Long propertyId,
+            List<Long> propertyIds,
             Long roomId,
             VisitRequestStatus status,
             LocalDateTime from,
@@ -63,6 +64,7 @@ public class SpringDataVisitRequestRepository implements VisitRequestRepository 
                 .and(VisitRequestSpecifications.hasPropertyCode(propertyCode))
                 .and(VisitRequestSpecifications.hasRoomCode(roomCode))
                 .and(VisitRequestSpecifications.hasPropertyId(propertyId))
+                .and(VisitRequestSpecifications.hasAnyPropertyId(propertyIds))
                 .and(VisitRequestSpecifications.hasRoomId(roomId))
                 .and(VisitRequestSpecifications.hasStatus(status))
                 .and(VisitRequestSpecifications.preferredStartBetween(from, localDateTime))
@@ -72,8 +74,11 @@ public class SpringDataVisitRequestRepository implements VisitRequestRepository 
     }
 
     @Override
-    public Page<VisitRequest> findDeleted(Pageable pageable) {
-        return jpaVisitRequestRepository.findAllByDeletedAtIsNotNullOrderByDeletedAtDesc(pageable)
+    public Page<VisitRequest> findDeleted(List<Long> propertyIds, Pageable pageable) {
+        Specification<VisitRequestEntity> specification = Specification
+                .where(VisitRequestSpecifications.hasAnyPropertyId(propertyIds))
+                .and(VisitRequestSpecifications.deleted());
+        return jpaVisitRequestRepository.findAll(specification, pageable)
                 .map(visitRequestPersistenceMapper::toDomain);
     }
 

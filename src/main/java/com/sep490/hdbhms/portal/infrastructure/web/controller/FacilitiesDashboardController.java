@@ -25,7 +25,7 @@ public class FacilitiesDashboardController {
     GetFacilitiesDashboardService facilitiesDashboardService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<FacilitiesDashboardResponse> getFacilities(
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String keyword,

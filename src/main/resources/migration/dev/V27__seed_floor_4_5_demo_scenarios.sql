@@ -1,5 +1,16 @@
 SET NAMES utf8mb4;
 
+DELIMITER //
+
+CREATE PROCEDURE hdbhms.seed_floor_4_5_demo_scenarios_v27_nodrop()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM hdbhms.users
+        WHERE email = 'demo.manager@hdbhms.local'
+          AND deleted_at IS NULL
+    ) THEN
+
 -- Demo dataset scope: HAI_DANG_1, rooms 401-408 and 501-507 only.
 -- All identifiers use natural keys; numeric primary keys remain database-generated.
 SET @property_id := (SELECT property_id FROM hdbhms.properties WHERE property_code = 'HAI_DANG_1' LIMIT 1);
@@ -806,3 +817,10 @@ INSERT INTO hdbhms.notification_deliveries
 VALUES
     (@notiPaid404,'DEMO-PUSH-404-PAID','READ',NULL,'2026-07-02 09:05:10','2026-07-02 09:10:00','2026-07-02 09:05:05'),
     (@notiOverdue501,'DEMO-PUSH-501-OVERDUE','DELIVERED',NULL,'2026-05-08 08:00:10',NULL,'2026-05-08 08:00:05');
+
+    END IF;
+END//
+
+DELIMITER ;
+
+CALL hdbhms.seed_floor_4_5_demo_scenarios_v27_nodrop();

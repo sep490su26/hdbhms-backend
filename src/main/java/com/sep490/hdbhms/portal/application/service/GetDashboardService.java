@@ -47,7 +47,7 @@ import java.util.Objects;
 public class GetDashboardService implements GetDashboardUseCase {
     static final int REVENUE_MONTH_COUNT = 6;
     static final DateTimeFormatter REVENUE_PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
-    static final DateTimeFormatter METER_PERIOD_FORMAT = DateTimeFormatter.ofPattern("MM/yyyy");
+    static final DateTimeFormatter METER_PERIOD_FORMAT = DateTimeFormatter.ofPattern("MM-uuuu");
 
     JpaPropertyRepository propertyRepository;
     JpaFloorRepository floorRepository;

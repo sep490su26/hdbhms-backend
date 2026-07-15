@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -89,6 +90,24 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
             @Param("propertyId") Long propertyId,
             @Param("statuses") Collection<InvoiceStatus> statuses,
             @Param("invoiceTypes") Collection<InvoiceType> invoiceTypes
+    );
+
+    @Query("""
+            SELECT DISTINCT invoice
+            FROM InvoiceEntity invoice
+            LEFT JOIN FETCH invoice.property property
+            LEFT JOIN FETCH invoice.room room
+            LEFT JOIN FETCH invoice.leastContract contract
+            LEFT JOIN FETCH contract.primaryTenantProfile profile
+            WHERE invoice.remainingAmount > 0
+              AND invoice.room IS NOT NULL
+              AND invoice.dueDate < :now
+              AND invoice.status IN :statuses
+            ORDER BY invoice.dueDate ASC, invoice.id ASC
+            """)
+    List<InvoiceEntity> findOverdueWarningCandidates(
+            @Param("now") LocalDateTime now,
+            @Param("statuses") Collection<InvoiceStatus> statuses
     );
 
     @Query("""

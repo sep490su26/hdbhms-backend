@@ -60,7 +60,7 @@ public class FloorPlanController {
     ObjectMapper objectMapper;
 
     @GetMapping("/api/v1/admin/properties/{propertyId}/floors/{floorId}/floor-plan")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<FloorPlanLayoutResponse> getAdminFloorPlan(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long propertyId,
@@ -79,7 +79,7 @@ public class FloorPlanController {
     }
 
     @PutMapping("/api/v1/admin/properties/{propertyId}/floors/{floorId}/floor-plan")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public ApiResponse<FloorPlanLayoutResponse> saveAdminFloorPlan(
             @AuthenticationPrincipal UserPrincipal principal,

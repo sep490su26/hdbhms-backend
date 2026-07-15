@@ -8,7 +8,10 @@ final class MeterReadingContractEligibility {
     static final List<LeaseStatus> STATUSES = List.of(
             LeaseStatus.ACTIVE,
             LeaseStatus.EXPIRING_SOON,
-            LeaseStatus.TERMINATION_PENDING
+            LeaseStatus.TERMINATION_PENDING,
+            LeaseStatus.EXPIRED,
+            LeaseStatus.LIQUIDATED,
+            LeaseStatus.RENEWED
     );
 
     private MeterReadingContractEligibility() {

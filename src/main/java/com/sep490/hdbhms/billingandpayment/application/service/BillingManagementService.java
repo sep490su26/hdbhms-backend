@@ -25,8 +25,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.Billi
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.ManualPaymentResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.RentOverrideResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
-import com.sep490.hdbhms.notification.application.service.NotificationBroadcastService;
-import com.sep490.hdbhms.notification.infrastructure.web.dto.request.SendNotificationBroadcastRequest;
+import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ContractEventType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
@@ -35,27 +35,44 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomReposit
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class BillingManagementService {
+    static final String INVOICE_OVERDUE_EVENT = "INVOICE_OVERDUE";
+    static final String INVOICE_TARGET = "INVOICE";
+    static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    static final List<InvoiceStatus> OVERDUE_WARNING_STATUSES = List.of(
+            InvoiceStatus.ISSUED,
+            InvoiceStatus.PARTIALLY_PAID,
+            InvoiceStatus.OVERDUE
+    );
+    static final List<NotificationChannel> OVERDUE_WARNING_CHANNELS = List.of(
+            NotificationChannel.WEB,
+            NotificationChannel.PUSH
+    );
     static final List<LeaseStatus> BILLABLE_CONTRACT_STATUSES = List.of(
             LeaseStatus.ACTIVE,
             LeaseStatus.EXPIRING_SOON,
@@ -72,7 +89,7 @@ public class BillingManagementService {
     JpaLeaseContractRepository leaseContractRepository;
     JpaRoomRepository roomRepository;
     JpaUserRepository userRepository;
-    NotificationBroadcastService notificationBroadcastService;
+    BusinessNotificationPublisher notificationPublisher;
     JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
@@ -90,6 +107,79 @@ public class BillingManagementService {
                 .stream()
                 .map(this::toInvoiceResponse)
                 .toList();
+    }
+
+    @Scheduled(cron = "0 30 8 * * *", zone = "Asia/Ho_Chi_Minh")
+    @Transactional
+    public void sendAutomaticOverdueWarnings() {
+        Map<String, Object> result = processOverdueWarnings(null);
+        if (((Number) result.get("outboxCount")).intValue() > 0) {
+            // ponytail: one daily overdue reminder; later move cadence to property billing settings.
+            log.info("Queued overdue invoice warnings: {}", result);
+        }
+    }
+
+    @Transactional
+    public Map<String, Object> processOverdueWarnings(Long currentUserId) {
+        List<InvoiceEntity> invoices = invoiceRepository.findOverdueWarningCandidates(
+                LocalDateTime.now(VIETNAM_ZONE),
+                OVERDUE_WARNING_STATUSES
+        );
+
+        int markedOverdueCount = 0;
+        int notifiedInvoiceCount = 0;
+        int recipientCount = 0;
+        int outboxCount = 0;
+        int duplicateCount = 0;
+
+        for (InvoiceEntity invoice : invoices) {
+            if (invoice.getStatus() != InvoiceStatus.OVERDUE) {
+                invoice.setStatus(InvoiceStatus.OVERDUE);
+                invoiceRepository.save(invoice);
+                markedOverdueCount++;
+            }
+
+            WarningResult warningResult = queueOverdueWarning(invoice, currentUserId, false);
+            if (warningResult.outboxCount() > 0) {
+                notifiedInvoiceCount++;
+            }
+            recipientCount += warningResult.recipientCount();
+            outboxCount += warningResult.outboxCount();
+            duplicateCount += warningResult.duplicateCount();
+        }
+
+        return Map.of(
+                "scannedInvoiceCount", invoices.size(),
+                "markedOverdueCount", markedOverdueCount,
+                "notifiedInvoiceCount", notifiedInvoiceCount,
+                "recipientCount", recipientCount,
+                "outboxCount", outboxCount,
+                "duplicateSkippedCount", duplicateCount
+        );
+    }
+
+    @Transactional
+    public BillingInvoiceResponse mockMakeInvoiceOverdue(Long invoiceId, Integer daysPastDue) {
+        if (invoiceId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn hóa đơn.");
+        }
+        int days = daysPastDue == null || daysPastDue < 1 ? 1 : daysPastDue;
+        InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+        if (invoice.getStatus() == InvoiceStatus.PAID || invoice.getStatus() == InvoiceStatus.VOIDED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể mock quá hạn cho hóa đơn đã thanh toán hoặc đã hủy.");
+        }
+        if (safe(invoice.getRemainingAmount()) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hóa đơn không còn số tiền phải thu.");
+        }
+
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        invoice.setDueDate(now.minusDays(days));
+        if (invoice.getStatus() == InvoiceStatus.DRAFT) {
+            invoice.setStatus(InvoiceStatus.ISSUED);
+            invoice.setIssuedAt(now);
+        }
+        return toInvoiceResponse(invoiceRepository.saveAndFlush(invoice));
     }
 
     @Transactional
@@ -212,6 +302,7 @@ public class BillingManagementService {
         invoice.setStatus(nextRemaining == 0L ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID);
         invoice = invoiceRepository.save(invoice);
         cancelPendingPaymentIntents(invoice);
+        notifyInvoicePayment(invoice, amount, currentUserId);
 
         return new ManualPaymentResponse(toInvoiceResponse(invoice), toPaymentHistory(allocation));
     }
@@ -230,33 +321,157 @@ public class BillingManagementService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ gửi cảnh báo cho hóa đơn đã hết hạn.");
         }
 
-        String invoiceCode = defaultText(invoice.getInvoiceCode(), "hóa đơn #" + invoice.getId());
-        String roomCode = invoice.getRoom().getRoomCode();
-        String propertyName = invoice.getProperty() == null ? "" : invoice.getProperty().getName();
-        String dueDate = invoice.getDueDate() == null
-                ? "đã quá hạn"
-                : invoice.getDueDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        String totalDebt = formatMoney(safe(invoice.getRemainingAmount()));
+        if (invoice.getStatus() != InvoiceStatus.OVERDUE) {
+            invoice.setStatus(InvoiceStatus.OVERDUE);
+            invoice = invoiceRepository.save(invoice);
+        }
 
-        var result = notificationBroadcastService.send(SendNotificationBroadcastRequest.builder()
-                .scopeType("ROOM")
-                .scopeIds(List.of(invoice.getRoom().getId()))
-                .roles(List.of("TENANT"))
-                .channels(List.of("WEB", "PUSH"))
-                .title("Cảnh báo hóa đơn quá hạn " + invoiceCode)
-                .body("Hóa đơn " + invoiceCode
-                        + " của phòng " + roomCode
-                        + (propertyName.isBlank() ? "" : " tại " + propertyName)
-                        + " đã hết hạn thanh toán từ " + dueDate
-                        + ". Số tiền còn phải thanh toán: " + totalDebt + ".")
-                .build(), currentUserId);
+        WarningResult result = queueOverdueWarning(invoice, currentUserId, true);
 
         return Map.of(
                 "invoiceId", invoice.getId(),
-                "invoiceCode", invoiceCode,
+                "invoiceCode", defaultText(invoice.getInvoiceCode(), "hóa đơn #" + invoice.getId()),
                 "recipientCount", result.recipientCount(),
-                "outboxCount", result.outboxCount()
+                "outboxCount", result.outboxCount(),
+                "duplicateSkippedCount", result.duplicateCount()
         );
+    }
+
+    private WarningResult queueOverdueWarning(InvoiceEntity invoice, Long senderUserId, boolean force) {
+        List<Long> recipients = findInvoiceTenantRecipientIds(invoice);
+        if (recipients.isEmpty()) {
+            return new WarningResult(0, 0, 0);
+        }
+
+        Map<String, Object> data = invoiceNotificationData(invoice, senderUserId);
+        int outboxCount = 0;
+        int duplicateCount = 0;
+
+        for (Long recipientId : recipients) {
+            if (!force && overdueWarningExistsToday(invoice.getId(), recipientId)) {
+                duplicateCount++;
+                continue;
+            }
+            notificationPublisher.publish(INVOICE_OVERDUE_EVENT, recipientId, INVOICE_TARGET, invoice.getId(), data);
+            outboxCount += OVERDUE_WARNING_CHANNELS.size();
+        }
+
+        return new WarningResult(recipients.size(), outboxCount, duplicateCount);
+    }
+
+    private List<Long> findInvoiceTenantRecipientIds(InvoiceEntity invoice) {
+        if (invoice == null || invoice.getRoom() == null || invoice.getRoom().getId() == null) {
+            return List.of();
+        }
+        return jdbcTemplate.queryForList("""
+                        SELECT DISTINCT u.user_id
+                        FROM users u
+                        JOIN person_profiles pp
+                          ON pp.user_id = u.user_id
+                         AND pp.deleted_at IS NULL
+                        JOIN (
+                            SELECT lc.primary_tenant_profile_id AS tenant_profile_id
+                            FROM lease_contracts lc
+                            WHERE lc.deleted_at IS NULL
+                              AND lc.room_id = ?
+                              AND lc.status IN ('SIGNED', 'ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                            UNION
+                            SELECT co.tenant_profile_id AS tenant_profile_id
+                            FROM contract_occupants co
+                            JOIN lease_contracts lc
+                              ON lc.lease_contract_id = co.contract_id
+                            WHERE co.status = 'ACTIVE'
+                              AND co.tenant_profile_id IS NOT NULL
+                              AND lc.deleted_at IS NULL
+                              AND lc.room_id = ?
+                              AND lc.status IN ('SIGNED', 'ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                        ) occupied
+                          ON occupied.tenant_profile_id = pp.person_profile_id
+                        WHERE u.status = 'ACTIVE'
+                          AND u.deleted_at IS NULL
+                          AND u.role = 'TENANT'
+                        ORDER BY u.user_id
+                        """,
+                Long.class,
+                invoice.getRoom().getId(),
+                invoice.getRoom().getId()
+        );
+    }
+
+    private boolean overdueWarningExistsToday(Long invoiceId, Long recipientId) {
+        LocalDate today = LocalDate.now(VIETNAM_ZONE);
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(1)
+                        FROM notification_outbox
+                        WHERE event_type = ?
+                          AND target_type = ?
+                          AND target_id = ?
+                          AND recipient_user_id = ?
+                          AND created_at >= ?
+                          AND created_at < ?
+                        """,
+                Integer.class,
+                INVOICE_OVERDUE_EVENT,
+                INVOICE_TARGET,
+                invoiceId,
+                recipientId,
+                today.atStartOfDay(),
+                today.plusDays(1).atStartOfDay()
+        );
+        return count != null && count > 0;
+    }
+
+    private void notifyInvoicePayment(InvoiceEntity invoice, long paidAmount, Long actorUserId) {
+        List<Long> recipients = findInvoiceTenantRecipientIds(invoice);
+        if (recipients.isEmpty()) {
+            return;
+        }
+        String eventType = invoice.getStatus() == InvoiceStatus.PAID ? "INVOICE_PAID" : "INVOICE_PARTIALLY_PAID";
+        Map<String, Object> data = invoiceNotificationData(invoice, actorUserId);
+        data.put("paymentAmount", paidAmount);
+        for (Long recipientId : recipients) {
+            notificationPublisher.publish(eventType, recipientId, INVOICE_TARGET, invoice.getId(), data);
+        }
+    }
+
+    private Map<String, Object> invoiceNotificationData(InvoiceEntity invoice, Long actorUserId) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("invoiceId", invoice.getId());
+        payload.put("invoiceCode", invoice.getInvoiceCode());
+        payload.put("invoiceType", invoice.getInvoiceType() == null ? null : invoice.getInvoiceType().name());
+        payload.put("billingPeriod", invoice.getBillingPeriod());
+        payload.put("period", invoice.getBillingPeriod());
+        payload.put("propertyId", invoice.getProperty() == null ? null : invoice.getProperty().getId());
+        payload.put("propertyName", invoice.getProperty() == null ? null : invoice.getProperty().getName());
+        payload.put("roomId", invoice.getRoom() == null ? null : invoice.getRoom().getId());
+        payload.put("roomCode", invoice.getRoom() == null ? null : invoice.getRoom().getRoomCode());
+        payload.put("amount", safe(invoice.getTotalAmount()));
+        payload.put("paidAmount", safe(invoice.getPaidAmount()));
+        payload.put("remainingAmount", safe(invoice.getRemainingAmount()));
+        payload.put("dueDate", invoice.getDueDate() == null ? null : invoice.getDueDate().toLocalDate().toString());
+        payload.put("status", invoice.getStatus() == null ? null : invoice.getStatus().name());
+        payload.put("actorUserId", actorUserId);
+        payload.put("targetRoute", "/dashboard/invoices/" + invoice.getId());
+        return payload;
+    }
+
+    private String overdueTitle(InvoiceEntity invoice) {
+        return "Cảnh báo hóa đơn quá hạn " + defaultText(invoice.getInvoiceCode(), "#" + invoice.getId());
+    }
+
+    private String overdueBody(InvoiceEntity invoice) {
+        String invoiceCode = defaultText(invoice.getInvoiceCode(), "hóa đơn #" + invoice.getId());
+        String roomCode = invoice.getRoom() == null ? "" : defaultText(invoice.getRoom().getRoomCode(), invoice.getRoom().getName());
+        String propertyName = invoice.getProperty() == null ? "" : defaultText(invoice.getProperty().getName(), "");
+        String dueDate = invoice.getDueDate() == null
+                ? "đã quá hạn"
+                : invoice.getDueDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        return "Hóa đơn " + invoiceCode
+                + (roomCode == null || roomCode.isBlank() ? "" : " của phòng " + roomCode)
+                + (propertyName == null || propertyName.isBlank() ? "" : " tại " + propertyName)
+                + " đã hết hạn thanh toán từ " + dueDate
+                + ". Số tiền còn phải thanh toán: " + formatMoney(safe(invoice.getRemainingAmount()))
+                + ". Vui lòng thanh toán sớm hoặc liên hệ quản lý nếu cần hỗ trợ.";
     }
 
     private void applyOverrideToInvoice(InvoiceEntity invoice, long newRent, long oldRent) {
@@ -471,10 +686,13 @@ public class BillingManagementService {
     }
 
     private String formatMoney(long value) {
-        return java.text.NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN")).format(value) + " đ";
+        return java.text.NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN")).format(value) + " VNĐ";
     }
 
     private LocalDateTime toLocalDateTime(Instant instant) {
         return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+    }
+
+    private record WarningResult(int recipientCount, int outboxCount, int duplicateCount) {
     }
 }

@@ -35,6 +35,7 @@ public class GetListVisitRequestsService implements GetListVisitRequestsUseCase 
                 query.propertyCode(),
                 query.roomCode(),
                 query.propertyId(),
+                query.propertyIds(),
                 query.roomId(),
                 query.status(),
                 query.from(),

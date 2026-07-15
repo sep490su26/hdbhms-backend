@@ -66,6 +66,7 @@ app:
       password: ${OWNER_PASSWORD}
       full-name: ${OWNER_FULL_NAME}
   payment:
+    provider: ${APP_PAYMENT_PROVIDER:payos}
     payos:
       client-id: ${PAYOS_CLIENT_ID:${PAY_OS_CLIENT_ID:}}
       api-key: ${PAYOS_API_KEY:${PAY_OS_API_KEY:}}

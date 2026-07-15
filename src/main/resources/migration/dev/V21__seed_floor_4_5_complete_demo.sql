@@ -1,10 +1,8 @@
 SET NAMES utf8mb4;
 
-DROP PROCEDURE IF EXISTS hdbhms.seed_floor_4_5_complete_demo_v23;
-
 DELIMITER //
 
-CREATE PROCEDURE hdbhms.seed_floor_4_5_complete_demo_v23()
+CREATE PROCEDURE hdbhms.seed_floor_4_5_complete_demo_v21_nodrop()
 BEGIN
     IF (SELECT COUNT(*) FROM hdbhms.properties WHERE property_code = 'HAI_DANG_1') <> 1 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'V23 requires exactly one HAI_DANG_1 property';
@@ -1071,5 +1069,4 @@ END//
 
 DELIMITER ;
 
-CALL hdbhms.seed_floor_4_5_complete_demo_v23();
-DROP PROCEDURE hdbhms.seed_floor_4_5_complete_demo_v23;
+CALL hdbhms.seed_floor_4_5_complete_demo_v21_nodrop();

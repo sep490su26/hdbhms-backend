@@ -11,4 +11,5 @@ public enum RequestType {
     PERMISSION_ACCESS,
     TENANT_PROFILE_ACCESS,
     ADD_CO_OCCUPANT,
+    EXPENSE_APPROVAL,
 }

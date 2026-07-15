@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.lang.reflect.Proxy;
+import java.time.YearMonth;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,6 +25,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 class GetDashboardServiceTest {
+
+    @Test
+    void dashboardUtilityUsageUsesMeterReadingPeriodFormat() {
+        assertEquals("06-2026", YearMonth.of(2026, 6).format(GetDashboardService.METER_PERIOD_FORMAT));
+    }
 
     @Test
     void ownerSummaryIncludesAllScopedPropertiesWithoutFixedPropertyId() {
