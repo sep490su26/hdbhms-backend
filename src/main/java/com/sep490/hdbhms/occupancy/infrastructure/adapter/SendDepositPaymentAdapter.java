@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.adapter;
 
-import com.lowagie.text.DocumentException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.out.ExternalPaymentPort;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceRepository;
@@ -9,55 +10,42 @@ import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.domain.model.InvoiceLine;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
-import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
-import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
-import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
-import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.SendDepositPaymentPort;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
+import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
+import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.DateUtils;
-import com.sep490.hdbhms.shared.utils.StringUtils;
+import jakarta.mail.internet.MimeMessage;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
+import java.text.NumberFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
-
-import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
-import com.sep490.hdbhms.file.domain.model.FileMetadata;
-import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.web.multipart.MultipartFile;
-import org.xhtmlrenderer.pdf.ITextRenderer;
-
-import java.io.File;
-
 
 @Slf4j
 @Component
@@ -65,30 +53,28 @@ import java.io.File;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
+    static final NumberFormat MONEY_FORMATTER = NumberFormat.getInstance(Locale.forLanguageTag("vi-VN"));
+    static final long DEPOSIT_AMOUNT = 2_000L;
+
     JavaMailSender mailSender;
     TemplateEngine templateEngine;
     RoomRepository roomRepository;
-    UserRepository userRepository;
+    PropertyRepository propertyRepository;
     OtpCodeGenerator otpCodeGenerator;
     InvoiceRepository invoiceRepository;
     ExternalPaymentPort externalPaymentPort;
     InvoiceLineRepository invoiceLineRepository;
     PaymentIntentRepository paymentIntentRepository;
     DepositAgreementRepository depositAgreementRepository;
-    UploadFileUseCase uploadFileUseCase;
-    PersonProfileRepository personProfileRepository;
+    DefaultConfig defaultConfig;
+    ObjectMapper objectMapper;
 
     @Override
     public PaymentIntent execute(DepositForm depositForm, RoomHold roomHold) {
-        User owner = userRepository.findOwner()
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        PersonProfile ownerProfile = personProfileRepository.findByUserId(owner.getId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+        Long depositAmount = resolveDepositAmount();
         Room room = roomRepository.findById(depositForm.getRoomId()).orElseThrow(
-                () -> new AppException(ApiErrorCode.UNDEFINED)
+                () -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)
         );
-        log.info("{}", depositForm);
-        Long depositAmount = depositForm.getDepositMonths() * room.getListedPrice();
         DepositAgreement depositAgreement = DepositAgreement.newDepositAgreementForLeadUser(
                 otpCodeGenerator.generate(),
                 room.getId(),
@@ -117,70 +103,106 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 invoice.getId(),
                 depositAgreement.getId(),
                 depositAmount,
-                PaymentIntentProvider.BANK_TRANSFER,
+                PaymentIntentProvider.PAYOS,
                 depositAgreement.getDepositCode(),
                 roomHold.getExpiresAt()
         );
         paymentIntent = paymentIntentRepository.save(paymentIntent);
-        String checkoutUrl = externalPaymentPort.createCheckoutRequest(
-                new PaymentRequest(
-                        paymentIntent.getId(),
-                        paymentIntent.getAmount(),
-                        paymentIntent.getPaymentContent()
-                )
-        ).checkOutUrl();
-
-        try {
-            generateAndUploadContractPdf(depositForm, room, depositAgreement, depositAmount, ownerProfile);
-        } catch (Exception e) {
-            log.error("Failed to generate and upload deposit contract PDF. depositFormId={}", depositForm.getId());
-        }
-        
+        com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkoutResponse =
+                externalPaymentPort.createCheckoutRequest(
+                        new PaymentRequest(
+                                paymentIntent.getId(),
+                                paymentIntent.getAmount(),
+                                paymentIntent.getPaymentContent(),
+                                paymentIntent.getExpiresAt()
+                        )
+                );
+        paymentIntent.attachQrPayload(toCheckoutPayload(checkoutResponse, paymentIntent));
+        paymentIntent.attachProviderOrderCode(checkoutResponse.providerOrderCode());
+        paymentIntent = paymentIntentRepository.save(paymentIntent);
+        sendDepositReceiptEmail(depositForm, room, depositAmount);
         return paymentIntent;
     }
 
-    private void generateAndUploadContractPdf(DepositForm depositForm,
-                                              Room room,
-                                              DepositAgreement depositAgreement,
-                                              Long depositAmount,
-                                              PersonProfile ownerProfile) {
+    private Long resolveDepositAmount() {
+        return DEPOSIT_AMOUNT;
+    }
+
+    private String toCheckoutPayload(
+            com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkoutResponse,
+            PaymentIntent paymentIntent
+    ) {
+        if (checkoutResponse == null) {
+            return null;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("provider", checkoutResponse.paymentIntentProvider() == null
+                ? paymentIntent.getProvider().name()
+                : checkoutResponse.paymentIntentProvider().name());
+        payload.put("paymentStatus", checkoutResponse.paymentStatus() == null
+                ? PaymentStatus.PENDING.name()
+                : checkoutResponse.paymentStatus().name());
+        payload.put("paymentIntentId", paymentIntent.getId());
+        payload.put("orderCode", checkoutResponse.orderCode() == null ? paymentIntent.getProviderOrderCode() : checkoutResponse.orderCode());
+        payload.put("paymentLinkId", checkoutResponse.paymentLinkId());
+        payload.put("amount", checkoutResponse.amount() == null ? paymentIntent.getAmount() : checkoutResponse.amount());
+        payload.put("providerOrderCode", checkoutResponse.providerOrderCode());
+        payload.put("paymentContent", checkoutResponse.paymentContent() == null
+                ? paymentIntent.getPaymentContent()
+                : checkoutResponse.paymentContent());
+        payload.put("description", checkoutResponse.transferDescription());
+        payload.put("transferDescription", checkoutResponse.transferDescription());
+        payload.put("checkoutUrl", checkoutResponse.checkOutUrl());
+        payload.put("qrCode", checkoutResponse.qrCode());
+        payload.put("qrPayload", checkoutResponse.qrPayload());
+        payload.put("bankBin", checkoutResponse.bankBin());
+        payload.put("bankShortName", checkoutResponse.bankShortName());
+        payload.put("bankName", checkoutResponse.bankShortName());
+        payload.put("accountNumber", checkoutResponse.accountNumber());
+        payload.put("accountName", checkoutResponse.accountName());
+        payload.put("receiverName", checkoutResponse.accountName());
+        LocalDateTime expiresAt = checkoutResponse.expiresAt() == null
+                ? paymentIntent.getExpiresAt()
+                : checkoutResponse.expiresAt();
+        payload.put("expiresAt", expiresAt == null ? null : expiresAt.toString());
+
         try {
-            byte[] pdfBytes = generateDepositContractHtml(depositForm, room, depositAgreement,
-                    depositAmount, ownerProfile);
-
-            MultipartFile multipartFile = new ByteArrayMultipartFile(
-                    "deposit_contract_" + depositAgreement.getDepositCode() + ".pdf",
-                    "deposit_contract.pdf",
-                    "application/pdf",
-                    pdfBytes
-            );
-
-            FileMetadata fileMetadata = uploadFileUseCase.execute(
-                    new UploadFileCommand(
-                            null,
-                            multipartFile,
-                            FileCategory.DEPOSIT_CONTRACT,
-                            false
-                    )
-            );
-
-            depositAgreement.setContractFileId(fileMetadata.getId());
-            depositAgreementRepository.save(depositAgreement);
-
-        } catch (Exception e) {
-            log.error("Failed to generate and upload deposit contract PDF. depositFormId={}",
-                    depositForm.getId(), e);
-            throw new RuntimeException("Could not create deposit contract PDF", e);
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Could not serialize payment checkout payload", e);
         }
     }
 
-    private byte[] generateDepositContractHtml(DepositForm depositForm, Room room, DepositAgreement depositAgreement, Long depositAmount, PersonProfile ownerProfile) {
+    private void sendDepositReceiptEmail(DepositForm depositForm, Room room, Long depositAmount) {
+        if (!StringUtils.hasText(depositForm.getEmail())) {
+            log.info("Skip deposit receipt email because customer email is empty. depositFormId={}", depositForm.getId());
+            return;
+        }
+
+        MimeMessage message = mailSender.createMimeMessage();
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(depositForm.getEmail());
+            helper.setSubject("[Nhà trọ Hải Đăng] Thanh toán hóa đơn đặt cọc phòng " + room.getRoomCode());
+            helper.setText(generateDepositContractHtml(depositForm, room, depositAmount), true);
+            mailSender.send(message);
+        } catch (Exception e) {
+            log.warn("Could not send deposit receipt email. depositFormId={}, email={}", depositForm.getId(), depositForm.getEmail(), e);
+        }
+    }
+
+    private String generateDepositContractHtml(DepositForm depositForm, Room room, Long depositAmount) {
+        Property property = propertyRepository.findById(room.getPropertyId()).orElse(null);
+        DefaultConfig.Owner owner = defaultConfig.getOwner();
         Context context = new Context();
         Map<String, Object> data = new HashMap<>();
         data.put("issuedAt", DateUtils.toddMMyyyyDateString(LocalDate.now()));
-        data.put("ownerFullName", ownerProfile.getFullName());
-//        data.put("ownerDob", DateUtils.toddMMyyyyDateString(ownerProfile.getDob()));
-        data.put("ownerContactPhoneListString", ownerProfile.getPhone());
+        data.put("ownerFullName", valueOrDefault(owner.getFullName(), "Hải Đăng House"));
+        data.put("ownerDob", "............");
+        data.put("ownerIdNumber", "............");
+        data.put("ownerIdIssuedDate", "............");
+        data.put("ownerIdIssuedPlace", "............");
+        data.put("contactPhoneListString", valueOrDefault(owner.getPhone(), "Chưa cấu hình"));
         data.put("fullName", depositForm.getFullName());
         data.put("idNumber", depositForm.getIdNumber());
         data.put("dob", DateUtils.toddMMyyyyDateString(depositForm.getDob()));
@@ -189,92 +211,32 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
         data.put("idIssuePlace", depositForm.getIdIssuePlace());
         data.put("phone", depositForm.getPhone());
         data.put("roomNumber", room.getRoomCode());
-        data.put("occupantNumber", String.valueOf(1));
-        data.put("contractDuration", String.valueOf(12));
-        data.put("contractStartDate", DateUtils.toVietnameseDateString(depositForm.getExpectedMoveInDate()));
-        data.put("listedPrice", String.valueOf(room.getListedPrice()));
-        data.put("depositMonths", String.valueOf(depositForm.getDepositMonths()));
-        data.put("paymentCycleMonths", String.valueOf(depositForm.getPaymentCycleMonths()));
-        data.put("depositAmount", String.valueOf(depositAmount));
-        data.put("depositAmountString", StringUtils.toVietnamesePriceString(depositAmount));
+        data.put("propertyAddress", property == null ? "............" : valueOrDefault(property.getAddressLine(), "............"));
+        data.put("occupantNumber", room.getMaxOccupants() == null ? "............" : room.getMaxOccupants().toString());
+        data.put("listedPrice", formatMoney(room.getListedPrice()));
         data.put("expectedLeaseSignDate", DateUtils.toddMMyyyyDateString(depositForm.getExpectedLeaseSignDate()));
         data.put("expectedMoveInDateString", DateUtils.toVietnameseDateString(depositForm.getExpectedMoveInDate()));
+        data.put("depositAmount", formatMoney(depositAmount));
+        data.put("depositAmountString", amountText(depositAmount));
         data.put("depositSignedDateString", DateUtils.toVietnameseDateString(LocalDate.now()));
-
+        data.put("currentYear", LocalDate.now().getYear());
         context.setVariables(data);
-        String htmlContent = templateEngine.process("deposit-contract-template", context);
-        try (ByteArrayOutputStream pdfStream = new ByteArrayOutputStream()) {
-            ITextRenderer renderer = new ITextRenderer();
-            renderer.setDocumentFromString(htmlContent);
-            renderer.layout();
-            renderer.createPDF(pdfStream);
-            return pdfStream.toByteArray();
-        } catch (IOException | DocumentException e) {
-            throw new RuntimeException(e);
-        }
+        return templateEngine.process("deposit-contract-template", context);
     }
 
-    private void replacePlaceholdersInParagraph(XWPFParagraph paragraph, Map<String, String> data) {
-        String text = paragraph.getText();
-        if (text == null || text.isEmpty()) return;
-
-        boolean replaced = false;
-        for (Map.Entry<String, String> entry : data.entrySet()) {
-            String placeholder = "${" + entry.getKey() + "}";
-            if (text.contains(placeholder)) {
-                text = text.replace(placeholder, entry.getValue());
-                replaced = true;
-            }
-        }
-
-        if (replaced) {
-            List<XWPFRun> runs = paragraph.getRuns();
-            for (int i = runs.size() - 1; i >= 0; i--) {
-                paragraph.removeRun(i);
-            }
-            XWPFRun newRun = paragraph.createRun();
-            newRun.setText(text);
-        }
+    private String formatMoney(Long amount) {
+        return MONEY_FORMATTER.format(amount == null ? 0L : amount) + " VND";
     }
 
-    
-    private static class ByteArrayMultipartFile implements MultipartFile {
-        private final String name;
-        private final String originalFilename;
-        private final String contentType;
-        private final byte[] content;
+    private String amountText(Long amount) {
+        long safeAmount = amount == null ? 0L : amount;
+        String text = com.sep490.hdbhms.shared.utils.StringUtils.toVietnamesePriceString(safeAmount);
+        return text.isBlank()
+                ? "Không đồng"
+                : Character.toUpperCase(text.charAt(0)) + text.substring(1) + " đồng";
+    }
 
-        public ByteArrayMultipartFile(String name, String originalFilename, String contentType, byte[] content) {
-            this.name = name;
-            this.originalFilename = originalFilename;
-            this.contentType = contentType;
-            this.content = content;
-        }
-
-        @Override
-        public String getName() { return name; }
-
-        @Override
-        public String getOriginalFilename() { return originalFilename; }
-
-        @Override
-        public String getContentType() { return contentType; }
-
-        @Override
-        public boolean isEmpty() { return content == null || content.length == 0; }
-
-        @Override
-        public long getSize() { return content.length; }
-
-        @Override
-        public byte[] getBytes() throws IOException { return content; }
-
-        @Override
-        public InputStream getInputStream() throws IOException { return new ByteArrayInputStream(content); }
-
-        @Override
-        public void transferTo(File dest) throws IOException, IllegalStateException {
-            Files.write(dest.toPath(), content);
-        }
+    private String valueOrDefault(String value, String defaultValue) {
+        return StringUtils.hasText(value) ? value.trim() : defaultValue;
     }
 }

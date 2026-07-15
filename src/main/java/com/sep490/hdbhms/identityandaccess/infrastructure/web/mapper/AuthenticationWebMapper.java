@@ -23,6 +23,7 @@ public interface AuthenticationWebMapper {
                 return AuthenticationResponse.builder()
                         .token(webAuthentication.token())
                         .role(webAuthentication.role())
+                        .mustChangePassword(webAuthentication.mustChangePassword())
                         .authorized(webAuthentication.authorized())
                         .build();
             }
@@ -33,6 +34,7 @@ public interface AuthenticationWebMapper {
                         .role(mobileAuthentication.role())
                         .tenantId(mobileAuthentication.tenantId())
                         .propertyId(mobileAuthentication.propertyId())
+                        .mustChangePassword(mobileAuthentication.mustChangePassword())
                         .authorized(mobileAuthentication.authorized())
                         .build();
             }

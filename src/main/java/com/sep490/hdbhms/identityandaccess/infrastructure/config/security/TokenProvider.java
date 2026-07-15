@@ -221,14 +221,19 @@ public class TokenProvider {
                 .orElse(null);
     }
 
+    public String getSessionIdFromCookie(HttpServletRequest request) {
+        return CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
+                .map(Cookie::getValue)
+                .orElse(null);
+    }
+
     @SneakyThrows
     public Long getUserId(HttpServletRequest request) {
-        var sessionCookie = CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
-                .map(Cookie::getValue);
-        if (sessionCookie.isEmpty()) {
+        var sessionId = getSessionIdFromCookie(request);
+        if (StringUtils.isEmpty(sessionId)) {
             return null;
         }
-        var key = String.format(refreshTokenKeyFormat, sessionCookie.get());
+        var key = String.format(refreshTokenKeyFormat, sessionId);
         return Long.parseLong((String) Objects.requireNonNull(redisTemplate.opsForHash().get(key, "user-id")));
     }
 

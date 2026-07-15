@@ -29,6 +29,7 @@ public class UtilityTariffEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "utility_tariff_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -25,6 +25,7 @@ public class RentOverrideEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "rent_override_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

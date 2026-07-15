@@ -34,6 +34,7 @@ public class LeaseContractEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "lease_contract_id")
     Long id;
 
     @Column(name = "contract_code", nullable = false, length = 80)
@@ -75,6 +76,15 @@ public class LeaseContractEntity {
     @Builder.Default
     LeaseStatus status = LeaseStatus.DRAFT;
 
+    @Column(name = "tenant_intention", length = 50)
+    String tenantIntention;
+
+    @Column(name = "expected_vacant_date")
+    LocalDate expectedVacantDate;
+
+    @Column(name = "intention_recorded_at")
+    LocalDateTime intentionRecordedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "previous_contract_id", nullable = true)
     LeaseContractEntity previousContract;
@@ -82,6 +92,14 @@ public class LeaseContractEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contract_file_id", nullable = true)
     FileMetadataEntity contractFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_file_id", nullable = true)
+    FileMetadataEntity signedFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_uploaded_by", nullable = true)
+    UserEntity signedUploadedBy;
 
     @Column(name = "signed_at")
     LocalDateTime signedAt;

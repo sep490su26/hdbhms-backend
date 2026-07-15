@@ -31,6 +31,7 @@ public class RolePromotionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "role_promotion_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

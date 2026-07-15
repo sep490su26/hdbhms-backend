@@ -4,6 +4,8 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,6 +22,7 @@ import java.util.List;
 public class RoomEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -46,7 +49,7 @@ public class RoomEntity {
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "current_status", nullable = false, length = 50)
-    RoomStatus currentStatus = RoomStatus.VACANT;
+    RoomStatus currentStatus = RoomStatus.DRAFT;
 
     @Builder.Default
     @Column(name = "max_occupants", nullable = false, columnDefinition = "TINYINT UNSIGNED")
@@ -71,9 +74,11 @@ public class RoomEntity {
     @OneToMany(mappedBy = "room", fetch = FetchType.LAZY)
     List<RoomImageEntity> images = new ArrayList<>();
 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     LocalDateTime createdAt;
 
+    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     LocalDateTime updatedAt;
 

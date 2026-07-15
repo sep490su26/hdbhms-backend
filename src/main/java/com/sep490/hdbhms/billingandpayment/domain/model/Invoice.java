@@ -2,6 +2,7 @@ package com.sep490.hdbhms.billingandpayment.domain.model;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,7 +22,9 @@ public class Invoice {
     Long roomId;
     Long leaseContractId;
     Long depositAgreementId;
+    Long depositBatchId;
     InvoiceType invoiceType;
+    InvoiceReason invoiceReason;
     @Builder.Default
     Integer revisionNo = 1;
     String billingPeriod;
@@ -44,6 +47,22 @@ public class Invoice {
     LocalDateTime updatedAt;
     Integer version;
     String activeInvoiceKey;
+
+    public void addDiscountAmount(long discountAmount) {
+        long newDiscount = (this.getDiscountAmount() == null ? 0L : this.getDiscountAmount()) + discountAmount;
+        long newTotalAmount = Math.max((this.getSubtotalAmount() == null ? 0L : this.getSubtotalAmount()) - newDiscount, 0L);
+        this.discountAmount = newDiscount;
+        this.totalAmount = newTotalAmount;
+        this.remainingAmount = Math.max(newTotalAmount - (this.getPaidAmount() == null ? 0L : this.getPaidAmount()), 0L);
+    }
+
+    public void addSurchargeAmount(long surchargeAmount) {
+        long newSubtotal = (this.getSubtotalAmount() == null ? 0L : this.getSubtotalAmount()) + surchargeAmount;
+        long newTotalAmount = Math.max(newSubtotal - (this.getDiscountAmount() == null ? 0L : this.getDiscountAmount()), 0L);
+        this.subtotalAmount = newSubtotal;
+        this.totalAmount = newTotalAmount;
+        this.remainingAmount = Math.max(newTotalAmount - (this.getPaidAmount() == null ? 0L : this.getPaidAmount()), 0L);
+    }
 
     public void applyAmount(long amountInDong) {
         if (status == InvoiceStatus.VOIDED || status == InvoiceStatus.DRAFT) {

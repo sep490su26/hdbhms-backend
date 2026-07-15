@@ -23,6 +23,7 @@ public class EmergencyContactEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "emergency_contact_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

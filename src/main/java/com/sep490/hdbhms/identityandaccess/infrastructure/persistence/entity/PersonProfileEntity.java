@@ -28,6 +28,7 @@ public class PersonProfileEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "person_profile_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

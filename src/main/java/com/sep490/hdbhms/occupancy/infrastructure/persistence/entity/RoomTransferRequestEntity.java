@@ -3,7 +3,9 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.DebtSnapshotEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
+import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -33,6 +35,7 @@ public class RoomTransferRequestEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "room_transfer_request_id")
     Long id;
 
     @Column(name = "request_code", nullable = false, length = 80)
@@ -54,44 +57,65 @@ public class RoomTransferRequestEntity {
     @JoinColumn(name = "target_room_id", nullable = false)
     RoomEntity targetRoom;
 
+    @Column(name = "transferring_tenant_profile_ids", columnDefinition = "JSON")
+    String transferringTenantProfileIds;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "nominated_holder_profile_id")
+    PersonProfileEntity nominatedHolderProfile;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "target_transfer_type", length = 50)
+    TargetTransferType targetTransferType;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true) // Optional for JOIN_EXISTING_CONTRACT
+    @JoinColumn(name = "target_contract_id")
+    LeaseContractEntity targetContract;
+
+
     @Column(name = "requested_transfer_date", nullable = false)
     LocalDate requestedTransferDate;
 
     @Column(columnDefinition = "TEXT")
     String reason;
 
+    @Column(name = "reserved_slots")
+    Integer reservedSlots;
+
+    @Column(name = "reservation_expires_at")
+    LocalDateTime reservationExpiresAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_holder_approved_by")
+    UserEntity targetHolderApprovedBy;
+
+    @Column(name = "target_holder_approved_at")
+    LocalDateTime targetHolderApprovedAt;
+
+    @Column(name = "target_holder_rejected_at")
+    LocalDateTime targetHolderRejectedAt;
+
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
-    TransferRequestStatus status = TransferRequestStatus.PENDING;
+    TransferRequestStatus status = TransferRequestStatus.REQUESTED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "positive_difference_settlement_type", length = 50, nullable = true)
+    SettlementType positiveDifferenceSettlementType; // Choice made at tenant confirmation
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "debt_snapshot_id", nullable = true)
     DebtSnapshotEntity debtSnapshot;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by", nullable = true)
-    UserEntity approvedBy;
-
-    @Column(name = "approved_at")
-    LocalDateTime approvedAt;
-
-    @Column(name = "rejection_reason", length = 1000)
-    String rejectionReason;
-
-    @Column(name = "eligibility_checked_at")
-    LocalDateTime eligibilityCheckedAt;
-
-    @Column(name = "is_eligible_at_creation")
-    Boolean isEligibleAtCreation;
-
-    @Lob
-    @Column(name = "eligibility_snapshot", columnDefinition = "BLOB")
-    byte[] eligibilitySnapshot;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "new_contract_id", nullable = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true) // Destination contract or transfer agreement.
+    @JoinColumn(name = "new_contract_id")
     LeaseContractEntity newContract;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "replacement_old_contract_id")
+    LeaseContractEntity replacementOldContract;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

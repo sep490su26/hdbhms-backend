@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0;
+            padding: 15mm 20mm 20mm 20mm;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: #d9d9d9;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .title-cell {
+            text-align: center;
+            font-weight: bold;
+            font-size: 13pt;
+            padding: 10px;
+            border: none;
+            background-color: transparent;
+        }
+
+        .section-header {
+            background-color: #bfbfbf;
+            font-weight: bold;
+            text-align: center;
+            font-size: 12pt;
+        }
+
+        td.center {
+            text-align: center;
+        }
+
+        .signature-row td {
+            border: none;
+            padding: 0 10px;
+            text-align: center;
+            height: 80px;
+            vertical-align: top;
+        }
+
+        .signature-row {
+            page-break-inside: avoid;
+        }
+
+        .sig-date {
+            text-align: right;
+            font-style: italic;
+            padding: 8px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <table>
+        <!-- Tiêu đề -->
+        <tr>
+            <td colspan="6" class="title-cell">
+                BẢNG KÊ THIẾT BỊ BÀN GIAO TRONG PHÒNG<br/>
+                <span style="font-size: 11pt; font-weight: normal;">
+                    PHÒNG SỐ: <span th:text="${roomNumber ?: '......'}"></span>
+                    TẦNG <span th:text="${roomFloorNumber ?: '...'}"></span>
+                </span>
+            </td>
+        </tr>
+
+        <!-- Header bảng thiết bị -->
+        <tr>
+            <th style="width: 6%">STT</th>
+            <th style="width: 40%">TÊN THIẾT BỊ</th>
+            <th style="width: 10%">ĐƠN VỊ</th>
+            <th style="width: 10%">SỐ LƯỢNG</th>
+            <th style="width: 20%">HIỆN TRẠNG</th>
+            <th style="width: 14%">GHI CHÚ</th>
+        </tr>
+
+        <!-- Danh sách thiết bị cố định -->
+        <tr>
+            <td class="center">1</td>
+            <td>ĐIỀU HÒA + REMOTE</td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Hoạt động bình thường</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">2</td>
+            <td>
+                THIẾT BỊ VỆ SINH + PHÒNG TẮM:<br/>
+                + XÍ &nbsp; + XỊT XÍ &nbsp; + VÒI HOA SEN<br/>
+                + CHẬU RỬA MẶT &nbsp; + VÒI RỬA MẶT<br/>
+                + GƯƠNG VÀ PHỤ KIỆN, CỐC ĐÁNH RĂNG<br/>
+                + CHẬU BẾP + VÒI RỬA + CHẠN BẾP
+            </td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Hoạt động bình thường</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">3</td>
+            <td>BÌNH NÓNG LẠNH</td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Hoạt động bình thường</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">4</td>
+            <td>TỦ ĐỰNG QUẦN ÁO 3 BUỒNG</td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Còn nguyên vẹn</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">5</td>
+            <td>BÀN HỌC</td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Còn nguyên vẹn</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">6</td>
+            <td>GIƯỜNG NẰM ĐÔI / TẦNG + RÁT GIƯỜNG</td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Còn nguyên vẹn</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">7</td>
+            <td>
+                CỬA CÁC LOẠI:<br/>
+                + CỬA ĐI &nbsp; + CỬA SỔ CÁC LOẠI
+            </td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Kính không vỡ, khóa + chìa đầy đủ</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">8</td>
+            <td>MODEM INTERNET</td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td>Hoạt động bình thường</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="center">9</td>
+            <td>HỆ THỐNG ĐIỆN (Công tắc, ổ cắm, bóng điện)</td>
+            <td class="center"></td>
+            <td class="center">01</td>
+            <td>Hoạt động bình thường</td>
+            <td></td>
+        </tr>
+
+        <!-- Phần bàn giao đồng hồ -->
+        <tr>
+            <td colspan="6" class="section-header">BÀN GIAO CÁC CHỈ SỐ ĐỒNG HỒ / CÔNG TƠ</td>
+        </tr>
+        <tr>
+            <th>STT</th>
+            <th>TÊN THIẾT BỊ</th>
+            <th>ĐƠN VỊ</th>
+            <th>SỐ LƯỢNG</th>
+            <th colspan="2">SỐ HIỆN TRẠNG</th>
+        </tr>
+        <tr>
+            <td class="center">1</td>
+            <td>ĐỒNG HỒ ĐO ĐIỆN</td>
+            <td class="center">CÁI</td>
+            <td class="center">01</td>
+            <td colspan="2">
+                Chỉ số: <strong th:text="${roomElectricityValue ?: '......'}"></strong>,
+                ngày <span th:text="${roomElectricityReadingDate ?: '............'}"></span>
+            </td>
+        </tr>
+        <tr>
+            <td class="center">2</td>
+            <td>ĐỒNG HỒ ĐO NƯỚC</td>
+            <td class="center">CÁI</td>
+            <td class="center">01</td>
+            <td colspan="2">
+                Chỉ số: <strong th:text="${roomWaterValue ?: '......'}"></strong>,
+                ngày <span th:text="${roomWaterReadingDate ?: '............'}"></span>
+            </td>
+        </tr>
+        <tr>
+            <td class="center">3</td>
+            <td>CHÌA KHÓA CỬA CHÍNH</td>
+            <td class="center">BỘ</td>
+            <td class="center">01</td>
+            <td colspan="2"></td>
+        </tr>
+
+        <!-- Ngày tháng + chữ ký -->
+        <tr>
+            <td colspan="4" style="border: none;"></td>
+            <td colspan="2" style="text-align: center; font-style: italic; border: none;">
+                Hà Nội, <span th:text="${issuedAtDateString ?: '............'}"></span>
+            </td>
+        </tr>
+        <tr class="signature-row">
+            <td colspan="3">
+                NGƯỜI GIAO<br/><em style="font-weight: normal;">(Ký, ghi rõ họ tên)</em>
+            </td>
+            <td colspan="3">
+                NGƯỜI NHẬN<br/><em style="font-weight: normal;">(Ký, ghi rõ họ tên)</em>
+            </td>
+        </tr>
+    </table>
+
+</div>
+</body>
+</html>

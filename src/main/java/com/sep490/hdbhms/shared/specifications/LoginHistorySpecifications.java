@@ -11,7 +11,7 @@ import java.util.List;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class LoginHistorySpecifications {
-    public static Specification<LoginHistoryEntity> idIn(List<String> ids) {
+    public static Specification<LoginHistoryEntity> idIn(List<Long> ids) {
         return (root, query, criteriaBuilder) -> {
             if (ids == null || ids.isEmpty()) {
                 return criteriaBuilder.conjunction();

@@ -3,6 +3,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -32,6 +33,7 @@ public class DepositAgreementEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "deposit_agreement_id")
     Long id;
 
     @Column(name = "deposit_code", nullable = false, length = 80)
@@ -95,6 +97,17 @@ public class DepositAgreementEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contract_file_id", nullable = true)
     FileMetadataEntity contractFile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_file_id", nullable = true)
+    FileMetadataEntity signedFile;
+
+    @Column(name = "signed_at")
+    LocalDateTime signedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_uploaded_by", nullable = true)
+    UserEntity signedUploadedBy;
 
     @Column(columnDefinition = "TEXT")
     String note;

@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,5 +77,48 @@ public class SpringDataLeaseContractRepository implements LeaseContractRepositor
         return jpaLeaseContractRepository.findAllByPrimaryTenantProfile_Id(id).stream()
                 .map(leaseContractPersistenceMapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public boolean isTenantHasAnyActiveContract(Long tenantProfileId) {
+        return jpaLeaseContractRepository.existsByPrimaryTenantProfile_Id(tenantProfileId);
+    }
+
+    @Override
+    public Optional<LeaseContract> findFirstActiveContract(Long roomId, List<LeaseStatus> statuses) {
+        return jpaLeaseContractRepository.findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(roomId, statuses)
+                .map(leaseContractPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public long countMeterReadingRoomsByPeriod(
+            Long propertyId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd
+    ) {
+        return jpaLeaseContractRepository.countMeterReadingRoomsByPeriod(
+                propertyId,
+                statuses,
+                periodStart,
+                periodEnd
+        );
+    }
+
+    @Override
+    public boolean roomRequiresMeterReadingForPeriod(
+            Long propertyId,
+            Long roomId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd
+    ) {
+        return jpaLeaseContractRepository.countMeterReadingRoomContractsByPeriod(
+                propertyId,
+                roomId,
+                statuses,
+                periodStart,
+                periodEnd
+        ) > 0;
     }
 }

@@ -13,7 +13,7 @@ import lombok.experimental.FieldDefaults;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @ToString
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MaintenanceTicket {
@@ -37,6 +37,11 @@ public class MaintenanceTicket {
     String rejectionReason;
     Long assignedToId;
     String workerName;
+    String externalRepairmanName;
+    String externalRepairmanPhone;
+    String externalRepairProvider;
+    String externalRepairNote;
+    String repairmanPhone;
     String repairItems;
     LocalDateTime completedAt;
     LocalDateTime createdAt;

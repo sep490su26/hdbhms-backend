@@ -39,12 +39,15 @@ public class MeterReadingPersistenceMapper {
                 .usageAmount(entity.getUsageAmount())
                 .readingDate(entity.getReadingDate())
                 .photoFileId(entity.getPhotoFile() != null ? entity.getPhotoFile().getId() : null)
+                .purpose(entity.getPurpose())
                 .source(entity.getSource())
                 .status(entity.getStatus())
                 .voidReason(entity.getVoidReason())
                 .createdById(entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null)
                 .createdAt(entity.getCreatedAt())
                 .activeReadingKey(entity.getActiveReadingKey())
+                .reviewStatus(entity.getReviewStatus())
+                .reviewCount(entity.getReviewCount())
                 .build();
     }
 
@@ -54,15 +57,15 @@ public class MeterReadingPersistenceMapper {
                 .id(domain.getId())
                 .batch(domain.getBatchId() != null
                         ? jpaMeterReadingBatchRepository.findById(domain.getBatchId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_NOT_FOUND))
                         : null)
                 .meter(domain.getMeterId() != null
                         ? jpaMeterRepository.findById(domain.getMeterId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_NOT_FOUND))
                         : null)
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_NOT_FOUND))
                         : null)
                 .readingPeriod(domain.getReadingPeriod())
                 .revisionNo(domain.getRevisionNo())
@@ -71,8 +74,9 @@ public class MeterReadingPersistenceMapper {
                 .readingDate(domain.getReadingDate())
                 .photoFile(domain.getPhotoFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getPhotoFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_NOT_FOUND))
                         : null)
+                .purpose(domain.getPurpose())
                 .source(domain.getSource())
                 .status(domain.getStatus())
                 .voidReason(domain.getVoidReason())
@@ -81,6 +85,8 @@ public class MeterReadingPersistenceMapper {
                                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND))
                         : null)
                 .createdAt(domain.getCreatedAt())
+                .reviewStatus(domain.getReviewStatus())
+                .reviewCount(domain.getReviewCount())
                 .build();
     }
 }

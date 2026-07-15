@@ -3,6 +3,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositBatchEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -29,6 +30,7 @@ public class PaymentIntentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "payment_intent_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -40,6 +42,10 @@ public class PaymentIntentEntity {
     DepositAgreementEntity depositAgreement;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deposit_batch_id")
+    DepositBatchEntity depositBatch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_payment_group_id", nullable = true)
     InvoicePaymentGroupEntity invoicePaymentGroup;
 
@@ -49,6 +55,8 @@ public class PaymentIntentEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     PaymentIntentProvider provider;
+    @Column(name = "provider_order_code", length = 255)
+    String providerOrderCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collection_account_id", nullable = true)

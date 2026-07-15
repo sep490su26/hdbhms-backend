@@ -38,7 +38,7 @@ public class RoomStatusHistoryPersistenceMapper {
                 .id(domain.getId())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_STATUS_HISTORY_NOT_FOUND))
                         : null)
                 .fromStatus(domain.getFromStatus())
                 .toStatus(domain.getToStatus())

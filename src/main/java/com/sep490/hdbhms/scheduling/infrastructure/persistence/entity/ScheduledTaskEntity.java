@@ -25,6 +25,7 @@ public class ScheduledTaskEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "scheduled_task_id")
     Long id;
 
     @Enumerated(EnumType.STRING)

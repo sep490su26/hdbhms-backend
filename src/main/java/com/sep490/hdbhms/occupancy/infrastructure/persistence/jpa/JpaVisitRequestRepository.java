@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface JpaVisitRequestRepository extends JpaRepository<VisitRequestEntity, Long>, JpaSpecificationExecutor<VisitRequestEntity> {
-    @Query(value = "SELECT id FROM visit_requests WHERE deleted_at IS NULL AND MATCH(visitor_name, visitor_email, visitor_phone) AGAINST (CONCAT(?1, '*') IN BOOLEAN MODE)",
+    @Query(value = "SELECT visit_request_id FROM visit_requests WHERE deleted_at IS NULL AND MATCH(visitor_name, visitor_email, visitor_phone) AGAINST (CONCAT(?1, '*') IN BOOLEAN MODE)",
             nativeQuery = true)
     List<Long> findIdsByFullText(String keyword);
 

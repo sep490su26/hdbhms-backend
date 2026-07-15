@@ -34,6 +34,9 @@ public class DepositAgreement {
     DepositAgreementStatus status = DepositAgreementStatus.PENDING_PAYMENT;
     LocalDateTime confirmedAt;
     Long contractFileId;
+    Long signedFileId;
+    LocalDateTime signedAt;
+    Long signedUploadedById;
     String note;
     String forfeitureReason;
     Long refundedAmount;
@@ -58,6 +61,7 @@ public class DepositAgreement {
                 .amount(amount)
                 .expectedMoveInDate(expectedMoveInDate)
                 .expectedLeaseSignDate(expectedLeaseSignDate)
+                .depositExpiresAt(expectedMoveInDate.plusDays(14))
                 .paymentDueAt(paymentDueAt)
                 .build();
     }
@@ -77,6 +81,30 @@ public class DepositAgreement {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void attachContractFile(Long contractFileId) {
+        this.contractFileId = contractFileId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void attachSignedFile(Long signedFileId, Long signedUploadedById, LocalDateTime signedAt) {
+        this.signedFileId = signedFileId;
+        this.signedUploadedById = signedUploadedById;
+        this.signedAt = signedAt != null ? signedAt : LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void changeStatus(DepositAgreementStatus nextStatus) {
+        if (nextStatus == null) {
+            throw new IllegalArgumentException("Deposit agreement status is required");
+        }
+        this.status = nextStatus;
+        if ((nextStatus == DepositAgreementStatus.PAID || nextStatus == DepositAgreementStatus.CONVERTED_TO_LEASE)
+                && this.confirmedAt == null) {
+            this.confirmedAt = LocalDateTime.now();
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void markPaid() {
         if (this.status == DepositAgreementStatus.PAID) {
             return;
@@ -88,6 +116,12 @@ public class DepositAgreement {
 
     public void setContractFileId(Long contractFileId) {
         this.contractFileId = contractFileId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateExpectedDates(LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        this.expectedMoveInDate = expectedMoveInDate;
+        this.expectedLeaseSignDate = expectedLeaseSignDate;
         this.updatedAt = LocalDateTime.now();
     }
 }

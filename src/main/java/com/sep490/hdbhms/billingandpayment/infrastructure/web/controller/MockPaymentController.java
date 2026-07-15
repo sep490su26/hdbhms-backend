@@ -13,7 +13,9 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +28,8 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
+@Profile({"dev", "test", "local"})
+@ConditionalOnProperty(name = "app.mock-payment.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/mock")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -52,19 +56,6 @@ public class MockPaymentController {
                     "Thiếu paymentIntentId. Hãy gọi POST /api/v1/mock/payments/{paymentIntentId}/success hoặc truyền paymentIntentId trong body."
             );
         }
-
-//        Long amount = Long.parseLong(params.get("vnp_Amount")) / 100;
-//        reconcilePaymentUseCase.execute(
-//                ReconcilePaymentCommand.builder()
-//                        .paymentIntentId(8L)
-//                        .provider(TransactionProvider.BANK)
-//                        .providerTransactionId("")
-//                        .amount(1L)
-//                        .content("")
-//                        .transactionTime(LocalDateTime.now())
-//                        .rawPayload("")
-//                        .build()
-//        );
 
         Long amount = resolveAmount(request.getPaymentIntentId(), request);
         reconcile(request.getPaymentIntentId(), amount);
@@ -117,7 +108,7 @@ public class MockPaymentController {
                         .amount(amount)
                         .content("Mock payment success for payment intent " + paymentIntentId)
                         .transactionTime(LocalDateTime.now())
-                        .rawPayload("{\"source\":\"mock-payment\",\"paymentIntentId\":" + paymentIntentId + ",\"amount\":" + amount + "}")
+                        .rawPayload("{\"source\":\"mock-payment\",\"orderCode\":" + paymentIntentId + ",\"amount\":" + amount + "}")
                         .build()
         );
     }

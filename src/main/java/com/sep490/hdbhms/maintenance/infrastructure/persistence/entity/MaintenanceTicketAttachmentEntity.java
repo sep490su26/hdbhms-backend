@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.maintenance.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.TenantEntity;
 import jakarta.persistence.*;
@@ -26,6 +27,7 @@ public class MaintenanceTicketAttachmentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "maintenance_ticket_attachment_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -48,6 +50,10 @@ public class MaintenanceTicketAttachmentEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = true)
     TenantEntity createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id", nullable = true)
+    UserEntity createdByUser;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

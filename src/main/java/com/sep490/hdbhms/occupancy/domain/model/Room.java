@@ -25,7 +25,7 @@ public class Room {
     @Builder.Default
     Long listedPrice = 0L;
     @Builder.Default
-    RoomStatus currentStatus = RoomStatus.VACANT;
+    RoomStatus currentStatus = RoomStatus.DRAFT;
     @Builder.Default
     Integer maxOccupants = 3;
 
@@ -73,6 +73,11 @@ public class Room {
         this.updatedAt = LocalDateTime.now();
     }
 
+    public void reserveRoomForTransfer() {
+        this.currentStatus = RoomStatus.RESERVED_FOR_TRANSFER;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void holdRoom() {
         this.currentStatus = RoomStatus.ON_HOLD;
         this.updatedAt = LocalDateTime.now();
@@ -84,7 +89,7 @@ public class Room {
     }
 
     public void occupyRoom() {
-        this.currentStatus = RoomStatus.RESERVED;
+        this.currentStatus = RoomStatus.OCCUPIED;
         this.updatedAt = LocalDateTime.now();
     }
 }

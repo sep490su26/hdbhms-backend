@@ -5,6 +5,8 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @Builder
@@ -17,9 +19,15 @@ public class RoomResponse {
     String name;
     String floorName;
     String propertyName;
+    Long propertyId;
+    Long floorId;
     Long listedPrice;
     BigDecimal areaM2;
     Integer maxOccupants;
     RoomStatus currentStatus;
+    Integer positionX;
+    Integer positionY;
+    LocalDate expectedVacantDate;
     String firstImageUrl;
+    List<RoomImageResponse> images;
 }

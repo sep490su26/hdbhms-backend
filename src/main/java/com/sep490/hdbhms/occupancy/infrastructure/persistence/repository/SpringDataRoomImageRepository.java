@@ -38,7 +38,7 @@ public class SpringDataRoomImageRepository implements RoomImageRepository {
 
     @Override
     public List<RoomImage> findAllByRoomId(Long roomId) {
-        return jpaRoomImageRepository.findAllByRoom_Id(roomId).stream()
+        return jpaRoomImageRepository.findAllByRoom_IdOrderBySortOrderAscCreatedAtAscIdAsc(roomId).stream()
                 .map(roomImagePersistenceMapper::toDomain)
                 .toList();
     }

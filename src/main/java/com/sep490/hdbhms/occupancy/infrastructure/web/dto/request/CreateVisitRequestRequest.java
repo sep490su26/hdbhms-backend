@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
+import com.sep490.hdbhms.shared.validator.FullName;
+import com.sep490.hdbhms.shared.validator.VietnamesePhone;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
@@ -18,8 +20,10 @@ public class CreateVisitRequestRequest {
     Long propertyId;
     Long roomId;
     @NotBlank
+    @FullName
     String visitorName;
     @NotBlank
+    @VietnamesePhone
     String visitorPhone;
     @Email
     String visitorEmail;

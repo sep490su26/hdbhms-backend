@@ -29,6 +29,7 @@ public class VehicleEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "vehicle_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

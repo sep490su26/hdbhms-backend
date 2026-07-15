@@ -19,6 +19,9 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(
         name = "meter_reading_batches",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_mrb_property_period", columnNames = {"property_id", "reading_period"})
+        },
         indexes = {
                 @Index(name = "idx_reading_batch", columnList = "property_id, reading_period, status")
         }
@@ -27,6 +30,7 @@ public class MeterReadingBatchEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "meter_reading_batch_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -34,11 +38,19 @@ public class MeterReadingBatchEntity {
     PropertyEntity property;
 
     @Column(name = "reading_period", nullable = false, length = 7, columnDefinition = "CHAR(7)")
-    String readingPeriod;  // YYYY-MM
+    String readingPeriod;  // MM-yyyy
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    BatchSource source;
+    @Column(name = "total_rooms", nullable = false)
+    @Builder.Default
+    Integer totalRooms = 0;
+
+    @Column(name = "completed_rooms", nullable = false)
+    @Builder.Default
+    Integer completedRooms = 0;
+
+    @Column(name = "anomaly_count", nullable = false)
+    @Builder.Default
+    Integer anomalyCount = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

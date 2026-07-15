@@ -1,16 +1,9 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
-import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
-import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
-import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
-import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
-import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -27,25 +20,20 @@ import java.util.List;
 @Transactional(readOnly = true)
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GetMyListLeaseContractsService implements GetMyListLeaseContractsUseCase {
-    UserRepository userRepository;
-    TenantRepository tenantRepository;
-    PersonProfileRepository personProfileRepository;
     LeaseContractRepository leaseContractRepository;
+    LeaseContractQueryService leaseContractQueryService;
 
     @Override
     public Page<LeaseContract> execute(GetListLeaseContractsQuery query) {
         if (query.userId() == null) {
             throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
-        User user = userRepository.findById(query.userId())
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
-        Tenant tenant = tenantRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Tenant Not Found"));
-        PersonProfile tenantPersonProfile = personProfileRepository.findByUserId(tenant.getUserId())
-                .orElseThrow(() -> new RuntimeException("Person Profile Not Found"));
-        List<Long> ids = leaseContractRepository.findAllByTenantProfileId(tenantPersonProfile.getId()).stream()
-                .map(LeaseContract::getId)
+        List<Long> ids = leaseContractQueryService.getRentalContexts(query.userId()).stream()
+                .map(LeaseContractQueryService.ActiveRoomItem::contractId)
                 .toList();
+        if (ids.isEmpty()) {
+            return Page.empty(query.pageable());
+        }
 
         return leaseContractRepository.findAll(
                 ids,

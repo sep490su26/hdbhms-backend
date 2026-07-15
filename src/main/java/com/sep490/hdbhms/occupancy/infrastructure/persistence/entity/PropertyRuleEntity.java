@@ -28,6 +28,7 @@ public class PropertyRuleEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "property_rule_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

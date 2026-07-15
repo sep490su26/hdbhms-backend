@@ -28,6 +28,7 @@ public class TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "tenant_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

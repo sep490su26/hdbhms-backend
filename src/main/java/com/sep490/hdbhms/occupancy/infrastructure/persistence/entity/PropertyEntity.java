@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 public class PropertyEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "property_id")
     Long id;
 
     @Column(name = "property_code", nullable = false, length = 50)
@@ -42,7 +43,7 @@ public class PropertyEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
-    PropertyStatus status = PropertyStatus.ACTIVE;
+    PropertyStatus status = PropertyStatus.DRAFT;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

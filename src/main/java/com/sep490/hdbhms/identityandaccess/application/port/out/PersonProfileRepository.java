@@ -10,4 +10,5 @@ public interface PersonProfileRepository {
     Optional<PersonProfile> findById(Long id);
 
     Optional<PersonProfile> findByUserId(Long userId);
+    Optional<PersonProfile> findByPhone(String phone);
 }

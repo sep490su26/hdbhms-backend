@@ -27,7 +27,12 @@ public class MeterReadingAnomalyEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "meter_reading_anomaly_id")
     Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id", nullable = true)
+    MeterReadingBatchEntity batch;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "meter_reading_id", nullable = false)

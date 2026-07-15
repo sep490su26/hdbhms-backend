@@ -33,4 +33,8 @@ public class PaymentTransaction {
     public void setMatched(){
         this.status = TransactionStatus.MATCHED;
     }
+
+    public void reject() {
+        this.status = TransactionStatus.REJECTED;
+    }
 }

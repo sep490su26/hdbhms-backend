@@ -28,9 +28,26 @@ public class CreateDefaultOwnerAccountService implements CreateDefaultOwnerAccou
 
     @Override
     public void execute() {
-        if (userRepository.existsAnOwnerAccount()) {
-            return;
+        userRepository.findByPhoneOrEmailAndDeletedAtIsNull(
+                        defaultConfig.getOwner().getPhone(),
+                        defaultConfig.getOwner().getEmail()
+                )
+                .ifPresentOrElse(this::syncConfiguredOwner, this::createConfiguredOwner);
+    }
+
+    private void syncConfiguredOwner(User user) {
+        if (user.getRole() != Role.OWNER) {
+            throw new AppException(ApiErrorCode.ACCOUNT_EXISTED);
         }
+        user.activeAccount();
+        user.registerFirstPasswordChange();
+        if (!passwordEncoder.matches(defaultConfig.getOwner().getPassword(), user.getPasswordHash())) {
+            user.changePassword(passwordEncoder.encode(defaultConfig.getOwner().getPassword()));
+        }
+        userRepository.save(user);
+    }
+
+    private void createConfiguredOwner() {
         if (
                 userRepository.existsByEmail(defaultConfig.getOwner().getEmail())
                         || userRepository.existsByPhone(defaultConfig.getOwner().getPhone())

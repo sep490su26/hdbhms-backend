@@ -46,11 +46,11 @@ public class ContractHandoverItemPersistenceMapper {
                 .id(domain.getId())
                 .handoverRecord(domain.getHandoverRecordId() != null
                         ? jpaContractHandoverRecordRepository.findById(domain.getHandoverRecordId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_ITEM_NOT_FOUND))
                         : null)
                 .roomAsset(domain.getRoomAssetId() != null
                         ? jpaRoomAssetRepository.findById(domain.getRoomAssetId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_ITEM_NOT_FOUND))
                         : null)
                 .assetName(domain.getAssetName())
                 .quantity(domain.getQuantity())
@@ -58,12 +58,12 @@ public class ContractHandoverItemPersistenceMapper {
                 .note(domain.getNote())
                 .evidenceFile(domain.getEvidenceFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getEvidenceFileId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_ITEM_NOT_FOUND))
                         : null)
                 .compensationAmount(domain.getCompensationAmount())
                 .compensationInvoice(domain.getCompensationInvoiceId() != null
                         ? jpaInvoiceRepository.findById(domain.getCompensationInvoiceId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_ITEM_NOT_FOUND))
                         : null)
                 .createdAt(domain.getCreatedAt())
                 .build();

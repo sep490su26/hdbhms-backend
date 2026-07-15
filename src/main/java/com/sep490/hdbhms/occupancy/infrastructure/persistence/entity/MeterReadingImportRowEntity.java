@@ -27,11 +27,16 @@ public class MeterReadingImportRowEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "meter_reading_import_row_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "batch_id", nullable = false)
     MeterReadingBatchEntity batch;
+
+    @Column(name = "row_no", nullable = false)
+    @Builder.Default
+    Integer rowNo = 0;
 
     @Column(name = "room_code", nullable = false, length = 50)
     String roomCode;

@@ -5,6 +5,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Inv
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaCollectionAccountRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositBatchRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -22,6 +23,7 @@ public class InvoicePersistenceMapper {
     JpaPropertyRepository propertyRepository;
     JpaLeaseContractRepository leaseContractRepository;
     JpaDepositAgreementRepository depositAgreementRepository;
+    JpaDepositBatchRepository depositBatchRepository;
     JpaCollectionAccountRepository collectionAccountRepository;
 
     public Invoice toDomain(InvoiceEntity entity) {
@@ -30,6 +32,7 @@ public class InvoicePersistenceMapper {
         Long roomId = entity.getRoom() != null ? entity.getRoom().getId() : null;
         Long leaseContractId = entity.getLeastContract() != null ? entity.getLeastContract().getId() : null;
         Long depositAgreementId = entity.getDepositAgreement() != null ? entity.getDepositAgreement().getId() : null;
+        Long depositBatchId = entity.getDepositBatch() != null ? entity.getDepositBatch().getId() : null;
         Long collectionAccountId = entity.getCollectionAccount() != null ? entity.getCollectionAccount().getId() : null;
         Long createdBy = entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null;
 
@@ -40,7 +43,9 @@ public class InvoicePersistenceMapper {
                 .roomId(roomId)
                 .leaseContractId(leaseContractId)
                 .depositAgreementId(depositAgreementId)
+                .depositBatchId(depositBatchId)
                 .invoiceType(entity.getInvoiceType())
+                .invoiceReason(entity.getInvoiceReason())
                 .revisionNo(entity.getRevisionNo())
                 .billingPeriod(entity.getBillingPeriod())
                 .issueDate(entity.getIssueDate())
@@ -73,6 +78,8 @@ public class InvoicePersistenceMapper {
                 ? leaseContractRepository.findById(domain.getLeaseContractId()).orElse(null) : null;
         var depositAgreement = domain.getDepositAgreementId() != null
                 ? depositAgreementRepository.findById(domain.getDepositAgreementId()).orElse(null) : null;
+        var depositBatch = domain.getDepositBatchId() != null
+                ? depositBatchRepository.findById(domain.getDepositBatchId()).orElse(null) : null;
         var collectionAccount = domain.getCollectionAccountId() != null
                 ? collectionAccountRepository.findById(domain.getCollectionAccountId()).orElse(null) : null;
         var createdBy = domain.getCreatedBy() != null
@@ -85,7 +92,9 @@ public class InvoicePersistenceMapper {
                 .room(room)
                 .leastContract(leaseContract)
                 .depositAgreement(depositAgreement)
+                .depositBatch(depositBatch)
                 .invoiceType(domain.getInvoiceType())
+                .invoiceReason(domain.getInvoiceReason())
                 .revisionNo(domain.getRevisionNo())
                 .billingPeriod(domain.getBillingPeriod())
                 .issueDate(domain.getIssueDate())

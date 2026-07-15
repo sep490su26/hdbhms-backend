@@ -2,12 +2,11 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListDepositAgreementsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListDepositAgreementsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
-import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -25,7 +24,6 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GetMyListDepositAgreementsService implements GetMyListDepositAgreementsUseCase {
     UserRepository userRepository;
-    TenantRepository tenantRepository;
     DepositAgreementRepository depositAgreementRepository;
 
     @Override
@@ -35,15 +33,26 @@ public class GetMyListDepositAgreementsService implements GetMyListDepositAgreem
         }
         User user = userRepository.findById(query.userId())
                 .orElseThrow(() -> new RuntimeException("User Not Found"));
-        Tenant tenant = tenantRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new RuntimeException("Tenant Not Found"));
-        List<Long> ids = depositAgreementRepository.findAllByTenantId(tenant.getId()).stream()
-                .map(DepositAgreement::getId)
-                .toList();
+        List<Long> ids;
+        if (user.getRole() == Role.OWNER || user.getRole() == Role.MANAGER) {
+            ids = depositAgreementRepository.findAll().stream()
+                    .map(DepositAgreement::getId)
+                    .toList();
+        } else {
+            ids = depositAgreementRepository.findAllAccessibleByUserId(user.getId()).stream()
+                    .map(DepositAgreement::getId)
+                    .toList();
+        }
+        if (ids.isEmpty()) {
+            return Page.empty(query.pageable());
+        }
 
         return depositAgreementRepository.findAll(
                 ids,
                 query.status(),
+                query.statuses(),
+                query.search(),
+                query.floorId(),
                 query.signedFrom(),
                 query.signedTo(),
                 query.pageable()

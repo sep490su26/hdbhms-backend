@@ -30,6 +30,7 @@ public class ContractHandoverRecordEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "contract_handover_record_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -58,6 +59,10 @@ public class ContractHandoverRecordEntity {
     @Column(name = "note", columnDefinition = "TEXT")
     String note;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "signed_document_id", nullable = true)
+    FileMetadataEntity signedDocument;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
@@ -74,4 +79,3 @@ public class ContractHandoverRecordEntity {
     @Column(name = "created_at", updatable = false, nullable = false)
     LocalDateTime createdAt;
 }
-

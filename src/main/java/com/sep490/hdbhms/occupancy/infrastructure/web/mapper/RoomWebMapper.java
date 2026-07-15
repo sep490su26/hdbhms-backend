@@ -16,6 +16,7 @@ import org.mapstruct.Mapping;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Mapper(
@@ -27,9 +28,49 @@ public abstract class RoomWebMapper {
     @Autowired
     protected FloorWebMapper floorWebMapper;
 
+    @Autowired
+    protected RoomImageWebMapper roomImageWebMapper;
+
     public abstract CreateRoomCommand toCommand(CreateRoomRequest request);
 
-    public abstract SendDepositFormCommand toCommand(SendDepositFormRequest request, MultipartFile idFrontFile, MultipartFile idBackFile, MultipartFile portraitFile);
+    public SendDepositFormCommand toCommand(
+            SendDepositFormRequest request,
+            MultipartFile idFrontFile,
+            MultipartFile idBackFile,
+            MultipartFile portraitFile
+    ) {
+        return new SendDepositFormCommand(
+                request.getRoomId(),
+                request.getFullName(),
+                request.getDob(),
+                request.getEmail(),
+                request.getPhone(),
+                request.getPermanentAddress(),
+                request.getIdNumber(),
+                LocalDate.parse(request.getIdIssueDate()),
+                request.getIdIssuePlace(),
+                request.getDepositMonths(),
+                request.getPaymentCycleMonths(),
+                request.getOccupantCount(),
+                request.getCoOccupants() == null
+                        ? List.of()
+                        : request.getCoOccupants().stream()
+                        .filter(coOccupant -> coOccupant.getDisplayOrder() != null)
+                        .filter(coOccupant -> coOccupant.getDisplayOrder() < request.getOccupantCount())
+                        .sorted(java.util.Comparator.comparing(SendDepositFormRequest.CoOccupantRequest::getDisplayOrder))
+                        .map(coOccupant -> new SendDepositFormCommand.CoOccupant(
+                                coOccupant.getFullName(),
+                                coOccupant.getPhone(),
+                                coOccupant.getDisplayOrder()
+                        ))
+                        .toList(),
+                request.getExpectedMoveInDate(),
+                request.getExpectedLeaseSignDate(),
+                idFrontFile,
+                idBackFile,
+                portraitFile
+        );
+    }
 
     @Mapping(target = "id", source = "room.id")
     @Mapping(target = "name", source = "room.name")
@@ -38,5 +79,22 @@ public abstract class RoomWebMapper {
     @Mapping(target = "images", source = "images")
     public abstract RoomDetailsResponse toRoomDetailsResponse(Room room, Floor floor, Property property, List<RoomImage> images);
 
+    @Mapping(target = "id", source = "room.id")
+    @Mapping(target = "name", source = "room.name")
+    @Mapping(target = "floorName", source = "floor.name")
+    @Mapping(target = "propertyName", source = "property.name")
+    @Mapping(target = "propertyId", source = "property.id")
+    @Mapping(target = "floorId", source = "floor.id")
+    @Mapping(target = "images", source = "images")
+    @Mapping(target = "firstImageUrl", expression = "java(resolveFirstImageUrl(images))")
+    public abstract RoomResponse toResponse(Room room, Floor floor, Property property, List<RoomImage> images);
+
     public abstract RoomResponse toResponse(Room room);
+
+    protected String resolveFirstImageUrl(List<RoomImage> images) {
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        return roomImageWebMapper.toResponse(images.get(0)).getUrl();
+    }
 }

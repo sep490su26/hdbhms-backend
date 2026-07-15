@@ -26,6 +26,7 @@ public class ContractHandoverItemEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "contract_handover_item_id")
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

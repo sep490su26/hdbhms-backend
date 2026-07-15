@@ -23,7 +23,7 @@ public class Property {
     String addressLine;
     String description;
     @Builder.Default
-    PropertyStatus status = PropertyStatus.ACTIVE;
+    PropertyStatus status = PropertyStatus.DRAFT;
     final LocalDateTime createdAt;
     LocalDateTime updatedAt;
     LocalDateTime deletedAt;

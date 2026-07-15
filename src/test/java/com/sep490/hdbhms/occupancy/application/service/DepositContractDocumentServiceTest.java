@@ -1,0 +1,301 @@
+package com.sep490.hdbhms.occupancy.application.service;
+
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
+import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
+import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
+import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
+import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
+import com.sep490.hdbhms.occupancy.domain.model.Property;
+import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.shared.constant.DefaultConfig;
+import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.IContext;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class DepositContractDocumentServiceTest {
+
+    @Test
+    void previewUsesRealTemplateWithoutThrowing() {
+        var service = new DepositContractDocumentService(
+                new FakeRoomRepository(),
+                new FakePropertyRepository(),
+                new FakeDepositFormRepository(),
+                command -> null,
+                query -> null,
+                defaultConfig(),
+                new FakeDepositAgreementRepository(null),
+                new ImmediateTransactionManager(),
+                realTemplateEngine(),
+                mock(org.springframework.core.env.Environment.class)
+        );
+
+        var response = assertDoesNotThrow(() -> service.preview(
+                com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositContractPreviewRequest.builder()
+                        .roomId(101L)
+                        .fullName("Nguyen Van A")
+                        .dob(LocalDate.of(2000, 1, 1))
+                        .phone("0999989898")
+                        .email("tenant@haidang.test")
+                        .idNumber("0191919191")
+                        .idIssueDate(LocalDate.of(2020, 1, 1))
+                        .idIssuePlace("HN")
+                        .permanentAddress("Ha Noi")
+                        .expectedMoveInDate(LocalDate.now().plusDays(1))
+                        .expectedLeaseSignDate(LocalDate.now().plusDays(1))
+                        .paymentCycleMonths(1)
+                        .build()
+        ));
+
+        assertNotNull(response.getHtml());
+        assertTrue(response.getHtml().contains("Nguyen Van A"));
+    }
+
+    @Test
+    void generateOfficialContractAfterCommitDoesNotBreakPaymentFlowWhenPdfUploadFails() {
+        AtomicBoolean uploadAttempted = new AtomicBoolean(false);
+        DepositAgreement agreement = DepositAgreement.builder()
+                .id(11L)
+                .depositCode("DC-TEST-001")
+                .roomId(101L)
+                .depositFormId(301L)
+                .amount(1_000_000L)
+                .expectedLeaseSignDate(LocalDate.now().plusDays(2))
+                .expectedMoveInDate(LocalDate.now().plusDays(5))
+                .status(DepositAgreementStatus.PAID)
+                .confirmedAt(LocalDateTime.now())
+                .build();
+
+        var service = new DepositContractDocumentService(
+                new FakeRoomRepository(),
+                new FakePropertyRepository(),
+                new FakeDepositFormRepository(),
+                failingUploadUseCase(uploadAttempted),
+                query -> null,
+                defaultConfig(),
+                new FakeDepositAgreementRepository(agreement),
+                new ImmediateTransactionManager(),
+                mockTemplateEngine(),
+                null
+        );
+
+        assertDoesNotThrow(() -> service.generateOfficialContractAfterCommit(11L));
+        assertTrue(uploadAttempted.get());
+        assertNull(agreement.getContractFileId());
+    }
+
+    private static UploadFileUseCase failingUploadUseCase(AtomicBoolean uploadAttempted) {
+        return command -> {
+            uploadAttempted.set(true);
+            throw new IOException("Simulated storage failure");
+        };
+    }
+
+    private static TemplateEngine mockTemplateEngine() {
+        TemplateEngine templateEngine = mock(TemplateEngine.class);
+        when(templateEngine.process(eq("contractTemplates/html/deposit_contract_template"), any(IContext.class)))
+                .thenReturn("<html><body>mock contract</body></html>");
+        return templateEngine;
+    }
+
+    private static DefaultConfig defaultConfig() {
+        DefaultConfig config = new DefaultConfig();
+        config.getOwner().setFullName("Hải Đăng House");
+        config.getOwner().setPhone("0900000000");
+        config.getOwner().setEmail("owner@haidang.test");
+        return config;
+    }
+
+    private static TemplateEngine realTemplateEngine() {
+        ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
+        resolver.setPrefix("templates/");
+        resolver.setSuffix(".html");
+        resolver.setTemplateMode(TemplateMode.HTML);
+        resolver.setCharacterEncoding("UTF-8");
+        resolver.setCacheable(false);
+
+        TemplateEngine templateEngine = new SpringTemplateEngine();
+        templateEngine.setTemplateResolver(resolver);
+        return templateEngine;
+    }
+
+    private static final class ImmediateTransactionManager implements PlatformTransactionManager {
+        @Override
+        public TransactionStatus getTransaction(TransactionDefinition definition) {
+            return new SimpleTransactionStatus();
+        }
+
+        @Override
+        public void commit(TransactionStatus status) {
+        }
+
+        @Override
+        public void rollback(TransactionStatus status) {
+        }
+    }
+
+    private static final class FakeDepositAgreementRepository implements DepositAgreementRepository {
+        private final DepositAgreement agreement;
+
+        private FakeDepositAgreementRepository(DepositAgreement agreement) {
+            this.agreement = agreement;
+        }
+
+        @Override
+        public DepositAgreement save(DepositAgreement depositAgreement) {
+            return depositAgreement;
+        }
+
+        @Override
+        public Optional<DepositAgreement> findById(Long id) {
+            return Optional.of(agreement);
+        }
+
+        @Override
+        public List<DepositAgreement> findAll() {
+            return List.of(agreement);
+        }
+
+        @Override
+        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, String search, Long floorId, LocalDateTime signedFrom, LocalDateTime signedTo, Pageable pageable) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<DepositAgreement> findAllByTenantId(Long tenantId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<DepositAgreement> findAllAccessibleByUserId(Long userId) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class FakeRoomRepository implements RoomRepository {
+        @Override
+        public Room save(Room room) {
+            return room;
+        }
+
+        @Override
+        public Optional<Room> findById(Long id) {
+            return Optional.of(Room.builder()
+                    .id(id)
+                    .propertyId(1L)
+                    .floorId(1L)
+                    .roomCode("101")
+                    .name("Phòng 101")
+                    .areaM2(BigDecimal.valueOf(18))
+                    .listedPrice(2_200_000L)
+                    .currentStatus(RoomStatus.RESERVED)
+                    .maxOccupants(3)
+                    .build());
+        }
+
+        @Override
+        public List<Room> findAllByPropertyIdAndFloorId(Long propertyId, Long floorId) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Page<Room> findAll(List<Long> ids, RoomStatus status, Long minPrice, Long maxPrice, Pageable pageable) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Optional<Room> findByRoomCode(String roomCode) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean existsActiveByPropertyIdAndRoomCode(Long propertyId, String roomCode) {
+            return false;
+        }
+
+        @Override
+        public int updateRoomStatusIfCurrent(Long roomId, RoomStatus expectedStatus, RoomStatus newStatus) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<Room> findAll() {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class FakePropertyRepository implements PropertyRepository {
+        @Override
+        public Property save(Property property) {
+            return property;
+        }
+
+        @Override
+        public Optional<Property> findById(Long id) {
+            return Optional.of(Property.builder()
+                    .id(id)
+                    .propertyCode("HD1")
+                    .name("Hải Đăng 1")
+                    .addressLine("Số 1, Hà Nội")
+                    .build());
+        }
+
+        @Override
+        public Page<Property> findAll(PropertyStatus status, Pageable pageable) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class FakeDepositFormRepository implements DepositFormRepository {
+        @Override
+        public Optional<DepositForm> findById(Long id) {
+            return Optional.of(DepositForm.builder()
+                    .id(id)
+                    .fullName("Nguyễn Văn A")
+                    .dob(LocalDate.of(1999, 1, 1))
+                    .phone("0900000001")
+                    .email("tenant@haidang.test")
+                    .idNumber("001199900001")
+                    .idIssueDate(LocalDate.of(2020, 1, 1))
+                    .idIssuePlace("Cục CSQLHC về TTXH")
+                    .permanentAddress("Hà Nội")
+                    .build());
+        }
+
+        @Override
+        public DepositForm save(DepositForm depositForm) {
+            return depositForm;
+        }
+    }
+}

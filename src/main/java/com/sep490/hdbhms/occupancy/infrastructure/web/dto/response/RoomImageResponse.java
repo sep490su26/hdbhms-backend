@@ -16,4 +16,6 @@ public class RoomImageResponse {
     String url;
     Integer sortOrder;
     LocalDateTime createdAt;
+    boolean fallback;
+    String sourceRoomCode;
 }

@@ -2,8 +2,10 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositBatchEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
@@ -27,12 +29,12 @@ import java.time.LocalDateTime;
         uniqueConstraints = {
                 @UniqueConstraint(name = "uq_invoice_code", columnNames = "invoice_code"),
                 @UniqueConstraint(name = "uq_invoice_contract_period_type_rev",
-                        columnNames = {"contract_id", "billing_period", "invoice_type", "revision_no"}),
+                        columnNames = {"lease_contract_id", "billing_period", "invoice_type", "revision_no"}),
                 @UniqueConstraint(name = "uq_invoice_active_key", columnNames = "active_invoice_key")
         },
         indexes = {
                 @Index(name = "idx_invoice_room_status", columnList = "room_id, status, due_date"),
-                @Index(name = "idx_invoice_contract", columnList = "contract_id"),
+                @Index(name = "idx_invoice_contract", columnList = "lease_contract_id"),
                 @Index(name = "idx_invoice_overdue", columnList = "status, due_date")
         }
 )
@@ -40,6 +42,7 @@ public class InvoiceEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "invoice_id")
     Long id;
 
     @Column(name = "invoice_code", nullable = false, length = 80)
@@ -61,6 +64,10 @@ public class InvoiceEntity {
     @JoinColumn(name = "deposit_agreement_id", nullable = true)
     DepositAgreementEntity depositAgreement;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deposit_batch_id")
+    DepositBatchEntity depositBatch;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "invoice_type", nullable = false, length = 50)
     InvoiceType invoiceType;
@@ -71,6 +78,10 @@ public class InvoiceEntity {
 
     @Column(name = "billing_period", length = 7, columnDefinition = "CHAR(7)")
     String billingPeriod;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "invoice_reason", length = 50)
+    InvoiceReason invoiceReason;
 
     @Column(name = "issue_date", nullable = false)
     LocalDateTime issueDate;

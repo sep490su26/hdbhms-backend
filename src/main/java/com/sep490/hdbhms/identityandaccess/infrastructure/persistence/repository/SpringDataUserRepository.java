@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -86,13 +87,13 @@ public class SpringDataUserRepository implements UserRepository {
     @Override
     public Page<User> findAll(
             List<Long> ids,
-            Role role,
+            List<Role> roles,
             AccountStatus status,
             Pageable pageable
     ) {
         Specification<UserEntity> specification =
                 Specification.where(AccountSpecifications.idIn(ids))
-                        .and(AccountSpecifications.roleIn(role))
+                        .and(AccountSpecifications.rolesIn(roles))
                         .and(AccountSpecifications.statusIn(status))
                         .and((root, query, cb) -> cb.notEqual(root.get("role"), Role.OWNER));
         return jpaUserRepository.findAll(specification, pageable)
@@ -116,6 +117,11 @@ public class SpringDataUserRepository implements UserRepository {
     @Override
     public List<Long> findIdsByFullText(String keyword) {
         return jpaUserRepository.findIdsByFullText(keyword);
+    }
+
+    @Override
+    public List<Long> findIdsByRolesAndStatus(Collection<Role> roles, AccountStatus status) {
+        return jpaUserRepository.findIdsByRolesAndStatus(roles, status);
     }
 
     @Override

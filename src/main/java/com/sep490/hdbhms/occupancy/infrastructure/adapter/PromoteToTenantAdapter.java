@@ -25,10 +25,12 @@ public class PromoteToTenantAdapter implements PromoteToTenantPort {
     @Override
     public void execute(Long propertyId, Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
-        user.assignRole(Role.TENANT);
-        userRepository.save(user);
-        Tenant tenant = Tenant.newTenant(propertyId, userId);
-        tenantRepository.save(tenant);
+                .orElseThrow(() -> new AppException(ApiErrorCode.TENANT_NOT_FOUND));
+        if (user.getRole() != Role.TENANT) {
+            user.assignRole(Role.TENANT);
+            userRepository.save(user);
+        }
+        tenantRepository.findByUserIdAndPropertyId(userId, propertyId)
+                .orElseGet(() -> tenantRepository.save(Tenant.newTenant(propertyId, userId)));
     }
 }

@@ -41,6 +41,7 @@ public class UpdateUserService implements UpdateUserUseCase {
     UserRepository userRepository;
     PasswordEncoder passwordEncoder;
     TokenProvider tokenProvider;
+    TenantAccountProvisioningStatusService provisioningStatusService;
 
     OtpCodePort otpCodePort;
 
@@ -58,7 +59,7 @@ public class UpdateUserService implements UpdateUserUseCase {
         try {
             newStatus = AccountStatus.valueOf(command.status().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+            throw new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND);
         }
         account.changeStatus(newStatus);
         account = userRepository.save(account);
@@ -196,6 +197,7 @@ public class UpdateUserService implements UpdateUserUseCase {
                         newPasswordHash
                 );
         userModificationHistoryRepository.save(modificationHistory);
+        provisioningStatusService.markActiveByUserId(user.getId());
         return user;
     }
 

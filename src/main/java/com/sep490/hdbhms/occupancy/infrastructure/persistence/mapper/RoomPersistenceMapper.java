@@ -49,11 +49,11 @@ public class RoomPersistenceMapper {
                 .id(domain.getId())
                 .property(domain.getPropertyId() != null
                         ? jpaPropertyRepository.findById(domain.getPropertyId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND))
                         : null)
                 .floor(domain.getFloorId() != null
                         ? jpaFloorRepository.findById(domain.getFloorId())
-                        .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED))
+                        .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND))
                         : null)
                 .roomCode(domain.getRoomCode())
                 .name(domain.getName())

@@ -4,6 +4,7 @@ import com.sep490.hdbhms.scheduling.application.port.out.ExpireRoomHoldPort;
 import com.sep490.hdbhms.scheduling.application.port.out.ScheduledTaskRepository;
 import com.sep490.hdbhms.scheduling.domain.model.ScheduledTask;
 import com.sep490.hdbhms.scheduling.domain.value_objects.TaskStatus;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractLifecycleService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 
 @Slf4j
@@ -22,6 +25,7 @@ import java.util.List;
 public class ScheduledTaskProcessor {
     ScheduledTaskRepository scheduledTaskRepository;
     ExpireRoomHoldPort expireRoomHoldPort;
+    LeaseContractLifecycleService leaseContractLifecycleService;
 
     @Transactional
     @Scheduled(fixedDelay = 10_000)
@@ -49,6 +53,10 @@ public class ScheduledTaskProcessor {
     private void executeTask(ScheduledTask scheduledTask) {
         switch (scheduledTask.getTaskType()) {
             case ROOM_HOLD_EXPIRATION -> expireRoomHoldPort.execute(scheduledTask.getTargetId());
+            case CONTRACT_EXPIRY -> leaseContractLifecycleService.processContract(
+                    scheduledTask.getTargetId(),
+                    LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"))
+            );
             default -> log.error("Invalid scheduled task type");
         }
     }

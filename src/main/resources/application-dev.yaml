@@ -2,7 +2,7 @@ spring:
   config:
     activate:
       on-profile: dev
-    import: file:.env.dev[.properties]
+    import: optional:file:.env.dev[.properties]
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
@@ -12,8 +12,29 @@ spring:
     password: ${MYSQL_PASSWORD}
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      url: ${REDIS_URL:redis://localhost:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    admin:
+      auto-create: ${KAFKA_ADMIN_AUTO_CREATE:false}
+    # Producer defaults
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Optional: request acks, retries
+      properties:
+        acks: all
+        retries: 3
+    # Consumer defaults
+    consumer:
+      group-id: hdbhms-notification-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false   # you can commit manually or let auto
+    listener:
+      auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
+      ack-mode: manual
   jpa:
     hibernate:
       ddl-auto: validate
@@ -26,7 +47,11 @@ spring:
     baseline-on-migrate: true
     locations: classpath:migration/dev
     baseline-version: 0
-
+redisson:
+  bloom-filter:
+    redis-url: ${REDIS_URL:redis://localhost:6379}
+  cache:
+    duration-mins: 30
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -34,3 +59,30 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
+app:
+  mock-payment:
+    enabled: ${APP_MOCK_PAYMENT_ENABLED:true}
+  identity-verification:
+    debug:
+      dump-candidates: ${IDENTITY_VERIFICATION_DUMP_CANDIDATES:false}
+      dump-directory: ${IDENTITY_VERIFICATION_DUMP_DIRECTORY:.debug/identity-verification}
+  reset-password:
+    web-confirmation-url: ${APP_RESET_PASSWORD_WEB_CONFIRMATION_URL:http://localhost:3000/confirm-reset}
+    mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
+  file:
+    download:
+      prefix: ${DOWNLOAD_PREFIX}
+    temp:
+      directory: ${TEMP_PATH}
+    storage:
+      directory: ${INTERNAL_STORAGE_PATH}
+      max-concurrency: 20
+      max-batch-size: 100
+      retry:
+        max_attempts: 3
+        initial-delay: 500
+        multiplier: 2
+        timeout: 300
+logging:
+  level:
+    com.sep490.hdbhms.identityverification: DEBUG
