@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -10,16 +11,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEntity, Long> {
-    @Query("""
-            SELECT reading FROM MeterReadingEntity reading
-            WHERE reading.room.id = :roomId
-              AND reading.meter.meterType = :meterType
-              AND reading.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
-            ORDER BY reading.readingDate DESC, reading.createdAt DESC, reading.id DESC
-            """)
-    Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(
-            @Param("roomId") Long roomId,
-            @Param("meterType") MeterType meterType
+    Optional<MeterReadingEntity> findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+            Long roomId,
+            MeterType meterType,
+            ReadingStatus excludedStatus
     );
     Optional<MeterReadingEntity> findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(Long meterId, String readingPeriod);
     Optional<MeterReadingEntity> findByMeter_IdAndBatchId(Long meterId, Long batchId);

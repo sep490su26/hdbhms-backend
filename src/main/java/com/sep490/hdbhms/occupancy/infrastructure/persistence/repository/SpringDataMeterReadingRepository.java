@@ -3,6 +3,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 import com.sep490.hdbhms.occupancy.application.port.out.MeterReadingRepository;
 import com.sep490.hdbhms.occupancy.domain.model.MeterReading;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.MeterReadingPersistenceMapper;
 import lombok.AccessLevel;
@@ -31,7 +32,12 @@ public class SpringDataMeterReadingRepository implements MeterReadingRepository 
 
     @Override
     public Optional<MeterReading> findFirstByRoomIdAndMeterTypeOrderByReadingDateDesc(Long roomId, MeterType meterType) {
-        return jpaMeterReadingRepository.findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(roomId, meterType)
+        return jpaMeterReadingRepository
+                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                        roomId,
+                        meterType,
+                        ReadingStatus.VOIDED
+                )
                 .map(meterReadingPersistenceMapper::toDomain);
     }
 

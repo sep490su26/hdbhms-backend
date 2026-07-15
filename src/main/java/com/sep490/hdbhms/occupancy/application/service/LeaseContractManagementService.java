@@ -762,8 +762,11 @@ public class LeaseContractManagementService {
         if (contract.getStatus() != LeaseStatus.DRAFT && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi duoc kich hoat hop dong dang cho ky.");
         }
-        if (contract.getSignedFile() == null && contract.getContractFile() == null) {
+        if (contract.getSignedFile() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can upload file hop dong da ky truoc khi kich hoat.");
+        }
+        if (contract.getDepositAgreement() != null && contract.getDepositAgreement().getSignedFile() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can upload file hop dong dat coc da ky truoc khi kich hoat.");
         }
         if (contract.getPrimaryTenantProfile() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua co nguoi ky chinh.");

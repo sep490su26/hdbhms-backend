@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -36,7 +37,12 @@ public class GetLatestMeterReadingsService {
     }
 
     private LatestMeterReadingsResponse.ReadingDetail buildReadingDetail(Long roomId, MeterType meterType) {
-        var latestReadingOpt = meterReadingRepository.findFirstByRoom_IdAndMeter_MeterTypeOrderByReadingDateDesc(roomId, meterType);
+        var latestReadingOpt = meterReadingRepository
+                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                        roomId,
+                        meterType,
+                        ReadingStatus.VOIDED
+                );
 
         if (latestReadingOpt.isEmpty()) {
             return LatestMeterReadingsResponse.ReadingDetail.builder()

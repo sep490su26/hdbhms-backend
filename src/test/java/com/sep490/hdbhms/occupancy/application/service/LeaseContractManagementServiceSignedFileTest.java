@@ -9,6 +9,7 @@ import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepo
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
@@ -113,6 +114,57 @@ class LeaseContractManagementServiceSignedFileTest {
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+    }
+
+    @Test
+    void activateRejectsDraftDocumentWhenSignedLeaseIsMissing() {
+        var leaseContractRepository = mock(JpaLeaseContractRepository.class);
+        var contract = LeaseContractEntity.builder()
+                .id(99L)
+                .status(LeaseStatus.DRAFT)
+                .contractFile(FileMetadataEntity.builder().id(11L).build())
+                .build();
+        when(leaseContractRepository.findById(99L)).thenReturn(Optional.of(contract));
+
+        var service = newService(
+                mock(UploadFileService.class),
+                mock(JpaFileMetadataRepository.class),
+                leaseContractRepository
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.activate(99L)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("hop dong da ky"));
+    }
+
+    @Test
+    void activateRejectsUnsignedDepositDocument() {
+        var leaseContractRepository = mock(JpaLeaseContractRepository.class);
+        var contract = LeaseContractEntity.builder()
+                .id(99L)
+                .status(LeaseStatus.PENDING_SIGNATURE)
+                .signedFile(FileMetadataEntity.builder().id(22L).build())
+                .depositAgreement(DepositAgreementEntity.builder().id(33L).build())
+                .build();
+        when(leaseContractRepository.findById(99L)).thenReturn(Optional.of(contract));
+
+        var service = newService(
+                mock(UploadFileService.class),
+                mock(JpaFileMetadataRepository.class),
+                leaseContractRepository
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.activate(99L)
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertTrue(exception.getReason().contains("hop dong dat coc da ky"));
     }
 
     private static LeaseContractManagementService newService(
