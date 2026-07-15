@@ -11,7 +11,7 @@ class MigrationLogicalConflictGuardTest {
 
     @Test
     void roomTransferStatusMigrationConvertsLegacyValueBeforeRemovingIt() throws IOException {
-        String sql = read("migration/dev/V9__align_room_transfer_request_status_enum.sql");
+        String sql = read("migration/dev/V10__align_room_transfer_request_status_enum.sql");
         int transitionalEnum = sql.indexOf("'WAITING_APPROVAL'");
         int dataUpdate = sql.indexOf("WHERE status = 'WAITING_APPROVAL'");
         int finalEnum = sql.lastIndexOf("MODIFY COLUMN status ENUM");
@@ -21,7 +21,7 @@ class MigrationLogicalConflictGuardTest {
 
     @Test
     void permissionMigrationCopiesLegacyRowsAndSupportsAllJavaRequestTypes() throws IOException {
-        String sql = read("migration/dev/V16__merge_permission_requests_into_change_requests.sql");
+        String sql = read("migration/dev/V17__merge_permission_requests_into_change_requests.sql");
 
         assertTrue(sql.contains("'ADD_CO_OCCUPANT'"));
         assertTrue(sql.contains("INSERT INTO hdbhms.change_requests"));
@@ -31,7 +31,7 @@ class MigrationLogicalConflictGuardTest {
 
     @Test
     void approvedGenericPermissionRequestsCreateMigratedGrants() throws IOException {
-        String sql = read("migration/dev/V17__add_permission_grants.sql");
+        String sql = read("migration/dev/V18__add_permission_grants.sql");
 
         assertTrue(sql.contains("'TENANT_PROFILE_ACCESS', 'PERMISSION_ACCESS'"));
     }

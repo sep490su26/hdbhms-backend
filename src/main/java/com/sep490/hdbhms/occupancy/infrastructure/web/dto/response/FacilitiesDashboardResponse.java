@@ -42,6 +42,7 @@ public class FacilitiesDashboardResponse {
         int roomCount;
         int occupiedRoomCount;
         int vacantRoomCount;
+        boolean hasFloorPlan;
         List<Floor> floors;
     }
 

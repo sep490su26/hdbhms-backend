@@ -2,6 +2,7 @@ package com.sep490.hdbhms.billingandpayment.domain.model;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,6 +24,7 @@ public class Invoice {
     Long depositAgreementId;
     Long depositBatchId;
     InvoiceType invoiceType;
+    InvoiceReason invoiceReason;
     @Builder.Default
     Integer revisionNo = 1;
     String billingPeriod;

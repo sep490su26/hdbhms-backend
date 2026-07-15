@@ -21,6 +21,7 @@ public interface VisitRequestRepository {
             String propertyCode,
             String roomCode,
             Long propertyId,
+            List<Long> propertyIds,
             Long roomId,
             VisitRequestStatus status,
             LocalDateTime from,
@@ -28,7 +29,7 @@ public interface VisitRequestRepository {
             Pageable pageable
     );
 
-    Page<VisitRequest> findDeleted(Pageable pageable);
+    Page<VisitRequest> findDeleted(List<Long> propertyIds, Pageable pageable);
 
     void deleteById(Long id);
 }

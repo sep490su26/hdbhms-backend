@@ -9,6 +9,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -35,6 +36,7 @@ class GetFacilitiesDashboardServiceTest {
         GetFacilitiesDashboardService service = service(
                 method -> method.equals("findAllByDeletedAtIsNull") ? List.of(property) : List.of(),
                 method -> method.equals("findAllByProperty_Id") ? List.of(floor) : List.of(),
+                method -> method.equals("existsByProperty_Id"),
                 method -> method.equals("findAllByProperty_IdAndDeletedAtIsNullOrderBySortOrderAscRoomCodeAsc")
                         ? rooms
                         : List.of(),
@@ -51,6 +53,7 @@ class GetFacilitiesDashboardServiceTest {
         assertEquals(1, response.getSummary().getVacantRooms());
         assertEquals(33, response.getSummary().getVacancyRate());
         assertEquals("Nhà trọ Hải Đăng", response.getFacilities().getFirst().getName());
+        assertTrue(response.getFacilities().getFirst().isHasFloorPlan());
         assertEquals(3, response.getFacilities().getFirst().getFloors().getFirst().getRooms().size());
     }
 
@@ -60,6 +63,7 @@ class GetFacilitiesDashboardServiceTest {
         GetFacilitiesDashboardService service = service(
                 method -> method.equals("findAllByIdInAndDeletedAtIsNull") ? List.of(assigned) : List.of(),
                 method -> List.of(),
+                method -> false,
                 method -> List.of(),
                 method -> method.equals("findActivePropertyIds") ? List.of(2L) : List.of()
         );
@@ -75,12 +79,14 @@ class GetFacilitiesDashboardServiceTest {
     private GetFacilitiesDashboardService service(
             ResultProvider propertyResults,
             ResultProvider floorResults,
+            ResultProvider floorPlanItemResults,
             ResultProvider roomResults,
             ResultProvider promotionResults
     ) {
         return new GetFacilitiesDashboardService(
                 proxy(JpaPropertyRepository.class, propertyResults),
                 proxy(JpaFloorRepository.class, floorResults),
+                proxy(JpaFloorPlanItemRepository.class, floorPlanItemResults),
                 proxy(JpaRoomRepository.class, roomResults),
                 proxy(JpaRolePromotionRepository.class, promotionResults)
         );

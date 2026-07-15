@@ -1,29 +1,14 @@
 SET NAMES utf8mb4;
 
-DROP PROCEDURE IF EXISTS hdbhms.seed_floor_4_5_complete_demo_v23;
-
 DELIMITER //
 
-CREATE PROCEDURE hdbhms.seed_floor_4_5_complete_demo_v23()
+CREATE PROCEDURE hdbhms.seed_floor_4_5_demo_scenarios_v27_nodrop()
 BEGIN
-    IF (SELECT COUNT(*) FROM hdbhms.properties WHERE property_code = 'HAI_DANG_1') <> 1 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'V23 requires exactly one HAI_DANG_1 property';
-    END IF;
-
-    IF (
-        SELECT COUNT(*)
-        FROM hdbhms.rooms r
-        JOIN hdbhms.properties p ON p.property_id = r.property_id
-        WHERE p.property_code = 'HAI_DANG_1'
-          AND r.room_code IN ('401','402','403','404','405','406','407','408','501','502','503','504','505','506','507')
-          AND r.deleted_at IS NULL
-    ) <> 15 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'V23 requires the 15 real rooms 401-408 and 501-507';
-    END IF;
-
     IF NOT EXISTS (
-        SELECT 1 FROM hdbhms.users
-        WHERE email = 'demo.manager@hdbhms.local' AND deleted_at IS NULL
+        SELECT 1
+        FROM hdbhms.users
+        WHERE email = 'demo.manager@hdbhms.local'
+          AND deleted_at IS NULL
     ) THEN
 
 -- Demo dataset scope: HAI_DANG_1, rooms 401-408 and 501-507 only.
@@ -51,6 +36,7 @@ SET @r507 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AN
 INSERT INTO hdbhms.users
     (phone, email, password_hash, role, status, last_login_at, email_verified, must_change_password, created_at, updated_at, deleted_at)
 VALUES
+    ('0988000001','demo.owner@hdbhms.local',@password_hash,'OWNER','ACTIVE','2026-07-10 08:00:00',TRUE,FALSE,'2026-01-01 08:00:00','2026-07-10 08:00:00',NULL),
     ('0988000002','demo.manager@hdbhms.local',@password_hash,'MANAGER','ACTIVE','2026-07-10 08:10:00',TRUE,FALSE,'2026-01-01 08:05:00','2026-07-10 08:10:00',NULL),
     ('0988000003','demo.accountant@hdbhms.local',@password_hash,'ACCOUNTANT','ACTIVE','2026-07-10 08:20:00',TRUE,FALSE,'2026-01-01 08:10:00','2026-07-10 08:20:00',NULL),
     ('0988000004','demo.guest@hdbhms.local',@password_hash,'LEAD','PENDING_CONTRACT',NULL,TRUE,FALSE,'2026-07-01 09:00:00','2026-07-01 09:00:00',NULL),
@@ -67,9 +53,8 @@ VALUES
     ('0988506001','demo.tenant506@hdbhms.local',@password_hash,'TENANT','ACTIVE','2026-07-10 21:30:00',TRUE,FALSE,'2025-01-01 08:00:00','2026-07-10 21:30:00',NULL),
     ('0988507001','demo.tenant507.history@hdbhms.local',@password_hash,'TENANT','ACTIVE',NULL,TRUE,FALSE,'2024-01-01 08:00:00','2026-06-30 18:00:00',NULL);
 
-SET @existing_owner_id := (SELECT user_id FROM hdbhms.users WHERE role='OWNER' AND status='ACTIVE' AND deleted_at IS NULL ORDER BY user_id LIMIT 1);
+SET @owner_id := (SELECT user_id FROM hdbhms.users WHERE email='demo.owner@hdbhms.local' AND deleted_at IS NULL LIMIT 1);
 SET @manager_id := (SELECT user_id FROM hdbhms.users WHERE email='demo.manager@hdbhms.local' AND deleted_at IS NULL LIMIT 1);
-SET @approver_id := COALESCE(@existing_owner_id,@manager_id);
 SET @accountant_id := (SELECT user_id FROM hdbhms.users WHERE email='demo.accountant@hdbhms.local' AND deleted_at IS NULL LIMIT 1);
 SET @guest_id := (SELECT user_id FROM hdbhms.users WHERE email='demo.guest@hdbhms.local' AND deleted_at IS NULL LIMIT 1);
 
@@ -78,16 +63,17 @@ INSERT INTO hdbhms.person_profiles
     (user_id, full_name, dob, gender, phone, email, permanent_address, portrait_file_id, created_at, updated_at, deleted_at)
 SELECT u.user_id, d.full_name, d.dob, d.gender, u.phone, u.email, d.address, NULL, d.created_at, d.created_at, NULL
 FROM (
-    SELECT 'demo.manager@hdbhms.local' email,'Trần Mai Quỳnh' full_name,'1990-03-20' dob,'FEMALE' gender,'Hà Nội (dữ liệu demo)' address,'2026-01-01 08:05:00' created_at UNION ALL
-    SELECT 'demo.accountant@hdbhms.local','Lê Hoài An','1992-09-18','FEMALE','Hà Nội (dữ liệu demo)','2026-01-01 08:10:00' UNION ALL
-    SELECT 'demo.guest@hdbhms.local','Phạm Gia Hân','2003-04-15','FEMALE','Hà Nội (dữ liệu demo)','2026-07-01 09:00:00' UNION ALL
+    SELECT 'demo.owner@hdbhms.local' email,'Nguyễn Minh Chủ' full_name,'1980-05-12' dob,'MALE' gender,'Hà Nội (dữ liệu demo)' address,'2026-01-01 08:00:00' created_at UNION ALL
+    SELECT 'demo.manager@hdbhms.local','Trần Mai Quản Lý','1990-03-20','FEMALE','Hà Nội (dữ liệu demo)','2026-01-01 08:05:00' UNION ALL
+    SELECT 'demo.accountant@hdbhms.local','Lê An Kế Toán','1992-09-18','FEMALE','Hà Nội (dữ liệu demo)','2026-01-01 08:10:00' UNION ALL
+    SELECT 'demo.guest@hdbhms.local','Phạm Gia Khách','2003-04-15','MALE','Hà Nội (dữ liệu demo)','2026-07-01 09:00:00' UNION ALL
     SELECT 'demo.tenant404@hdbhms.local','Đỗ Hoàng Anh','2002-01-15','MALE','Hà Nội (dữ liệu demo)','2025-09-01 08:00:00' UNION ALL
     SELECT 'demo.tenant404.co1@hdbhms.local','Vũ Ngọc Mai','2002-06-21','FEMALE','Hà Nội (dữ liệu demo)','2025-09-01 08:05:00' UNION ALL
     SELECT 'demo.tenant404.co2@hdbhms.local','Bùi Đức Long','2001-11-02','MALE','Hà Nội (dữ liệu demo)','2025-09-01 08:10:00' UNION ALL
     SELECT 'demo.tenant405@hdbhms.local','Nguyễn Minh Khoa','2001-08-09','MALE','Hà Nam (dữ liệu demo)','2026-01-01 08:00:00' UNION ALL
-    SELECT 'demo.tenant405.pending@hdbhms.local','Nguyễn Thảo Vy',NULL,'UNKNOWN',NULL,'2026-07-05 08:00:00' UNION ALL
+    SELECT 'demo.tenant405.pending@hdbhms.local','Người Ở Chung Chưa Hoàn Thiện',NULL,'UNKNOWN',NULL,'2026-07-05 08:00:00' UNION ALL
     SELECT 'demo.tenant406@hdbhms.local','Trần Thu Hà','2000-12-12','FEMALE','Nam Định (dữ liệu demo)','2025-09-01 08:00:00' UNION ALL
-    SELECT 'demo.tenant407@hdbhms.local','Lê Văn Huy','1999-07-07','MALE','Thái Bình (dữ liệu demo)','2025-07-01 08:00:00' UNION ALL
+    SELECT 'demo.tenant407@hdbhms.local','Lê Văn Hết Hạn','1999-07-07','MALE','Thái Bình (dữ liệu demo)','2025-07-01 08:00:00' UNION ALL
     SELECT 'demo.tenant501@hdbhms.local','Phạm Quốc Bảo','2002-02-14','MALE','Ninh Bình (dữ liệu demo)','2025-10-01 08:00:00' UNION ALL
     SELECT 'demo.tenant502@hdbhms.local','Hoàng Mỹ Linh','2002-10-10','FEMALE','Hải Dương (dữ liệu demo)','2025-10-01 08:00:00' UNION ALL
     SELECT 'demo.tenant503@hdbhms.local','Đặng Thành Nam','2000-05-05','MALE','Hà Nội (dữ liệu demo)','2025-01-01 08:00:00' UNION ALL
@@ -112,12 +98,12 @@ SET @p507 := (SELECT pp.person_profile_id FROM hdbhms.person_profiles pp JOIN hd
 INSERT INTO hdbhms.file_metadata
     (owner_user_id,storage_key,original_name,mime_type,size_bytes,sha256_checksum,category,is_sensitive,created_at,deleted_at)
 VALUES
-    (@approver_id,'local/manager-contract-before.pdf','hop-dong-thue-demo-draft.pdf','application/pdf',1,NULL,'LEASE_CONTRACT_DRAFT',TRUE,'2026-01-01 08:00:00',NULL),
-    (@approver_id,'local/manager-contract-after.pdf','hop-dong-thue-demo-signed.pdf','application/pdf',1,NULL,'CONTRACT',TRUE,'2026-01-01 08:00:00',NULL),
-    (@approver_id,'local/deposit/Hợp đồng TNT.pdf','hop-dong-coc-demo.pdf','application/pdf',1,NULL,'DEPOSIT_CONTRACT',TRUE,'2026-01-01 08:00:00',NULL),
-    (@approver_id,'local/test-id-front.png','cccd-demo-front.png','image/png',1,NULL,'ID_CARD',TRUE,'2026-01-01 08:00:00',NULL),
-    (@approver_id,'local/test-id-back.png','cccd-demo-back.png','image/png',1,NULL,'ID_CARD',TRUE,'2026-01-01 08:00:00',NULL),
-    (@approver_id,'local/test-portrait.png','anh-bao-tri-demo.png','image/png',1,NULL,'MAINTENANCE',FALSE,'2026-01-01 08:00:00',NULL);
+    (@owner_id,'local/manager-contract-before.pdf','hop-dong-thue-demo-draft.pdf','application/pdf',1,NULL,'LEASE_CONTRACT_DRAFT',TRUE,'2026-01-01 08:00:00',NULL),
+    (@owner_id,'local/manager-contract-after.pdf','hop-dong-thue-demo-signed.pdf','application/pdf',1,NULL,'CONTRACT',TRUE,'2026-01-01 08:00:00',NULL),
+    (@owner_id,'local/deposit/Hợp đồng TNT.pdf','hop-dong-coc-demo.pdf','application/pdf',1,NULL,'DEPOSIT_CONTRACT',TRUE,'2026-01-01 08:00:00',NULL),
+    (@owner_id,'local/test-id-front.png','cccd-demo-front.png','image/png',1,NULL,'ID_CARD',TRUE,'2026-01-01 08:00:00',NULL),
+    (@owner_id,'local/test-id-back.png','cccd-demo-back.png','image/png',1,NULL,'ID_CARD',TRUE,'2026-01-01 08:00:00',NULL),
+    (@owner_id,'local/test-portrait.png','anh-bao-tri-demo.png','image/png',1,NULL,'MAINTENANCE',FALSE,'2026-01-01 08:00:00',NULL);
 
 SET @lease_draft_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key='local/manager-contract-before.pdf' AND original_name='hop-dong-thue-demo-draft.pdf' ORDER BY file_metadata_id DESC LIMIT 1);
 SET @lease_signed_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key='local/manager-contract-after.pdf' AND original_name='hop-dong-thue-demo-signed.pdf' ORDER BY file_metadata_id DESC LIMIT 1);
@@ -128,7 +114,7 @@ SET @maintenance_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHER
 
 UPDATE hdbhms.person_profiles
 SET portrait_file_id=@maintenance_file
-WHERE user_id IN (@approver_id,@manager_id,@accountant_id,@guest_id);
+WHERE user_id IN (@owner_id,@manager_id,@accountant_id,@guest_id);
 
 UPDATE hdbhms.person_profiles
 SET portrait_file_id=@maintenance_file
@@ -165,9 +151,9 @@ WHERE u.role='TENANT' AND u.email LIKE 'demo.%@hdbhms.local' AND u.email <> 'dem
 
 INSERT INTO hdbhms.vehicles (profile_id,vehicle_type,license_plate,image_file_id,status,created_at,deleted_at)
 VALUES
-    (@p404,'MOTORBIKE','29-D1 404.01',NULL,'ACTIVE','2025-09-01 08:00:00',NULL),
-    (@p404,'BICYCLE','XD-404-01',NULL,'ACTIVE','2025-09-01 08:00:00',NULL),
-    (@p501,'MOTORBIKE','29-D1 501.01',NULL,'ACTIVE','2025-10-01 08:00:00',NULL);
+    (@p404,'MOTORBIKE','29-DM404.01',NULL,'ACTIVE','2025-09-01 08:00:00',NULL),
+    (@p404,'BICYCLE','DEMO-404-BIKE',NULL,'ACTIVE','2025-09-01 08:00:00',NULL),
+    (@p501,'MOTORBIKE','29-DM501.01',NULL,'ACTIVE','2025-10-01 08:00:00',NULL);
 
 INSERT INTO hdbhms.role_promotions (user_id,role,status,property_id,approved_at,created_at,updated_at,deleted_at)
 VALUES
@@ -177,11 +163,12 @@ VALUES
 INSERT INTO hdbhms.property_staff_assignments
     (property_id,staff_user_id,assigned_role,assignment_status,is_primary,notes,assigned_by_user_id,started_at,ended_at,created_at,updated_at)
 VALUES
-    (@property_id,@manager_id,'MANAGER','ACTIVE',TRUE,'Quản lý chính - dữ liệu demo',@approver_id,'2026-01-01 09:00:00',NULL,'2026-01-01 09:00:00','2026-01-01 09:00:00'),
-    (@property_id,@accountant_id,'ACCOUNTANT','ACTIVE',FALSE,'Kế toán demo chỉ xem báo cáo',@approver_id,'2026-01-01 09:00:00',NULL,'2026-01-01 09:00:00','2026-01-01 09:00:00');
+    (@property_id,@manager_id,'MANAGER','ACTIVE',TRUE,'Quản lý chính - dữ liệu demo',@owner_id,'2026-01-01 09:00:00',NULL,'2026-01-01 09:00:00','2026-01-01 09:00:00'),
+    (@property_id,@accountant_id,'ACCOUNTANT','ACTIVE',FALSE,'Kế toán demo chỉ xem báo cáo',@owner_id,'2026-01-01 09:00:00',NULL,'2026-01-01 09:00:00','2026-01-01 09:00:00');
 
 INSERT INTO hdbhms.login_history (user_id,status,ip_address,user_agent,method,session_id,device_id,logged_in_at)
 VALUES
+    (@owner_id,'SUCCESS','127.0.0.1','Demo Web Browser','PASSWORD','DEMO-OWNER-SESSION','DEMO-WEB','2026-07-10 08:00:00'),
     (@manager_id,'SUCCESS','127.0.0.1','Demo Web Browser','PASSWORD','DEMO-MANAGER-SESSION','DEMO-WEB','2026-07-10 08:10:00'),
     (@accountant_id,'SUCCESS','127.0.0.1','Demo Web Browser','PASSWORD','DEMO-ACCOUNTANT-SESSION','DEMO-WEB','2026-07-10 08:20:00'),
     (@guest_id,'INVALID_PASSWORD','127.0.0.1','Demo Public Browser','PASSWORD',NULL,'DEMO-WEB','2026-07-10 08:30:00'),
@@ -191,22 +178,22 @@ VALUES
 INSERT INTO hdbhms.collection_accounts
     (property_id,account_type,bank_name,account_number,account_holder,provider,status,created_at)
 VALUES
-    (@property_id,'RENT','Ngân hàng TMCP Quân Đội','190368040401','CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG','BANK','ACTIVE','2026-01-01 08:00:00'),
-    (@property_id,'UTILITY','Ngân hàng TMCP Ngoại thương Việt Nam','1029995501','CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG','BANK','ACTIVE','2026-01-01 08:00:00'),
-    (@property_id,'DEPOSIT','Ngân hàng TMCP Đầu tư và Phát triển Việt Nam','2151000888402','CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG','BANK','ACTIVE','2026-01-01 08:00:00'),
-    (@property_id,'OPERATING','Quỹ tiền mặt cơ sở Hải Đăng','TM-HD-01','CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG','CASH','ACTIVE','2026-01-01 08:00:00');
+    (@property_id,'RENT','Ngân hàng Demo','DEMO-RENT-001','HDBHMS DEMO','BANK','ACTIVE','2026-01-01 08:00:00'),
+    (@property_id,'UTILITY','Ngân hàng Demo','DEMO-UTILITY-001','HDBHMS DEMO','BANK','ACTIVE','2026-01-01 08:00:00'),
+    (@property_id,'DEPOSIT','Ngân hàng Demo','DEMO-DEPOSIT-001','HDBHMS DEMO','BANK','ACTIVE','2026-01-01 08:00:00'),
+    (@property_id,'OPERATING','Tiền mặt Demo','DEMO-OPERATING-001','HDBHMS DEMO','CASH','ACTIVE','2026-01-01 08:00:00');
 
-SET @rent_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='190368040401' LIMIT 1);
-SET @utility_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='1029995501' LIMIT 1);
-SET @deposit_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='2151000888402' LIMIT 1);
-SET @operating_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='TM-HD-01' LIMIT 1);
+SET @rent_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='DEMO-RENT-001' LIMIT 1);
+SET @utility_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='DEMO-UTILITY-001' LIMIT 1);
+SET @deposit_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='DEMO-DEPOSIT-001' LIMIT 1);
+SET @operating_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='DEMO-OPERATING-001' LIMIT 1);
 
 INSERT INTO hdbhms.utility_tariffs
     (property_id,utility_type,unit_price,free_allowance,service_fee_waive_electricity_threshold,effective_from,effective_to,created_by,created_at)
 VALUES
-    (@property_id,'ELECTRICITY',3500,0,NULL,'2026-01-01',NULL,@approver_id,'2026-01-01 08:00:00'),
-    (@property_id,'WATER',20000,6,NULL,'2026-01-01',NULL,@approver_id,'2026-01-01 08:00:00'),
-    (@property_id,'SERVICE_FEE',50000,0,100000,'2026-01-01',NULL,@approver_id,'2026-01-01 08:00:00');
+    (@property_id,'ELECTRICITY',3500,0,NULL,'2026-01-01',NULL,@owner_id,'2026-01-01 08:00:00'),
+    (@property_id,'WATER',20000,6,NULL,'2026-01-01',NULL,@owner_id,'2026-01-01 08:00:00'),
+    (@property_id,'SERVICE_FEE',50000,0,100000,'2026-01-01',NULL,@owner_id,'2026-01-01 08:00:00');
 
 -- Room scenario states.
 UPDATE hdbhms.rooms SET current_status='RESERVED_FOR_TRANSFER',internal_note='DEMO: đơn chuyển phòng đã duyệt, chờ bước tiếp theo',updated_at='2026-07-10 08:00:00' WHERE room_id=@r401;
@@ -230,18 +217,18 @@ VALUES
     (@r401,'VACANT','RESERVED','Đơn chuyển phòng đã được duyệt (demo)',@manager_id,'2026-07-09 09:00:00'),
     (@r402,'VACANT','RESERVED','Thanh toán cọc thành công (demo)',@manager_id,'2026-07-01 10:00:00'),
     (@r403,'VACANT','RESERVED','Giữ tạm khi xử lý thanh toán cọc (demo)',NULL,'2026-07-10 08:00:00'),
-    (@r404,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@approver_id,'2025-09-01 09:00:00'),
-    (@r405,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@approver_id,'2026-01-01 09:00:00'),
+    (@r404,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@owner_id,'2025-09-01 09:00:00'),
+    (@r405,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@owner_id,'2026-01-01 09:00:00'),
     (@r406,'OCCUPIED','SOON_VACANT','Người thuê xác nhận chuyển đi (demo)',@manager_id,'2026-06-01 09:00:00'),
     (@r407,'OCCUPIED','EXPIRED','Hợp đồng hết hạn chưa xử lý (demo)',NULL,'2026-07-06 00:00:00'),
     (@r408,'VACANT','MAINTENANCE','Sửa hệ thống điện phòng (demo)',@manager_id,'2026-07-01 08:00:00'),
-    (@r501,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@approver_id,'2025-10-01 09:00:00'),
-    (@r502,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@approver_id,'2025-10-01 09:00:00'),
-    (@r503,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@approver_id,'2025-01-01 09:00:00'),
+    (@r501,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@owner_id,'2025-10-01 09:00:00'),
+    (@r502,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@owner_id,'2025-10-01 09:00:00'),
+    (@r503,'RESERVED','OCCUPIED','Hợp đồng thuê đã kích hoạt (demo)',@owner_id,'2025-01-01 09:00:00'),
     (@r504,'VACANT','RESERVED','Giữ phòng cho chuyển phòng 503 (demo)',@manager_id,'2026-07-08 09:00:00'),
     (@r505,'OCCUPIED','VACANT','Đã chuyển người thuê sang phòng 507 (demo lịch sử)',@manager_id,'2025-12-01 09:00:00'),
-    (@r506,'RESERVED','OCCUPIED','Hợp đồng gia hạn đang hiệu lực (demo)',@approver_id,'2026-01-01 09:00:00'),
-    (@r507,'OCCUPIED','VACANT','Đã thanh lý và hoàn tất bàn giao (demo)',@approver_id,'2026-06-30 18:00:00');
+    (@r506,'RESERVED','OCCUPIED','Hợp đồng gia hạn đang hiệu lực (demo)',@owner_id,'2026-01-01 09:00:00'),
+    (@r507,'OCCUPIED','VACANT','Đã thanh lý và hoàn tất bàn giao (demo)',@owner_id,'2026-06-30 18:00:00');
 
 -- Assets and meters for every room in scope.
 INSERT INTO hdbhms.room_assets
@@ -341,11 +328,11 @@ SET @t507 := (SELECT tenant_id FROM hdbhms.tenants WHERE user_id=@u507 AND prope
 INSERT INTO hdbhms.deposit_forms
     (room_id,id_number,id_issue_date,id_issue_place,id_front_file_id,id_back_file_id,portrait_file_id,full_name,dob,email,phone,permanent_address,expected_move_in_date,expected_lease_sign_date,payment_due_at,deposit_expires_at,status,confirmed_at,reject_reason,created_at,deposit_months,payment_cycle_months,occupant_count)
 VALUES
-    (@r402,'079200000004','2021-01-15','Cục CSQLHC về TTXH',@id_front_file,@id_back_file,@maintenance_file,'Phạm Gia Hân','2003-04-15','demo.guest@hdbhms.local','0988000004','Hà Nội (dữ liệu demo)','2026-08-01','2026-07-25','2026-07-01 10:00:00','2026-08-15','APPROVED','2026-07-01 09:30:00',NULL,'2026-07-01 09:00:00',1,1,1),
-    (@r403,'079200000031','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Võ Đức Thành','2003-01-01','demo.deposit.pending@hdbhms.local','0988000031','Hà Nội (dữ liệu demo)','2026-08-10','2026-08-01','2026-12-31 23:00:00','2026-12-31','APPROVED','2026-07-10 08:00:00',NULL,'2026-07-10 07:50:00',1,1,1),
-    (@r403,'079200000032','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Đặng Bảo Ngọc','2003-01-02','demo.deposit.failed@hdbhms.local','0988000032','Hà Nội (dữ liệu demo)','2026-07-01','2026-06-25','2026-06-20 10:00:00','2026-07-10','APPROVED','2026-06-20 09:00:00',NULL,'2026-06-20 08:50:00',1,1,1),
-    (@r403,'079200000033','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Nguyễn Tuấn Kiệt','2003-01-03','demo.deposit.cancelled@hdbhms.local','0988000033','Hà Nội (dữ liệu demo)','2026-06-01','2026-05-25','2026-05-20 10:00:00','2026-06-10','APPROVED','2026-05-20 09:00:00',NULL,'2026-05-20 08:50:00',1,1,1),
-    (@r403,'079200000034','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Trần Khánh Linh','2003-01-04','demo.deposit.expired@hdbhms.local','0988000034','Hà Nội (dữ liệu demo)','2026-05-01','2026-04-25','2026-04-20 10:00:00','2026-05-15','APPROVED','2026-04-20 09:00:00',NULL,'2026-04-20 08:50:00',1,1,1);
+    (@r402,'079200000004','2021-01-15','Cục CSQLHC về TTXH',@id_front_file,@id_back_file,@maintenance_file,'Phạm Gia Khách','2003-04-15','demo.guest@hdbhms.local','0988000004','Hà Nội (dữ liệu demo)','2026-08-01','2026-07-25','2026-07-01 10:00:00','2026-08-15','APPROVED','2026-07-01 09:30:00',NULL,'2026-07-01 09:00:00',1,1,1),
+    (@r403,'079200000031','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Khách Chờ Thanh Toán','2003-01-01','demo.deposit.pending@hdbhms.local','0988000031','Hà Nội (dữ liệu demo)','2026-08-10','2026-08-01','2026-12-31 23:00:00','2026-12-31','APPROVED','2026-07-10 08:00:00',NULL,'2026-07-10 07:50:00',1,1,1),
+    (@r403,'079200000032','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Khách Thanh Toán Thất Bại','2003-01-02','demo.deposit.failed@hdbhms.local','0988000032','Hà Nội (dữ liệu demo)','2026-07-01','2026-06-25','2026-06-20 10:00:00','2026-07-10','APPROVED','2026-06-20 09:00:00',NULL,'2026-06-20 08:50:00',1,1,1),
+    (@r403,'079200000033','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Khách Đã Hủy Cọc','2003-01-03','demo.deposit.cancelled@hdbhms.local','0988000033','Hà Nội (dữ liệu demo)','2026-06-01','2026-05-25','2026-05-20 10:00:00','2026-06-10','APPROVED','2026-05-20 09:00:00',NULL,'2026-05-20 08:50:00',1,1,1),
+    (@r403,'079200000034','2021-01-15','Cục CSQLHC về TTXH',NULL,NULL,NULL,'Khách Quá Hạn Mất Cọc','2003-01-04','demo.deposit.expired@hdbhms.local','0988000034','Hà Nội (dữ liệu demo)','2026-05-01','2026-04-25','2026-04-20 10:00:00','2026-05-15','APPROVED','2026-04-20 09:00:00',NULL,'2026-04-20 08:50:00',1,1,1);
 
 SET @form402 := (SELECT deposit_form_id FROM hdbhms.deposit_forms WHERE email='demo.guest@hdbhms.local' ORDER BY deposit_form_id DESC LIMIT 1);
 SET @form403pending := (SELECT deposit_form_id FROM hdbhms.deposit_forms WHERE email='demo.deposit.pending@hdbhms.local' ORDER BY deposit_form_id DESC LIMIT 1);
@@ -366,25 +353,25 @@ SET @hold403pending := (SELECT room_hold_id FROM hdbhms.room_holds WHERE room_id
 INSERT INTO hdbhms.deposit_agreements
     (deposit_code,room_id,room_hold_id,deposit_form_id,tenant_id,lead_id,depositor_person_profile_id,amount,expected_move_in_date,expected_lease_sign_date,payment_due_at,deposit_expires_at,extension_count,max_extensions,status,confirmed_at,contract_file_id,signed_file_id,signed_at,signed_uploaded_by,note,forfeiture_reason,refunded_amount,created_at,updated_at)
 VALUES
-    ('DEMO-DEP-402-SUCCESS',@r402,@hold402,@form402,NULL,NULL,@p_guest,2600000,'2026-08-01','2026-07-25','2026-07-01 10:00:00','2026-08-15',0,1,'CONFIRMED','2026-07-01 10:00:00',@deposit_file,@deposit_file,'2026-07-01 10:30:00',@approver_id,'Đặt cọc thành công - chờ ký hợp đồng thuê',NULL,NULL,'2026-07-01 09:00:00','2026-07-01 10:30:00'),
+    ('DEMO-DEP-402-SUCCESS',@r402,@hold402,@form402,NULL,NULL,@p_guest,2600000,'2026-08-01','2026-07-25','2026-07-01 10:00:00','2026-08-15',0,1,'CONFIRMED','2026-07-01 10:00:00',@deposit_file,@deposit_file,'2026-07-01 10:30:00',@owner_id,'Đặt cọc thành công - chờ ký hợp đồng thuê',NULL,NULL,'2026-07-01 09:00:00','2026-07-01 10:30:00'),
     ('DEMO-DEP-403-PENDING',@r403,@hold403pending,@form403pending,NULL,NULL,NULL,2600000,'2026-08-10','2026-08-01','2026-12-31 23:00:00','2026-12-31',0,1,'PENDING_PAYMENT',NULL,@deposit_file,NULL,NULL,NULL,'Đang chờ thanh toán QR',NULL,NULL,'2026-07-10 07:50:00','2026-07-10 07:50:00'),
     ('DEMO-DEP-403-FAILED',@r403,NULL,@form403failed,NULL,NULL,NULL,2600000,'2026-07-01','2026-06-25','2026-06-20 10:00:00','2026-07-10',0,1,'CANCELLED',NULL,@deposit_file,NULL,NULL,NULL,'Thanh toán thất bại, phòng đã được nhả',NULL,NULL,'2026-06-20 08:50:00','2026-06-20 10:00:00'),
     ('DEMO-DEP-403-CANCELLED',@r403,NULL,@form403cancelled,NULL,NULL,NULL,2600000,'2026-06-01','2026-05-25','2026-05-20 10:00:00','2026-06-10',0,1,'CANCELLED',NULL,@deposit_file,NULL,NULL,NULL,'Khách chủ động hủy trước thanh toán',NULL,NULL,'2026-05-20 08:50:00','2026-05-20 09:30:00'),
-    ('DEMO-DEP-403-FORFEITED',@r403,NULL,@form403expired,NULL,NULL,NULL,2600000,'2026-05-01','2026-04-25','2026-04-20 10:00:00','2026-05-15',0,1,'FORFEITED','2026-04-20 10:00:00',@deposit_file,@deposit_file,'2026-04-20 10:30:00',@approver_id,'Quá hạn ký hợp đồng','Khách không đến ký đúng hạn',0,'2026-04-20 08:50:00','2026-05-15 18:00:00');
+    ('DEMO-DEP-403-FORFEITED',@r403,NULL,@form403expired,NULL,NULL,NULL,2600000,'2026-05-01','2026-04-25','2026-04-20 10:00:00','2026-05-15',0,1,'FORFEITED','2026-04-20 10:00:00',@deposit_file,@deposit_file,'2026-04-20 10:30:00',@owner_id,'Quá hạn ký hợp đồng','Khách không đến ký đúng hạn',0,'2026-04-20 08:50:00','2026-05-15 18:00:00');
 
 -- Preceding deposits for lease contracts; renewed contracts inherit the old deposit through history.
 INSERT INTO hdbhms.deposit_agreements
     (deposit_code,room_id,room_hold_id,deposit_form_id,tenant_id,lead_id,depositor_person_profile_id,amount,expected_move_in_date,expected_lease_sign_date,payment_due_at,deposit_expires_at,extension_count,max_extensions,status,confirmed_at,contract_file_id,signed_file_id,signed_at,signed_uploaded_by,note,forfeiture_reason,refunded_amount,created_at,updated_at)
 VALUES
-    ('DEMO-DEP-404',@r404,NULL,NULL,@t404,NULL,@p404,2450000,'2025-09-01','2025-08-25','2025-08-20 10:00:00','2025-09-15',0,1,'CONVERTED_TO_LEASE','2025-08-20 10:00:00',@deposit_file,@deposit_file,'2025-08-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-08-20 09:00:00','2025-09-01 09:00:00'),
-    ('DEMO-DEP-405',@r405,NULL,NULL,@t405,NULL,@p405,2550000,'2026-01-01','2025-12-25','2025-12-20 10:00:00','2026-01-15',0,1,'CONVERTED_TO_LEASE','2025-12-20 10:00:00',@deposit_file,@deposit_file,'2025-12-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-12-20 09:00:00','2026-01-01 09:00:00'),
-    ('DEMO-DEP-406',@r406,NULL,NULL,@t406,NULL,@p406,2600000,'2025-09-01','2025-08-25','2025-08-20 10:00:00','2025-09-15',0,1,'CONVERTED_TO_LEASE','2025-08-20 10:00:00',@deposit_file,@deposit_file,'2025-08-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-08-20 09:00:00','2025-09-01 09:00:00'),
-    ('DEMO-DEP-407',@r407,NULL,NULL,@t407,NULL,@p407,2700000,'2025-07-01','2025-06-25','2025-06-20 10:00:00','2025-07-15',0,1,'CONVERTED_TO_LEASE','2025-06-20 10:00:00',@deposit_file,@deposit_file,'2025-06-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-06-20 09:00:00','2025-07-01 09:00:00'),
-    ('DEMO-DEP-501',@r501,NULL,NULL,@t501,NULL,@p501,2600000,'2025-10-01','2025-09-25','2025-09-20 10:00:00','2025-10-15',0,1,'CONVERTED_TO_LEASE','2025-09-20 10:00:00',@deposit_file,@deposit_file,'2025-09-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-09-20 09:00:00','2025-10-01 09:00:00'),
-    ('DEMO-DEP-502',@r502,NULL,NULL,@t502,NULL,@p502,2600000,'2025-10-01','2025-09-25','2025-09-20 10:00:00','2025-10-15',0,1,'CONVERTED_TO_LEASE','2025-09-20 10:00:00',@deposit_file,@deposit_file,'2025-09-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-09-20 09:00:00','2025-10-01 09:00:00'),
-    ('DEMO-DEP-503',@r503,NULL,NULL,@t503,NULL,@p503,2400000,'2025-01-01','2024-12-25','2024-12-20 10:00:00','2025-01-15',0,1,'CONVERTED_TO_LEASE','2024-12-20 10:00:00',@deposit_file,@deposit_file,'2024-12-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2024-12-20 09:00:00','2025-01-01 09:00:00'),
-    ('DEMO-DEP-506',@r506,NULL,NULL,@t506,NULL,@p506,2700000,'2025-01-01','2024-12-25','2024-12-20 10:00:00','2025-01-15',0,1,'CONVERTED_TO_LEASE','2024-12-20 10:00:00',@deposit_file,@deposit_file,'2024-12-20 10:30:00',@approver_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2024-12-20 09:00:00','2025-01-01 09:00:00'),
-    ('DEMO-DEP-505-HISTORY',@r505,NULL,NULL,@t507,NULL,@p507,3000000,'2024-01-01','2023-12-25','2023-12-20 10:00:00','2024-01-15',0,1,'CONVERTED_TO_LEASE','2023-12-20 10:00:00',@deposit_file,@deposit_file,'2023-12-20 10:30:00',@approver_id,'Cọc lịch sử trước chuyển phòng',NULL,NULL,'2023-12-20 09:00:00','2024-01-01 09:00:00');
+    ('DEMO-DEP-404',@r404,NULL,NULL,@t404,NULL,@p404,2450000,'2025-09-01','2025-08-25','2025-08-20 10:00:00','2025-09-15',0,1,'CONVERTED_TO_LEASE','2025-08-20 10:00:00',@deposit_file,@deposit_file,'2025-08-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-08-20 09:00:00','2025-09-01 09:00:00'),
+    ('DEMO-DEP-405',@r405,NULL,NULL,@t405,NULL,@p405,2550000,'2026-01-01','2025-12-25','2025-12-20 10:00:00','2026-01-15',0,1,'CONVERTED_TO_LEASE','2025-12-20 10:00:00',@deposit_file,@deposit_file,'2025-12-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-12-20 09:00:00','2026-01-01 09:00:00'),
+    ('DEMO-DEP-406',@r406,NULL,NULL,@t406,NULL,@p406,2600000,'2025-09-01','2025-08-25','2025-08-20 10:00:00','2025-09-15',0,1,'CONVERTED_TO_LEASE','2025-08-20 10:00:00',@deposit_file,@deposit_file,'2025-08-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-08-20 09:00:00','2025-09-01 09:00:00'),
+    ('DEMO-DEP-407',@r407,NULL,NULL,@t407,NULL,@p407,2700000,'2025-07-01','2025-06-25','2025-06-20 10:00:00','2025-07-15',0,1,'CONVERTED_TO_LEASE','2025-06-20 10:00:00',@deposit_file,@deposit_file,'2025-06-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-06-20 09:00:00','2025-07-01 09:00:00'),
+    ('DEMO-DEP-501',@r501,NULL,NULL,@t501,NULL,@p501,2600000,'2025-10-01','2025-09-25','2025-09-20 10:00:00','2025-10-15',0,1,'CONVERTED_TO_LEASE','2025-09-20 10:00:00',@deposit_file,@deposit_file,'2025-09-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-09-20 09:00:00','2025-10-01 09:00:00'),
+    ('DEMO-DEP-502',@r502,NULL,NULL,@t502,NULL,@p502,2600000,'2025-10-01','2025-09-25','2025-09-20 10:00:00','2025-10-15',0,1,'CONVERTED_TO_LEASE','2025-09-20 10:00:00',@deposit_file,@deposit_file,'2025-09-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2025-09-20 09:00:00','2025-10-01 09:00:00'),
+    ('DEMO-DEP-503',@r503,NULL,NULL,@t503,NULL,@p503,2400000,'2025-01-01','2024-12-25','2024-12-20 10:00:00','2025-01-15',0,1,'CONVERTED_TO_LEASE','2024-12-20 10:00:00',@deposit_file,@deposit_file,'2024-12-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2024-12-20 09:00:00','2025-01-01 09:00:00'),
+    ('DEMO-DEP-506',@r506,NULL,NULL,@t506,NULL,@p506,2700000,'2025-01-01','2024-12-25','2024-12-20 10:00:00','2025-01-15',0,1,'CONVERTED_TO_LEASE','2024-12-20 10:00:00',@deposit_file,@deposit_file,'2024-12-20 10:30:00',@owner_id,'Đã chuyển thành hợp đồng thuê',NULL,NULL,'2024-12-20 09:00:00','2025-01-01 09:00:00'),
+    ('DEMO-DEP-505-HISTORY',@r505,NULL,NULL,@t507,NULL,@p507,3000000,'2024-01-01','2023-12-25','2023-12-20 10:00:00','2024-01-15',0,1,'CONVERTED_TO_LEASE','2023-12-20 10:00:00',@deposit_file,@deposit_file,'2023-12-20 10:30:00',@owner_id,'Cọc lịch sử trước chuyển phòng',NULL,NULL,'2023-12-20 09:00:00','2024-01-01 09:00:00');
 
 SET @dep402 := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-402-SUCCESS');
 SET @dep404 := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-404');
@@ -403,15 +390,15 @@ INSERT INTO hdbhms.lease_contracts
 VALUES
     ('DEMO-LEASE-505-DRAFT',@r505,NULL,@p_guest,'2026-09-01','2027-08-31','2026-09-01',2800000,1,2800000,'DRAFT',NULL,NULL,NULL,NULL,@lease_draft_file,NULL,NULL,NULL,NULL,'2026-07-01 09:00:00','2026-07-01 09:00:00',NULL,0),
     ('DEMO-LEASE-402-PENDING',@r402,@dep402,@p_guest,'2026-08-01','2027-07-31','2026-08-01',2600000,1,2600000,'PENDING_SIGNATURE',NULL,NULL,NULL,NULL,@lease_draft_file,NULL,NULL,NULL,NULL,'2026-07-02 09:00:00','2026-07-02 09:00:00',NULL,0),
-    ('DEMO-LEASE-404-ACTIVE',@r404,@dep404,@p404,'2025-09-01','2027-08-31','2025-09-01',2450000,1,2450000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2025-09-01 08:30:00',@t404,'2025-08-20 09:00:00','2025-09-01 09:00:00',NULL,0),
-    ('DEMO-LEASE-405-ACTIVE',@r405,@dep405,@p405,'2026-01-01','2026-12-31','2026-01-01',2550000,1,2550000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2026-01-01 08:30:00',@t405,'2025-12-20 09:00:00','2026-01-01 09:00:00',NULL,0),
-    ('DEMO-LEASE-406-EXPIRING',@r406,@dep406,@p406,'2025-09-01','2026-08-31','2025-09-01',2600000,3,2600000,'EXPIRING_SOON','MOVE_OUT','2026-08-31','2026-06-01 09:00:00',NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2025-09-01 08:30:00',@t406,'2025-08-20 09:00:00','2026-06-01 09:00:00',NULL,0),
-    ('DEMO-LEASE-407-EXPIRED',@r407,@dep407,@p407,'2025-07-01','2026-07-05','2025-07-01',2700000,1,2700000,'EXPIRED',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2025-07-01 08:30:00',@t407,'2025-06-20 09:00:00','2026-07-06 00:00:00',NULL,0),
-    ('DEMO-LEASE-501-ACTIVE',@r501,@dep501,@p501,'2025-10-01','2027-09-30','2025-10-01',2600000,1,2600000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2025-10-01 08:30:00',@t501,'2025-09-20 09:00:00','2025-10-01 09:00:00',NULL,0),
-    ('DEMO-LEASE-502-ACTIVE',@r502,@dep502,@p502,'2025-10-01','2027-09-30','2025-10-01',2600000,1,2600000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2025-10-01 08:30:00',@t502,'2025-09-20 09:00:00','2025-10-01 09:00:00',NULL,0),
-    ('DEMO-LEASE-503-ACTIVE',@r503,@dep503,@p503,'2025-01-01','2027-12-31','2025-01-01',2400000,3,2400000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2025-01-01 08:30:00',@t503,'2024-12-20 09:00:00','2025-01-01 09:00:00',NULL,0),
-    ('DEMO-LEASE-506-OLD',@r506,@dep506,@p506,'2025-01-01','2025-12-31','2025-01-01',2600000,1,2600000,'RENEWED','RENEW',NULL,'2025-10-01 09:00:00',NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2025-01-01 08:30:00',@t506,'2024-12-20 09:00:00','2025-12-15 09:00:00',NULL,0),
-    ('DEMO-LEASE-505-TRANSFERRED',@r505,@dep505hist,@p507,'2024-01-01','2025-12-31','2024-01-01',3000000,3,3000000,'TRANSFERRED','TRANSFER',NULL,'2025-11-15 09:00:00',NULL,@lease_draft_file,@lease_signed_file,@approver_id,'2024-01-01 08:30:00',@t507,'2023-12-20 09:00:00','2025-12-01 09:00:00',NULL,0);
+    ('DEMO-LEASE-404-ACTIVE',@r404,@dep404,@p404,'2025-09-01','2027-08-31','2025-09-01',2450000,1,2450000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2025-09-01 08:30:00',@t404,'2025-08-20 09:00:00','2025-09-01 09:00:00',NULL,0),
+    ('DEMO-LEASE-405-ACTIVE',@r405,@dep405,@p405,'2026-01-01','2026-12-31','2026-01-01',2550000,1,2550000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2026-01-01 08:30:00',@t405,'2025-12-20 09:00:00','2026-01-01 09:00:00',NULL,0),
+    ('DEMO-LEASE-406-EXPIRING',@r406,@dep406,@p406,'2025-09-01','2026-08-31','2025-09-01',2600000,3,2600000,'EXPIRING_SOON','MOVE_OUT','2026-08-31','2026-06-01 09:00:00',NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2025-09-01 08:30:00',@t406,'2025-08-20 09:00:00','2026-06-01 09:00:00',NULL,0),
+    ('DEMO-LEASE-407-EXPIRED',@r407,@dep407,@p407,'2025-07-01','2026-07-05','2025-07-01',2700000,1,2700000,'EXPIRED',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2025-07-01 08:30:00',@t407,'2025-06-20 09:00:00','2026-07-06 00:00:00',NULL,0),
+    ('DEMO-LEASE-501-ACTIVE',@r501,@dep501,@p501,'2025-10-01','2027-09-30','2025-10-01',2600000,1,2600000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2025-10-01 08:30:00',@t501,'2025-09-20 09:00:00','2025-10-01 09:00:00',NULL,0),
+    ('DEMO-LEASE-502-ACTIVE',@r502,@dep502,@p502,'2025-10-01','2027-09-30','2025-10-01',2600000,1,2600000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2025-10-01 08:30:00',@t502,'2025-09-20 09:00:00','2025-10-01 09:00:00',NULL,0),
+    ('DEMO-LEASE-503-ACTIVE',@r503,@dep503,@p503,'2025-01-01','2027-12-31','2025-01-01',2400000,3,2400000,'ACTIVE',NULL,NULL,NULL,NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2025-01-01 08:30:00',@t503,'2024-12-20 09:00:00','2025-01-01 09:00:00',NULL,0),
+    ('DEMO-LEASE-506-OLD',@r506,@dep506,@p506,'2025-01-01','2025-12-31','2025-01-01',2600000,1,2600000,'RENEWED','RENEW',NULL,'2025-10-01 09:00:00',NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2025-01-01 08:30:00',@t506,'2024-12-20 09:00:00','2025-12-15 09:00:00',NULL,0),
+    ('DEMO-LEASE-505-TRANSFERRED',@r505,@dep505hist,@p507,'2024-01-01','2025-12-31','2024-01-01',3000000,3,3000000,'TRANSFERRED','TRANSFER',NULL,'2025-11-15 09:00:00',NULL,@lease_draft_file,@lease_signed_file,@owner_id,'2024-01-01 08:30:00',@t507,'2023-12-20 09:00:00','2025-12-01 09:00:00',NULL,0);
 
 SET @c506old := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code='DEMO-LEASE-506-OLD');
 SET @c505old := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code='DEMO-LEASE-505-TRANSFERRED');
@@ -419,8 +406,8 @@ SET @c505old := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE cont
 INSERT INTO hdbhms.lease_contracts
     (contract_code,room_id,deposit_agreement_id,primary_tenant_profile_id,start_date,end_date,rent_start_date,monthly_rent,payment_cycle_months,deposit_amount,status,tenant_intention,expected_vacant_date,intention_recorded_at,previous_contract_id,contract_file_id,signed_file_id,signed_uploaded_by,signed_at,created_by,created_at,updated_at,deleted_at,version)
 VALUES
-    ('DEMO-LEASE-506-RENEWED',@r506,NULL,@p506,'2026-01-01','2026-12-31','2026-01-01',2700000,1,2600000,'ACTIVE',NULL,NULL,NULL,@c506old,@lease_draft_file,@lease_signed_file,@approver_id,'2026-01-01 08:30:00',@t506,'2025-12-15 09:00:00','2026-01-01 09:00:00',NULL,0),
-    ('DEMO-LEASE-507-LIQUIDATED',@r507,NULL,@p507,'2025-12-01','2026-06-30','2025-12-01',2900000,3,3000000,'LIQUIDATED','MOVE_OUT','2026-06-30','2026-05-30 09:00:00',@c505old,@lease_draft_file,@lease_signed_file,@approver_id,'2025-12-01 08:30:00',@t507,'2025-11-20 09:00:00','2026-06-30 18:00:00',NULL,0);
+    ('DEMO-LEASE-506-RENEWED',@r506,NULL,@p506,'2026-01-01','2026-12-31','2026-01-01',2700000,1,2600000,'ACTIVE',NULL,NULL,NULL,@c506old,@lease_draft_file,@lease_signed_file,@owner_id,'2026-01-01 08:30:00',@t506,'2025-12-15 09:00:00','2026-01-01 09:00:00',NULL,0),
+    ('DEMO-LEASE-507-LIQUIDATED',@r507,NULL,@p507,'2025-12-01','2026-06-30','2025-12-01',2900000,3,3000000,'LIQUIDATED','MOVE_OUT','2026-06-30','2026-05-30 09:00:00',@c505old,@lease_draft_file,@lease_signed_file,@owner_id,'2025-12-01 08:30:00',@t507,'2025-11-20 09:00:00','2026-06-30 18:00:00',NULL,0);
 
 SET @c402 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code='DEMO-LEASE-402-PENDING');
 SET @c404 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code='DEMO-LEASE-404-ACTIVE');
@@ -468,13 +455,13 @@ VALUES
 
 INSERT INTO hdbhms.contract_events (contract_id,event_type,event_data,created_by,created_at)
 VALUES
-    (@c404,'SIGNED',CAST('{"scenario":"active-multi-occupant"}' AS BINARY),@approver_id,'2025-09-01 08:30:00'),
+    (@c404,'SIGNED',CAST('{"scenario":"active-multi-occupant"}' AS BINARY),@owner_id,'2025-09-01 08:30:00'),
     (@c406,'INTENTION_RECORDED',CAST('{"intention":"MOVE_OUT","expectedVacantDate":"2026-08-31"}' AS BINARY),@manager_id,'2026-06-01 09:00:00'),
     (@c407,'EXPIRED',CAST('{"reason":"contract-end-date-passed"}' AS BINARY),NULL,'2026-07-06 00:00:00'),
-    (@c506old,'RENEWED',CAST('{"newContractCode":"DEMO-LEASE-506-RENEWED"}' AS BINARY),@approver_id,'2025-12-15 09:00:00'),
-    (@c506,'SIGNED',CAST('{"scenario":"renewal"}' AS BINARY),@approver_id,'2026-01-01 08:30:00'),
+    (@c506old,'RENEWED',CAST('{"newContractCode":"DEMO-LEASE-506-RENEWED"}' AS BINARY),@owner_id,'2025-12-15 09:00:00'),
+    (@c506,'SIGNED',CAST('{"scenario":"renewal"}' AS BINARY),@owner_id,'2026-01-01 08:30:00'),
     (@c505old,'TRANSFERRED',CAST('{"targetRoom":"507"}' AS BINARY),@manager_id,'2025-12-01 09:00:00'),
-    (@c507,'LIQUIDATED',CAST('{"moveOutDate":"2026-06-30"}' AS BINARY),@approver_id,'2026-06-30 18:00:00');
+    (@c507,'LIQUIDATED',CAST('{"moveOutDate":"2026-06-30"}' AS BINARY),@owner_id,'2026-06-30 18:00:00');
 
 INSERT INTO hdbhms.contract_termination_notices
     (contract_id,notice_by,notice_user_id,notice_date,expected_termination_date,reason,evidence_file_id,status,decided_by,decided_at,created_at)
@@ -483,8 +470,8 @@ VALUES (@c406,'TENANT',@u406,'2026-06-01','2026-08-31','Kết thúc hợp đồn
 INSERT INTO hdbhms.contract_handover_records
     (contract_id,room_id,handover_type,handover_date,electricity_reading_id,water_reading_id,note,status,confirmed_by,confirmed_at,created_at,signed_document_id)
 VALUES
-    (@c404,@r404,'MOVE_IN','2025-09-01 09:00:00',NULL,NULL,'Bàn giao đầu vào đầy đủ','CONFIRMED',@approver_id,'2025-09-01 09:30:00','2025-09-01 09:00:00',@lease_signed_file),
-    (@c507,@r507,'MOVE_OUT','2026-06-30 16:00:00',NULL,NULL,'Bàn giao ra: thiếu remote, bình nóng lạnh cần sửa','CONFIRMED',@approver_id,'2026-06-30 17:00:00','2026-06-30 16:00:00',@lease_signed_file);
+    (@c404,@r404,'MOVE_IN','2025-09-01 09:00:00',NULL,NULL,'Bàn giao đầu vào đầy đủ','CONFIRMED',@owner_id,'2025-09-01 09:30:00','2025-09-01 09:00:00',@lease_signed_file),
+    (@c507,@r507,'MOVE_OUT','2026-06-30 16:00:00',NULL,NULL,'Bàn giao ra: thiếu remote, bình nóng lạnh cần sửa','CONFIRMED',@owner_id,'2026-06-30 17:00:00','2026-06-30 16:00:00',@lease_signed_file);
 
 SET @handover404 := (SELECT contract_handover_record_id FROM hdbhms.contract_handover_records WHERE contract_id=@c404 AND handover_type='MOVE_IN' ORDER BY contract_handover_record_id DESC LIMIT 1);
 SET @handover507 := (SELECT contract_handover_record_id FROM hdbhms.contract_handover_records WHERE contract_id=@c507 AND handover_type='MOVE_OUT' ORDER BY contract_handover_record_id DESC LIMIT 1);
@@ -507,7 +494,7 @@ SET @mr501w_apr := (SELECT mr.meter_reading_id FROM hdbhms.meter_readings mr JOI
 INSERT INTO hdbhms.invoices
     (invoice_code,property_id,room_id,lease_contract_id,deposit_agreement_id,deposit_batch_id,invoice_type,revision_no,billing_period,issue_date,due_date,status,subtotal_amount,discount_amount,total_amount,paid_amount,remaining_amount,collection_account_id,created_by,issued_at,voided_at,void_reason,created_at,updated_at,version)
 VALUES
-    ('DEMO-INV-402-DEPOSIT',@property_id,@r402,NULL,@dep402,NULL,'DEPOSIT',1,'2026-07','2026-07-01 09:00:00','2026-07-01 10:00:00','PAID',2600000,0,2600000,2600000,0,@deposit_account,@approver_id,'2026-07-01 09:00:00',NULL,NULL,'2026-07-01 09:00:00','2026-07-01 10:00:00',0),
+    ('DEMO-INV-402-DEPOSIT',@property_id,@r402,NULL,@dep402,NULL,'DEPOSIT',1,'2026-07','2026-07-01 09:00:00','2026-07-01 10:00:00','PAID',2600000,0,2600000,2600000,0,@deposit_account,@owner_id,'2026-07-01 09:00:00',NULL,NULL,'2026-07-01 09:00:00','2026-07-01 10:00:00',0),
     ('DEMO-INV-404-2026-06-RENT',@property_id,@r404,@c404,NULL,NULL,'RENT',1,'2026-06','2026-06-01 08:00:00','2026-06-15 23:59:59','PAID',2450000,0,2450000,2450000,0,@rent_account,@manager_id,'2026-06-01 08:00:00',NULL,NULL,'2026-06-01 08:00:00','2026-06-02 09:00:00',0),
     ('DEMO-INV-404-2026-06-UTILITY',@property_id,@r404,@c404,NULL,NULL,'UTILITY',1,'2026-06','2026-07-01 08:00:00','2026-07-05 23:59:59','PAID',70000,0,70000,70000,0,@utility_account,@manager_id,'2026-07-01 08:00:00',NULL,NULL,'2026-07-01 08:00:00','2026-07-02 09:00:00',0),
     ('DEMO-INV-501-2026-07-DRAFT',@property_id,@r501,@c501,NULL,NULL,'RENT',1,'2026-07','2026-07-01 08:00:00','2026-07-15 23:59:59','DRAFT',2500000,0,2500000,0,2500000,@rent_account,@manager_id,NULL,NULL,NULL,'2026-07-01 08:00:00','2026-07-01 08:00:00',0),
@@ -519,7 +506,7 @@ VALUES
     ('DEMO-INV-501-WIFI-FINE',@property_id,@r501,@c501,NULL,NULL,'OTHER',1,'2026-06','2026-06-20 08:00:00','2026-06-25 23:59:59','ISSUED',200000,0,200000,0,200000,@rent_account,@manager_id,'2026-06-20 08:00:00',NULL,NULL,'2026-06-20 08:00:00','2026-06-20 08:00:00',0),
     ('DEMO-INV-502-COMPENSATION',@property_id,@r502,@c502,NULL,NULL,'COMPENSATION',1,'2026-06','2026-06-25 08:00:00','2026-06-30 23:59:59','PAID',450000,0,450000,450000,0,@rent_account,@manager_id,'2026-06-25 08:00:00',NULL,NULL,'2026-06-25 08:00:00','2026-06-26 09:00:00',0),
     ('DEMO-INV-503-TRANSFER-DIFF',@property_id,@r503,@c503,NULL,NULL,'TRANSFER_DIFFERENCE',1,'2026-07','2026-07-08 09:00:00','2026-07-15 23:59:59','ISSUED',600000,0,600000,0,600000,@rent_account,@manager_id,'2026-07-08 09:00:00',NULL,NULL,'2026-07-08 09:00:00','2026-07-08 09:00:00',0),
-    ('DEMO-INV-507-FINAL',@property_id,@r507,@c507,NULL,NULL,'FINAL_SETTLEMENT',1,'2026-06','2026-06-30 16:30:00','2026-06-30 23:59:59','PAID',750000,0,750000,750000,0,@rent_account,@approver_id,'2026-06-30 16:30:00',NULL,NULL,'2026-06-30 16:30:00','2026-06-30 17:30:00',0);
+    ('DEMO-INV-507-FINAL',@property_id,@r507,@c507,NULL,NULL,'FINAL_SETTLEMENT',1,'2026-06','2026-06-30 16:30:00','2026-06-30 23:59:59','PAID',750000,0,750000,750000,0,@rent_account,@owner_id,'2026-06-30 16:30:00',NULL,NULL,'2026-06-30 16:30:00','2026-06-30 17:30:00',0);
 
 SET @inv402dep := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code='DEMO-INV-402-DEPOSIT');
 SET @inv404rent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code='DEMO-INV-404-2026-06-RENT');
@@ -562,40 +549,41 @@ VALUES
     (@inv507final,'MAINTENANCE_COMPENSATION','Bồi thường sửa bình nóng lạnh',1,450000,NULL,'HANDOVER',@handover507,@rent_account,'2026-06-30 16:30:00');
 
 INSERT INTO hdbhms.rent_overrides (contract_id,billing_period,override_monthly_rent,reason,approved_by,created_at)
-VALUES (@c501,'2026-07',2500000,'Điều chỉnh giá tháng thực tập/tạm vắng (demo)',@approver_id,'2026-06-25 09:00:00');
+VALUES (@c501,'2026-07',2500000,'Điều chỉnh giá tháng thực tập/tạm vắng (demo)',@owner_id,'2026-06-25 09:00:00');
 
 -- Payment intents cover every supported business outcome.
 INSERT INTO hdbhms.payment_intents
     (invoice_id,deposit_agreement_id,deposit_batch_id,invoice_payment_group_id,amount,provider,collection_account_id,payment_content,provider_order_code,qr_payload,status,expires_at,created_at)
 VALUES
-    (@inv402dep,@dep402,NULL,NULL,2600000,'PAYOS',@deposit_account,'COC P402 PHAM GIA HAN','40207012601','QR-PAYOS-40207012601','SUCCEEDED','2026-07-01 10:00:00','2026-07-01 09:00:00'),
-    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-PENDING'),NULL,NULL,2600000,'PAYOS',@deposit_account,'COC P403 VO DUC THANH','40307132601','QR-PAYOS-40307132601','PENDING','2026-12-31 23:00:00','2026-07-10 07:50:00'),
-    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-FAILED'),NULL,NULL,2600000,'PAYOS',@deposit_account,'COC P403 NGUYEN HAI YEN','40306202602',NULL,'FAILED','2026-06-20 10:00:00','2026-06-20 08:50:00'),
-    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-CANCELLED'),NULL,NULL,2600000,'PAYOS',@deposit_account,'COC P403 PHAM DUC ANH','40305202603',NULL,'CANCELLED','2026-05-20 10:00:00','2026-05-20 08:50:00'),
-    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-FORFEITED'),NULL,NULL,2600000,'PAYOS',@deposit_account,'COC P403 HOANG MINH CHAU','40304202604',NULL,'EXPIRED','2026-04-20 10:00:00','2026-04-20 08:50:00'),
-    (@inv501issued,NULL,NULL,NULL,2600000,'PAYOS',@rent_account,'TIEN PHONG P501 T06 2026','50106012601','QR-PAYOS-50106012601','PENDING','2026-12-31 23:59:59','2026-06-01 08:00:00'),
-    (@inv501partial,NULL,NULL,NULL,200000,'PAYOS',@utility_account,'DIEN NUOC P501 T06 2026','50107032602','QR-PAYOS-50107032602','SUCCEEDED','2026-07-03 09:00:00','2026-07-03 08:00:00'),
-    (@inv501overdue,NULL,NULL,NULL,1000000,'PAYOS',@utility_account,'DIEN NUOC P501 T04 2026','50106012603',NULL,'FAILED','2026-06-01 09:00:00','2026-06-01 08:00:00'),
-    (@inv503diff,NULL,NULL,NULL,600000,'PAYOS',@rent_account,'CHENH LECH CHUYEN P503 P504','50307082604','QR-PAYOS-50307082604','PENDING','2026-12-31 23:59:59','2026-07-08 09:00:00');
+    (@inv402dep,@dep402,NULL,NULL,2600000,'PAYOS',@deposit_account,'DEMO DEP 402','DEMO-ORDER-DEP-402','DEMO-QR-DEP-402','SUCCEEDED','2026-07-01 10:00:00','2026-07-01 09:00:00'),
+    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-PENDING'),NULL,NULL,2600000,'PAYOS',@deposit_account,'DEMO DEP 403 PENDING','DEMO-ORDER-DEP-403-PENDING','DEMO-QR-DEP-403-PENDING','PENDING','2026-12-31 23:00:00','2026-07-10 07:50:00'),
+    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-FAILED'),NULL,NULL,2600000,'PAYOS',@deposit_account,'DEMO DEP 403 FAILED','DEMO-ORDER-DEP-403-FAILED',NULL,'FAILED','2026-06-20 10:00:00','2026-06-20 08:50:00'),
+    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-CANCELLED'),NULL,NULL,2600000,'PAYOS',@deposit_account,'DEMO DEP 403 CANCELLED','DEMO-ORDER-DEP-403-CANCELLED',NULL,'CANCELLED','2026-05-20 10:00:00','2026-05-20 08:50:00'),
+    (NULL,(SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-FORFEITED'),NULL,NULL,2600000,'PAYOS',@deposit_account,'DEMO DEP 403 EXPIRED','DEMO-ORDER-DEP-403-EXPIRED',NULL,'EXPIRED','2026-04-20 10:00:00','2026-04-20 08:50:00'),
+    (@inv501issued,NULL,NULL,NULL,2600000,'PAYOS',@rent_account,'DEMO INV 501 ISSUED','DEMO-ORDER-501-ISSUED','DEMO-QR-501-ISSUED','PENDING','2026-12-31 23:59:59','2026-06-01 08:00:00'),
+    (@inv501partial,NULL,NULL,NULL,200000,'PAYOS',@utility_account,'DEMO INV 501 PARTIAL','DEMO-ORDER-501-PARTIAL','DEMO-QR-501-PARTIAL','SUCCEEDED','2026-07-03 09:00:00','2026-07-03 08:00:00'),
+    (@inv501overdue,NULL,NULL,NULL,1000000,'PAYOS',@utility_account,'DEMO INV 501 FAILED','DEMO-ORDER-501-FAILED',NULL,'FAILED','2026-06-01 09:00:00','2026-06-01 08:00:00'),
+    (@inv503diff,NULL,NULL,NULL,600000,'PAYOS',@rent_account,'DEMO TRANSFER 503 504','DEMO-ORDER-TRANSFER-503-504','DEMO-QR-TRANSFER-503-504','PENDING','2026-12-31 23:59:59','2026-07-08 09:00:00');
 
 INSERT INTO hdbhms.payment_transactions
     (provider,provider_transaction_id,collection_account_id,amount,transaction_time,payer_name,payer_account,content,status,raw_payload,confirmed_by,confirmed_at,created_at)
 VALUES
-    ('PAYOS','FT26182040202600',@deposit_account,2600000,'2026-07-01 09:55:00','Phạm Gia Hân','9704224020402001','COC P402 PHAM GIA HAN','ALLOCATED',CAST('{"code":"00","orderCode":40207012601,"reference":"FT26182040202600"}' AS BINARY),@manager_id,'2026-07-01 10:00:00','2026-07-01 09:55:00'),
-    ('BANK','FT26183040402520',@rent_account,2520000,'2026-07-02 09:00:00','Đỗ Hoàng Anh','9704364040404001','TIEN PHONG DIEN NUOC P404 T06 2026','ALLOCATED',NULL,@manager_id,'2026-07-02 09:05:00','2026-07-02 09:00:00'),
-    ('PAYOS','FT26123050102600',@rent_account,2600000,'2026-05-03 09:00:00','Phạm Quốc Bảo','9704185010501001','TIEN PHONG P501 T05 2026','ALLOCATED',CAST('{"code":"00","orderCode":50105032601,"reference":"FT26123050102600"}' AS BINARY),@manager_id,'2026-05-03 09:05:00','2026-05-03 09:00:00'),
-    ('PAYOS','FT26185050100200',@utility_account,200000,'2026-07-03 09:00:00','Phạm Quốc Bảo','9704185010501001','DIEN NUOC P501 T06 2026','PARTIALLY_ALLOCATED',CAST('{"code":"00","orderCode":50107032602,"reference":"FT26185050100200"}' AS BINARY),@manager_id,'2026-07-03 09:05:00','2026-07-03 09:00:00'),
-    ('PAYOS','PO50106012603-RJ',@utility_account,1000000,'2026-06-01 09:00:00','Phạm Quốc Bảo','9704185010501001','DIEN NUOC P501 T04 2026','REJECTED',CAST('{"code":"99","orderCode":50106012603,"desc":"Giao dich bi tu choi"}' AS BINARY),NULL,NULL,'2026-06-01 09:00:00'),
-    ('BANK','FT26192000002600',@rent_account,2600000,'2026-07-10 09:00:00','Nguyễn Quang Vinh','9704071234567890','NGUYEN QUANG VINH CHUYEN TIEN','PENDING_RECONCILE',NULL,NULL,NULL,'2026-07-10 09:00:00'),
-    ('CASH','PT260626-0007',@rent_account,450000,'2026-06-26 09:00:00','Hoàng Mỹ Linh',NULL,'THU BOI THUONG SUA CHUA P502','ALLOCATED',NULL,@manager_id,'2026-06-26 09:05:00','2026-06-26 09:00:00'),
-    ('CASH','PT260630-0012',@rent_account,750000,'2026-06-30 17:30:00','Đinh Gia Huy',NULL,'THU QUYET TOAN HOP DONG P507','ALLOCATED',NULL,@approver_id,'2026-06-30 17:35:00','2026-06-30 17:30:00');
+    ('PAYOS','DEMO-TXN-DEP-402',@deposit_account,2600000,'2026-07-01 09:55:00','Phạm Gia Khách','DEMO-PAYER-402','DEMO DEP 402','ALLOCATED',CAST('{"code":"00","callback":"success"}' AS BINARY),@manager_id,'2026-07-01 10:00:00','2026-07-01 09:55:00'),
+    ('BANK','DEMO-TXN-404-PAID',@rent_account,2520000,'2026-07-02 09:00:00','Đỗ Hoàng Anh','DEMO-PAYER-404','DEMO 404 RENT UTILITY','ALLOCATED',NULL,@manager_id,'2026-07-02 09:05:00','2026-07-02 09:00:00'),
+    ('BANK','DEMO-TXN-501-PAID',@rent_account,2600000,'2026-05-03 09:00:00','Phạm Quốc Bảo','DEMO-PAYER-501','DEMO INV 501 MAY','ALLOCATED',NULL,@manager_id,'2026-05-03 09:05:00','2026-05-03 09:00:00'),
+    ('PAYOS','DEMO-TXN-501-PARTIAL',@utility_account,200000,'2026-07-03 09:00:00','Phạm Quốc Bảo','DEMO-PAYER-501','DEMO INV 501 PARTIAL','PARTIALLY_ALLOCATED',CAST('{"code":"00","callback":"partial"}' AS BINARY),@manager_id,'2026-07-03 09:05:00','2026-07-03 09:00:00'),
+    ('PAYOS','DEMO-TXN-501-REJECTED',@utility_account,1000000,'2026-06-01 09:00:00','Phạm Quốc Bảo','DEMO-PAYER-501','DEMO INV 501 FAILED','REJECTED',CAST('{"code":"99","callback":"failed"}' AS BINARY),NULL,NULL,'2026-06-01 09:00:00'),
+    ('BANK','DEMO-TXN-501-PENDING',@rent_account,2600000,'2026-07-10 09:00:00','Người chuyển chưa rõ','DEMO-PAYER-UNKNOWN','NO MATCH CONTENT','PENDING_RECONCILE',NULL,NULL,NULL,'2026-07-10 09:00:00'),
+    ('PAYOS','DEMO-TXN-501-DUPLICATE-CALLBACK',@rent_account,2600000,'2026-05-03 09:00:05','Phạm Quốc Bảo','DEMO-PAYER-501','Duplicate callback of DEMO-TXN-501-PAID','DUPLICATE',CAST('{"duplicateOf":"DEMO-TXN-501-PAID"}' AS BINARY),@manager_id,'2026-05-03 09:05:05','2026-05-03 09:00:05'),
+    ('CASH','DEMO-TXN-502-COMP',@rent_account,450000,'2026-06-26 09:00:00','Hoàng Mỹ Linh',NULL,'DEMO INV 502 COMP','ALLOCATED',NULL,@manager_id,'2026-06-26 09:05:00','2026-06-26 09:00:00'),
+    ('CASH','DEMO-TXN-507-FINAL',@rent_account,750000,'2026-06-30 17:30:00','Đinh Gia Huy',NULL,'DEMO INV 507 FINAL','ALLOCATED',NULL,@owner_id,'2026-06-30 17:35:00','2026-06-30 17:30:00');
 
-SET @tx402 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='FT26182040202600' AND status='ALLOCATED' LIMIT 1);
-SET @tx404 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='BANK' AND provider_transaction_id='FT26183040402520' LIMIT 1);
-SET @tx501paid := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='FT26123050102600' AND status='ALLOCATED' LIMIT 1);
-SET @tx501partial := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='FT26185050100200' LIMIT 1);
-SET @tx502 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='CASH' AND provider_transaction_id='PT260626-0007' LIMIT 1);
-SET @tx507 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='CASH' AND provider_transaction_id='PT260630-0012' LIMIT 1);
+SET @tx402 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='DEMO-TXN-DEP-402');
+SET @tx404 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='BANK' AND provider_transaction_id='DEMO-TXN-404-PAID');
+SET @tx501paid := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='BANK' AND provider_transaction_id='DEMO-TXN-501-PAID');
+SET @tx501partial := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='DEMO-TXN-501-PARTIAL');
+SET @tx502 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='CASH' AND provider_transaction_id='DEMO-TXN-502-COMP');
+SET @tx507 := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='CASH' AND provider_transaction_id='DEMO-TXN-507-FINAL');
 
 INSERT INTO hdbhms.payment_allocations (payment_transaction_id,invoice_id,amount,allocated_by,allocated_at)
 VALUES
@@ -605,14 +593,14 @@ VALUES
     (@tx501paid,@inv501paid,2600000,@manager_id,'2026-05-03 09:05:00'),
     (@tx501partial,@inv501partial,200000,@manager_id,'2026-07-03 09:05:00'),
     (@tx502,@inv502comp,450000,@manager_id,'2026-06-26 09:05:00'),
-    (@tx507,@inv507final,750000,@approver_id,'2026-06-30 17:35:00');
+    (@tx507,@inv507final,750000,@owner_id,'2026-06-30 17:35:00');
 
 INSERT INTO hdbhms.invoice_payment_groups
     (invoice_id,collection_account_id,group_type,amount,payment_intent_id,status,created_at)
 VALUES
-    (@inv501issued,@rent_account,'RENT',2600000,(SELECT payment_intent_id FROM hdbhms.payment_intents WHERE provider_order_code='50106012601'),'PENDING','2026-06-01 08:00:00'),
-    (@inv501partial,@utility_account,'UTILITY',500000,(SELECT payment_intent_id FROM hdbhms.payment_intents WHERE provider_order_code='50107032602'),'PARTIALLY_PAID','2026-07-01 08:00:00'),
-    (@inv503diff,@rent_account,'OTHER',600000,(SELECT payment_intent_id FROM hdbhms.payment_intents WHERE provider_order_code='50307082604'),'PENDING','2026-07-08 09:00:00');
+    (@inv501issued,@rent_account,'RENT',2600000,(SELECT payment_intent_id FROM hdbhms.payment_intents WHERE provider_order_code='DEMO-ORDER-501-ISSUED'),'PENDING','2026-06-01 08:00:00'),
+    (@inv501partial,@utility_account,'UTILITY',500000,(SELECT payment_intent_id FROM hdbhms.payment_intents WHERE provider_order_code='DEMO-ORDER-501-PARTIAL'),'PARTIALLY_PAID','2026-07-01 08:00:00'),
+    (@inv503diff,@rent_account,'OTHER',600000,(SELECT payment_intent_id FROM hdbhms.payment_intents WHERE provider_order_code='DEMO-ORDER-TRANSFER-503-504'),'PENDING','2026-07-08 09:00:00');
 
 SET @wifi_rule := (SELECT property_rule_id FROM hdbhms.property_rules WHERE property_id=@property_id AND rule_code='WIFI_RESET' LIMIT 1);
 INSERT INTO hdbhms.rule_violations
@@ -627,7 +615,7 @@ WHERE handover_record_id=@handover507 AND compensation_amount IS NOT NULL;
 
 INSERT INTO hdbhms.contract_liquidations
     (contract_id,liquidation_date,reason,deposit_amount,deposit_deduction_amount,deposit_deduction_reason,deposit_refund_amount,final_invoice_id,signed_file_id,status,created_by,created_at)
-VALUES (@c507,'2026-06-30','Người thuê chuyển đi sau khi hoàn tất nghĩa vụ',3000000,750000,'Thiếu remote và sửa bình nóng lạnh',2250000,@inv507final,@lease_signed_file,'CONFIRMED',@approver_id,'2026-06-30 18:00:00');
+VALUES (@c507,'2026-06-30','Người thuê chuyển đi sau khi hoàn tất nghĩa vụ',3000000,750000,'Thiếu remote và sửa bình nóng lạnh',2250000,@inv507final,@lease_signed_file,'CONFIRMED',@owner_id,'2026-06-30 18:00:00');
 
 INSERT INTO hdbhms.ledger_entries
     (entry_code,entry_date,source_type,source_id,account_code,debit_amount,credit_amount,description,posted_at,reversed_entry_id)
@@ -674,12 +662,12 @@ INSERT INTO hdbhms.maintenance_tickets
     (ticket_code,property_id,room_id,contract_id,created_by,ticket_scope,priority,category,title,description,status,rejection_reason,assigned_to,worker_name,external_repairman_name,external_repairman_phone,external_repair_provider,external_repair_note,repairman_phone,repair_items,completed_at,created_at,updated_at)
 VALUES
     ('DEMO-MT-502-PENDING',@property_id,@r502,@c502,@u502,'TENANT_ROOM','MEDIUM','ELECTRICITY','Ổ cắm chập chờ tiếp nhận','Ổ cắm gần bàn học phát tia lửa, cần kiểm tra','PENDING_ACCEPTANCE',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'2026-07-10 07:00:00','2026-07-10 07:00:00'),
-    ('DEMO-MT-502-ACCEPTED',@property_id,@r502,@c502,@u502,'TENANT_ROOM','LOW','PLUMBING','Vòi nước rò đã tiếp nhận','Vòi lavabo rò nhẹ','ACCEPTED',NULL,@manager_id,'Đỗ Anh Tuấn',NULL,NULL,NULL,NULL,'0988999901','Thay gioăng vòi',NULL,'2026-07-08 07:00:00','2026-07-08 08:00:00'),
-    ('DEMO-MT-502-INPROGRESS',@property_id,@r502,@c502,@u502,'TENANT_ROOM','HIGH','APPLIANCE','Điều hòa đang sửa','Điều hòa không mát','IN_PROGRESS',NULL,@manager_id,NULL,'Nguyễn Văn Thái','0988999902','Điện lạnh Demo','Đang chờ linh kiện',NULL,'Vệ sinh và thay tụ',NULL,'2026-07-06 07:00:00','2026-07-09 08:00:00'),
-    ('DEMO-MT-502-WAITING',@property_id,@r502,@c502,@u502,'TENANT_ROOM','MEDIUM','FURNITURE','Bàn học chờ khách xác nhận','Đã thay mặt bàn mới','WAITING_CONFIRMATION',NULL,@manager_id,'Phan Quốc Dũng',NULL,NULL,NULL,NULL,'0988999903','Thay mặt bàn',NULL,'2026-07-01 07:00:00','2026-07-05 08:00:00'),
-    ('DEMO-MT-502-COMPLETED',@property_id,@r502,@c502,@u502,'TENANT_ROOM','HIGH','APPLIANCE','Sửa bình nóng lạnh hoàn tất','Hỏng do sử dụng sai, người thuê chịu chi phí','COMPLETED',NULL,@manager_id,'Vũ Minh Đức',NULL,NULL,NULL,NULL,'0988999904','Thay thanh đốt', '2026-06-26 10:00:00','2026-06-20 07:00:00','2026-06-26 10:00:00'),
+    ('DEMO-MT-502-ACCEPTED',@property_id,@r502,@c502,@u502,'TENANT_ROOM','LOW','PLUMBING','Vòi nước rò đã tiếp nhận','Vòi lavabo rò nhẹ','ACCEPTED',NULL,@manager_id,'Thợ demo A',NULL,NULL,NULL,NULL,'0988999901','Thay gioăng vòi',NULL,'2026-07-08 07:00:00','2026-07-08 08:00:00'),
+    ('DEMO-MT-502-INPROGRESS',@property_id,@r502,@c502,@u502,'TENANT_ROOM','HIGH','APPLIANCE','Điều hòa đang sửa','Điều hòa không mát','IN_PROGRESS',NULL,@manager_id,NULL,'Nguyễn Văn Thợ','0988999902','Điện lạnh Demo','Đang chờ linh kiện',NULL,'Vệ sinh và thay tụ',NULL,'2026-07-06 07:00:00','2026-07-09 08:00:00'),
+    ('DEMO-MT-502-WAITING',@property_id,@r502,@c502,@u502,'TENANT_ROOM','MEDIUM','FURNITURE','Bàn học chờ khách xác nhận','Đã thay mặt bàn mới','WAITING_CONFIRMATION',NULL,@manager_id,'Thợ demo B',NULL,NULL,NULL,NULL,'0988999903','Thay mặt bàn',NULL,'2026-07-01 07:00:00','2026-07-05 08:00:00'),
+    ('DEMO-MT-502-COMPLETED',@property_id,@r502,@c502,@u502,'TENANT_ROOM','HIGH','APPLIANCE','Sửa bình nóng lạnh hoàn tất','Hỏng do sử dụng sai, người thuê chịu chi phí','COMPLETED',NULL,@manager_id,'Thợ demo C',NULL,NULL,NULL,NULL,'0988999904','Thay thanh đốt', '2026-06-26 10:00:00','2026-06-20 07:00:00','2026-06-26 10:00:00'),
     ('DEMO-MT-502-REJECTED',@property_id,@r502,@c502,@u502,'TENANT_ROOM','LOW','OTHER','Yêu cầu ngoài phạm vi','Yêu cầu thay thiết bị cá nhân không thuộc tài sản phòng','REJECTED','Thiết bị cá nhân, không thuộc phạm vi nhà trọ',@manager_id,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'2026-06-15 07:00:00','2026-06-15 08:00:00'),
-    ('DEMO-MT-408-OPERATION',@property_id,@r408,NULL,@manager_id,'PROPERTY_OPERATION','URGENT','ELECTRICITY','Sửa hệ thống điện phòng trống','Thay dây điện âm tường trước khi cho thuê lại','IN_PROGRESS',NULL,@manager_id,NULL,'Công ty TNHH Kỹ thuật An Phát','0988999905','Kỹ thuật An Phát','Chi phí do nhà trọ chịu',NULL,'Thay dây và aptomat',NULL,'2026-07-01 07:00:00','2026-07-10 08:00:00');
+    ('DEMO-MT-408-OPERATION',@property_id,@r408,NULL,@manager_id,'PROPERTY_OPERATION','URGENT','ELECTRICITY','Sửa hệ thống điện phòng trống','Thay dây điện âm tường trước khi cho thuê lại','IN_PROGRESS',NULL,@manager_id,NULL,'Công ty Điện Demo','0988999905','Điện Demo Co.','Chi phí do nhà trọ chịu',NULL,'Thay dây và aptomat',NULL,'2026-07-01 07:00:00','2026-07-10 08:00:00');
 
 SET @mt502pending := (SELECT maintenance_ticket_id FROM hdbhms.maintenance_tickets WHERE ticket_code='DEMO-MT-502-PENDING');
 SET @mt502accepted := (SELECT maintenance_ticket_id FROM hdbhms.maintenance_tickets WHERE ticket_code='DEMO-MT-502-ACCEPTED');
@@ -701,15 +689,15 @@ VALUES
     (@mt502completed,'WAITING_CONFIRMATION','COMPLETED','CONFIRM','Khách xác nhận sửa tốt và đã thanh toán',@u502,'2026-06-26 10:00:00'),
     (@mt502rejected,'PENDING_ACCEPTANCE','REJECTED','REJECT','Thiết bị cá nhân',@manager_id,'2026-06-15 08:00:00'),
     (@mt408,NULL,'PENDING_ACCEPTANCE','SUBMIT','Quản lý tạo phiếu vận hành',@manager_id,'2026-07-01 07:00:00'),
-    (@mt408,'PENDING_ACCEPTANCE','ACCEPTED','ACCEPT','Quản lý tiếp nhận sự cố thuộc chi phí vận hành',@manager_id,'2026-07-01 08:00:00'),
+    (@mt408,'PENDING_ACCEPTANCE','ACCEPTED','ACCEPT','Chủ trọ duyệt chi phí vận hành',@owner_id,'2026-07-01 08:00:00'),
     (@mt408,'ACCEPTED','IN_PROGRESS','START_WORK','Đang thay dây điện',@manager_id,'2026-07-02 08:00:00');
 
 INSERT INTO hdbhms.maintenance_costs
     (ticket_id,cost_type,description,amount,paid_by,cost_responsibility,charge_invoice_id,receipt_file_id,created_by,created_at)
 VALUES
     (@mt502completed,'MATERIAL','Thay thanh đốt bình nóng lạnh',450000,'TENANT','TENANT',@inv502comp,NULL,@manager_id,'2026-06-25 08:00:00'),
-    (@mt408,'MATERIAL','Dây điện và aptomat',900000,'LANDLORD','OWNER',NULL,NULL,@manager_id,'2026-07-02 08:00:00'),
-    (@mt408,'LABOR','Nhân công điện',300000,'LANDLORD','OWNER',NULL,NULL,@manager_id,'2026-07-02 08:00:00');
+    (@mt408,'MATERIAL','Dây điện và aptomat',900000,'LANDLORD','PROPERTY',NULL,NULL,@manager_id,'2026-07-02 08:00:00'),
+    (@mt408,'LABOR','Nhân công điện',300000,'LANDLORD','PROPERTY',NULL,NULL,@manager_id,'2026-07-02 08:00:00');
 
 INSERT INTO hdbhms.maintenance_reviews (ticket_id,reviewer_user_id,rating,comment,created_at)
 VALUES (@mt502completed,@u502,5,'Sửa nhanh, thiết bị hoạt động tốt - đánh giá demo','2026-06-26 10:05:00');
@@ -721,9 +709,9 @@ VALUES (@property_id,@r502,@c502,'MAINTENANCE_TICKET',@mt502waiting,'MAINTENANCE
 INSERT INTO hdbhms.operating_expenses
     (property_id,room_id,ticket_id,expense_code,expense_type,description,amount,expense_date,paid_by_user_id,receipt_file_id,status,approved_by,approved_at,created_by,created_at)
 VALUES
-    (@property_id,@r408,@mt408,'DEMO-EXP-408-REPAIR','REPAIR','Sửa hệ thống điện phòng 408',1200000,'2026-07-02',@approver_id,NULL,'PAID',@approver_id,'2026-07-01 08:00:00',@manager_id,'2026-07-01 07:00:00'),
-    (@property_id,NULL,NULL,'DEMO-EXP-COMMON-ELECTRIC','COMMON_UTILITY','Tiền điện khu vực chung tháng 06/2026',600000,'2026-06-30',@approver_id,NULL,'PAID',@approver_id,'2026-06-30 09:00:00',@accountant_id,'2026-06-30 08:00:00'),
-    (@property_id,NULL,NULL,'DEMO-EXP-SUPPLIES','SUPPLIES','Vật tư vệ sinh tháng 06/2026',300000,'2026-06-25',@approver_id,NULL,'APPROVED',@approver_id,'2026-06-25 09:00:00',@manager_id,'2026-06-25 08:00:00');
+    (@property_id,@r408,@mt408,'DEMO-EXP-408-REPAIR','REPAIR','Sửa hệ thống điện phòng 408',1200000,'2026-07-02',@owner_id,NULL,'PAID',@owner_id,'2026-07-01 08:00:00',@manager_id,'2026-07-01 07:00:00'),
+    (@property_id,NULL,NULL,'DEMO-EXP-COMMON-ELECTRIC','COMMON_UTILITY','Tiền điện khu vực chung tháng 06/2026',600000,'2026-06-30',@owner_id,NULL,'PAID',@owner_id,'2026-06-30 09:00:00',@accountant_id,'2026-06-30 08:00:00'),
+    (@property_id,NULL,NULL,'DEMO-EXP-SUPPLIES','SUPPLIES','Vật tư vệ sinh tháng 06/2026',300000,'2026-06-25',@owner_id,NULL,'APPROVED',@owner_id,'2026-06-25 09:00:00',@manager_id,'2026-06-25 08:00:00');
 
 SET @exp408 := (SELECT operating_expense_id FROM hdbhms.operating_expenses WHERE expense_code='DEMO-EXP-408-REPAIR');
 INSERT INTO hdbhms.ledger_entries
@@ -734,11 +722,11 @@ VALUES ('DEMO-LEDGER-EXP-408','2026-07-02','EXPENSE',@exp408,'OPERATING_EXPENSE'
 INSERT INTO hdbhms.room_transfer_requests
     (request_code,requester_id,old_contract_id,old_room_id,target_room_id,transferring_tenant_profile_ids,nominated_holder_profile_id,target_transfer_type,target_contract_id,requested_transfer_date,reason,reserved_slots,reservation_expires_at,target_holder_approved_by,target_holder_approved_at,target_holder_rejected_at,status,positive_difference_settlement_type,debt_snapshot_id,new_contract_id,replacement_old_contract_id,created_at,updated_at)
 VALUES
-    ('DEMO-TR-501-REQUESTED',@t501,@c501,@r501,@r505,JSON_ARRAY(@p501),@p501,'NEW_CONTRACT',NULL,'2026-08-01','Muốn chuyển sang phòng đang trống',1,NULL,NULL,NULL,NULL,'REQUESTED',NULL,@debt501,NULL,NULL,'2026-07-10 08:00:00','2026-07-10 08:00:00'),
-    ('DEMO-TR-501-REJECTED',@t501,@c501,@r501,@r408,JSON_ARRAY(@p501),@p501,'NEW_CONTRACT',NULL,'2026-08-01','Thử chuyển vào phòng đang bảo trì',1,NULL,NULL,NULL,NULL,'REJECTED',NULL,@debt501,NULL,NULL,'2026-07-09 08:00:00','2026-07-09 09:00:00'),
-    ('DEMO-TR-502-APPROVED',@t502,@c502,@r502,@r401,JSON_ARRAY(@p502),@p502,'NEW_CONTRACT',NULL,'2026-08-15','Đã được quản lý duyệt, chờ tenant xác nhận',1,'2026-12-31 23:59:59',@manager_id,'2026-07-09 09:00:00',NULL,'MANAGER_APPROVED',NULL,NULL,NULL,NULL,'2026-07-09 08:00:00','2026-07-09 09:00:00'),
-    ('DEMO-TR-503-WAITING-PAYMENT',@t503,@c503,@r503,@r504,JSON_ARRAY(@p503),@p503,'NEW_CONTRACT',NULL,'2026-08-01','Chuyển sang phòng rộng và đắt hơn',1,'2026-12-31 23:59:59',@manager_id,'2026-07-08 08:30:00',NULL,'WAITING_PAYMENT','TENANT_PAY_MORE',@debt503,NULL,NULL,'2026-07-08 08:00:00','2026-07-08 09:00:00'),
-    ('DEMO-TR-505-507-COMPLETED',@t507,@c505old,@r505,@r507,JSON_ARRAY(@p507),@p507,'OTHER_CONTRACT',@c507,'2025-12-01','Chuyển sang phòng rẻ hơn, hoàn chênh lệch',1,NULL,@manager_id,'2025-11-20 09:00:00',NULL,'COMPLETED','CREDIT_NEXT_CONTRACT',NULL,@c507,NULL,'2025-11-15 08:00:00','2025-12-01 10:00:00');
+    ('DEMO-TR-501-REQUESTED',@t501,@c501,@r501,@r505,JSON_ARRAY(@p501),@p501,'FULL_ROOM',NULL,'2026-08-01','Muốn chuyển sang phòng đang trống',1,NULL,NULL,NULL,NULL,'REQUESTED',NULL,@debt501,NULL,NULL,'2026-07-10 08:00:00','2026-07-10 08:00:00'),
+    ('DEMO-TR-501-REJECTED',@t501,@c501,@r501,@r408,JSON_ARRAY(@p501),@p501,'FULL_ROOM',NULL,'2026-08-01','Thử chuyển vào phòng đang bảo trì',1,NULL,NULL,NULL,NULL,'REJECTED',NULL,@debt501,NULL,NULL,'2026-07-09 08:00:00','2026-07-09 09:00:00'),
+    ('DEMO-TR-502-APPROVED',@t502,@c502,@r502,@r401,JSON_ARRAY(@p502),@p502,'FULL_ROOM',NULL,'2026-08-15','Đã được quản lý duyệt, chờ tenant xác nhận',1,'2026-12-31 23:59:59',@manager_id,'2026-07-09 09:00:00',NULL,'MANAGER_APPROVED',NULL,NULL,NULL,NULL,'2026-07-09 08:00:00','2026-07-09 09:00:00'),
+    ('DEMO-TR-503-WAITING-PAYMENT',@t503,@c503,@r503,@r504,JSON_ARRAY(@p503),@p503,'FULL_ROOM',NULL,'2026-08-01','Chuyển sang phòng rộng và đắt hơn',1,'2026-12-31 23:59:59',@manager_id,'2026-07-08 08:30:00',NULL,'WAITING_PAYMENT','TENANT_PAY_MORE',@debt503,NULL,NULL,'2026-07-08 08:00:00','2026-07-08 09:00:00'),
+    ('DEMO-TR-505-507-COMPLETED',@t507,@c505old,@r505,@r507,JSON_ARRAY(@p507),@p507,'FULL_ROOM',@c507,'2025-12-01','Chuyển sang phòng rẻ hơn, hoàn chênh lệch',1,NULL,@manager_id,'2025-11-20 09:00:00',NULL,'COMPLETED','CREDIT_NEXT_CONTRACT',NULL,@c507,NULL,'2025-11-15 08:00:00','2025-12-01 10:00:00');
 
 SET @tr503 := (SELECT room_transfer_request_id FROM hdbhms.room_transfer_requests WHERE request_code='DEMO-TR-503-WAITING-PAYMENT');
 SET @tr507 := (SELECT room_transfer_request_id FROM hdbhms.room_transfer_requests WHERE request_code='DEMO-TR-505-507-COMPLETED');
@@ -747,40 +735,65 @@ INSERT INTO hdbhms.transfer_settlements
     (transfer_request_id,old_room_remaining_value,new_room_required_value,difference_amount,settlement_type,positive_difference_settlement_type,old_room_final_invoice_id,transfer_difference_invoice_id,confirmed_by,confirmed_at,created_at)
 VALUES
     (@tr503,4800000,5400000,600000,'TENANT_PAY_MORE','TENANT_PAY_MORE',NULL,@inv503diff,@manager_id,'2026-07-08 09:00:00','2026-07-08 09:00:00'),
-    (@tr507,3000000,2900000,100000,'REFUND_NOW',NULL,NULL,NULL,@approver_id,'2025-12-01 10:00:00','2025-12-01 10:00:00');
+    (@tr507,3000000,2900000,100000,'REFUND_NOW',NULL,NULL,NULL,@owner_id,'2025-12-01 10:00:00','2025-12-01 10:00:00');
 
--- Owner-only profile access stays pending because V23 deliberately does not create an Owner account.
+-- Change requests and temporary sensitive-profile permission demonstrate role isolation.
+ALTER TABLE hdbhms.change_requests
+    MODIFY COLUMN request_type ENUM (
+        'METER_READING_CORRECTION',
+        'INVOICE_ADJUSTMENT',
+        'RENT_PRICE_ADJUSTMENT',
+        'DEPOSIT_REFUND_REQUEST',
+        'ROOM_TRANSFER',
+        'MOVE_OUT',
+        'COMPLAINT',
+        'PERMISSION_ACCESS',
+        'TENANT_PROFILE_ACCESS',
+        'ADD_CO_OCCUPANT'
+    ) NOT NULL;
+
 INSERT INTO hdbhms.change_requests
     (request_code,request_type,requester_id,requester_role,target_type,target_id,title,description,request_payload,evidence_file_id,assigned_role,assigned_to,status,resolution_note,resolved_by,resolved_at,created_at,updated_at)
 VALUES
-    ('DEMO-CR-405-CO-OCCUPANT','ADD_CO_OCCUPANT',@u405,'TENANT','TENANT_PROFILE',@p405pending,'Thêm người ở chung phòng 405','Hồ sơ và tài khoản đang chờ duyệt',JSON_OBJECT('roomId',@r405,'contractId',@c405),NULL,'OWNER',@existing_owner_id,'UNDER_REVIEW',NULL,NULL,NULL,'2026-07-05 09:00:00','2026-07-06 09:00:00'),
+    ('DEMO-CR-405-CO-OCCUPANT','ADD_CO_OCCUPANT',@u405,'TENANT','TENANT_PROFILE',@p405pending,'Thêm người ở chung phòng 405','Hồ sơ và tài khoản đang chờ duyệt',JSON_OBJECT('roomId',@r405,'contractId',@c405),NULL,'OWNER',@owner_id,'UNDER_REVIEW',NULL,NULL,NULL,'2026-07-05 09:00:00','2026-07-06 09:00:00'),
     ('DEMO-CR-406-MOVE-OUT','MOVE_OUT',@u406,'TENANT','CONTRACT',@c406,'Yêu cầu kết thúc hợp đồng','Chuyển đi khi hợp đồng hết hạn ngày 31/08/2026',JSON_OBJECT('expectedTerminationDate','2026-08-31'),NULL,'MANAGER',@manager_id,'PENDING',NULL,NULL,NULL,'2026-06-01 09:00:00','2026-06-01 09:00:00'),
-    ('DEMO-CR-PROFILE-ACCESS-PENDING','TENANT_PROFILE_ACCESS',@manager_id,'MANAGER','TENANT_PROFILE',@p404,'Xin xem hồ sơ khách phòng 404','Đối chiếu hồ sơ phục vụ bàn giao',NULL,NULL,'OWNER',@existing_owner_id,'PENDING',NULL,NULL,NULL,'2026-07-01 08:00:00','2026-07-01 08:00:00');
+    ('DEMO-CR-PROFILE-ACCESS-APPROVED','TENANT_PROFILE_ACCESS',@manager_id,'MANAGER','TENANT_PROFILE',@p404,'Xin xem hồ sơ khách phòng 404','Đối chiếu hồ sơ phục vụ bàn giao',NULL,NULL,'OWNER',@owner_id,'APPROVED','Cho phép xem trong 30 ngày',@owner_id,'2026-07-01 09:00:00','2026-07-01 08:00:00','2026-07-01 09:00:00'),
+    ('DEMO-CR-PROFILE-ACCESS-REJECTED','TENANT_PROFILE_ACCESS',@manager_id,'MANAGER','TENANT_PROFILE',@p405,'Xin xem hồ sơ khách phòng 405','Không có lý do nghiệp vụ đầy đủ',NULL,NULL,'OWNER',@owner_id,'REJECTED','Từ chối do lý do chưa đầy đủ',@owner_id,'2026-07-02 09:00:00','2026-07-02 08:00:00','2026-07-02 09:00:00');
 
 SET @cr405 := (SELECT change_request_id FROM hdbhms.change_requests WHERE request_code='DEMO-CR-405-CO-OCCUPANT');
 SET @cr406 := (SELECT change_request_id FROM hdbhms.change_requests WHERE request_code='DEMO-CR-406-MOVE-OUT');
-SET @crAccess := (SELECT change_request_id FROM hdbhms.change_requests WHERE request_code='DEMO-CR-PROFILE-ACCESS-PENDING');
+SET @crAccess := (SELECT change_request_id FROM hdbhms.change_requests WHERE request_code='DEMO-CR-PROFILE-ACCESS-APPROVED');
 
 INSERT INTO hdbhms.change_request_events (request_id,from_status,to_status,note,acted_by,acted_at)
 VALUES
-    (@cr405,'PENDING','UNDER_REVIEW','Quản lý đã tiếp nhận hồ sơ và chuyển Owner phê duyệt',@manager_id,'2026-07-06 09:00:00'),
+    (@cr405,'PENDING','UNDER_REVIEW','Quản lý đã tiếp nhận hồ sơ',@manager_id,'2026-07-06 09:00:00'),
     (@cr406,NULL,'PENDING','Người thuê gửi yêu cầu',@u406,'2026-06-01 09:00:00'),
-    (@crAccess,NULL,'PENDING','Quản lý gửi yêu cầu để Owner phê duyệt',@manager_id,'2026-07-01 08:00:00');
+    (@crAccess,'UNDER_REVIEW','APPROVED','Chủ trọ cấp quyền tạm thời',@owner_id,'2026-07-01 09:00:00');
+
+INSERT INTO hdbhms.permission_grants
+    (grantee_user_id,target_type,target_id,source_change_request_id,granted_by,reason,duration_code,granted_at,expires_at,revoked_at,revoked_by,revoke_reason,created_at,updated_at)
+VALUES (@manager_id,'TENANT_PROFILE',@p404,@crAccess,@owner_id,'Đối chiếu hồ sơ phục vụ bàn giao','DAYS_30','2026-07-01 09:00:00','2026-12-31 23:59:59',NULL,NULL,NULL,'2026-07-01 09:00:00','2026-07-01 09:00:00');
+
+SET @grantProfile404 := (SELECT permission_grant_id FROM hdbhms.permission_grants WHERE source_change_request_id=@crAccess ORDER BY permission_grant_id DESC LIMIT 1);
+INSERT INTO hdbhms.permission_access_audit_logs
+    (permission_grant_id,viewer_user_id,target_type,target_id,action,reason,ip_address,user_agent,viewed_at,created_at)
+VALUES
+    (@grantProfile404,@manager_id,'TENANT_PROFILE',@p404,'VIEW_TENANT_PROFILE','Demo: manager xem hồ sơ sau khi Owner cấp quyền','127.0.0.1','HDBHMS demo seed','2026-07-01 09:05:00','2026-07-01 09:05:00');
 
 -- Public/guest journey and auditable staff actions.
 INSERT INTO hdbhms.visit_requests
     (property_id,room_id,visitor_name,visitor_phone,visitor_email,preferred_start,notes,created_at,deleted_at,deleted_by,status,updated_at)
 VALUES
-    (@property_id,@r505,'Nguyễn Hải Yến','0988999505','visitor.505@hdbhms.local','2026-07-15 09:00:00','Muốn xem phòng trống 505','2026-07-10 09:00:00',NULL,NULL,'NOT_VIEWED','2026-07-10 09:00:00'),
-    (@property_id,@r402,'Phạm Đức Anh','0988999402','visitor.402@hdbhms.local','2026-07-12 15:00:00','Đã xem phòng và chuyển sang luồng đặt cọc','2026-07-01 09:00:00',NULL,NULL,'VIEWED','2026-07-02 09:00:00'),
-    (@property_id,@r408,'Hoàng Minh Châu','0988999408','visitor.408@hdbhms.local','2026-07-13 10:00:00','Yêu cầu không hợp lệ vì phòng đang bảo trì','2026-07-03 09:00:00',NULL,NULL,'DISMISSED','2026-07-03 10:00:00');
+    (@property_id,@r505,'Khách xem phòng demo mới','0988999505','visitor.505@hdbhms.local','2026-07-15 09:00:00','Muốn xem phòng trống 505','2026-07-10 09:00:00',NULL,NULL,'NOT_VIEWED','2026-07-10 09:00:00'),
+    (@property_id,@r402,'Khách đã được tư vấn demo','0988999402','visitor.402@hdbhms.local','2026-07-12 15:00:00','Đã xem phòng và chuyển sang luồng đặt cọc','2026-07-01 09:00:00',NULL,NULL,'VIEWED','2026-07-02 09:00:00'),
+    (@property_id,@r408,'Khách chọn nhầm phòng bảo trì','0988999408','visitor.408@hdbhms.local','2026-07-13 10:00:00','Yêu cầu không hợp lệ vì phòng đang bảo trì','2026-07-03 09:00:00',NULL,NULL,'DISMISSED','2026-07-03 10:00:00');
 
 INSERT INTO hdbhms.audit_logs
     (actor_user_id,action,entity_type,entity_id,before_json,after_json,ip_address,user_agent,created_at)
 VALUES
-    (@manager_id,'UPDATE_ROOM_STATUS','ROOM',@r408,CAST('{"status":"VACANT"}' AS BINARY),CAST('{"status":"MAINTENANCE"}' AS BINARY),'127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/136.0','2026-07-01 07:00:00'),
-    (@manager_id,'CREATE_CHANGE_REQUEST','CHANGE_REQUEST',@crAccess,NULL,CAST('{"status":"PENDING","assignedRole":"OWNER"}' AS BINARY),'127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/136.0','2026-07-01 08:00:00'),
-    (@manager_id,'RECONCILE_PAYMENT','INVOICE',@inv501partial,NULL,CAST('{"status":"PARTIALLY_PAID","paidAmount":200000}' AS BINARY),'127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/136.0','2026-07-03 09:05:00');
+    (@manager_id,'UPDATE_ROOM_STATUS','ROOM',@r408,CAST('{"status":"VACANT"}' AS BINARY),CAST('{"status":"MAINTENANCE"}' AS BINARY),'127.0.0.1','HDBHMS demo seed','2026-07-01 07:00:00'),
+    (@owner_id,'APPROVE_CHANGE_REQUEST','CHANGE_REQUEST',@crAccess,CAST('{"status":"UNDER_REVIEW"}' AS BINARY),CAST('{"status":"APPROVED"}' AS BINARY),'127.0.0.1','HDBHMS demo seed','2026-07-01 09:00:00'),
+    (@accountant_id,'RECONCILE_PAYMENT','INVOICE',@inv501partial,NULL,CAST('{"status":"PARTIALLY_PAID","paidAmount":1000000}' AS BINARY),'127.0.0.1','HDBHMS demo seed','2026-07-05 10:00:00');
 
 -- Notifications: read/unread and domain-specific event coverage for web/mobile inboxes.
 INSERT INTO hdbhms.notification_outbox
@@ -794,7 +807,7 @@ VALUES
     ('MAINTENANCE_UPDATED','MAINTENANCE_TICKET',@mt502progress,@u502,'PUSH','Sự cố đang được xử lý','Điều hòa phòng 502 đang được thợ xử lý.',JSON_OBJECT('roomCode','502','status','IN_PROGRESS'),'SENT',0,3,NULL,'2026-07-06 09:00:00','2026-07-06 09:00:05','2026-07-06 09:00:00',TRUE,'2026-07-06 10:00:00',NULL),
     ('ROOM_TRANSFER_APPROVED','ROOM_TRANSFER',(SELECT room_transfer_request_id FROM hdbhms.room_transfer_requests WHERE request_code='DEMO-TR-502-APPROVED'),@u502,'PUSH','Đơn chuyển phòng đã được duyệt','Yêu cầu chuyển sang phòng 401 đã được quản lý duyệt.',JSON_OBJECT('targetRoom','401'),'SENT',0,3,NULL,'2026-07-09 09:00:00','2026-07-09 09:00:05','2026-07-09 09:00:00',FALSE,NULL,NULL),
     ('ROOM_TRANSFER_PAYMENT_REQUIRED','ROOM_TRANSFER',@tr503,@u503,'PUSH','Cần thanh toán chênh lệch','Vui lòng thanh toán 600.000đ để tiếp tục chuyển sang phòng 504.',JSON_OBJECT('targetRoom','504','amount',600000),'SENT',0,3,NULL,'2026-07-08 09:00:00','2026-07-08 09:00:05','2026-07-08 09:00:00',FALSE,NULL,NULL),
-    ('PROFILE_ACCESS_REQUESTED','CHANGE_REQUEST',@crAccess,@manager_id,'WEB','Yêu cầu đang chờ phê duyệt','Yêu cầu xem hồ sơ người thuê phòng 404 đang chờ Owner xử lý.',JSON_OBJECT('roomCode','404','assignedRole','OWNER'),'SENT',0,3,NULL,'2026-07-01 08:00:00','2026-07-01 08:00:05','2026-07-01 08:00:00',TRUE,'2026-07-01 08:30:00',NULL),
+    ('PROFILE_ACCESS_REQUESTED','CHANGE_REQUEST',@crAccess,@owner_id,'WEB','Yêu cầu xem hồ sơ khách','Quản lý xin xem hồ sơ người thuê phòng 404.',JSON_OBJECT('roomCode','404'),'SENT',0,3,NULL,'2026-07-01 08:00:00','2026-07-01 08:00:05','2026-07-01 08:00:00',TRUE,'2026-07-01 08:30:00',NULL),
     ('DEBT_WARNING','DEBT_SNAPSHOT',@debt501,@manager_id,'WEB','Cảnh báo công nợ phòng 501','Công nợ phòng 501 đã vượt ngưỡng demo.',JSON_OBJECT('roomCode','501','overLimit',TRUE),'PENDING',1,3,'Demo: chờ retry để hiển thị trạng thái pending','2026-07-10 08:00:00',NULL,'2026-07-10 08:00:00',FALSE,NULL,'2026-07-11 08:00:00');
 
 SET @notiPaid404 := (SELECT notification_outbox_id FROM hdbhms.notification_outbox WHERE event_type='PAYMENT_CONFIRMED' AND recipient_user_id=@u404 ORDER BY notification_outbox_id DESC LIMIT 1);
@@ -806,270 +819,8 @@ VALUES
     (@notiOverdue501,'DEMO-PUSH-501-OVERDUE','DELIVERED',NULL,'2026-05-08 08:00:10',NULL,'2026-05-08 08:00:05');
 
     END IF;
-
-    -- Re-resolve natural keys so the normalization also works on databases that already received the legacy demo seed.
-    SET @property_id := (SELECT property_id FROM hdbhms.properties WHERE property_code='HAI_DANG_1' LIMIT 1);
-    SET @r401 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='401' AND deleted_at IS NULL LIMIT 1);
-    SET @r402 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='402' AND deleted_at IS NULL LIMIT 1);
-    SET @r403 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='403' AND deleted_at IS NULL LIMIT 1);
-    SET @r404 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='404' AND deleted_at IS NULL LIMIT 1);
-    SET @r405 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='405' AND deleted_at IS NULL LIMIT 1);
-    SET @r406 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='406' AND deleted_at IS NULL LIMIT 1);
-    SET @r407 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='407' AND deleted_at IS NULL LIMIT 1);
-    SET @r408 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='408' AND deleted_at IS NULL LIMIT 1);
-    SET @r501 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='501' AND deleted_at IS NULL LIMIT 1);
-    SET @r502 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='502' AND deleted_at IS NULL LIMIT 1);
-    SET @r503 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='503' AND deleted_at IS NULL LIMIT 1);
-    SET @r504 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='504' AND deleted_at IS NULL LIMIT 1);
-    SET @r505 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='505' AND deleted_at IS NULL LIMIT 1);
-    SET @r506 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='506' AND deleted_at IS NULL LIMIT 1);
-    SET @r507 := (SELECT room_id FROM hdbhms.rooms WHERE property_id=@property_id AND room_code='507' AND deleted_at IS NULL LIMIT 1);
-    SET @manager_id := (SELECT user_id FROM hdbhms.users WHERE email='demo.manager@hdbhms.local' AND deleted_at IS NULL LIMIT 1);
-    SET @accountant_id := (SELECT user_id FROM hdbhms.users WHERE email='demo.accountant@hdbhms.local' AND deleted_at IS NULL LIMIT 1);
-    SET @existing_owner_id := (SELECT user_id FROM hdbhms.users WHERE role='OWNER' AND status='ACTIVE' AND deleted_at IS NULL ORDER BY user_id LIMIT 1);
-    SET @approver_id := COALESCE(@existing_owner_id,@manager_id);
-    SET @deposit_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE original_name='hop-dong-coc-demo.pdf' ORDER BY file_metadata_id DESC LIMIT 1);
-    SET @id_front_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE original_name='cccd-demo-front.png' ORDER BY file_metadata_id DESC LIMIT 1);
-    SET @id_back_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE original_name='cccd-demo-back.png' ORDER BY file_metadata_id DESC LIMIT 1);
-    SET @portrait_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE original_name='anh-bao-tri-demo.png' ORDER BY file_metadata_id DESC LIMIT 1);
-
-    -- Upgrade the former demo-style account labels when V23 follows the legacy floor seed.
-    UPDATE hdbhms.collection_accounts SET bank_name='Ngân hàng TMCP Quân Đội',account_number='190368040401',account_holder='CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG' WHERE property_id=@property_id AND account_number='DEMO-RENT-001';
-    UPDATE hdbhms.collection_accounts SET bank_name='Ngân hàng TMCP Ngoại thương Việt Nam',account_number='1029995501',account_holder='CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG' WHERE property_id=@property_id AND account_number='DEMO-UTILITY-001';
-    UPDATE hdbhms.collection_accounts SET bank_name='Ngân hàng TMCP Đầu tư và Phát triển Việt Nam',account_number='2151000888402',account_holder='CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG' WHERE property_id=@property_id AND account_number='DEMO-DEPOSIT-001';
-    UPDATE hdbhms.collection_accounts SET bank_name='Quỹ tiền mặt cơ sở Hải Đăng',account_number='TM-HD-01',account_holder='CÔNG TY TNHH DỊCH VỤ HẢI ĐĂNG' WHERE property_id=@property_id AND account_number='DEMO-OPERATING-001';
-    SET @deposit_account := (SELECT collection_account_id FROM hdbhms.collection_accounts WHERE account_number='2151000888402' LIMIT 1);
-
-    IF @manager_id IS NULL OR @deposit_file IS NULL OR @deposit_account IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'V23 failed to initialize manager, document, or collection account prerequisites';
-    END IF;
-
-    -- Existing-account boundary states and natural-looking names. V23 deliberately never creates an OWNER account.
-    UPDATE hdbhms.person_profiles pp JOIN hdbhms.users u ON u.user_id=pp.user_id
-    SET pp.full_name=CASE u.email
-        WHEN 'demo.manager@hdbhms.local' THEN 'Trần Mai Quỳnh'
-        WHEN 'demo.accountant@hdbhms.local' THEN 'Lê Hoài An'
-        WHEN 'demo.guest@hdbhms.local' THEN 'Phạm Gia Hân'
-        WHEN 'demo.tenant405.pending@hdbhms.local' THEN 'Nguyễn Thảo Vy'
-        WHEN 'demo.tenant407@hdbhms.local' THEN 'Lê Văn Huy'
-        ELSE pp.full_name END
-    WHERE u.email IN ('demo.manager@hdbhms.local','demo.accountant@hdbhms.local','demo.guest@hdbhms.local','demo.tenant405.pending@hdbhms.local','demo.tenant407@hdbhms.local');
-
-    -- Move the legacy pending-payment example from 403 to 405 before reserving 403 for a successful deposit.
-    SET @legacy_pending_deposit := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-PENDING' LIMIT 1);
-    SET @legacy_pending_form := (SELECT deposit_form_id FROM hdbhms.deposit_agreements WHERE deposit_agreement_id=@legacy_pending_deposit LIMIT 1);
-    SET @legacy_pending_hold := (SELECT room_hold_id FROM hdbhms.deposit_agreements WHERE deposit_agreement_id=@legacy_pending_deposit LIMIT 1);
-    UPDATE hdbhms.deposit_forms SET room_id=@r405, full_name='Võ Đức Thành', email='demo.deposit.pending405@hdbhms.local', phone='0988405031' WHERE deposit_form_id=@legacy_pending_form;
-    UPDATE hdbhms.room_holds SET room_id=@r405, expires_at='2026-07-20 23:59:59' WHERE room_hold_id=@legacy_pending_hold;
-    UPDATE hdbhms.deposit_agreements
-    SET deposit_code='DEMO-DEP-405-PENDING',room_id=@r405,expected_move_in_date='2026-08-10',expected_lease_sign_date='2026-08-01',payment_due_at='2026-07-20 23:59:59',deposit_expires_at='2026-08-24',note='Đang chờ thanh toán QR cho phòng 405',updated_at='2026-07-13 08:00:00'
-    WHERE deposit_agreement_id=@legacy_pending_deposit;
-    UPDATE hdbhms.payment_intents
-    SET payment_content='COC P405 VO DUC THANH',provider_order_code='40507132601',qr_payload='QR-PAYOS-40507132601',expires_at='2026-07-20 23:59:59'
-    WHERE deposit_agreement_id=@legacy_pending_deposit;
-
-    UPDATE hdbhms.deposit_agreements
-    SET status='PAID',signed_file_id=NULL,signed_at=NULL,signed_uploaded_by=NULL,note='Đã thanh toán cọc, chưa đến ký hợp đồng trực tiếp',updated_at='2026-07-13 08:00:00'
-    WHERE deposit_code='DEMO-DEP-402-SUCCESS';
-
-    -- Close the two former active tenancies used as historical lifecycle examples.
-    UPDATE hdbhms.lease_contracts
-    SET status='LIQUIDATED',end_date='2026-07-11',tenant_intention='MOVE_OUT',expected_vacant_date='2026-07-11',intention_recorded_at='2026-07-01 09:00:00',updated_at='2026-07-11 18:00:00'
-    WHERE contract_code='DEMO-LEASE-405-ACTIVE';
-    UPDATE hdbhms.lease_contracts
-    SET status='LIQUIDATED',end_date='2026-07-10',tenant_intention='MOVE_OUT',expected_vacant_date='2026-07-10',intention_recorded_at='2026-06-20 09:00:00',updated_at='2026-07-10 18:00:00'
-    WHERE contract_code='DEMO-LEASE-506-RENEWED';
-    UPDATE hdbhms.contract_occupants co JOIN hdbhms.lease_contracts lc ON lc.lease_contract_id=co.contract_id
-    SET co.status='MOVED_OUT',co.move_out_date=lc.end_date
-    WHERE lc.contract_code IN ('DEMO-LEASE-405-ACTIVE','DEMO-LEASE-506-RENEWED') AND co.status='ACTIVE';
-
-    -- Five newly paid deposits: 401, 402, 403, 505 and 507. Room 405 keeps the pending-payment boundary.
-    INSERT INTO hdbhms.deposit_forms
-        (room_id,id_number,id_issue_date,id_issue_place,id_front_file_id,id_back_file_id,portrait_file_id,full_name,dob,email,phone,permanent_address,expected_move_in_date,expected_lease_sign_date,payment_due_at,deposit_expires_at,status,confirmed_at,reject_reason,created_at,deposit_months,payment_cycle_months,occupant_count)
-    VALUES
-        (@r401,'001202040401','2021-06-18','Cục CSQLHC về TTXH',@id_front_file,@id_back_file,@portrait_file,'Nguyễn Minh Anh','2002-04-18','nguyen.minh.anh.401@demo.hdbhms.local','0964010401','Nam Định (dữ liệu demo)','2026-08-01','2026-07-18','2026-07-11 09:30:00','2026-08-15','APPROVED','2026-07-11 08:45:00',NULL,'2026-07-11 08:30:00',1,1,1),
-        (@r403,'001203040403','2021-08-22','Cục CSQLHC về TTXH',@id_front_file,@id_back_file,@portrait_file,'Trần Ngọc Bích','2003-09-12','tran.ngoc.bich.403@demo.hdbhms.local','0974030403','Thái Bình (dữ liệu demo)','2026-08-05','2026-07-20','2026-07-12 10:30:00','2026-08-19','APPROVED','2026-07-12 09:45:00',NULL,'2026-07-12 09:30:00',1,1,2),
-        (@r505,'001201050505','2021-03-10','Cục CSQLHC về TTXH',@id_front_file,@id_back_file,@portrait_file,'Phạm Thu Trang','2001-11-25','pham.thu.trang.505@demo.hdbhms.local','0975050505','Hải Dương (dữ liệu demo)','2026-08-10','2026-07-22','2026-07-13 09:00:00','2026-08-24','APPROVED','2026-07-13 08:15:00',NULL,'2026-07-13 08:00:00',1,1,1),
-        (@r507,'001202050507','2021-12-03','Cục CSQLHC về TTXH',@id_front_file,@id_back_file,@portrait_file,'Lê Quang Huy','2002-07-07','le.quang.huy.507@demo.hdbhms.local','0965070507','Bắc Ninh (dữ liệu demo)','2026-08-12','2026-07-24','2026-07-13 10:30:00','2026-08-26','APPROVED','2026-07-13 09:45:00',NULL,'2026-07-13 09:30:00',1,3,1);
-
-    SET @form401 := (SELECT deposit_form_id FROM hdbhms.deposit_forms WHERE email='nguyen.minh.anh.401@demo.hdbhms.local' ORDER BY deposit_form_id DESC LIMIT 1);
-    SET @form403paid := (SELECT deposit_form_id FROM hdbhms.deposit_forms WHERE email='tran.ngoc.bich.403@demo.hdbhms.local' ORDER BY deposit_form_id DESC LIMIT 1);
-    SET @form505 := (SELECT deposit_form_id FROM hdbhms.deposit_forms WHERE email='pham.thu.trang.505@demo.hdbhms.local' ORDER BY deposit_form_id DESC LIMIT 1);
-    SET @form507 := (SELECT deposit_form_id FROM hdbhms.deposit_forms WHERE email='le.quang.huy.507@demo.hdbhms.local' ORDER BY deposit_form_id DESC LIMIT 1);
-
-    INSERT INTO hdbhms.person_profiles
-        (user_id,full_name,dob,gender,phone,email,permanent_address,portrait_file_id,created_at,updated_at,deleted_at)
-    VALUES
-        (NULL,'Nguyễn Minh Anh','2002-04-18','MALE','0964010401','nguyen.minh.anh.401@demo.hdbhms.local','Nam Định (dữ liệu demo)',@portrait_file,'2026-07-11 09:30:00','2026-07-11 09:30:00',NULL),
-        (NULL,'Trần Ngọc Bích','2003-09-12','FEMALE','0974030403','tran.ngoc.bich.403@demo.hdbhms.local','Thái Bình (dữ liệu demo)',@portrait_file,'2026-07-12 10:30:00','2026-07-12 10:30:00',NULL),
-        (NULL,'Phạm Thu Trang','2001-11-25','FEMALE','0975050505','pham.thu.trang.505@demo.hdbhms.local','Hải Dương (dữ liệu demo)',@portrait_file,'2026-07-13 09:00:00','2026-07-13 09:00:00',NULL),
-        (NULL,'Lê Quang Huy','2002-07-07','MALE','0965070507','le.quang.huy.507@demo.hdbhms.local','Bắc Ninh (dữ liệu demo)',@portrait_file,'2026-07-13 10:30:00','2026-07-13 10:30:00',NULL);
-
-    SET @p401deposit := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE phone='0964010401' ORDER BY person_profile_id DESC LIMIT 1);
-    SET @p403deposit := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE phone='0974030403' ORDER BY person_profile_id DESC LIMIT 1);
-    SET @p505deposit := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE phone='0975050505' ORDER BY person_profile_id DESC LIMIT 1);
-    SET @p507deposit := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE phone='0965070507' ORDER BY person_profile_id DESC LIMIT 1);
-
-    INSERT INTO hdbhms.identity_documents
-        (profile_id,doc_type,doc_number,issued_date,issued_place,expiry_date,raw_ocr_data,front_file_id,back_file_id,status,created_at,updated_at)
-    VALUES
-        (@p401deposit,'CCCD','001202040401','2021-06-18','Cục CSQLHC về TTXH','2036-06-18',NULL,@id_front_file,@id_back_file,'ACTIVE','2026-07-11 09:30:00','2026-07-11 09:30:00'),
-        (@p403deposit,'CCCD','001203040403','2021-08-22','Cục CSQLHC về TTXH','2036-08-22',NULL,@id_front_file,@id_back_file,'ACTIVE','2026-07-12 10:30:00','2026-07-12 10:30:00'),
-        (@p505deposit,'CCCD','001201050505','2021-03-10','Cục CSQLHC về TTXH','2036-03-10',NULL,@id_front_file,@id_back_file,'ACTIVE','2026-07-13 09:00:00','2026-07-13 09:00:00'),
-        (@p507deposit,'CCCD','001202050507','2021-12-03','Cục CSQLHC về TTXH','2036-12-03',NULL,@id_front_file,@id_back_file,'ACTIVE','2026-07-13 10:30:00','2026-07-13 10:30:00');
-
-    INSERT INTO hdbhms.room_holds (room_id,tenant_id,status,expires_at,created_at,released_at)
-    VALUES
-        (@r401,NULL,'CONFIRMED','2026-08-15 23:59:59','2026-07-11 08:30:00',NULL),
-        (@r403,NULL,'CONFIRMED','2026-08-19 23:59:59','2026-07-12 09:30:00',NULL),
-        (@r505,NULL,'CONFIRMED','2026-08-24 23:59:59','2026-07-13 08:00:00',NULL),
-        (@r507,NULL,'CONFIRMED','2026-08-26 23:59:59','2026-07-13 09:30:00',NULL);
-
-    SET @hold401 := (SELECT room_hold_id FROM hdbhms.room_holds WHERE room_id=@r401 AND status='CONFIRMED' ORDER BY room_hold_id DESC LIMIT 1);
-    SET @hold403paid := (SELECT room_hold_id FROM hdbhms.room_holds WHERE room_id=@r403 AND status='CONFIRMED' ORDER BY room_hold_id DESC LIMIT 1);
-    SET @hold505 := (SELECT room_hold_id FROM hdbhms.room_holds WHERE room_id=@r505 AND status='CONFIRMED' ORDER BY room_hold_id DESC LIMIT 1);
-    SET @hold507 := (SELECT room_hold_id FROM hdbhms.room_holds WHERE room_id=@r507 AND status='CONFIRMED' ORDER BY room_hold_id DESC LIMIT 1);
-
-    INSERT INTO hdbhms.deposit_agreements
-        (deposit_code,room_id,room_hold_id,deposit_form_id,tenant_id,lead_id,depositor_person_profile_id,amount,expected_move_in_date,expected_lease_sign_date,payment_due_at,deposit_expires_at,extension_count,max_extensions,status,confirmed_at,contract_file_id,signed_file_id,signed_at,signed_uploaded_by,note,forfeiture_reason,refunded_amount,created_at,updated_at)
-    VALUES
-        ('DEMO-DEP-401-PAID',@r401,@hold401,@form401,NULL,NULL,@p401deposit,2500000,'2026-08-01','2026-07-18','2026-07-11 09:30:00','2026-08-15',0,1,'PAID','2026-07-11 09:25:00',@deposit_file,NULL,NULL,NULL,'Đã thanh toán cọc, chưa đến ký hợp đồng trực tiếp',NULL,NULL,'2026-07-11 08:30:00','2026-07-11 09:30:00'),
-        ('DEMO-DEP-403-PAID',@r403,@hold403paid,@form403paid,NULL,NULL,@p403deposit,2600000,'2026-08-05','2026-07-20','2026-07-12 10:30:00','2026-08-19',0,1,'PAID','2026-07-12 10:25:00',@deposit_file,NULL,NULL,NULL,'Đã thanh toán cọc cho hai người ở, chưa đến ký trực tiếp',NULL,NULL,'2026-07-12 09:30:00','2026-07-12 10:30:00'),
-        ('DEMO-DEP-505-PAID',@r505,@hold505,@form505,NULL,NULL,@p505deposit,2800000,'2026-08-10','2026-07-22','2026-07-13 09:00:00','2026-08-24',0,1,'PAID','2026-07-13 08:55:00',@deposit_file,NULL,NULL,NULL,'Đã thanh toán cọc, chưa đến ký hợp đồng trực tiếp',NULL,NULL,'2026-07-13 08:00:00','2026-07-13 09:00:00'),
-        ('DEMO-DEP-507-PAID',@r507,@hold507,@form507,NULL,NULL,@p507deposit,2900000,'2026-08-12','2026-07-24','2026-07-13 10:30:00','2026-08-26',0,1,'PAID','2026-07-13 10:25:00',@deposit_file,NULL,NULL,NULL,'Đã thanh toán cọc theo chu kỳ ba tháng, chưa đến ký trực tiếp',NULL,NULL,'2026-07-13 09:30:00','2026-07-13 10:30:00');
-
-    SET @dep401 := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-401-PAID');
-    SET @dep402 := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-402-SUCCESS');
-    SET @dep403paid := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-PAID');
-    SET @dep405pending := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-405-PENDING');
-    SET @dep505 := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-505-PAID');
-    SET @dep507paid := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-507-PAID');
-
-    INSERT INTO hdbhms.invoices
-        (invoice_code,property_id,room_id,lease_contract_id,deposit_agreement_id,deposit_batch_id,invoice_type,revision_no,billing_period,issue_date,due_date,status,subtotal_amount,discount_amount,total_amount,paid_amount,remaining_amount,collection_account_id,created_by,issued_at,voided_at,void_reason,created_at,updated_at,version)
-    VALUES
-        ('DEMO-INV-401-DEPOSIT',@property_id,@r401,NULL,@dep401,NULL,'DEPOSIT',1,'2026-07','2026-07-11 08:30:00','2026-07-11 09:30:00','PAID',2500000,0,2500000,2500000,0,@deposit_account,@manager_id,'2026-07-11 08:30:00',NULL,NULL,'2026-07-11 08:30:00','2026-07-11 09:30:00',0),
-        ('DEMO-INV-403-DEPOSIT',@property_id,@r403,NULL,@dep403paid,NULL,'DEPOSIT',1,'2026-07','2026-07-12 09:30:00','2026-07-12 10:30:00','PAID',2600000,0,2600000,2600000,0,@deposit_account,@manager_id,'2026-07-12 09:30:00',NULL,NULL,'2026-07-12 09:30:00','2026-07-12 10:30:00',0),
-        ('DEMO-INV-505-DEPOSIT',@property_id,@r505,NULL,@dep505,NULL,'DEPOSIT',1,'2026-07','2026-07-13 08:00:00','2026-07-13 09:00:00','PAID',2800000,0,2800000,2800000,0,@deposit_account,@manager_id,'2026-07-13 08:00:00',NULL,NULL,'2026-07-13 08:00:00','2026-07-13 09:00:00',0),
-        ('DEMO-INV-507-DEPOSIT',@property_id,@r507,NULL,@dep507paid,NULL,'DEPOSIT',1,'2026-07','2026-07-13 09:30:00','2026-07-13 10:30:00','PAID',2900000,0,2900000,2900000,0,@deposit_account,@manager_id,'2026-07-13 09:30:00',NULL,NULL,'2026-07-13 09:30:00','2026-07-13 10:30:00',0);
-
-    SET @inv401dep := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code='DEMO-INV-401-DEPOSIT');
-    SET @inv403dep := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code='DEMO-INV-403-DEPOSIT');
-    SET @inv505dep := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code='DEMO-INV-505-DEPOSIT');
-    SET @inv507dep := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code='DEMO-INV-507-DEPOSIT');
-
-    INSERT INTO hdbhms.invoice_lines
-        (invoice_id,line_type,description,quantity,unit_price,meter_reading_id,source_type,source_id,collection_account_id,created_at)
-    VALUES
-        (@inv401dep,'OTHER','Tiền đặt cọc phòng 401',1,2500000,NULL,'DEPOSIT_AGREEMENT',@dep401,@deposit_account,'2026-07-11 08:30:00'),
-        (@inv403dep,'OTHER','Tiền đặt cọc phòng 403',1,2600000,NULL,'DEPOSIT_AGREEMENT',@dep403paid,@deposit_account,'2026-07-12 09:30:00'),
-        (@inv505dep,'OTHER','Tiền đặt cọc phòng 505',1,2800000,NULL,'DEPOSIT_AGREEMENT',@dep505,@deposit_account,'2026-07-13 08:00:00'),
-        (@inv507dep,'OTHER','Tiền đặt cọc phòng 507',1,2900000,NULL,'DEPOSIT_AGREEMENT',@dep507paid,@deposit_account,'2026-07-13 09:30:00');
-
-    INSERT INTO hdbhms.payment_intents
-        (invoice_id,deposit_agreement_id,deposit_batch_id,invoice_payment_group_id,amount,provider,collection_account_id,payment_content,provider_order_code,qr_payload,status,expires_at,created_at)
-    VALUES
-        (@inv401dep,@dep401,NULL,NULL,2500000,'PAYOS',@deposit_account,'COC P401 NGUYEN MINH ANH','40107112601','QR-PAYOS-40107112601','SUCCEEDED','2026-07-11 09:30:00','2026-07-11 08:30:00'),
-        (@inv403dep,@dep403paid,NULL,NULL,2600000,'PAYOS',@deposit_account,'COC P403 TRAN NGOC BICH','40307122605','QR-PAYOS-40307122605','SUCCEEDED','2026-07-12 10:30:00','2026-07-12 09:30:00'),
-        (@inv505dep,@dep505,NULL,NULL,2800000,'PAYOS',@deposit_account,'COC P505 PHAM THU TRANG','50507132601','QR-PAYOS-50507132601','SUCCEEDED','2026-07-13 09:00:00','2026-07-13 08:00:00'),
-        (@inv507dep,@dep507paid,NULL,NULL,2900000,'PAYOS',@deposit_account,'COC P507 LE QUANG HUY','50707132603','QR-PAYOS-50707132603','SUCCEEDED','2026-07-13 10:30:00','2026-07-13 09:30:00');
-
-    INSERT INTO hdbhms.payment_transactions
-        (provider,provider_transaction_id,collection_account_id,amount,transaction_time,payer_name,payer_account,content,status,raw_payload,confirmed_by,confirmed_at,created_at)
-    VALUES
-        ('PAYOS','FT26192040102500',@deposit_account,2500000,'2026-07-11 09:25:00','Nguyễn Minh Anh','9704224010401001','COC P401 NGUYEN MINH ANH','ALLOCATED',CAST('{"code":"00","orderCode":40107112601,"reference":"FT26192040102500"}' AS BINARY),@manager_id,'2026-07-11 09:30:00','2026-07-11 09:25:00'),
-        ('PAYOS','FT26193040302600',@deposit_account,2600000,'2026-07-12 10:25:00','Trần Ngọc Bích','9704364030403001','COC P403 TRAN NGOC BICH','ALLOCATED',CAST('{"code":"00","orderCode":40307122605,"reference":"FT26193040302600"}' AS BINARY),@manager_id,'2026-07-12 10:30:00','2026-07-12 10:25:00'),
-        ('PAYOS','FT26194050502800',@deposit_account,2800000,'2026-07-13 08:55:00','Phạm Thu Trang','9704185050505001','COC P505 PHAM THU TRANG','ALLOCATED',CAST('{"code":"00","orderCode":50507132601,"reference":"FT26194050502800"}' AS BINARY),@manager_id,'2026-07-13 09:00:00','2026-07-13 08:55:00'),
-        ('PAYOS','FT26194050702900',@deposit_account,2900000,'2026-07-13 10:25:00','Lê Quang Huy','9704155070507001','COC P507 LE QUANG HUY','ALLOCATED',CAST('{"code":"00","orderCode":50707132603,"reference":"FT26194050702900"}' AS BINARY),@manager_id,'2026-07-13 10:30:00','2026-07-13 10:25:00');
-
-    SET @tx401dep := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='FT26192040102500');
-    SET @tx403dep := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='FT26193040302600');
-    SET @tx505dep := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='FT26194050502800');
-    SET @tx507dep := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider='PAYOS' AND provider_transaction_id='FT26194050702900');
-
-    INSERT INTO hdbhms.payment_allocations (payment_transaction_id,invoice_id,amount,allocated_by,allocated_at)
-    VALUES
-        (@tx401dep,@inv401dep,2500000,@manager_id,'2026-07-11 09:30:00'),
-        (@tx403dep,@inv403dep,2600000,@manager_id,'2026-07-12 10:30:00'),
-        (@tx505dep,@inv505dep,2800000,@manager_id,'2026-07-13 09:00:00'),
-        (@tx507dep,@inv507dep,2900000,@manager_id,'2026-07-13 10:30:00');
-
-    INSERT INTO hdbhms.ledger_entries
-        (entry_code,entry_date,source_type,source_id,account_code,debit_amount,credit_amount,description,posted_at,reversed_entry_id)
-    VALUES
-        ('DEMO-LEDGER-DEP-401','2026-07-11','PAYMENT',@tx401dep,'CASH_DEPOSIT',2500000,0,'Thu cọc phòng 401','2026-07-11 09:30:00',NULL),
-        ('DEMO-LEDGER-DEP-403','2026-07-12','PAYMENT',@tx403dep,'CASH_DEPOSIT',2600000,0,'Thu cọc phòng 403','2026-07-12 10:30:00',NULL),
-        ('DEMO-LEDGER-DEP-505','2026-07-13','PAYMENT',@tx505dep,'CASH_DEPOSIT',2800000,0,'Thu cọc phòng 505','2026-07-13 09:00:00',NULL),
-        ('DEMO-LEDGER-DEP-507','2026-07-13','PAYMENT',@tx507dep,'CASH_DEPOSIT',2900000,0,'Thu cọc phòng 507','2026-07-13 10:30:00',NULL);
-
-    -- Deposit lifecycle evidence for the new contact-history implementation.
-    SET @dep403forfeited := (SELECT deposit_agreement_id FROM hdbhms.deposit_agreements WHERE deposit_code='DEMO-DEP-403-FORFEITED');
-    UPDATE hdbhms.deposit_agreements SET extension_count=1 WHERE deposit_agreement_id=@dep403forfeited;
-    INSERT INTO hdbhms.deposit_extension_events
-        (deposit_agreement_id,old_expected_move_in_date,new_expected_move_in_date,old_expires_at,new_expires_at,reason,approved_by,approved_at)
-    VALUES (@dep403forfeited,'2026-04-28','2026-05-01','2026-05-12','2026-05-15','Khách xin lùi ngày nhập trọ ba ngày',@manager_id,'2026-04-24 09:00:00');
-
-    INSERT INTO hdbhms.deposit_contact_events (deposit_agreement_id,outcome,note,contacted_by,contacted_at)
-    VALUES
-        (@dep402,'REACHED','Khách xác nhận sẽ đến ký trực tiếp ngày 18/07/2026.',@manager_id,'2026-07-13 08:30:00'),
-        (@dep405pending,'UNREACHABLE','Đã gọi hai lần để nhắc hoàn tất QR nhưng chưa liên lạc được.',@manager_id,'2026-07-13 08:45:00'),
-        (@dep403forfeited,'UNREACHABLE','Không liên lạc được sau thời hạn gia hạn; hồ sơ đủ điều kiện xem xét mất cọc.',@manager_id,'2026-05-02 09:00:00');
-
-    -- Final room and workflow allocation after all historical records are in place.
-    UPDATE hdbhms.rooms SET current_status='RESERVED',internal_note='DEMO: Nguyễn Minh Anh vừa thanh toán cọc, hẹn ký ngày 18/07',updated_at='2026-07-13 10:30:00' WHERE room_id=@r401;
-    UPDATE hdbhms.rooms SET current_status='RESERVED',internal_note='DEMO: Phạm Gia Hân đã thanh toán cọc, hợp đồng thuê đang chờ ký',updated_at='2026-07-13 10:30:00' WHERE room_id=@r402;
-    UPDATE hdbhms.rooms SET current_status='RESERVED',internal_note='DEMO: Trần Ngọc Bích đặt cọc cho hai người ở, chưa ký trực tiếp',updated_at='2026-07-13 10:30:00' WHERE room_id=@r403;
-    UPDATE hdbhms.rooms SET current_status='OCCUPIED',internal_note='DEMO: ba người thuê đang hoạt động, điện thấp được miễn phí dịch vụ',updated_at='2026-07-13 10:30:00' WHERE room_id=@r404;
-    UPDATE hdbhms.rooms SET current_status='ON_HOLD',internal_note='DEMO: Võ Đức Thành đang chờ hoàn tất QR cọc trước 20/07',updated_at='2026-07-13 10:30:00' WHERE room_id=@r405;
-    UPDATE hdbhms.rooms SET current_status='SOON_VACANT',internal_note='DEMO: hợp đồng sắp hết hạn, tenant đã gửi yêu cầu chuyển đi và còn công nợ',updated_at='2026-07-13 10:30:00' WHERE room_id=@r406;
-    UPDATE hdbhms.rooms SET current_status='EXPIRED',internal_note='DEMO: hợp đồng đã hết hạn, chờ xử lý trong mốc hai ngày',updated_at='2026-07-13 10:30:00' WHERE room_id=@r407;
-    UPDATE hdbhms.rooms SET current_status='MAINTENANCE',internal_note='DEMO: sửa hệ thống điện thuộc chi phí vận hành cơ sở',updated_at='2026-07-13 10:30:00' WHERE room_id=@r408;
-    UPDATE hdbhms.rooms SET current_status='OCCUPIED',internal_note='DEMO: ma trận hóa đơn, giao dịch, công nợ và vi phạm reset modem',updated_at='2026-07-13 10:30:00' WHERE room_id=@r501;
-    UPDATE hdbhms.rooms SET current_status='OCCUPIED',internal_note='DEMO: đầy đủ trạng thái phiếu sự cố và chi phí tenant/owner',updated_at='2026-07-13 10:30:00' WHERE room_id=@r502;
-    UPDATE hdbhms.rooms SET current_status='OCCUPIED',internal_note='DEMO: yêu cầu chuyển sang phòng 504 đang chờ thanh toán chênh lệch',updated_at='2026-07-13 10:30:00' WHERE room_id=@r503;
-    UPDATE hdbhms.rooms SET current_status='RESERVED_FOR_TRANSFER',internal_note='DEMO: phòng đích 504 đang giữ cho yêu cầu chuyển phòng 503',updated_at='2026-07-13 10:30:00' WHERE room_id=@r504;
-    UPDATE hdbhms.rooms SET current_status='RESERVED',internal_note='DEMO: Phạm Thu Trang vừa thanh toán cọc, chưa đến ký trực tiếp',updated_at='2026-07-13 10:30:00' WHERE room_id=@r505;
-    UPDATE hdbhms.rooms SET current_status='VACANT',internal_note='DEMO: phòng trống sau khi hợp đồng gia hạn kết thúc, có đầy đủ lịch sử giá',updated_at='2026-07-13 10:30:00' WHERE room_id=@r506;
-    UPDATE hdbhms.rooms SET current_status='RESERVED',internal_note='DEMO: Lê Quang Huy vừa thanh toán cọc sau lần thuê cũ đã thanh lý',updated_at='2026-07-13 10:30:00' WHERE room_id=@r507;
-
-    UPDATE hdbhms.room_transfer_requests SET target_room_id=@r506,updated_at='2026-07-13 10:30:00' WHERE request_code='DEMO-TR-501-REQUESTED';
-    UPDATE hdbhms.room_transfer_requests SET status='REJECTED',target_holder_rejected_at='2026-07-11 10:00:00',reason='Từ chối vì phòng 401 đã được khách khác thanh toán cọc',updated_at='2026-07-11 10:00:00' WHERE request_code='DEMO-TR-502-APPROVED';
-    UPDATE hdbhms.notification_outbox
-    SET event_type='ROOM_TRANSFER_REJECTED',title='Đơn chuyển phòng bị từ chối',body='Yêu cầu chuyển sang phòng 401 bị từ chối vì phòng đã có người thanh toán cọc.',payload=JSON_OBJECT('targetRoom','401','reason','ROOM_ALREADY_DEPOSITED')
-    WHERE target_type='ROOM_TRANSFER' AND target_id=(SELECT room_transfer_request_id FROM hdbhms.room_transfer_requests WHERE request_code='DEMO-TR-502-APPROVED');
-
-    -- Normalize the debt snapshots from invoice truth and use the Java enum value for owner-paid maintenance.
-    UPDATE hdbhms.maintenance_costs SET cost_responsibility='OWNER' WHERE cost_responsibility='PROPERTY';
-    UPDATE hdbhms.debt_snapshots ds
-    JOIN hdbhms.lease_contracts c ON c.lease_contract_id=ds.contract_id
-    JOIN (
-        SELECT source.debt_snapshot_id,
-               COALESCE(SUM(CASE WHEN i.invoice_type='RENT' THEN i.remaining_amount ELSE 0 END),0) rent_debt,
-               COALESCE(SUM(CASE WHEN i.invoice_type='UTILITY' THEN i.remaining_amount ELSE 0 END),0) utility_debt,
-               COALESCE(SUM(CASE WHEN i.invoice_type NOT IN ('RENT','UTILITY','DEPOSIT') THEN i.remaining_amount ELSE 0 END),0) other_debt,
-               COUNT(DISTINCT CASE WHEN i.invoice_type='RENT' THEN i.billing_period END) rent_months,
-               COUNT(DISTINCT CASE WHEN i.invoice_type='UTILITY' THEN i.billing_period END) utility_months
-        FROM hdbhms.debt_snapshots source
-        JOIN hdbhms.lease_contracts source_contract ON source_contract.lease_contract_id=source.contract_id
-        LEFT JOIN hdbhms.invoices i ON i.lease_contract_id=source.contract_id
-             AND i.remaining_amount>0 AND i.status IN ('ISSUED','PARTIALLY_PAID','OVERDUE')
-             AND i.due_date<DATE_ADD(source.snapshot_date,INTERVAL 1 DAY)
-        WHERE source_contract.contract_code IN ('DEMO-LEASE-406-EXPIRING','DEMO-LEASE-501-ACTIVE','DEMO-LEASE-503-ACTIVE')
-        GROUP BY source.debt_snapshot_id
-    ) calculated ON calculated.debt_snapshot_id=ds.debt_snapshot_id
-    SET ds.rent_debt_amount=calculated.rent_debt,
-        ds.utility_debt_amount=calculated.utility_debt,
-        ds.other_debt_amount=calculated.other_debt,
-        ds.rent_debt_months=calculated.rent_months,
-        ds.utility_debt_months=calculated.utility_months,
-        ds.mixed_debt_amount=calculated.rent_debt+calculated.utility_debt+calculated.other_debt,
-        ds.debt_limit_amount=c.monthly_rent*GREATEST(c.payment_cycle_months,1)*2 DIV 3,
-        ds.is_over_limit=calculated.rent_months>=3 OR calculated.utility_months>=3
-            OR calculated.rent_debt+calculated.utility_debt+calculated.other_debt>c.monthly_rent*GREATEST(c.payment_cycle_months,1)*2 DIV 3
-    WHERE c.contract_code IN ('DEMO-LEASE-406-EXPIRING','DEMO-LEASE-501-ACTIVE','DEMO-LEASE-503-ACTIVE');
 END//
 
 DELIMITER ;
 
-CALL hdbhms.seed_floor_4_5_complete_demo_v23();
-DROP PROCEDURE hdbhms.seed_floor_4_5_complete_demo_v23;
+CALL hdbhms.seed_floor_4_5_demo_scenarios_v27_nodrop();

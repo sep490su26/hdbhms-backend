@@ -9,6 +9,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -37,6 +38,7 @@ import java.util.stream.Stream;
 public class GetFacilitiesDashboardService {
     JpaPropertyRepository propertyRepository;
     JpaFloorRepository floorRepository;
+    JpaFloorPlanItemRepository floorPlanItemRepository;
     JpaRoomRepository roomRepository;
     JpaRolePromotionRepository rolePromotionRepository;
 
@@ -153,6 +155,7 @@ public class GetFacilitiesDashboardService {
                 .roomCount(rooms.size())
                 .occupiedRoomCount(countRooms(rooms, RoomStatus.OCCUPIED))
                 .vacantRoomCount(countRooms(rooms, RoomStatus.VACANT))
+                .hasFloorPlan(floorPlanItemRepository.existsByProperty_Id(property.getId()))
                 .floors(floorResponses)
                 .build();
     }

@@ -1,5 +1,10 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListVisitRequestsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
@@ -25,9 +30,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -41,6 +50,7 @@ public class VisitRequestController {
     GetListVisitRequestsUseCase getListVisitRequestsUseCase;
     GetVisitRequestDetailsUseCase getVisitRequestDetailsUseCase;
     VisitRequestRepository visitRequestRepository;
+    JpaRolePromotionRepository jpaRolePromotionRepository;
 
     @PostMapping
     public ApiResponse<VisitRequestDetailsResponse> createVisitRequest(
@@ -49,10 +59,8 @@ public class VisitRequestController {
         VisitRequest visitRequest = createVisitRequestUseCase.execute(
                 visitRequestWebMapper.toCommand(request)
         );
-        Property property = getPropertyDetailsUseCase.execute(
-                new GetPropertyDetailsQuery(visitRequest.getPropertyId())
-        );
         Room room = getRoomOrNull(visitRequest.getRoomId());
+        Property property = getPropertyForVisitRequest(visitRequest, room);
         return ApiResponse.<VisitRequestDetailsResponse>builder()
                 .data(
                         visitRequestWebMapper.toDetailsResponse(
@@ -65,6 +73,7 @@ public class VisitRequestController {
     }
 
     @GetMapping
+    @PreAuthorize("@visitRequestAccessGuard.canManage(authentication)")
     public ApiResponse<PageResponse<VisitRequestResponse>> getVisitRequests(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String propertyCode,
@@ -74,8 +83,10 @@ public class VisitRequestController {
             @RequestParam(required = false) VisitRequestStatus status,
             @RequestParam(required = false) LocalDateTime from,
             @RequestParam(required = false) LocalDateTime to,
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
+        List<Long> scopedPropertyIds = scopedPropertyIds(principal, propertyId);
         return ApiResponse.<PageResponse<VisitRequestResponse>>builder()
                 .data(
                         PageResponse.fromPageToPageResponse(
@@ -85,6 +96,7 @@ public class VisitRequestController {
                                                         propertyCode,
                                                         roomCode,
                                                         propertyId,
+                                                        scopedPropertyIds,
                                                         roomId,
                                                         status,
                                                         from,
@@ -99,13 +111,16 @@ public class VisitRequestController {
     }
 
     @GetMapping("/trash")
+    @PreAuthorize("@visitRequestAccessGuard.canManage(authentication)")
     public ApiResponse<PageResponse<VisitRequestResponse>> getDeletedVisitRequests(
-            @PageableDefault(size = 20) Pageable pageable
+            @PageableDefault(size = 20) Pageable pageable,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
+        List<Long> scopedPropertyIds = scopedPropertyIds(principal, null);
         return ApiResponse.<PageResponse<VisitRequestResponse>>builder()
                 .data(
                         PageResponse.fromPageToPageResponse(
-                                visitRequestRepository.findDeleted(pageable)
+                                visitRequestRepository.findDeleted(scopedPropertyIds, pageable)
                                         .map(this::toListResponse)
                         )
                 )
@@ -113,16 +128,17 @@ public class VisitRequestController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@visitRequestAccessGuard.canManage(authentication)")
     public ApiResponse<VisitRequestDetailsResponse> getVisitRequestDetails(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
         VisitRequest visitRequest = getVisitRequestDetailsUseCase.execute(
                 new GetVisitRequestDetailsQuery(id)
         );
-        Property property = getPropertyDetailsUseCase.execute(
-                new GetPropertyDetailsQuery(visitRequest.getPropertyId())
-        );
         Room room = getRoomOrNull(visitRequest.getRoomId());
+        Property property = getPropertyForVisitRequest(visitRequest, room);
+        assertCanAccessProperty(principal, property == null ? visitRequest.getPropertyId() : property.getId());
         return ApiResponse.<VisitRequestDetailsResponse>builder()
                 .data(
                         visitRequestWebMapper.toDetailsResponse(
@@ -135,10 +151,13 @@ public class VisitRequestController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@visitRequestAccessGuard.canManage(authentication)")
     public ApiResponse<VisitRequestDetailsResponse> moveVisitRequestToTrash(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
         VisitRequest current = findVisitRequest(id);
+        assertCanAccessVisitRequest(principal, current);
         VisitRequest deleted = current.getDeletedAt() == null
                 ? visitRequestRepository.save(copyWithDeletedState(current, LocalDateTime.now(), null))
                 : current;
@@ -149,10 +168,13 @@ public class VisitRequestController {
     }
 
     @PostMapping("/{id}/restore")
+    @PreAuthorize("@visitRequestAccessGuard.canManage(authentication)")
     public ApiResponse<VisitRequestDetailsResponse> restoreVisitRequest(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
         VisitRequest current = findVisitRequest(id);
+        assertCanAccessVisitRequest(principal, current);
         VisitRequest restored = current.getDeletedAt() == null
                 ? current
                 : visitRequestRepository.save(copyWithDeletedState(current, null, null));
@@ -163,22 +185,28 @@ public class VisitRequestController {
     }
 
     @DeleteMapping("/{id}/force")
+    @PreAuthorize("@visitRequestAccessGuard.canForceDelete(authentication)")
     public ApiResponse<Void> permanentlyDeleteVisitRequest(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
+        assertOwner(principal);
         findVisitRequest(id);
         visitRequestRepository.deleteById(id);
         return ApiResponse.<Void>builder().build();
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("@visitRequestAccessGuard.canManage(authentication)")
     public ApiResponse<VisitRequestDetailsResponse> updateVisitRequestStatus(
             @PathVariable Long id,
-            @Valid @RequestBody VisitRequestStatusUpdateRequest request
+            @Valid @RequestBody VisitRequestStatusUpdateRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
     ) {
         VisitRequest current = getVisitRequestDetailsUseCase.execute(
                 new GetVisitRequestDetailsQuery(id)
         );
+        assertCanAccessVisitRequest(principal, current);
         VisitRequest updated = VisitRequest.builder()
                 .id(current.getId())
                 .propertyId(current.getPropertyId())
@@ -196,8 +224,8 @@ public class VisitRequestController {
                 .build();
         updated = visitRequestRepository.save(updated);
 
-        Property property = getPropertyOrNull(updated.getPropertyId());
         Room room = getRoomOrNull(updated.getRoomId());
+        Property property = getPropertyForVisitRequest(updated, room);
         return ApiResponse.<VisitRequestDetailsResponse>builder()
                 .data(
                         visitRequestWebMapper.toDetailsResponse(
@@ -211,10 +239,11 @@ public class VisitRequestController {
 
     private VisitRequestResponse toListResponse(VisitRequest visitRequest) {
         Room room = getRoomOrNull(visitRequest.getRoomId());
-        Property property = getPropertyOrNull(visitRequest.getPropertyId());
+        Property property = getPropertyForVisitRequest(visitRequest, room);
+        Long propertyId = property == null ? visitRequest.getPropertyId() : property.getId();
         return VisitRequestResponse.builder()
                 .id(visitRequest.getId())
-                .propertyId(visitRequest.getPropertyId())
+                .propertyId(propertyId)
                 .roomId(visitRequest.getRoomId())
                 .visitorName(visitRequest.getVisitorName())
                 .visitorEmail(visitRequest.getVisitorEmail())
@@ -230,8 +259,8 @@ public class VisitRequestController {
     }
 
     private VisitRequestDetailsResponse toDetailsResponse(VisitRequest visitRequest) {
-        Property property = getPropertyOrNull(visitRequest.getPropertyId());
         Room room = getRoomOrNull(visitRequest.getRoomId());
+        Property property = getPropertyForVisitRequest(visitRequest, room);
         return visitRequestWebMapper.toDetailsResponse(
                 visitRequest,
                 property,
@@ -268,6 +297,73 @@ public class VisitRequestController {
 
     private Property getPropertyOrNull(Long propertyId) {
         return propertyId == null ? null : getPropertyDetailsUseCase.execute(new GetPropertyDetailsQuery(propertyId));
+    }
+
+    private Property getPropertyForVisitRequest(VisitRequest visitRequest, Room room) {
+        Long propertyId = room != null && room.getPropertyId() != null
+                ? room.getPropertyId()
+                : visitRequest.getPropertyId();
+        return getPropertyOrNull(propertyId);
+    }
+
+    private List<Long> scopedPropertyIds(UserPrincipal principal, Long requestedPropertyId) {
+        assertAuthenticatedManagerOrOwner(principal);
+        if (principal.getRole() == Role.OWNER) {
+            return null;
+        }
+
+        List<Long> propertyIds = managerPropertyIds(principal.getId());
+        if (requestedPropertyId != null && !propertyIds.contains(requestedPropertyId)) {
+            throw new AppException(ApiErrorCode.UNAUTHORIZED);
+        }
+        return propertyIds;
+    }
+
+    private void assertCanAccessVisitRequest(UserPrincipal principal, VisitRequest visitRequest) {
+        Room room = getRoomOrNull(visitRequest.getRoomId());
+        Property property = getPropertyForVisitRequest(visitRequest, room);
+        Long propertyId = property == null ? visitRequest.getPropertyId() : property.getId();
+        assertCanAccessProperty(principal, propertyId);
+    }
+
+    private void assertCanAccessProperty(UserPrincipal principal, Long propertyId) {
+        assertAuthenticatedManagerOrOwner(principal);
+        if (principal.getRole() == Role.OWNER) {
+            return;
+        }
+        if (propertyId == null || !managerPropertyIds(principal.getId()).contains(propertyId)) {
+            throw new AppException(ApiErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private void assertAuthenticatedManagerOrOwner(UserPrincipal principal) {
+        if (principal == null) {
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
+        }
+        if (principal.getRole() != Role.OWNER && principal.getRole() != Role.MANAGER) {
+            throw new AppException(ApiErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private void assertOwner(UserPrincipal principal) {
+        if (principal == null) {
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
+        }
+        if (principal.getRole() != Role.OWNER) {
+            throw new AppException(ApiErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private List<Long> managerPropertyIds(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return jpaRolePromotionRepository
+                .findActivePropertyIds(userId, PromotionRole.MANAGER, RolePromotionStatus.ACTIVE)
+                .stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     private Room getRoomOrNull(Long roomId) {

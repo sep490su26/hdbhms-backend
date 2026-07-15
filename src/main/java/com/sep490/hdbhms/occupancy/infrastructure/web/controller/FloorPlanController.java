@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -59,7 +60,7 @@ public class FloorPlanController {
     ObjectMapper objectMapper;
 
     @GetMapping("/api/v1/admin/properties/{propertyId}/floors/{floorId}/floor-plan")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<FloorPlanLayoutResponse> getAdminFloorPlan(
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long propertyId,
@@ -78,7 +79,7 @@ public class FloorPlanController {
     }
 
     @PutMapping("/api/v1/admin/properties/{propertyId}/floors/{floorId}/floor-plan")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasRole('OWNER')")
     @Transactional
     public ApiResponse<FloorPlanLayoutResponse> saveAdminFloorPlan(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -103,6 +104,7 @@ public class FloorPlanController {
                         .filter(candidate -> Objects.equals(candidate.getProperty().getId(), propertyId))
                         .filter(candidate -> Objects.equals(candidate.getFloor().getId(), floorId))
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng không thuộc đúng cơ sở/tầng."));
+                syncRoomDetails(room, item.metadata());
             }
 
             nextItems.add(FloorPlanItemEntity.builder()
@@ -196,6 +198,48 @@ public class FloorPlanController {
             return objectMapper.writeValueAsString(metadata);
         } catch (Exception exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "metadata không hợp lệ.");
+        }
+    }
+
+    private void syncRoomDetails(RoomEntity room, Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return;
+        }
+
+        readNonNegativeLong(metadata.get("listedPrice")).ifPresent(room::setListedPrice);
+        readNonNegativeDecimal(metadata.get("areaSqm")).ifPresent(room::setAreaM2);
+    }
+
+    private Optional<Long> readNonNegativeLong(Object value) {
+        if (value == null) {
+            return Optional.empty();
+        }
+        try {
+            Long parsed = switch (value) {
+                case Number number -> number.longValue();
+                case String text -> Long.parseLong(text.replaceAll("[^0-9]", ""));
+                default -> null;
+            };
+            return parsed == null || parsed < 0 ? Optional.empty() : Optional.of(parsed);
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giá phòng không hợp lệ.");
+        }
+    }
+
+    private Optional<BigDecimal> readNonNegativeDecimal(Object value) {
+        if (value == null) {
+            return Optional.empty();
+        }
+        try {
+            BigDecimal parsed = switch (value) {
+                case BigDecimal decimal -> decimal;
+                case Number number -> BigDecimal.valueOf(number.doubleValue());
+                case String text -> new BigDecimal(text.trim().replace(",", "."));
+                default -> null;
+            };
+            return parsed == null || parsed.signum() < 0 ? Optional.empty() : Optional.of(parsed);
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Diện tích phòng không hợp lệ.");
         }
     }
 

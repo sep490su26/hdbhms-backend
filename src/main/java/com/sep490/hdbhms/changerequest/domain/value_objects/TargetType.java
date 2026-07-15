@@ -9,5 +9,6 @@ public enum TargetType {
     IDENTITY_DOCUMENT,
     REPORT,
     FILE,
+    OPERATING_EXPENSE,
     OTHER
 }

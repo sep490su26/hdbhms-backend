@@ -2,6 +2,7 @@ package com.sep490.hdbhms.changerequest.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.changerequest.infrastructure.persistence.entity.ChangeRequestEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
+import java.util.Optional;
 
 @Repository
 public interface JpaChangeRequestRepository extends JpaRepository<ChangeRequestEntity, Long> {
@@ -55,4 +59,18 @@ public interface JpaChangeRequestRepository extends JpaRepository<ChangeRequestE
 
     @Query("SELECT c.requestType, COUNT(c) FROM ChangeRequestEntity c GROUP BY c.requestType")
     java.util.List<Object[]> countBreakdownByType();
+
+    boolean existsByRequestTypeAndTargetTypeAndTargetIdAndStatusIn(
+            RequestType requestType,
+            TargetType targetType,
+            Long targetId,
+            Collection<RequestStatus> statuses
+    );
+
+    Optional<ChangeRequestEntity> findFirstByRequestTypeAndTargetTypeAndTargetIdAndStatusInOrderByCreatedAtDesc(
+            RequestType requestType,
+            TargetType targetType,
+            Long targetId,
+            Collection<RequestStatus> statuses
+    );
 }

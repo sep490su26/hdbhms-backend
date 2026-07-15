@@ -314,7 +314,9 @@ public class LeaseContractManagementService {
 
     @Transactional(readOnly = true)
     public PageResponse<LeaseContractManagementResponse> findAllForManagement(Pageable pageable) {
-        List<LeaseContractManagementResponse> rows = findAllForManagement();
+        List<LeaseContractManagementResponse> rows = findAllForManagement().stream()
+                .filter(row -> row.getTransferRequestId() == null)
+                .toList();
         List<LeaseContractManagementResponse> pageRows = rows.stream()
                 .skip(pageable.getOffset())
                 .limit(pageable.getPageSize())

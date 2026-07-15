@@ -14,9 +14,21 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class BatchMeterReadingStatusResponse {
 
+    Long propertyId;
+    String propertyName;
     Long batchId;
     String batchStatus;
+    UtilityTariffSnapshot electricityTariff;
+    UtilityTariffSnapshot waterTariff;
     List<RoomBatchStatus> rooms;
+
+    @Data
+    @Builder
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class UtilityTariffSnapshot {
+        Long unitPrice;
+        Long freeAllowance;
+    }
 
     @Data
     @Builder
@@ -28,11 +40,24 @@ public class BatchMeterReadingStatusResponse {
         
         BigDecimal electricityPrevious;
         BigDecimal electricityCurrent;
+        Long electricityPhotoId;
         BigDecimal waterPrevious;
         BigDecimal waterCurrent;
+        Long waterPhotoId;
         
         String status; // e.g., "pending", "synced"
         LocalDateTime syncTime;
         Integer photosCount;
+        List<ReadingWarning> warnings;
+    }
+
+    @Data
+    @Builder
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class ReadingWarning {
+        String meterType;
+        String type;
+        String severity;
+        String message;
     }
 }

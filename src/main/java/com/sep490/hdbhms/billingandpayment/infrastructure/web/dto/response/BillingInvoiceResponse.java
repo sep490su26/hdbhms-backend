@@ -7,6 +7,7 @@ public record BillingInvoiceResponse(
         Long id,
         String invoiceCode,
         String invoiceType,
+        String invoiceReason,
         String billingPeriod,
         String status,
         Long propertyId,

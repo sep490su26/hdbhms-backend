@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.changerequest.application.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.changerequest.application.port.in.command.ApproveRequestCommand;
 import com.sep490.hdbhms.changerequest.application.port.in.command.RejectRequestCommand;
 import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequestUseCase;
@@ -7,10 +9,7 @@ import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisio
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
-import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
-import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -20,8 +19,9 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -29,8 +29,9 @@ import java.util.List;
 public class ChangeRequestService implements ChangeRequestUseCase {
     ChangeRequestRepository repository;
     List<ChangeRequestDecisionHandler> decisionHandlers;
-    NotificationOutboxRepository notificationOutboxRepository;
+    BusinessNotificationPublisher notificationPublisher;
     PermissionGrantService permissionGrantService;
+    ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -74,23 +75,44 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         if (request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS || request.getRequesterId() == null) {
             return;
         }
-        notificationOutboxRepository.save(NotificationOutbox.builder()
-                .eventType(approved ? "TENANT_PROFILE_ACCESS_APPROVED" : "TENANT_PROFILE_ACCESS_REJECTED")
-                .targetType("TENANT_PROFILE")
-                .targetId(request.getTargetId())
-                .recipientUserId(request.getRequesterId())
-                .channel(NotificationChannel.WEB)
-                .title(approved ? "Đã được duyệt xem hồ sơ" : "Yêu cầu xem hồ sơ bị từ chối")
-                .body(approved
-                        ? "Chủ trọ đã duyệt quyền xem hồ sơ khách thuê."
-                        : "Chủ trọ đã từ chối yêu cầu xem hồ sơ khách thuê.")
-                .payload(request.getRequestPayload())
-                .status(OutboxStatus.PENDING)
-                .maxRetries(3)
-                .isRead(false)
-                .scheduledAt(LocalDateTime.now())
-                .nextRetryAt(LocalDateTime.now())
-                .createdAt(LocalDateTime.now())
-                .build());
+        Map<String, Object> data = notificationData(request);
+        notificationPublisher.publish(
+                approved ? "TENANT_PROFILE_ACCESS_APPROVED" : "TENANT_PROFILE_ACCESS_REJECTED",
+                request.getRequesterId(),
+                "TENANT_PROFILE",
+                request.getTargetId(),
+                data
+        );
+    }
+
+    private Map<String, Object> notificationData(ChangeRequest request) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (request.getRequestPayload() != null && !request.getRequestPayload().isBlank()) {
+            try {
+                data.putAll(objectMapper.readValue(
+                        request.getRequestPayload(),
+                        new TypeReference<Map<String, Object>>() {
+                        }
+                ));
+            } catch (Exception ignored) {
+            }
+        }
+        data.put("requestId", request.getId());
+        data.put("changeRequestId", request.getId());
+        data.put("requestCode", request.getRequestCode());
+        data.put("requestType", request.getRequestType() == null ? null : request.getRequestType().name());
+        data.put("profileId", request.getTargetId());
+        data.put("tenantProfileId", request.getTargetId());
+        data.put("managerId", request.getRequesterId());
+        data.put("resolutionNote", request.getResolutionNote());
+        data.put("status", request.getStatus() == null ? null : request.getStatus().name());
+        data.put("targetRoute", "/dashboard/tenant-profiles?profileId=" + request.getTargetId());
+        data.putIfAbsent("tenantName", firstNonNull(data.get("fullName"), data.get("tenantName")));
+        data.putIfAbsent("roomName", firstNonNull(data.get("roomCode"), data.get("roomName")));
+        return data;
+    }
+
+    private Object firstNonNull(Object first, Object second) {
+        return first != null ? first : second;
     }
 }

@@ -70,7 +70,7 @@ springdoc:
     tags-sorter: alpha
 app:
   reset-password:
-    web-confirmation-url: localhost:3000//confirm-reset
+    web-confirmation-url: ${APP_RESET_PASSWORD_WEB_CONFIRMATION_URL:http://localhost:3000/confirm-reset}
     mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
   file:
     download:

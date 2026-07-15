@@ -38,6 +38,27 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
             @Param("propertyId") Long propertyId
     );
 
+    @Query("""
+        SELECT reading FROM MeterReadingEntity reading
+        JOIN FETCH reading.room room
+        JOIN FETCH reading.meter meter
+        WHERE room.id = :roomId
+          AND reading.readingPeriod = :period
+          AND reading.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
+          AND reading.revisionNo = (
+              SELECT MAX(other.revisionNo)
+              FROM MeterReadingEntity other
+              WHERE other.meter.id = meter.id
+                AND other.readingPeriod = :period
+                AND other.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
+          )
+        ORDER BY meter.meterType
+    """)
+    List<MeterReadingEntity> findLatestActiveByRoomAndPeriod(
+            @Param("roomId") Long roomId,
+            @Param("period") String period
+    );
+
     /**
      * Fetch latest readings per meter across all rooms of a property (no period filter).
      */

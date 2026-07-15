@@ -43,7 +43,7 @@ public class PropertyEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default
-    PropertyStatus status = PropertyStatus.ACTIVE;
+    PropertyStatus status = PropertyStatus.DRAFT;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

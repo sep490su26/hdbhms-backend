@@ -11,25 +11,40 @@ import com.sep490.hdbhms.changerequest.domain.value_objects.RequesterRole;
 import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
-import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
+import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
 import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,28 +55,44 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/tenant-profiles")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TenantProfileManagementController {
+    private static final String EXCEL_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private static final List<PoliceReportColumn> DEFAULT_POLICE_REPORT_COLUMNS = List.of(
+            PoliceReportColumn.FULL_NAME,
+            PoliceReportColumn.CCCD_NUMBER,
+            PoliceReportColumn.DATE_OF_BIRTH,
+            PoliceReportColumn.PERMANENT_ADDRESS,
+            PoliceReportColumn.CCCD_IMAGE_LINKS
+    );
+
     JdbcTemplate jdbcTemplate;
     ChangeRequestRepository changeRequestRepository;
-    NotificationOutboxRepository notificationOutboxRepository;
+    BusinessNotificationPublisher notificationPublisher;
     ObjectMapper objectMapper;
     SnowflakeIdGenerator snowflakeIdGenerator;
     PermissionGrantService permissionGrantService;
@@ -268,6 +299,26 @@ public class TenantProfileManagementController {
                 .build();
     }
 
+    @GetMapping("/police-report/export")
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<Resource> exportPoliceReport(
+            @RequestParam(name = "columns", required = false) List<String> columns
+    ) {
+        List<PoliceReportColumn> selectedColumns = resolvePoliceReportColumns(columns);
+        List<PoliceReportRow> rows = fetchPoliceReportRows();
+        if (rows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chưa có dữ liệu cư dân để xuất.");
+        }
+
+        byte[] bytes = generatePoliceReportWorkbook(rows, selectedColumns);
+        String filename = "Danh sách cư dân báo công an " + LocalDate.now() + ".xlsx";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
+                .contentType(MediaType.parseMediaType(EXCEL_CONTENT_TYPE))
+                .body(new ByteArrayResource(bytes));
+    }
+
     @PostMapping("/{profileId}/access-requests")
     @Transactional(isolation = Isolation.READ_COMMITTED)
     @PreAuthorize("hasRole('MANAGER')")
@@ -344,35 +395,242 @@ public class TenantProfileManagementController {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("changeRequestId", request.getId());
+        payload.put("requestId", request.getId());
+        payload.put("requestCode", request.getRequestCode());
         payload.put("tenantProfileId", context.profileId());
+        payload.put("profileId", context.profileId());
         payload.put("contractId", context.contractId());
         payload.put("contractCode", context.contractCode());
         payload.put("propertyId", context.propertyId());
         payload.put("roomCode", context.roomCode());
+        payload.put("roomName", context.roomCode());
         payload.put("propertyName", context.propertyName());
         payload.put("fullName", context.fullName());
+        payload.put("tenantName", context.fullName());
+        payload.put("managerId", request.getRequesterId());
+        payload.put("managerName", "Quản lý");
         payload.put("reason", reason);
-        String payloadJson = toJson(payload);
+        payload.put("targetRoute", "/dashboard/change-requests/" + request.getId());
 
-        String roomLabel = context.roomCode() == null ? "" : " - Phòng " + context.roomCode();
         for (Long ownerId : ownerIds) {
-            notificationOutboxRepository.save(NotificationOutbox.builder()
-                    .eventType("TENANT_PROFILE_ACCESS_REQUESTED")
-                    .targetType("CHANGE_REQUEST")
-                    .targetId(request.getId())
-                    .recipientUserId(ownerId)
-                    .channel(NotificationChannel.WEB)
-                    .title("Yêu cầu xem hồ sơ khách thuê")
-                    .body(context.fullName() + roomLabel + " đang chờ duyệt quyền xem hồ sơ.")
-                    .payload(payloadJson)
-                    .status(OutboxStatus.PENDING)
-                    .maxRetries(3)
-                    .isRead(false)
-                    .scheduledAt(LocalDateTime.now())
-                    .nextRetryAt(LocalDateTime.now())
-                    .createdAt(LocalDateTime.now())
-                    .build());
+            notificationPublisher.publish(
+                    "TENANT_PROFILE_ACCESS_REQUESTED",
+                    ownerId,
+                    "CHANGE_REQUEST",
+                    request.getId(),
+                    payload
+            );
         }
+    }
+
+    private List<PoliceReportColumn> resolvePoliceReportColumns(List<String> requestedColumns) {
+        if (requestedColumns == null || requestedColumns.isEmpty()) {
+            return DEFAULT_POLICE_REPORT_COLUMNS;
+        }
+
+        Set<String> columnKeys = new LinkedHashSet<>();
+        for (String requestedColumn : requestedColumns) {
+            if (requestedColumn == null || requestedColumn.isBlank()) {
+                continue;
+            }
+            Arrays.stream(requestedColumn.split(","))
+                    .map(String::trim)
+                    .filter(value -> !value.isBlank())
+                    .forEach(columnKeys::add);
+        }
+        if (columnKeys.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn ít nhất một cột để xuất.");
+        }
+
+        List<PoliceReportColumn> selectedColumns = new ArrayList<>();
+        for (String columnKey : columnKeys) {
+            selectedColumns.add(PoliceReportColumn.fromKey(columnKey));
+        }
+        return selectedColumns;
+    }
+
+    private List<PoliceReportRow> fetchPoliceReportRows() {
+        return jdbcTemplate.query("""
+                        SELECT resident_profiles.full_name,
+                               resident_profiles.dob,
+                               resident_profiles.permanent_address,
+                               id_doc.doc_number,
+                               id_doc.front_file_id,
+                               id_doc.back_file_id
+                        FROM (
+                            SELECT lc.lease_contract_id AS contract_id,
+                                   r.room_code,
+                                   p.name AS property_name,
+                                   pp.person_profile_id AS profile_id,
+                                   pp.full_name,
+                                   pp.dob,
+                                   pp.permanent_address,
+                                   co.occupant_role AS room_role
+                            FROM lease_contracts lc
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            JOIN properties p ON p.property_id = r.property_id
+                            JOIN contract_occupants co ON co.contract_id = lc.lease_contract_id AND co.status = 'ACTIVE'
+                            JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
+                            WHERE lc.deleted_at IS NULL
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND pp.deleted_at IS NULL
+
+                            UNION ALL
+
+                            SELECT lc.lease_contract_id AS contract_id,
+                                   r.room_code,
+                                   p.name AS property_name,
+                                   pp.person_profile_id AS profile_id,
+                                   pp.full_name,
+                                   pp.dob,
+                                   pp.permanent_address,
+                                   'PRIMARY' AS room_role
+                            FROM lease_contracts lc
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            JOIN properties p ON p.property_id = r.property_id
+                            JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
+                            WHERE lc.deleted_at IS NULL
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND pp.deleted_at IS NULL
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM contract_occupants co_primary
+                                  WHERE co_primary.contract_id = lc.lease_contract_id
+                                    AND co_primary.tenant_profile_id = pp.person_profile_id
+                                    AND co_primary.status = 'ACTIVE'
+                              )
+                        ) resident_profiles
+                        LEFT JOIN identity_documents id_doc
+                          ON id_doc.identity_document_id = (
+                              SELECT latest.identity_document_id
+                              FROM identity_documents latest
+                              WHERE latest.profile_id = resident_profiles.profile_id
+                                AND latest.status = 'ACTIVE'
+                              ORDER BY latest.updated_at DESC, latest.identity_document_id DESC
+                              LIMIT 1
+                          )
+                        ORDER BY resident_profiles.property_name,
+                                 resident_profiles.room_code,
+                                 resident_profiles.contract_id,
+                                 resident_profiles.room_role DESC,
+                                 resident_profiles.full_name
+                        """,
+                (rs, rowNum) -> new PoliceReportRow(
+                        rs.getString("full_name"),
+                        normalizeIdentityNumber(rs.getString("doc_number")),
+                        nullableLocalDate(rs, "dob"),
+                        rs.getString("permanent_address"),
+                        formatIdentityImageLinks(
+                                nullableLong(rs, "front_file_id"),
+                                nullableLong(rs, "back_file_id")
+                        )
+                )
+        );
+    }
+
+    private byte[] generatePoliceReportWorkbook(
+            List<PoliceReportRow> rows,
+            List<PoliceReportColumn> selectedColumns
+    ) {
+        try (
+                Workbook workbook = new XSSFWorkbook();
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+        ) {
+            Sheet sheet = workbook.createSheet("Báo công an");
+            PoliceReportExcelStyles styles = createPoliceReportExcelStyles(workbook);
+
+            Row headerRow = sheet.createRow(0);
+            for (int columnIndex = 0; columnIndex < selectedColumns.size(); columnIndex++) {
+                PoliceReportColumn column = selectedColumns.get(columnIndex);
+                Cell cell = headerRow.createCell(columnIndex);
+                cell.setCellStyle(styles.header());
+                cell.setCellValue(column.header());
+                sheet.setColumnWidth(columnIndex, column.width());
+            }
+
+            for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+                Row row = sheet.createRow(rowIndex + 1);
+                for (int columnIndex = 0; columnIndex < selectedColumns.size(); columnIndex++) {
+                    writePoliceReportCell(
+                            row,
+                            columnIndex,
+                            selectedColumns.get(columnIndex).value(rows.get(rowIndex)),
+                            styles
+                    );
+                }
+            }
+
+            sheet.createFreezePane(0, 1);
+            sheet.setAutoFilter(new CellRangeAddress(0, rows.size(), 0, selectedColumns.size() - 1));
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file Excel thất bại, vui lòng thử lại.");
+        }
+    }
+
+    private PoliceReportExcelStyles createPoliceReportExcelStyles(Workbook workbook) {
+        Font headerFont = workbook.createFont();
+        headerFont.setFontName("Arial");
+        headerFont.setFontHeightInPoints((short) 11);
+        headerFont.setBold(true);
+        headerFont.setColor(IndexedColors.WHITE.getIndex());
+
+        CellStyle headerStyle = workbook.createCellStyle();
+        headerStyle.setFont(headerFont);
+        headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
+        headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        headerStyle.setWrapText(true);
+
+        Font dataFont = workbook.createFont();
+        dataFont.setFontName("Arial");
+        dataFont.setFontHeightInPoints((short) 11);
+
+        CellStyle textStyle = workbook.createCellStyle();
+        textStyle.setFont(dataFont);
+        textStyle.setVerticalAlignment(VerticalAlignment.TOP);
+        textStyle.setWrapText(true);
+
+        CellStyle dateStyle = workbook.createCellStyle();
+        dateStyle.cloneStyleFrom(textStyle);
+        dateStyle.setDataFormat(workbook.createDataFormat().getFormat("dd/MM/yyyy"));
+
+        return new PoliceReportExcelStyles(headerStyle, textStyle, dateStyle);
+    }
+
+    private void writePoliceReportCell(
+            Row row,
+            int columnIndex,
+            Object value,
+            PoliceReportExcelStyles styles
+    ) {
+        Cell cell = row.createCell(columnIndex);
+        if (value instanceof LocalDate dateValue) {
+            cell.setCellStyle(styles.date());
+            cell.setCellValue(java.sql.Date.valueOf(dateValue));
+            return;
+        }
+        cell.setCellStyle(styles.text());
+        cell.setCellValue(value == null ? "" : String.valueOf(value));
+    }
+
+    private String formatIdentityImageLinks(Long frontFileId, Long backFileId) {
+        List<String> links = new ArrayList<>();
+        if (frontFileId != null) {
+            links.add("Mặt trước: " + absoluteFileUrl(frontFileId));
+        }
+        if (backFileId != null) {
+            links.add("Mặt sau: " + absoluteFileUrl(backFileId));
+        }
+        return String.join("\n", links);
+    }
+
+    private String absoluteFileUrl(Long fileId) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path(fileUrl(fileId))
+                .toUriString();
     }
 
     private UserPrincipal requireCurrentPrincipal() {
@@ -898,5 +1156,66 @@ public class TenantProfileManagementController {
             String phone,
             String roomRole
     ) {
+    }
+
+    private record PoliceReportRow(
+            String fullName,
+            String cccdNumber,
+            LocalDate dateOfBirth,
+            String permanentAddress,
+            String cccdImageLinks
+    ) {
+    }
+
+    private record PoliceReportExcelStyles(
+            CellStyle header,
+            CellStyle text,
+            CellStyle date
+    ) {
+    }
+
+    private enum PoliceReportColumn {
+        FULL_NAME("fullName", "Họ tên", 28 * 256),
+        CCCD_NUMBER("cccdNumber", "CCCD", 18 * 256),
+        DATE_OF_BIRTH("dateOfBirth", "Ngày sinh", 16 * 256),
+        PERMANENT_ADDRESS("permanentAddress", "Địa chỉ thường trú", 44 * 256),
+        CCCD_IMAGE_LINKS("cccdImageLinks", "Link ảnh CCCD", 72 * 256);
+
+        private final String key;
+        private final String header;
+        private final int width;
+
+        PoliceReportColumn(String key, String header, int width) {
+            this.key = key;
+            this.header = header;
+            this.width = width;
+        }
+
+        static PoliceReportColumn fromKey(String key) {
+            for (PoliceReportColumn column : values()) {
+                if (column.key.equalsIgnoreCase(key)) {
+                    return column;
+                }
+            }
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cột xuất Excel không hợp lệ: " + key);
+        }
+
+        String header() {
+            return header;
+        }
+
+        int width() {
+            return width;
+        }
+
+        Object value(PoliceReportRow row) {
+            return switch (this) {
+                case FULL_NAME -> row.fullName();
+                case CCCD_NUMBER -> row.cccdNumber();
+                case DATE_OF_BIRTH -> row.dateOfBirth();
+                case PERMANENT_ADDRESS -> row.permanentAddress();
+                case CCCD_IMAGE_LINKS -> row.cccdImageLinks();
+            };
+        }
     }
 }

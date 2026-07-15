@@ -25,4 +25,5 @@ public class UserCreationRequest {
     String phone;
     @NotNull
     Role initialRole;
+    Long propertyId;
 }

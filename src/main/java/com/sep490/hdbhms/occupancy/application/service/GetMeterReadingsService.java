@@ -24,7 +24,7 @@ public class GetMeterReadingsService {
     /**
      * Returns readings grouped by room.
      *
-     * @param period     MM-yyyy (legacy yyyy-MM and MM/yyyy are accepted); defaults to current month
+     * @param period     MM-yyyy, yyyy-MM, or MM/yyyy; if null, defaults to current month
      * @param propertyId optional property filter
      */
     @Transactional(readOnly = true)
