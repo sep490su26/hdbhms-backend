@@ -6,6 +6,7 @@ import com.sep490.hdbhms.file.application.service.UploadFileService;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
@@ -610,6 +611,14 @@ public class LeaseContractManagementService {
         if (!TENANT_INTENTIONS.contains(normalizedIntention)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Y dinh khach khong hop le.");
         }
+        if ("MOVE_OUT".equals(normalizedIntention)
+                && "MOVE_OUT".equals(normalizeTenantIntention(contract.getTenantIntention()))
+                && contract.getExpectedVacantDate() != null) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "MOVE_OUT_INTENTION_ALREADY_RECORDED: Hop dong da co yeu cau chuyen di dang hieu luc."
+            );
+        }
         LocalDate today = LocalDate.now();
         boolean withinThreeMonths = isWithinThreeMonths(contract, today);
         if (List.of("MOVE_OUT", "TRANSFER").contains(normalizedIntention)) {
@@ -635,6 +644,12 @@ public class LeaseContractManagementService {
                 throw new ResponseStatusException(
                         HttpStatus.UNPROCESSABLE_ENTITY,
                         "EXPECTED_MOVE_OUT_DATE_AFTER_CONTRACT_END: Ngay du kien ban giao khong duoc sau ngay ket thuc hop dong."
+                );
+            }
+            if ("MOVE_OUT".equals(normalizedIntention) && (note == null || note.isBlank())) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "MOVE_OUT_REASON_REQUIRED: Can co ly do chuyen di."
                 );
             }
         }
@@ -734,6 +749,10 @@ public class LeaseContractManagementService {
             LocalDate expectedMoveOutDate,
             String note
     ) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+        }
         Long userId = AuthUtils.getCurrentAuthenticationId();
         if (userId == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
