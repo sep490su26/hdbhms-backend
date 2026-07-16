@@ -60,8 +60,13 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
 app:
+  cors:
+    allowed-origin-patterns:
+      - http://localhost:*
+      - http://127.0.0.1:*
+      - http://10.0.2.2:*
   mock-payment:
-    enabled: ${APP_MOCK_PAYMENT_ENABLED:true}
+    enabled: ${APP_MOCK_PAYMENT_ENABLED:false}
   identity-verification:
     debug:
       dump-candidates: ${IDENTITY_VERIFICATION_DUMP_CANDIDATES:false}
