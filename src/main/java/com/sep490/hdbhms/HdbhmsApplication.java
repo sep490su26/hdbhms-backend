@@ -4,6 +4,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.ResetPasswordConfig;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.AuthProperties;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.CorsProperties;
 import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import com.sep490.hdbhms.shared.infrastructure.sms.esms.ESmsProperties;
 import com.sep490.hdbhms.shared.infrastructure.sms.twillio.TwillioProperties;
@@ -15,6 +16,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @SpringBootApplication(scanBasePackages = {"com.sep490.*"}, exclude = {RedisRepositoriesAutoConfiguration.class})
 @EnableConfigurationProperties({
         AuthProperties.class,
+        CorsProperties.class,
         DefaultConfig.class,
         FileProperties.class,
         ResetPasswordConfig.class,

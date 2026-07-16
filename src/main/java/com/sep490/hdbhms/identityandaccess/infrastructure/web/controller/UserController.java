@@ -140,6 +140,7 @@ public class UserController {
     }
 
     @GetMapping("/{accountId:\\d+}")
+    @PreAuthorize("hasRole('OWNER')")
     ApiResponse<UserResponse> getAccount(@PathVariable Long accountId) {
         return ApiResponse.<UserResponse>builder()
                 .data(
@@ -244,6 +245,7 @@ public class UserController {
     }
 
     @PutMapping(value = "/{userId:\\d+}/status")
+    @PreAuthorize("hasRole('OWNER')")
     ApiResponse<UserResponse> updateAccountStatus(
             @PathVariable Long userId,
             @Valid @RequestBody AccountStatusUpdateRequest request
@@ -265,6 +267,7 @@ public class UserController {
     }
 
     @PutMapping(value = "/{accountId:\\d+}/role")
+    @PreAuthorize("hasRole('OWNER')")
     ApiResponse<UserResponse> updateAccountRole(
             @PathVariable Long accountId,
             @Valid @RequestBody AccountRoleUpdateRequest request
@@ -336,6 +339,7 @@ public class UserController {
     }
 
     @GetMapping("/{accountId:\\d+}/login-history")
+    @PreAuthorize("hasRole('OWNER')")
     ApiResponse<PageResponse<LoginHistoryResponse>> getLoginHistory(
             @PathVariable Long accountId,
             @RequestParam(required = false) List<String> statuses,

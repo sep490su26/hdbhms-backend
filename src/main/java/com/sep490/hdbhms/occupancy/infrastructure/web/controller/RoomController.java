@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetFloorDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
@@ -9,6 +11,7 @@ import com.sep490.hdbhms.occupancy.domain.model.Floor;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomImage;
+import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.application.service.GetLatestMeterReadingsService;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LatestMeterReadingsResponse;
@@ -29,6 +32,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -58,6 +63,7 @@ public class RoomController {
     JpaFloorPlanItemRepository floorPlanItemRepository;
 
     @PostMapping
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<RoomDetailsResponse> createRoom(
             @Valid @RequestBody CreateRoomRequest request
     ) {
@@ -87,6 +93,7 @@ public class RoomController {
 
     @PutMapping("/{roomId}")
     @Transactional
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<RoomDetailsResponse> updateRoom(
             @PathVariable Long roomId,
             @Valid @RequestBody UpdateRoomRequest request
@@ -156,6 +163,7 @@ public class RoomController {
 
     @DeleteMapping("/{roomId}")
     @Transactional
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<Void> deleteRoom(@PathVariable Long roomId) {
         RoomEntity room = roomRepository.findById(roomId).orElseThrow();
         floorPlanItemRepository.deleteByProperty_IdAndRoom_Id(room.getProperty().getId(), roomId);
@@ -164,6 +172,7 @@ public class RoomController {
     }
 
     @GetMapping("/id/{roomId}")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<RoomDetailsResponse> getRoomById(@PathVariable Long roomId) {
         Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(roomId));
         Floor floor = getFloorDetailsUseCase.execute(
@@ -199,6 +208,7 @@ public class RoomController {
         Property property = getPropertyDetailsUseCase.execute(
                 new GetPropertyDetailsQuery(floor.getPropertyId())
         );
+        assertPubliclyVisible(room, property);
         List<RoomImage> roomImages = getRoomImagesByRoomIdUseCase.execute(
                 new GetRoomImagesByRoomIdQuery(room.getId())
         );
@@ -224,8 +234,21 @@ public class RoomController {
         return roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId()).orElse(null);
     }
 
+    private void assertPubliclyVisible(Room room, Property property) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            if (principal.getRole() == Role.OWNER || principal.getRole() == Role.MANAGER) {
+                return;
+            }
+        }
+        if (property.getStatus() != PropertyStatus.ACTIVE
+                || !RoomCatalogController.isPublicRoomStatus(room.getCurrentStatus())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found");
+        }
+    }
+
     @GetMapping("/{roomId}/meter-readings/latest")
-//    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LatestMeterReadingsResponse> getLatestMeterReadings(@PathVariable Long roomId) {
         return ApiResponse.<LatestMeterReadingsResponse>builder()
                 .data(getLatestMeterReadingsService.getLatestReadings(roomId))

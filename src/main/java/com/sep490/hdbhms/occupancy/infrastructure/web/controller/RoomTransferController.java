@@ -8,6 +8,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferReq
 import com.sep490.hdbhms.occupancy.application.port.in.command.ExecuteTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
+import com.sep490.hdbhms.occupancy.application.service.RoomTransferAccessPolicy;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateTransferRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ConfirmTenantTransferRequest;
@@ -20,6 +21,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomTransferWebMapp
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,8 +34,10 @@ public class RoomTransferController {
 
     private final RoomTransferUseCase roomTransferUseCase;
     private final RoomTransferWebMapper mapper;
+    private final RoomTransferAccessPolicy accessPolicy;
 
     @PostMapping
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Long> requestTransfer(
             @Valid @RequestBody CreateTransferRequestRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -55,6 +59,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/holder-replacement")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> nominateHolder(
             @PathVariable Long id,
             @Valid @RequestBody HolderReplacementRequest request,
@@ -70,6 +75,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/accept-holder-nomination")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> acceptHolderNomination(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -83,6 +89,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/reject-holder-nomination")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> rejectHolderNomination(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -91,6 +98,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<Void> approveTransfer(
             @PathVariable Long id,
             @Valid @RequestBody ConfirmTenantTransferRequest request,
@@ -106,6 +114,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> confirmTenantTransfer(
             @PathVariable Long id,
             @Valid @RequestBody ConfirmTenantTransferRequest request,
@@ -122,6 +131,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/target-holder/approve")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> approveTargetHolderTransfer(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -130,6 +140,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/target-holder/reject")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> rejectTargetHolderTransfer(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -138,6 +149,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/contract/confirm")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> confirmTransferContract(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -146,6 +158,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/contract/sign")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<Void> signTransferContract(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -154,6 +167,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/contract/reject")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<Void> rejectTransferContract(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -162,12 +176,18 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/cancel")
-    public ApiResponse<Void> cancelTransferRequest(@PathVariable Long id) {
+    @PreAuthorize("hasRole('TENANT')")
+    public ApiResponse<Void> cancelTransferRequest(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        RoomTransferRequest request = roomTransferUseCase.getTransferRequestById(id);
+        accessPolicy.assertCanCancel(principal, request);
         roomTransferUseCase.cancelTransferRequest(id);
         return ApiResponse.<Void>builder().build();
     }
 
     @PostMapping("/{id}/execute")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<Void> executeTransfer(
             @PathVariable Long id,
             @Valid @RequestBody(required = false) ExecuteTransferRequest request,
@@ -185,6 +205,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/transfer-out-utility-estimate")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<TransferOutUtilityEstimateResponse> estimateTransferOutUtility(
             @PathVariable Long id,
             @Valid @RequestBody ExecuteTransferRequest request,
@@ -203,6 +224,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/complete")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<Void> completeTransfer(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -218,6 +240,7 @@ public class RoomTransferController {
     }
 
     @PostMapping("/{id}/complete-with-handover")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<Void> completeTransferWithHandover(
             @PathVariable Long id,
             @Valid @RequestBody(required = false) ExecuteTransferRequest request,
@@ -236,9 +259,12 @@ public class RoomTransferController {
     // ── GET Endpoints ──────────────────────────────────────────────────────
 
     @GetMapping("/code/{requestCode}")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
     public ApiResponse<RoomTransferResponse> getTransferRequestByCode(
-            @PathVariable String requestCode) {
+            @PathVariable String requestCode,
+            @AuthenticationPrincipal UserPrincipal principal) {
         RoomTransferRequest request = roomTransferUseCase.getTransferRequestByCode(requestCode);
+        accessPolicy.assertCanRead(principal, request);
         return ApiResponse.<RoomTransferResponse>builder()
                 .data(mapper.toResponse(request))
                 .build();
@@ -246,15 +272,19 @@ public class RoomTransferController {
 
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
     public ApiResponse<RoomTransferResponse> getTransferRequest(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
         RoomTransferRequest request = roomTransferUseCase.getTransferRequestById(id);
+        accessPolicy.assertCanRead(principal, request);
         return ApiResponse.<RoomTransferResponse>builder()
                 .data(mapper.toResponse(request))
                 .build();
     }
 
     @GetMapping("/pending-target-holder-approvals")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<List<RoomTransferResponse>> getPendingTargetHolderApprovals(
             @AuthenticationPrincipal UserPrincipal principal) {
         List<RoomTransferRequest> requests = roomTransferUseCase
@@ -267,6 +297,7 @@ public class RoomTransferController {
     }
 
     @GetMapping("/pending-holder-nominations")
+    @PreAuthorize("hasRole('TENANT')")
     public ApiResponse<List<RoomTransferResponse>> getPendingHolderNominations(
             @AuthenticationPrincipal UserPrincipal principal) {
         List<RoomTransferRequest> requests = roomTransferUseCase

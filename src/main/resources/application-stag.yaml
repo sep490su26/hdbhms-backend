@@ -69,6 +69,10 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
 app:
+  cors:
+    allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS}
+  mock-payment:
+    enabled: false
   reset-password:
     web-confirmation-url: ${APP_RESET_PASSWORD_WEB_CONFIRMATION_URL:http://localhost:3000/confirm-reset}
     mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password

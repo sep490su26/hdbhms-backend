@@ -10,8 +10,6 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 30MB
-  profiles:
-    active: dev
   autoconfigure:
     exclude:
   #      - org.springframework.boot.autoconfigure.cache.JCacheCacheConfiguration
@@ -51,6 +49,8 @@ esms:
   secret-key: ${ESMS_SECRET_KEY}
   brand-name: ${ESMS_BRAND_NAME}
 app:
+  cors:
+    allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:}
   jwt:
     secret: ${APP_JWT_SECRET:${SIGNER_KEY}}
     access-token-expiration-minutes: ${APP_JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:15}

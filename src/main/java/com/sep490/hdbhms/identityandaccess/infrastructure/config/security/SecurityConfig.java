@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -37,8 +36,8 @@ public class SecurityConfig {
     public static final String BASE_OAUTH2_CALLBACK_URI = "/oauth2/callback/*";
 
     TokenAuthenticationFilter tokenAuthenticationFilter;
+    CorsProperties corsProperties;
     static final String[] PUBLIC_POST_URLS = {
-            "/api/v1/**",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
             "/api/v1/auth/introspect",
@@ -51,19 +50,16 @@ public class SecurityConfig {
             "/api/v1/deposit/contracts/preview",
             "/api/v1/deposit/payments/*/cancel",
             "/api/v1/deposit/payments/*/expire",
-            "/api/v1/mock/payments/*/success",
             "/api/v1/visit-requests",
             "/api/v1/webhook/**",
     };
 
     static final String[] PUBLIC_GET_URLS = {
-            "/api/v1/**",
             "/room-samples/**",
             "/api/v1/rooms",
             "/api/v1/rooms/*",
             "/api/v1/rooms/*/assets",
             "/api/v1/rooms/*/assets/*",
-            "/api/v1/rooms/*/meter-readings/latest",
             "/api/v1/deposit/rooms/*/hold-status",
             "/api/v1/deposit/payments/*/status",
             "/api/v1/deposit/payments/*/contract",
@@ -78,10 +74,6 @@ public class SecurityConfig {
             "/api/v1/floors/*",
             "/api/v1/files/download/*",
             "/api/v1/health",
-            "/api/v1/webhook/**",
-    };
-    static final String[] PUBLIC_PUT_URLS = {
-            "/api/v1/**",
     };
     static final String[] PUBLIC_DOC_URLS = {
             "/docs/**",
@@ -92,26 +84,6 @@ public class SecurityConfig {
     };
 
     @Bean
-    @Order(0)
-    public SecurityFilterChain depositCheckoutPublicChain(HttpSecurity http) throws Exception {
-        return http
-                .securityMatcher(new AntPathRequestMatcher("/api/v1/deposit/checkout"))
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .formLogin(AbstractHttpConfigurer::disable)
-                .logout(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                        .anyRequest().permitAll()
-                )
-                .build();
-    }
-
-    @Bean
-    @Order(1)
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -129,7 +101,6 @@ public class SecurityConfig {
                                         .requestMatchers("/error").permitAll()
                                         .requestMatchers(toRequestMatchers(HttpMethod.GET, PUBLIC_GET_URLS)).permitAll()
                                         .requestMatchers(toRequestMatchers(HttpMethod.POST, PUBLIC_POST_URLS)).permitAll()
-                                        .requestMatchers(toRequestMatchers(HttpMethod.PUT, PUBLIC_PUT_URLS)).permitAll()
                                         .requestMatchers(PUBLIC_DOC_URLS).permitAll()
                                         .anyRequest().authenticated()
                 )
@@ -145,12 +116,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         var configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
-//                "http://localhost:*",
-//                "http://127.0.0.1:*",
-//                "http://10.0.2.2:*"
-                "*"
-        ));
+        configuration.setAllowedOriginPatterns(corsProperties.configuredOriginPatterns());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of(
                 "Authorization",
@@ -158,7 +124,8 @@ public class SecurityConfig {
                 "Accept",
                 "Origin",
                 "X-Requested-With",
-                "X-Client-Type"
+                "X-Client-Type",
+                "X-Deposit-Access-Token"
         ));
         configuration.setExposedHeaders(List.of("Authorization", "Content-Type", "Content-Disposition"));
         configuration.setAllowCredentials(true);

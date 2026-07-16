@@ -7,7 +7,7 @@ import lombok.Builder;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Builder
+@Builder(toBuilder = true)
 @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
 public record BatchDepositCheckoutResponse(
         Long batchId,
@@ -26,7 +26,8 @@ public record BatchDepositCheckoutResponse(
         String accountName,
         String transferDescription,
         LocalDateTime expiresAt,
-        List<RoomInfo> rooms
+        List<RoomInfo> rooms,
+        String accessToken
 ) {
     @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
     public record RoomInfo(

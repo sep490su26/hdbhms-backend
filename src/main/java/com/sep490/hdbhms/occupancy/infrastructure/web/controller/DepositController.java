@@ -33,6 +33,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositContra
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositPaymentStatusResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositRoomHoldStatusResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper;
+import com.sep490.hdbhms.occupancy.infrastructure.web.security.DepositAccessTokenService;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -53,6 +54,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -66,6 +68,9 @@ import java.util.List;
 import vn.payos.model.v2.paymentRequests.PaymentLink;
 import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.v2.paymentRequests.Transaction;
+
+import static com.sep490.hdbhms.occupancy.infrastructure.web.security.DepositAccessTokenService.HEADER_NAME;
+import static com.sep490.hdbhms.occupancy.infrastructure.web.security.DepositAccessTokenService.PAYMENT_SCOPE;
 
 @Slf4j
 @RestController
@@ -89,6 +94,7 @@ public class DepositController {
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     PayOSProperties payOSProperties;
     ObjectMapper objectMapper;
+    DepositAccessTokenService depositAccessTokenService;
 
     @PostMapping("/checkout")
     public ApiResponse<DepositCheckoutResponse> bookRoom(
@@ -127,7 +133,11 @@ public class DepositController {
     }
 
     @GetMapping("/payments/{paymentIntentId}/status")
-    public ApiResponse<DepositPaymentStatusResponse> getDepositPaymentStatus(@PathVariable Long paymentIntentId) {
+    public ApiResponse<DepositPaymentStatusResponse> getDepositPaymentStatus(
+            @PathVariable Long paymentIntentId,
+            @RequestHeader(value = HEADER_NAME, required = false) String accessToken
+    ) {
+        depositAccessTokenService.requireValid(accessToken, PAYMENT_SCOPE, paymentIntentId);
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
         paymentIntent = syncPayOSPaymentIfPaid(paymentIntent);
@@ -152,7 +162,11 @@ public class DepositController {
     }
 
     @PostMapping("/payments/{paymentIntentId}/expire")
-    public ApiResponse<DepositPaymentStatusResponse> expireDepositPayment(@PathVariable Long paymentIntentId) {
+    public ApiResponse<DepositPaymentStatusResponse> expireDepositPayment(
+            @PathVariable Long paymentIntentId,
+            @RequestHeader(value = HEADER_NAME, required = false) String accessToken
+    ) {
+        depositAccessTokenService.requireValid(accessToken, PAYMENT_SCOPE, paymentIntentId);
         paymentIntentRepository.findById(paymentIntentId)
                 .map(this::syncPayOSPaymentIfPaid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phien thanh toan."));
@@ -180,8 +194,10 @@ public class DepositController {
     @GetMapping("/payments/{paymentIntentId}/contract")
     public ResponseEntity<Resource> downloadPaidDepositContract(
             @PathVariable Long paymentIntentId,
-            @RequestParam String paymentContent
+            @RequestParam String paymentContent,
+            @RequestHeader(value = HEADER_NAME, required = false) String accessToken
     ) {
+        depositAccessTokenService.requireValid(accessToken, PAYMENT_SCOPE, paymentIntentId);
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
         if (paymentIntent.getDepositAgreementId() == null) {
@@ -210,7 +226,11 @@ public class DepositController {
 
     @Transactional
     @PostMapping("/payments/{paymentIntentId}/cancel")
-    public ApiResponse<DepositRoomHoldStatusResponse> cancelDepositPayment(@PathVariable Long paymentIntentId) {
+    public ApiResponse<DepositRoomHoldStatusResponse> cancelDepositPayment(
+            @PathVariable Long paymentIntentId,
+            @RequestHeader(value = HEADER_NAME, required = false) String accessToken
+    ) {
+        depositAccessTokenService.requireValid(accessToken, PAYMENT_SCOPE, paymentIntentId);
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
         if (paymentIntent.getDepositAgreementId() == null) {
@@ -480,6 +500,7 @@ public class DepositController {
                 .receiverName(accountName)
                 .bankName(bankShortName)
                 .accountNumber(textValue(payload, "accountNumber"))
+                .accessToken(depositAccessTokenService.issue(PAYMENT_SCOPE, paymentIntent.getId()))
                 .build();
     }
 

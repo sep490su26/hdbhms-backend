@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -62,17 +63,25 @@ public interface JpaRoomRepository extends JpaRepository<RoomEntity, Long>, JpaS
                 room.version = room.version + 1
             WHERE room.property.id = :propertyId
               AND room.deletedAt IS NULL
-              AND room.currentStatus <> :newStatus
+              AND room.currentStatus = :expectedStatus
               AND NOT EXISTS (
                   SELECT contract.id FROM LeaseContractEntity contract
                   WHERE contract.room.id = room.id
                     AND contract.deletedAt IS NULL
                     AND contract.status IN :activeStatuses
               )
+              AND NOT EXISTS (
+                  SELECT deposit.id FROM DepositAgreementEntity deposit
+                  WHERE deposit.room.id = room.id
+                    AND deposit.deletedAt IS NULL
+                    AND deposit.status IN :activeDepositStatuses
+              )
             """)
-    int updateRoomsWithoutActiveContractsToStatus(
+    int updateDraftRoomsWithoutActiveCommitmentsToStatus(
             @Param("propertyId") Long propertyId,
+            @Param("expectedStatus") RoomStatus expectedStatus,
             @Param("activeStatuses") List<LeaseStatus> activeStatuses,
+            @Param("activeDepositStatuses") List<DepositAgreementStatus> activeDepositStatuses,
             @Param("newStatus") RoomStatus newStatus
     );
 }
