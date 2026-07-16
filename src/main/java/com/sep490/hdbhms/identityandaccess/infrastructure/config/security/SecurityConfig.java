@@ -124,7 +124,8 @@ public class SecurityConfig {
                 "Accept",
                 "Origin",
                 "X-Requested-With",
-                "X-Client-Type"
+                "X-Client-Type",
+                "X-Deposit-Access-Token"
         ));
         configuration.setExposedHeaders(List.of("Authorization", "Content-Type", "Content-Disposition"));
         configuration.setAllowCredentials(true);

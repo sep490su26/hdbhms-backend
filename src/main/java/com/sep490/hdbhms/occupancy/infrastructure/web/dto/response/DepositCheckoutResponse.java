@@ -31,6 +31,7 @@ public record DepositCheckoutResponse(
         String transferDescription,
         String receiverName,
         String bankName,
-        String accountNumber
+        String accountNumber,
+        String accessToken
 ) {
 }

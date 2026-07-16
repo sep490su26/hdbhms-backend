@@ -17,6 +17,7 @@ import com.sep490.hdbhms.occupancy.application.service.DepositBatchCheckoutServi
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.BatchDepositCheckoutRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.BatchDepositCheckoutResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.BatchDepositStatusResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.web.security.DepositAccessTokenService;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -37,6 +38,9 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static com.sep490.hdbhms.occupancy.infrastructure.web.security.DepositAccessTokenService.BATCH_SCOPE;
+import static com.sep490.hdbhms.occupancy.infrastructure.web.security.DepositAccessTokenService.HEADER_NAME;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/public/deposits")
@@ -47,6 +51,7 @@ public class PublicDepositBatchController {
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     PayOSProperties payOSProperties;
     ObjectMapper objectMapper;
+    DepositAccessTokenService depositAccessTokenService;
 
     @PostMapping("/batch-checkout")
     public ResponseEntity<?> checkout(
@@ -62,6 +67,9 @@ public class PublicDepositBatchController {
                     backIdCardFile,
                     portraitFile
             );
+            response = response.toBuilder()
+                    .accessToken(depositAccessTokenService.issue(BATCH_SCOPE, response.batchId()))
+                    .build();
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.<BatchDepositCheckoutResponse>builder().data(response).build());
         } catch (BatchRoomUnavailableException ex) {
@@ -94,7 +102,11 @@ public class PublicDepositBatchController {
     }
 
     @GetMapping("/batches/{batchId}/status")
-    public ApiResponse<BatchDepositStatusResponse> getStatus(@PathVariable Long batchId) {
+    public ApiResponse<BatchDepositStatusResponse> getStatus(
+            @PathVariable Long batchId,
+            @RequestHeader(value = HEADER_NAME, required = false) String accessToken
+    ) {
+        depositAccessTokenService.requireValid(accessToken, BATCH_SCOPE, batchId);
         syncPayOSPayment(batchId);
         return ApiResponse.<BatchDepositStatusResponse>builder()
                 .data(depositBatchCheckoutService.getStatus(batchId))
@@ -102,14 +114,22 @@ public class PublicDepositBatchController {
     }
 
     @PostMapping("/batches/{batchId}/cancel")
-    public ApiResponse<BatchDepositStatusResponse> cancel(@PathVariable Long batchId) {
+    public ApiResponse<BatchDepositStatusResponse> cancel(
+            @PathVariable Long batchId,
+            @RequestHeader(value = HEADER_NAME, required = false) String accessToken
+    ) {
+        depositAccessTokenService.requireValid(accessToken, BATCH_SCOPE, batchId);
         return ApiResponse.<BatchDepositStatusResponse>builder()
                 .data(depositBatchCheckoutService.cancel(batchId))
                 .build();
     }
 
     @PostMapping("/batches/{batchId}/expire")
-    public ApiResponse<BatchDepositStatusResponse> expire(@PathVariable Long batchId) {
+    public ApiResponse<BatchDepositStatusResponse> expire(
+            @PathVariable Long batchId,
+            @RequestHeader(value = HEADER_NAME, required = false) String accessToken
+    ) {
+        depositAccessTokenService.requireValid(accessToken, BATCH_SCOPE, batchId);
         syncPayOSPayment(batchId);
         return ApiResponse.<BatchDepositStatusResponse>builder()
                 .data(depositBatchCheckoutService.expire(batchId))
