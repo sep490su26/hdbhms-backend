@@ -5,6 +5,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreatePropertyCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListPropertiesQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetPropertyDetailsQuery;
@@ -58,6 +59,13 @@ public class PropertyController {
             LeaseStatus.ACTIVE,
             LeaseStatus.EXPIRING_SOON,
             LeaseStatus.TERMINATION_PENDING
+    );
+    private static final List<DepositAgreementStatus> ROOM_COMMITMENT_DEPOSIT_STATUSES = List.of(
+            DepositAgreementStatus.PENDING_PAYMENT,
+            DepositAgreementStatus.PAID,
+            DepositAgreementStatus.CONFIRMED,
+            DepositAgreementStatus.EXTENDED,
+            DepositAgreementStatus.CONVERTED_TO_LEASE
     );
 
     PropertyWebMapper propertyWebMapper;
@@ -307,9 +315,11 @@ public class PropertyController {
         validateCanChangeStatus(property, nextStatus);
         property.setStatus(nextStatus);
         if (activatingProperty) {
-            jpaRoomRepository.updateRoomsWithoutActiveContractsToStatus(
+            jpaRoomRepository.updateDraftRoomsWithoutActiveCommitmentsToStatus(
                     property.getId(),
+                    RoomStatus.DRAFT,
                     ROOM_OCCUPANCY_CONTRACT_STATUSES,
+                    ROOM_COMMITMENT_DEPOSIT_STATUSES,
                     RoomStatus.VACANT
             );
         }
