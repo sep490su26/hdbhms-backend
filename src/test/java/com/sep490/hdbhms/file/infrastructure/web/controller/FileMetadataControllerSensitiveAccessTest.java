@@ -124,12 +124,57 @@ class FileMetadataControllerSensitiveAccessTest {
         verifyNoInteractions(jdbcTemplate, leaseContractQueryService);
     }
 
+    @Test
+    void anonymousCanDownloadNonSensitiveImageLinkedToAPubliclyAvailableRoom() {
+        givenNonSensitiveFile(89L, 7L);
+        when(jdbcTemplate.queryForObject(
+                contains("room_images"),
+                eq(Boolean.class),
+                eq(89L),
+                eq(89L)
+        )).thenReturn(true);
+
+        var response = controller.download(89L);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+    }
+
+    @Test
+    void anonymousCannotDownloadAnUnlinkedNonSensitiveFile() {
+        givenNonSensitiveFile(90L, 7L);
+        when(jdbcTemplate.queryForObject(
+                contains("room_images"),
+                eq(Boolean.class),
+                eq(90L),
+                eq(90L)
+        )).thenReturn(false);
+        givenLinkedHandoverContracts(90L, List.of());
+        givenLinkedRoomAssetRooms(90L, List.of());
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> controller.download(90L)
+        );
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+    }
+
     private void givenSensitiveFile(Long fileId, Long ownerUserId) {
         when(downloadFileService.execute(eq(new DownloadFileQuery(fileId))))
                 .thenReturn(new FileDataResponse(
                         "image/jpeg",
                         new ByteArrayResource(new byte[]{1, 2, 3}),
                         true,
+                        ownerUserId
+                ));
+    }
+
+    private void givenNonSensitiveFile(Long fileId, Long ownerUserId) {
+        when(downloadFileService.execute(eq(new DownloadFileQuery(fileId))))
+                .thenReturn(new FileDataResponse(
+                        "image/jpeg",
+                        new ByteArrayResource(new byte[]{1, 2, 3}),
+                        false,
                         ownerUserId
                 ));
     }

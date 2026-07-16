@@ -95,7 +95,10 @@ public class PropertyController {
                 .data(
                         PageResponse.fromPageToPageResponse(
                                 getListPropertiesUseCase.execute(
-                                                new GetListPropertiesQuery(status, pageable)
+                                                new GetListPropertiesQuery(
+                                                        usesPublicCatalogScope() ? PropertyStatus.ACTIVE : status,
+                                                        pageable
+                                                )
                                         )
                                         .map(propertyWebMapper::toResponse)
                         )
@@ -106,16 +109,10 @@ public class PropertyController {
     @GetMapping("/{propertyId}")
     public ApiResponse<PropertyResponse> getProperty(@PathVariable Long propertyId) {
         assertManagerCanAccessProperty(propertyId);
+        var property = getPropertyDetailsUseCase.execute(new GetPropertyDetailsQuery(propertyId));
+        assertPublicPropertyIsActive(property.getStatus());
         return ApiResponse.<PropertyResponse>builder()
-                .data(
-                        propertyWebMapper.toResponse(
-                                getPropertyDetailsUseCase.execute(
-                                        new GetPropertyDetailsQuery(
-                                                propertyId
-                                        )
-                                )
-                        )
-                )
+                .data(propertyWebMapper.toResponse(property))
                 .build();
     }
 
@@ -127,6 +124,8 @@ public class PropertyController {
         return ApiResponse.<List<PropertySimpleResponse>>builder()
                 .data(properties
                         .stream()
+                        .filter(property -> !usesPublicCatalogScope()
+                                || property.getStatus() == PropertyStatus.ACTIVE)
                         .map(this::toSimpleResponse)
                         .toList())
                 .build();
@@ -135,9 +134,12 @@ public class PropertyController {
     @GetMapping("/{propertyId}/rooms/simple")
     public ApiResponse<List<RoomSimpleResponse>> getSimpleRoomsByProperty(@PathVariable Long propertyId) {
         assertManagerCanAccessProperty(propertyId);
+        assertPublicPropertyIsActive(findProperty(propertyId).getStatus());
         return ApiResponse.<List<RoomSimpleResponse>>builder()
                 .data(jpaRoomRepository.findAllByProperty_IdAndDeletedAtIsNullOrderBySortOrderAscRoomCodeAsc(propertyId)
                         .stream()
+                        .filter(room -> !usesPublicCatalogScope()
+                                || RoomCatalogController.isPublicRoomStatus(room.getCurrentStatus()))
                         .map(room -> RoomSimpleResponse.builder()
                                 .id(room.getId())
                                 .roomCode(room.getRoomCode())
@@ -430,6 +432,17 @@ public class PropertyController {
             return null;
         }
         return principal.getRole();
+    }
+
+    private boolean usesPublicCatalogScope() {
+        Role role = currentRole();
+        return role == null || role == Role.LEAD || role == Role.TENANT;
+    }
+
+    private void assertPublicPropertyIsActive(PropertyStatus status) {
+        if (usesPublicCatalogScope() && status != PropertyStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Property not found");
+        }
     }
 
     private Long currentUserId() {

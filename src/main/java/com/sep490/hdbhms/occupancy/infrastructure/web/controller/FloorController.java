@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateFloorCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetFloorDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListFloorsQuery;
@@ -10,6 +12,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListFloorsUseC
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetPropertyDetailsUseCase;
 import com.sep490.hdbhms.occupancy.domain.model.Floor;
 import com.sep490.hdbhms.occupancy.domain.model.Property;
+import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorRepository;
@@ -22,8 +25,12 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,6 +56,7 @@ public class FloorController {
         Property property = getPropertyDetailsUseCase.execute(
                 new GetPropertyDetailsQuery(propertyId)
         );
+        assertPublicPropertyIsActive(property);
         return ApiResponse.<List<FloorResponse>>builder()
                 .data(
                         getListFloorsUseCase.execute(
@@ -68,6 +76,7 @@ public class FloorController {
         Property property = getPropertyDetailsUseCase.execute(
                 new GetPropertyDetailsQuery(floor.getPropertyId())
         );
+        assertPublicPropertyIsActive(property);
         return ApiResponse.<FloorResponse>builder()
                 .data(
                         floorWebMapper.toFloorResponse(floor, property)
@@ -76,6 +85,7 @@ public class FloorController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<FloorResponse> createFloor(@Valid @RequestBody CreateFloorRequest request) {
         Property property = getPropertyDetailsUseCase.execute(
                 new GetPropertyDetailsQuery(request.getPropertyId())
@@ -99,6 +109,7 @@ public class FloorController {
 
     @DeleteMapping("/{floorId}")
     @Transactional
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<Void> deleteFloor(@PathVariable Long floorId) {
         FloorEntity floor = floorRepository.findById(floorId)
                 .orElseThrow();
@@ -109,5 +120,16 @@ public class FloorController {
                 .forEach(room -> room.setDeletedAt(deletedAt));
         floor.setDeletedAt(deletedAt);
         return ApiResponse.<Void>builder().build();
+    }
+
+    private void assertPublicPropertyIsActive(Property property) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        Role role = authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal
+                ? principal.getRole()
+                : null;
+        if ((role == null || role == Role.LEAD || role == Role.TENANT)
+                && property.getStatus() != PropertyStatus.ACTIVE) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found");
+        }
     }
 }

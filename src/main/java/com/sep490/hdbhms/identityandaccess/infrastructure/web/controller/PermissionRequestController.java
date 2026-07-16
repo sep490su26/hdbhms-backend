@@ -56,6 +56,7 @@ public class PermissionRequestController {
     SnowflakeIdGenerator snowflakeIdGenerator;
 
     @GetMapping
+    @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<PageResponse<PermissionRequestResponse>> getPermissionRequests(
             @RequestParam PermissionRequestStatus status,
             @PageableDefault(size = 20) Pageable pageable
@@ -73,6 +74,7 @@ public class PermissionRequestController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('MANAGER')")
     public ApiResponse<PermissionRequestResponse> createPermissionRequest(
             @Valid @RequestBody CreatePermissionRequestRequest request
     ) {

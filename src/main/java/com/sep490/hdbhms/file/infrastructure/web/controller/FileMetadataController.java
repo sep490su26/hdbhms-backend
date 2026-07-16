@@ -120,7 +120,8 @@ public class FileMetadataController {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
             }
             assertCanDownloadTenantProfileFile(principal, fileId);
-        } else if (!canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
+        } else if (!isPublicRoomListingFile(fileId)
+                && !canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
         }
         return ResponseEntity.ok()
@@ -196,6 +197,35 @@ public class FileMetadataController {
     private boolean canDownloadTenantLinkedFile(Long fileId) {
         return canReadAnyLinkedContract(findLinkedHandoverContractIds(fileId))
                 || canReadAnyLinkedRoom(findLinkedRoomAssetRoomIds(fileId));
+    }
+
+    private boolean isPublicRoomListingFile(Long fileId) {
+        Boolean publicFile = jdbcTemplate.queryForObject("""
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM (
+                                SELECT ri.room_id
+                                FROM room_images ri
+                                WHERE ri.file_id = ?
+                                UNION ALL
+                                SELECT ra.room_id
+                                FROM room_assets ra
+                                WHERE ra.image_file_id = ?
+                                  AND ra.deleted_at IS NULL
+                            ) public_room_files
+                            JOIN rooms r ON r.room_id = public_room_files.room_id
+                            JOIN properties p ON p.property_id = r.property_id
+                            WHERE r.deleted_at IS NULL
+                              AND r.current_status IN ('VACANT', 'SOON_VACANT')
+                              AND p.deleted_at IS NULL
+                              AND p.status = 'ACTIVE'
+                        )
+                """,
+                Boolean.class,
+                fileId,
+                fileId
+        );
+        return Boolean.TRUE.equals(publicFile);
     }
 
     private List<Long> findLinkedHandoverContractIds(Long fileId) {
