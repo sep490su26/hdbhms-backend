@@ -181,6 +181,8 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     }
 
     public void markAllAsRead(Long userId, NotificationChannel channel) {
-        outboxRepository.markAllAsRead(userId, channel);
+        LocalDateTime readAt = LocalDateTime.now();
+        outboxRepository.markAllAsRead(userId, channel, readAt);
+        deliveryRepository.markReadByRecipientUserIdAndChannel(userId, channel, readAt);
     }
 }

@@ -153,6 +153,28 @@ class NotificationServiceTest {
         assertEquals(outboxRepository.readAt, deliveryRepository.targetReadAt);
     }
 
+    @Test
+    void markAllAsReadWithChannelStoresReadAtAndMarksDeliveryRowsForChannel() {
+        ChannelReadTrackingOutboxRepository outboxRepository = new ChannelReadTrackingOutboxRepository();
+        RecordingDeliveryRepository deliveryRepository = new RecordingDeliveryRepository();
+        NotificationService service = new NotificationService(
+                new FixedTemplateRepository(List.of()),
+                outboxRepository,
+                deliveryRepository,
+                new ObjectMapper(),
+                new NotificationTemplateDefaults()
+        );
+
+        service.markAllAsRead(15L, NotificationChannel.PUSH);
+
+        assertEquals(15L, outboxRepository.userId);
+        assertEquals(NotificationChannel.PUSH, outboxRepository.channel);
+        assertNotNull(outboxRepository.readAt);
+        assertEquals(15L, deliveryRepository.channelReadUserId);
+        assertEquals(NotificationChannel.PUSH, deliveryRepository.channelReadChannel);
+        assertEquals(outboxRepository.readAt, deliveryRepository.channelReadAt);
+    }
+
     private record FixedTemplateRepository(
             List<NotificationTemplate> templates
     ) implements NotificationTemplateRepository {
@@ -240,6 +262,11 @@ class NotificationServiceTest {
         }
 
         @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
+        }
+
+        @Override
         public void markAllAsRead(Long userId, LocalDateTime readAt) {
             throw unexpected("NotificationOutboxRepository.markAllAsRead");
         }
@@ -308,6 +335,11 @@ class NotificationServiceTest {
 
         @Override
         public void markAllAsRead(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt) {
             throw unexpected("NotificationOutboxRepository.markAllAsRead");
         }
 
@@ -381,6 +413,11 @@ class NotificationServiceTest {
         }
 
         @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
+        }
+
+        @Override
         public void markAllAsRead(Long userId, LocalDateTime readAt) {
             throw unexpected("NotificationOutboxRepository.markAllAsRead");
         }
@@ -399,9 +436,87 @@ class NotificationServiceTest {
         }
     }
 
+    private static final class ChannelReadTrackingOutboxRepository implements NotificationOutboxRepository {
+        private Long userId;
+        private NotificationChannel channel;
+        private LocalDateTime readAt;
+
+        @Override
+        public NotificationOutbox save(NotificationOutbox notificationOutbox) {
+            throw unexpected("NotificationOutboxRepository.save");
+        }
+
+        @Override
+        public Optional<NotificationOutbox> findById(Long id) {
+            throw unexpected("NotificationOutboxRepository.findById");
+        }
+
+        @Override
+        public List<NotificationOutbox> findByStatusAndNextRetryAtBefore(
+                OutboxStatus outboxStatus,
+                LocalDateTime localDateTime
+        ) {
+            throw unexpected("NotificationOutboxRepository.findByStatusAndNextRetryAtBefore");
+        }
+
+        @Override
+        public Page<NotificationOutbox> findByRecipientUserIdAndChannelOrderByCreatedAtDesc(
+                Long userId,
+                NotificationChannel channel,
+                Pageable pageable
+        ) {
+            throw unexpected("NotificationOutboxRepository.findByRecipientUserIdAndChannelOrderByCreatedAtDesc");
+        }
+
+        @Override
+        public List<NotificationOutbox> findNextNotificationsCursor(
+                Long userId,
+                NotificationChannel channel,
+                long after,
+                int limit
+        ) {
+            throw unexpected("NotificationOutboxRepository.findNextNotificationsCursor");
+        }
+
+        @Override
+        public long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse");
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt) {
+            this.userId = userId;
+            this.channel = channel;
+            this.readAt = readAt;
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, LocalDateTime readAt) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
+        }
+
+        @Override
+        public void markTargetAsRead(Long userId, String targetType, Long targetId, LocalDateTime readAt) {
+            throw unexpected("NotificationOutboxRepository.markTargetAsRead");
+        }
+
+        @Override
+        public boolean markAsProcessing(Long id) {
+            throw unexpected("NotificationOutboxRepository.markAsProcessing");
+        }
+    }
+
     private static final class RecordingDeliveryRepository implements NotificationDeliveryRepository {
         private Long readOutboxId;
         private LocalDateTime readAt;
+        private Long channelReadUserId;
+        private NotificationChannel channelReadChannel;
+        private LocalDateTime channelReadAt;
         private Long targetReadUserId;
         private String targetReadType;
         private Long targetReadTargetId;
@@ -421,6 +536,13 @@ class NotificationServiceTest {
         @Override
         public void markReadByRecipientUserId(Long userId, LocalDateTime readAt) {
             throw unexpected("NotificationDeliveryRepository.markReadByRecipientUserId");
+        }
+
+        @Override
+        public void markReadByRecipientUserIdAndChannel(Long userId, NotificationChannel channel, LocalDateTime readAt) {
+            this.channelReadUserId = userId;
+            this.channelReadChannel = channel;
+            this.channelReadAt = readAt;
         }
 
         @Override
@@ -451,6 +573,11 @@ class NotificationServiceTest {
         @Override
         public void markReadByRecipientUserId(Long userId, LocalDateTime readAt) {
             throw unexpected("NotificationDeliveryRepository.markReadByRecipientUserId");
+        }
+
+        @Override
+        public void markReadByRecipientUserIdAndChannel(Long userId, NotificationChannel channel, LocalDateTime readAt) {
+            throw unexpected("NotificationDeliveryRepository.markReadByRecipientUserIdAndChannel");
         }
 
         @Override

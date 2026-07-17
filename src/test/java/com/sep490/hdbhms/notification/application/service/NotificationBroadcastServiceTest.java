@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -44,7 +45,7 @@ class NotificationBroadcastServiceTest {
                 SendNotificationBroadcastRequest.builder()
                         .scopeType("PROPERTY")
                         .scopeIds(List.of(1L))
-                        .roles(List.of("TENANT"))
+                        .roles(List.of("TENANT", "MANAGER"))
                         .channels(List.of("WEB", "PUSH"))
                         .title("Thông báo bảo trì")
                         .body("Tạm ngưng nước từ 9h.")
@@ -76,7 +77,7 @@ class NotificationBroadcastServiceTest {
                 SendNotificationBroadcastRequest.builder()
                         .scopeType("SYSTEM")
                         .roles(List.of("TENANT"))
-                        .channels(List.of("WEB"))
+                        .channels(List.of("PUSH"))
                         .build()
         );
 
@@ -84,6 +85,44 @@ class NotificationBroadcastServiceTest {
         assertEquals(1, result.outboxCount());
         verify(jdbcTemplate).queryForList(anyString(), any(MapSqlParameterSource.class), eq(Long.class));
         assertTrue(outboxRepository.saved.isEmpty());
+    }
+
+    @Test
+    void systemWebWithoutExplicitRolesTargetsOnlyWebRoles() {
+        NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
+        List<List<String>> queriedRoles = new ArrayList<>();
+        when(jdbcTemplate.queryForList(anyString(), any(MapSqlParameterSource.class), eq(Long.class)))
+                .thenAnswer(invocation -> {
+                    MapSqlParameterSource params = invocation.getArgument(1);
+                    @SuppressWarnings("unchecked")
+                    List<String> roles = (List<String>) params.getValue("roles");
+                    queriedRoles.add(roles);
+                    return List.of(10L, 20L);
+                });
+        RecordingOutboxRepository outboxRepository = new RecordingOutboxRepository();
+        NotificationBroadcastService service = new NotificationBroadcastService(
+                jdbcTemplate,
+                outboxRepository,
+                new ObjectMapper()
+        );
+
+        NotificationBroadcastService.BroadcastResult result = service.send(
+                SendNotificationBroadcastRequest.builder()
+                        .scopeType("SYSTEM")
+                        .roles(List.of())
+                        .channels(List.of("WEB"))
+                        .title("Thong bao web")
+                        .body("Noi dung")
+                        .build(),
+                99L
+        );
+
+        assertEquals(List.of("LEAD", "MANAGER", "ACCOUNTANT", "OWNER"), result.roles());
+        assertEquals(2, result.recipientCount());
+        assertEquals(2, result.outboxCount());
+        assertEquals(1, queriedRoles.size());
+        assertFalse(queriedRoles.getFirst().contains("TENANT"));
+        assertTrue(outboxRepository.saved.stream().allMatch(item -> item.getChannel() == NotificationChannel.WEB));
     }
 
     private static final class RecordingOutboxRepository implements NotificationOutboxRepository {
@@ -134,6 +173,11 @@ class NotificationBroadcastServiceTest {
 
         @Override
         public void markAllAsRead(Long userId, NotificationChannel channel) {
+            throw unexpected("NotificationOutboxRepository.markAllAsRead");
+        }
+
+        @Override
+        public void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt) {
             throw unexpected("NotificationOutboxRepository.markAllAsRead");
         }
 

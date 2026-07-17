@@ -22,6 +22,7 @@ public interface NotificationOutboxRepository {
     long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel);
 
     void markAllAsRead(Long userId, NotificationChannel channel);
+    void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt);
     void markAllAsRead(Long userId, LocalDateTime readAt);
 
     void markTargetAsRead(Long userId, String targetType, Long targetId, LocalDateTime readAt);

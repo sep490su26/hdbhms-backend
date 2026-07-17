@@ -46,6 +46,21 @@ public interface JpaNotificationOutboxRepository extends JpaRepository<Notificat
             SET n.isRead = true,
                 n.readAt = :readAt
             WHERE n.recipientUser.id = :userId
+              AND n.channel = :channel
+              AND n.isRead = false
+            """)
+    void markAllAsRead(
+            @Param("userId") Long userId,
+            @Param("channel") NotificationChannel channel,
+            @Param("readAt") LocalDateTime readAt
+    );
+
+    @Modifying
+    @Query("""
+            UPDATE NotificationOutboxEntity n
+            SET n.isRead = true,
+                n.readAt = :readAt
+            WHERE n.recipientUser.id = :userId
               AND n.isRead = false
             """)
     void markAllAsRead(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);

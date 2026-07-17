@@ -24,6 +24,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -33,6 +34,20 @@ import java.util.Map;
 public class NotificationBroadcastService {
     static final String EVENT_TYPE = "BROADCAST_ANNOUNCEMENT";
     static final String TARGET_TYPE = "BROADCAST";
+    static final List<String> ALL_BROADCAST_ROLES = List.of(
+            Role.LEAD.name(),
+            Role.TENANT.name(),
+            Role.MANAGER.name(),
+            Role.ACCOUNTANT.name(),
+            Role.OWNER.name()
+    );
+    static final List<String> WEB_BROADCAST_ROLES = List.of(
+            Role.LEAD.name(),
+            Role.MANAGER.name(),
+            Role.ACCOUNTANT.name(),
+            Role.OWNER.name()
+    );
+    static final List<String> PUSH_BROADCAST_ROLES = List.of(Role.TENANT.name());
     static final List<String> ACTIVE_CONTRACT_STATUSES = List.of(
             "SIGNED",
             "ACTIVE",
@@ -47,8 +62,8 @@ public class NotificationBroadcastService {
     public BroadcastResult send(SendNotificationBroadcastRequest request, Long senderUserId) {
         BroadcastScope scope = resolveScope(request == null ? null : request.getScopeType());
         List<Long> scopeIds = normalizeIds(request == null ? null : request.getScopeIds());
-        List<String> roles = normalizeRoles(request == null ? null : request.getRoles());
         List<NotificationChannel> channels = normalizeChannels(request == null ? null : request.getChannels());
+        BroadcastRolePlan rolePlan = resolveRolePlan(request == null ? null : request.getRoles(), channels);
         String title = requiredText(request == null ? null : request.getTitle(), "Title is required");
         String body = requiredText(request == null ? null : request.getBody(), "Body is required");
 
@@ -59,12 +74,18 @@ public class NotificationBroadcastService {
             throw badRequest("Scope ids are required");
         }
 
-        List<Long> recipients = resolveRecipients(scope, scopeIds, roles);
-        String payload = payload(scope, scopeIds, roles, senderUserId);
         LocalDateTime now = LocalDateTime.now();
+        LinkedHashSet<Long> distinctRecipients = new LinkedHashSet<>();
+        int outboxCount = 0;
 
-        for (Long recipientId : recipients) {
-            for (NotificationChannel channel : channels) {
+        for (NotificationChannel channel : channels) {
+            List<String> channelRoles = rolePlan.rolesFor(channel);
+            if (channelRoles.isEmpty()) {
+                continue;
+            }
+            List<Long> recipients = resolveRecipients(scope, scopeIds, channelRoles);
+            String payload = payload(scope, scopeIds, channelRoles, senderUserId);
+            for (Long recipientId : recipients) {
                 outboxRepository.save(NotificationOutbox.builder()
                         .eventType(EVENT_TYPE)
                         .targetType(TARGET_TYPE)
@@ -80,24 +101,36 @@ public class NotificationBroadcastService {
                         .nextRetryAt(now)
                         .createdAt(now)
                         .build());
+                distinctRecipients.add(recipientId);
+                outboxCount++;
             }
         }
 
-        return new BroadcastResult(scope.name(), roles, channels, recipients.size(), recipients.size() * channels.size());
+        return new BroadcastResult(scope.name(), rolePlan.effectiveRoles(), channels, distinctRecipients.size(), outboxCount);
     }
 
     public BroadcastResult previewRecipients(SendNotificationBroadcastRequest request) {
         BroadcastScope scope = resolveScope(request == null ? null : request.getScopeType());
         List<Long> scopeIds = normalizeIds(request == null ? null : request.getScopeIds());
-        List<String> roles = normalizeRoles(request == null ? null : request.getRoles());
         List<NotificationChannel> channels = normalizeChannels(request == null ? null : request.getChannels());
+        BroadcastRolePlan rolePlan = resolveRolePlan(request == null ? null : request.getRoles(), channels);
 
         if (scope.requiresIds() && scopeIds.isEmpty()) {
             throw badRequest("Scope ids are required");
         }
 
-        int recipientCount = resolveRecipients(scope, scopeIds, roles).size();
-        return new BroadcastResult(scope.name(), roles, channels, recipientCount, recipientCount * channels.size());
+        LinkedHashSet<Long> distinctRecipients = new LinkedHashSet<>();
+        int outboxCount = 0;
+        for (NotificationChannel channel : channels) {
+            List<String> channelRoles = rolePlan.rolesFor(channel);
+            if (channelRoles.isEmpty()) {
+                continue;
+            }
+            List<Long> recipients = resolveRecipients(scope, scopeIds, channelRoles);
+            distinctRecipients.addAll(recipients);
+            outboxCount += recipients.size();
+        }
+        return new BroadcastResult(scope.name(), rolePlan.effectiveRoles(), channels, distinctRecipients.size(), outboxCount);
     }
 
     private List<Long> resolveRecipients(BroadcastScope scope, List<Long> scopeIds, List<String> roles) {
@@ -225,10 +258,34 @@ public class NotificationBroadcastService {
                 }
             });
         }
-        if (roles.isEmpty()) {
-            roles.add(Role.TENANT.name());
-        }
         return List.copyOf(roles);
+    }
+
+    private BroadcastRolePlan resolveRolePlan(List<String> rawRoles, List<NotificationChannel> channels) {
+        List<String> requestedRoles = normalizeRoles(rawRoles);
+        LinkedHashMap<NotificationChannel, List<String>> rolesByChannel = new LinkedHashMap<>();
+        LinkedHashSet<String> effectiveRoles = new LinkedHashSet<>();
+
+        for (NotificationChannel channel : channels) {
+            Set<String> allowedRoles = allowedRolesForChannel(channel);
+            List<String> channelRoles = requestedRoles.isEmpty()
+                    ? List.copyOf(allowedRoles)
+                    : requestedRoles.stream()
+                    .filter(allowedRoles::contains)
+                    .toList();
+            rolesByChannel.put(channel, channelRoles);
+            effectiveRoles.addAll(channelRoles);
+        }
+
+        return new BroadcastRolePlan(rolesByChannel, List.copyOf(effectiveRoles));
+    }
+
+    private Set<String> allowedRolesForChannel(NotificationChannel channel) {
+        return switch (channel) {
+            case WEB -> new LinkedHashSet<>(WEB_BROADCAST_ROLES);
+            case PUSH -> new LinkedHashSet<>(PUSH_BROADCAST_ROLES);
+            case IN_APP, EMAIL, SMS -> new LinkedHashSet<>(ALL_BROADCAST_ROLES);
+        };
     }
 
     private List<NotificationChannel> normalizeChannels(List<String> raw) {
@@ -287,5 +344,14 @@ public class NotificationBroadcastService {
             int recipientCount,
             int outboxCount
     ) {
+    }
+
+    private record BroadcastRolePlan(
+            Map<NotificationChannel, List<String>> rolesByChannel,
+            List<String> effectiveRoles
+    ) {
+        private List<String> rolesFor(NotificationChannel channel) {
+            return rolesByChannel.getOrDefault(channel, List.of());
+        }
     }
 }

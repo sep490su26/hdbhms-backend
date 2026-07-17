@@ -24,8 +24,23 @@ public interface JpaNotificationDeliveryRepository extends JpaRepository<Notific
             SET d.readAt = :readAt
             WHERE d.outbox.recipientUser.id = :userId
               AND d.readAt IS NULL
-            """)
+    """)
     void markReadByRecipientUserId(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
+
+    @Modifying
+    @Query(value = """
+            UPDATE notification_deliveries d
+            JOIN notification_outbox o ON o.notification_outbox_id = d.outbox_id
+            SET d.read_at = :readAt
+            WHERE o.recipient_user_id = :userId
+              AND o.channel = :channel
+              AND d.read_at IS NULL
+            """, nativeQuery = true)
+    void markReadByRecipientUserIdAndChannel(
+            @Param("userId") Long userId,
+            @Param("channel") String channel,
+            @Param("readAt") LocalDateTime readAt
+    );
 
     @Modifying
     @Query(value = """

@@ -2,6 +2,7 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.repository;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationDeliveryRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationDelivery;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 import com.sep490.hdbhms.notification.infrastructure.persistence.jpa.JpaNotificationDeliveryRepository;
 import com.sep490.hdbhms.notification.infrastructure.persistence.mapper.NotificationDeliveryPersistenceMapper;
 import lombok.AccessLevel;
@@ -38,6 +39,12 @@ public class SpringDataNotificationDeliveryRepository implements NotificationDel
     @Transactional
     public void markReadByRecipientUserId(Long userId, LocalDateTime readAt) {
         jpaNotificationDeliveryRepository.markReadByRecipientUserId(userId, readAt);
+    }
+
+    @Override
+    @Transactional
+    public void markReadByRecipientUserIdAndChannel(Long userId, NotificationChannel channel, LocalDateTime readAt) {
+        jpaNotificationDeliveryRepository.markReadByRecipientUserIdAndChannel(userId, channel.name(), readAt);
     }
 
     @Override
