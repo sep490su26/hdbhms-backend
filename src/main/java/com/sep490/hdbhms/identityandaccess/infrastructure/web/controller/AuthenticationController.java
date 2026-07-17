@@ -12,6 +12,7 @@ import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -109,7 +110,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/reset-password")
-    ApiResponse<Void> resetPassword(@RequestBody ResetPasswordRequest request) {
+    ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         resetPasswordUseCase.resetPassword(
                 authenticationWebMapper.toCommand(request)
         );

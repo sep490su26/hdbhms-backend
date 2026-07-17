@@ -45,7 +45,13 @@ public class PasswordResetTokenAdapter implements PasswordResetTokenPort {
                         : resetPasswordConfig.getWebConfirmationUrl(),
                 passwordResetCode
         );
-        passwordResetEmailVerifierSender.sendResetPasswordVerifier(toEmail, passwordResetCode, resetLink);
+        passwordResetEmailVerifierSender.sendResetPasswordVerifier(
+                userId,
+                toEmail,
+                user.getPhone(),
+                passwordResetCode,
+                resetLink
+        );
     }
 
     @Override

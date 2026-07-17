@@ -1,5 +1,5 @@
 package com.sep490.hdbhms.identityandaccess.application.port.out;
 
 public interface PasswordResetEmailVerifierSender {
-    void sendResetPasswordVerifier(String email, String passwordResetCode, String resetLink);
+    void sendResetPasswordVerifier(Long userId, String email, String phone, String passwordResetCode, String resetLink);
 }
