@@ -145,7 +145,10 @@ public class ChangeRequestController {
 
     private void assertCanResolve(ChangeRequest request) {
         if (request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS
-                && request.getRequestType() != RequestType.PERMISSION_ACCESS) {
+                && request.getRequestType() != RequestType.PERMISSION_ACCESS
+                && request.getRequestType() != RequestType.CONTRACT_LIQUIDATION
+                && request.getRequestType() != RequestType.CONTRACT_RENEWAL
+                && request.getRequestType() != RequestType.ADD_CO_OCCUPANT) {
             return;
         }
         var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -153,7 +156,7 @@ public class ChangeRequestController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated.");
         }
         if (principal.getRole() != Role.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only owner can approve access requests.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only owner can approve this request.");
         }
     }
 }

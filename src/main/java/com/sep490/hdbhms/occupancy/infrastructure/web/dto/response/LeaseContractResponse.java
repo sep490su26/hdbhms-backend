@@ -17,6 +17,7 @@ public class LeaseContractResponse {
     Long roomId;
     String roomCode;
     String roomName;
+    Long propertyId;
     String propertyName;
     LeaseStatus status;
     LocalDateTime signedAt;

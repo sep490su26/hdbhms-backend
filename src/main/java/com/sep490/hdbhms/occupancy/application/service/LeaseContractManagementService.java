@@ -576,6 +576,110 @@ public class LeaseContractManagementService {
         );
     }
 
+    public LeaseContractManagementResponse addCoOccupantFromChangeRequest(
+            Long leaseContractId,
+            Long tenantProfileId,
+            LocalDate moveInDate,
+            Long approvedBy
+    ) {
+        LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+        if (contract.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+        }
+        if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the them nguoi o cung.");
+        }
+        if (tenantProfileId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ho so nguoi o cung la bat buoc.");
+        }
+        if (contract.getPrimaryTenantProfile() != null
+                && Objects.equals(contract.getPrimaryTenantProfile().getId(), tenantProfileId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Nguoi nay da la nguoi dung ten hop dong.");
+        }
+        Integer profileExists = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM person_profiles
+                        WHERE person_profile_id = ?
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                tenantProfileId
+        );
+        if (profileExists == null || profileExists == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay ho so nguoi o cung.");
+        }
+
+        Integer activeDuplicate = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM contract_occupants
+                        WHERE contract_id = ?
+                          AND tenant_profile_id = ?
+                          AND status = 'ACTIVE'
+                        """,
+                Integer.class,
+                contract.getId(),
+                tenantProfileId
+        );
+        if (activeDuplicate != null && activeDuplicate > 0) {
+            return findOne(contract.getId());
+        }
+
+        RoomEntity room = contract.getRoom();
+        if (room == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
+        }
+        Integer activeOccupants = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM contract_occupants
+                        WHERE contract_id = ?
+                          AND status = 'ACTIVE'
+                        """,
+                Integer.class,
+                contract.getId()
+        );
+        int maxOccupants = room.getMaxOccupants() != null ? room.getMaxOccupants() : 3;
+        if (activeOccupants != null && activeOccupants >= maxOccupants) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong da dat so nguoi o toi da.");
+        }
+
+        Long propertyId = room.getProperty() == null ? null : room.getProperty().getId();
+        Long tenantId = resolveTenantIdForProfile(tenantProfileId, propertyId);
+        LocalDate finalMoveInDate = moveInDate == null ? LocalDate.now() : moveInDate;
+        jdbcTemplate.update("""
+                        INSERT INTO contract_occupants (
+                            contract_id,
+                            tenant_id,
+                            tenant_profile_id,
+                            occupant_role,
+                            move_in_date,
+                            status,
+                            created_at
+                        )
+                        VALUES (?, ?, ?, 'CO_OCCUPANT', ?, 'ACTIVE', NOW(6))
+                        ON DUPLICATE KEY UPDATE
+                            tenant_id = VALUES(tenant_id),
+                            occupant_role = 'CO_OCCUPANT',
+                            move_in_date = VALUES(move_in_date),
+                            move_out_date = NULL,
+                            status = 'ACTIVE',
+                            disabled_reason = NULL,
+                            disabled_by = NULL,
+                            disabled_at = NULL
+                        """,
+                contract.getId(),
+                tenantId,
+                tenantProfileId,
+                finalMoveInDate
+        );
+        appendContractEvent(
+                contract.getId(),
+                "OCCUPANT_CHANGED",
+                "Them nguoi o cung profileId=" + tenantProfileId + "; approvedBy=" + approvedBy
+        );
+        return findOne(contract.getId());
+    }
+
     public LeaseContractManagementResponse recordTenantIntention(
             Long leaseContractId,
             String intention,

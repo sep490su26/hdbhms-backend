@@ -231,6 +231,43 @@ public class NotificationTemplateDefaults {
                     "Có khách đặt lịch xem phòng",
                     "[[${visitorName}]] ([[${visitorPhone}]]) đặt lịch xem [[${roomName}]] tại [[${propertyName}]] lúc [[${preferredStart}]]."
             ),
+            definitionForChannels(
+                    "DEPOSIT_CREATED",
+                    "Có đặt cọc mới",
+                    "Gửi cho chủ trọ và quản lý cơ sở khi khách đã thanh toán đặt cọc phòng.",
+                    "DEPOSIT_AGREEMENT",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "depositAgreementId",
+                            "depositCode",
+                            "amount",
+                            "status",
+                            "roomId",
+                            "roomCode",
+                            "roomName",
+                            "propertyId",
+                            "propertyName",
+                            "expectedMoveInDate",
+                            "expectedLeaseSignDate",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "depositAgreementId", 680965088362755L,
+                            "depositCode", "DC-202607-001",
+                            "amount", 2000000L,
+                            "status", "PAID",
+                            "roomId", 101L,
+                            "roomCode", "101",
+                            "roomName", "Phòng 101",
+                            "propertyId", 2L,
+                            "propertyName", "Nhà trọ Hải Đăng",
+                            "expectedMoveInDate", "2026-07-20",
+                            "expectedLeaseSignDate", "2026-07-18",
+                            "targetRoute", "/dashboard/deposit-contracts"
+                    ),
+                    "Có đặt cọc mới tại [[${propertyName}]]",
+                    "[[${roomName}]] vừa có đặt cọc mới [[${depositCode}]] với số tiền [[${amount}]] VND. Ngày dự kiến vào ở: [[${expectedMoveInDate}]]."
+            ),
             definition(
                     "DEBT_DIRECT_VISIT_REQUIRED",
                     "Cần gặp trực tiếp khách thuê nợ quá hạn",

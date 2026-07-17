@@ -29,6 +29,7 @@ import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementSe
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.application.service.ManageContractHandoverService;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
 import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
@@ -92,7 +93,7 @@ class LegalDocumentControllerChecklistTest {
     }
 
     @Test
-    void downloadSignedDepositUsesStandardHdcFilename() {
+    void downloadSignedDepositUsesRoomCodeHdcDateFilename() {
         setUser(1L, Role.OWNER);
         var getDetails = mock(GetDepositAgreementDetailsUseCase.class);
         var getRoom = mock(GetRoomDetailsUseCase.class);
@@ -111,7 +112,7 @@ class LegalDocumentControllerChecklistTest {
     }
 
     @Test
-    void downloadDraftLeaseUsesStandardHdtFilename() {
+    void downloadDraftLeaseUsesRoomCodeHdtDateFilename() {
         setUser(1L, Role.OWNER);
         var managementService = mock(LeaseContractManagementService.class);
         var documentService = mock(LeaseContractDocumentService.class);
@@ -122,11 +123,11 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.getDraftPdf(9L);
 
-        assertAttachmentFilename(response.getHeaders(), "HDT_P101_29.06.2026.pdf");
+        assertAttachmentFilename(response.getHeaders(), "P101_HDT_29_06_2026.pdf");
     }
 
     @Test
-    void downloadSignedLeaseUsesStandardHdtFilename() {
+    void downloadSignedLeaseUsesRoomCodeHdtDateFilename() {
         setUser(1L, Role.OWNER);
         var managementService = mock(LeaseContractManagementService.class);
         var downloadUseCase = mock(DownloadFileUseCase.class);
@@ -137,7 +138,7 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.downloadSignedLeaseContractFile(9L);
 
-        assertAttachmentFilename(response.getHeaders(), "HDT_P101_29.06.2026.pdf");
+        assertAttachmentFilename(response.getHeaders(), "P101_HDT_29_06_2026.pdf");
     }
 
     @Test
@@ -251,6 +252,7 @@ class LegalDocumentControllerChecklistTest {
                 mock(GetMyListLeaseContractsUseCase.class),
                 mock(GetLeaseContractDetailsUseCase.class),
                 managementService,
+                mock(ContractLifecycleChangeRequestService.class),
                 mock(LeaseContractQueryService.class),
                 documentService,
                 downloadUseCase,
@@ -304,6 +306,7 @@ class LegalDocumentControllerChecklistTest {
     private static LeaseContractManagementResponse.LeaseContractManagementResponseBuilder leaseResponse() {
         return LeaseContractManagementResponse.builder()
                 .leaseContractId(9L)
+                .contractCode("LC-2026-H101-9")
                 .roomCode("101")
                 .customerName("Nguyễn Văn A")
                 .startDate(DOC_DATE);

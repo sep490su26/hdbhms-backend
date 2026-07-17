@@ -77,6 +77,9 @@ import java.util.Set;
 @RequestMapping("/api/v1/deposit-agreements")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositAgreementController {
+    private static final java.time.format.DateTimeFormatter DOCUMENT_FILENAME_DATE_FORMATTER =
+            java.time.format.DateTimeFormatter.ofPattern("dd_MM_yyyy");
+
     private static final Set<DepositAgreementStatus> MANAGER_UPDATEABLE_STATUSES = EnumSet.of(
             DepositAgreementStatus.CONVERTED_TO_LEASE,
             DepositAgreementStatus.REFUNDED
@@ -582,12 +585,30 @@ public class DepositAgreementController {
     private String depositDocumentFilename(DepositAgreement depositAgreement) {
         Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(depositAgreement.getRoomId()));
         DepositForm depositForm = getDepositForm(depositAgreement);
-        return com.sep490.hdbhms.occupancy.domain.utils.DocumentFilenameBuilder.build(
-                room != null ? room.getRoomCode() : null,
-                null,
-                "HDC",
-                resolveExpectedMoveInDate(depositAgreement, depositForm)
-        );
+        java.time.LocalDate expectedMoveInDate = resolveExpectedMoveInDate(depositAgreement, depositForm);
+        String roomCode = withRoomPrefix(sanitizeFilenamePart(room != null ? room.getRoomCode() : null, "Phong-X"));
+        String date = expectedMoveInDate == null
+                ? "Chua-Ro-Ngay"
+                : DOCUMENT_FILENAME_DATE_FORMATTER.format(expectedMoveInDate);
+        return roomCode + "_HDC_" + date + ".pdf";
+    }
+
+    private String sanitizeFilenamePart(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        String sanitized = value.trim().replaceAll("[^a-zA-Z0-9_-]", "");
+        return sanitized.isBlank() ? fallback : sanitized;
+    }
+
+    private String withRoomPrefix(String roomCode) {
+        if (roomCode.startsWith("Phong")) {
+            return roomCode;
+        }
+        if (roomCode.regionMatches(true, 0, "P", 0, 1)) {
+            return "P" + roomCode.substring(1);
+        }
+        return "P" + roomCode;
     }
 
     private String signatureStatus(DepositAgreement depositAgreement) {

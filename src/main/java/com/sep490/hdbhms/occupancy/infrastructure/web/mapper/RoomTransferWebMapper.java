@@ -129,8 +129,8 @@ public abstract class RoomTransferWebMapper {
             isTransferOutHandoverRequired(request),
             isTransferInHandoverRequired(request),
             isRoomHandoverRequired(request, sourceRoomWillBeEmptyAfterTransfer),
-            resolveAllowedActions(request, remainingOccupantCountAfterTransfer, transferDifferenceInvoiceId, oldRoomFinalInvoicePaid),
-            resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid)
+            resolveAllowedActions(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoicePaid),
+            resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid)
         );
     }
 
@@ -301,6 +301,7 @@ public abstract class RoomTransferWebMapper {
     private List<String> resolveAllowedActions(
             RoomTransferRequest request,
             Integer remainingOccupantCountAfterTransfer,
+            Long priceDifferenceToPay,
             Long transferDifferenceInvoiceId,
             boolean oldRoomFinalInvoicePaid
     ) {
@@ -329,7 +330,7 @@ public abstract class RoomTransferWebMapper {
                 actions.add("REJECT_TARGET_HOLDER");
             }
             case WAITING_TENANT_CONFIRMATION -> {
-                if (isImmediateDifferencePaymentPending(request)) {
+                if (isImmediateDifferencePaymentPending(request, priceDifferenceToPay)) {
                     actions.add("PAY_TRANSFER_DIFFERENCE");
                 } else {
                     actions.add("CONFIRM_TENANT_TRANSFER");
@@ -368,6 +369,7 @@ public abstract class RoomTransferWebMapper {
     private List<String> resolveBlockingReasons(
             RoomTransferRequest request,
             Integer remainingOccupantCountAfterTransfer,
+            Long priceDifferenceToPay,
             Long transferDifferenceInvoiceId,
             Long oldRoomFinalInvoiceId,
             boolean oldRoomFinalInvoicePaid
@@ -387,7 +389,7 @@ public abstract class RoomTransferWebMapper {
             case WAITING_HOLDER_RESPONSE -> reasons.add("Waiting for nominated holder response.");
             case WAITING_TARGET_HOLDER_APPROVAL -> reasons.add("Waiting for target room holder approval.");
             case WAITING_TENANT_CONFIRMATION -> {
-                if (isImmediateDifferencePaymentPending(request)) {
+                if (isImmediateDifferencePaymentPending(request, priceDifferenceToPay)) {
                     reasons.add("Transfer difference invoice must be paid before request confirmation.");
                 }
             }
@@ -430,8 +432,10 @@ public abstract class RoomTransferWebMapper {
         return reasons;
     }
 
-    private boolean isImmediateDifferencePaymentPending(RoomTransferRequest request) {
-        return request.getPositiveDifferenceSettlementType() == SettlementType.TENANT_PAY_MORE;
+    private boolean isImmediateDifferencePaymentPending(RoomTransferRequest request, Long priceDifferenceToPay) {
+        return priceDifferenceToPay != null
+                && priceDifferenceToPay > 0
+                && request.getPositiveDifferenceSettlementType() == SettlementType.TENANT_PAY_MORE;
     }
 
     private boolean hasAllRequiredSignedContractFiles(RoomTransferRequest request) {

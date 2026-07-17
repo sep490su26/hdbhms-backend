@@ -10,6 +10,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring", uses = RoomWebMapper.class)
 public interface LeaseContractWebMapper {
     @Mapping(target = "id", source = "leaseContract.id")
+    @Mapping(target = "propertyId", source = "room.propertyId")
     LeaseContractResponse toResponse(LeaseContract leaseContract, Room room);
 
     @Mapping(target = "id", source = "leaseContract.id")

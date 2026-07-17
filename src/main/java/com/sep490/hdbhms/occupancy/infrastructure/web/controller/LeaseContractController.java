@@ -1,8 +1,11 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
+import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestResponse;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDetailsQuery;
@@ -11,6 +14,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
+import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
@@ -30,6 +34,7 @@ import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -57,13 +62,14 @@ import java.util.List;
 @RequestMapping("/api/v1/lease-contracts")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LeaseContractController {
-    private static final DateTimeFormatter HDT_FILENAME_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private static final DateTimeFormatter DOCUMENT_FILENAME_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd_MM_yyyy");
 
     GetRoomDetailsUseCase getRoomDetailsUseCase;
     LeaseContractWebMapper leaseContractWebMapper;
     GetMyListLeaseContractsUseCase getMyListLeaseContractsUseCase;
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
     LeaseContractManagementService leaseContractManagementService;
+    ContractLifecycleChangeRequestService contractLifecycleChangeRequestService;
     LeaseContractQueryService leaseContractQueryService;
     LeaseContractDocumentService leaseContractDocumentService;
     DownloadFileUseCase downloadFileUseCase;
@@ -116,21 +122,23 @@ public class LeaseContractController {
 
     @PostMapping("/management/deposits/{depositAgreementId}/signed-file")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LeaseContractManagementResponse> uploadSignedFileForDeposit(
             @PathVariable Long depositAgreementId,
             @RequestPart("file") MultipartFile file
     ) {
+        assertOwnerOrAssignedManagerCanAccessDeposit(depositAgreementId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
                 .data(leaseContractManagementService.uploadSignedFileForDeposit(depositAgreementId, file))
                 .build();
     }
 
     @PostMapping("/management/deposits/{depositAgreementId}/draft")
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LeaseContractManagementResponse> createDraftLeaseContractForDeposit(
             @PathVariable Long depositAgreementId
     ) {
+        assertOwnerOrAssignedManagerCanAccessDeposit(depositAgreementId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
                 .data(leaseContractManagementService.createDraftLeaseContractForDeposit(depositAgreementId))
                 .build();
@@ -176,10 +184,11 @@ public class LeaseContractController {
     }
 
     @PostMapping("/{leaseContractId}/activate")
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LeaseContractManagementResponse> activateLeaseContract(
             @PathVariable Long leaseContractId
     ) {
+        assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
                 .data(leaseContractManagementService.activate(leaseContractId))
                 .build();
@@ -236,6 +245,71 @@ public class LeaseContractController {
                         request.newContractCode(),
                         request.note()
                 ))
+                .build();
+    }
+
+    @PostMapping("/{leaseContractId}/liquidation-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
+    public ApiResponse<ChangeRequestResponse> submitLiquidationRequest(
+            @PathVariable Long leaseContractId,
+            @RequestBody(required = false) LeaseContractLiquidationRequest request
+    ) {
+        leaseContractQueryService.assertCurrentUserCanReadContract(leaseContractId);
+        ChangeRequest changeRequest = contractLifecycleChangeRequestService.submitLiquidationRequest(
+                leaseContractId,
+                request == null ? null : request.liquidationDate(),
+                request == null ? null : request.reason()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .data(toChangeRequestResponse(changeRequest))
+                .build();
+    }
+
+    @PostMapping("/{leaseContractId}/renewal-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
+    public ApiResponse<ChangeRequestResponse> submitRenewalRequest(
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody LeaseContractRenewalRequest request
+    ) {
+        leaseContractQueryService.assertCurrentUserCanReadContract(leaseContractId);
+        ChangeRequest changeRequest = contractLifecycleChangeRequestService.submitRenewalRequest(
+                leaseContractId,
+                request.newStartDate(),
+                request.newEndDate(),
+                request.monthlyRent(),
+                request.paymentCycleMonths(),
+                request.depositAmount(),
+                request.note()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .data(toChangeRequestResponse(changeRequest))
+                .build();
+    }
+
+    @PostMapping("/{leaseContractId}/co-occupant-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER','TENANT')")
+    public ApiResponse<ChangeRequestResponse> submitAddCoOccupantRequest(
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody AddCoOccupantRequest request
+    ) {
+        leaseContractQueryService.assertCurrentUserCanReadContract(leaseContractId);
+        ChangeRequest changeRequest = contractLifecycleChangeRequestService.submitAddCoOccupantRequest(
+                leaseContractId,
+                request.tenantProfileId(),
+                request.fullName(),
+                request.dob(),
+                request.gender(),
+                request.phone(),
+                request.email(),
+                request.permanentAddress(),
+                request.moveInDate(),
+                request.note()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .data(toChangeRequestResponse(changeRequest))
                 .build();
     }
 
@@ -396,8 +470,8 @@ public class LeaseContractController {
         String roomCode = withRoomPrefix(sanitizeFilenamePart(contract.getRoomCode(), "Phong-X"));
         String date = contract.getStartDate() == null
                 ? "Chua-Ro-Ngay"
-                : HDT_FILENAME_DATE_FORMATTER.format(contract.getStartDate());
-        return "HDT_" + roomCode + "_" + date + ".pdf";
+                : DOCUMENT_FILENAME_DATE_FORMATTER.format(contract.getStartDate());
+        return roomCode + "_HDT_" + date + ".pdf";
     }
 
     private String sanitizeFilenamePart(String value, String fallback) {
@@ -507,10 +581,91 @@ public class LeaseContractController {
         }
     }
 
+    private void assertOwnerOrAssignedManagerCanAccessDeposit(Long depositAgreementId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
+        }
+        if (principal.getRole() == Role.OWNER) {
+            return;
+        }
+        if (principal.getRole() != Role.MANAGER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong coc nay.");
+        }
+
+        Long propertyId = jdbcTemplate.query("""
+                        SELECT r.property_id
+                        FROM deposit_agreements da
+                        JOIN rooms r ON r.room_id = da.room_id
+                        WHERE da.deposit_agreement_id = ?
+                          AND r.deleted_at IS NULL
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getLong("property_id") : null,
+                depositAgreementId
+        );
+        if (propertyId == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong dat coc.");
+        }
+
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM role_promotions
+                        WHERE user_id = ?
+                          AND property_id = ?
+                          AND role = 'MANAGER'
+                          AND status = 'ACTIVE'
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                principal.getId(),
+                propertyId
+        );
+        if (count == null || count == 0) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong coc nay.");
+        }
+    }
+
     public record LeaseContractLiquidationRequest(
             LocalDate liquidationDate,
             String reason
     ) {
+    }
+
+    public record AddCoOccupantRequest(
+            Long tenantProfileId,
+            @Size(max = 255, message = "Ten nguoi o cung khong duoc vuot qua 255 ky tu.")
+            String fullName,
+            LocalDate dob,
+            Gender gender,
+            @Size(max = 30, message = "So dien thoai khong duoc vuot qua 30 ky tu.")
+            String phone,
+            @Email(message = "Email nguoi o cung khong hop le.")
+            @Size(max = 255, message = "Email nguoi o cung khong duoc vuot qua 255 ky tu.")
+            String email,
+            @Size(max = 1000, message = "Dia chi thuong tru khong duoc vuot qua 1000 ky tu.")
+            String permanentAddress,
+            LocalDate moveInDate,
+            @Size(max = 1000, message = "Ghi chu khong duoc vuot qua 1000 ky tu.")
+            String note
+    ) {
+    }
+
+    private ChangeRequestResponse toChangeRequestResponse(ChangeRequest req) {
+        return new ChangeRequestResponse(
+                req.getId(),
+                req.getRequestCode(),
+                req.getRequestType(),
+                req.getTargetType(),
+                req.getTargetId(),
+                req.getTitle(),
+                req.getDescription(),
+                req.getRequestPayload(),
+                req.getStatus(),
+                req.getRequesterId(),
+                req.getResolutionNote(),
+                req.getCreatedAt()
+        );
     }
 
     public record LeaseContractTermsUpdateRequest(
