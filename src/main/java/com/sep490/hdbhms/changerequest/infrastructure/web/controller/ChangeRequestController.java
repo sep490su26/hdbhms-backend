@@ -155,6 +155,10 @@ public class ChangeRequestController {
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated.");
         }
+        if (request.getRequestType() == RequestType.CONTRACT_RENEWAL
+                && (principal.getRole() == Role.OWNER || principal.getRole() == Role.MANAGER)) {
+            return;
+        }
         if (principal.getRole() != Role.OWNER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only owner can approve this request.");
         }

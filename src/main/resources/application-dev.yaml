@@ -62,6 +62,8 @@ springdoc:
 app:
   mock-payment:
     enabled: ${APP_MOCK_PAYMENT_ENABLED:true}
+  mock-occupancy-flow:
+    enabled: ${APP_MOCK_OCCUPANCY_FLOW_ENABLED:true}
   identity-verification:
     debug:
       dump-candidates: ${IDENTITY_VERIFICATION_DUMP_CANDIDATES:false}

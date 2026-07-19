@@ -484,6 +484,109 @@ public class NotificationTemplateDefaults {
                     ),
                     "Đã thanh toán yêu cầu chi [[${expenseCode}]]",
                     "Chủ trọ đã ghi nhận thanh toán yêu cầu chi [[${expenseCode}]] với số tiền [[${amount}]] VND."
+            ),
+            definitionForChannels(
+                    "CHANGE_REQUEST_CREATED",
+                    "Có yêu cầu mới cần xử lý",
+                    "Gửi cho người phụ trách khi một yêu cầu thay đổi mới được tạo.",
+                    "CHANGE_REQUEST",
+                    List.of(NotificationChannel.PUSH),
+                    variables(
+                            "requestId",
+                            "requestCode",
+                            "requestType",
+                            "requestTypeLabel",
+                            "title",
+                            "description",
+                            "requesterId",
+                            "requesterRole",
+                            "assignedRole",
+                            "targetType",
+                            "targetId",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "requestId", 680965088362756L,
+                            "requestCode", "CR-680965088362756",
+                            "requestType", "CONTRACT_RENEWAL",
+                            "requestTypeLabel", "Yêu cầu tái ký hợp đồng",
+                            "title", "Yêu cầu tái ký hợp đồng HD-001",
+                            "description", "Khách muốn tái ký hợp đồng.",
+                            "requesterId", 12L,
+                            "requesterRole", "TENANT",
+                            "assignedRole", "OWNER",
+                            "targetType", "CONTRACT",
+                            "targetId", 91L,
+                            "targetRoute", "/dashboard/requests?requestId=680965088362756"
+                    ),
+                    "Có [[${requestTypeLabel}]] mới",
+                    "[[${requestCode}]] - [[${title}]] đang chờ xử lý. Nội dung: [[${description}]]."
+            ),
+            definitionForChannels(
+                    "LEASE_EXPIRY_REMINDER_FIRST",
+                    "Nhắc lần 1 hợp đồng sắp hết hạn",
+                    "Gửi cho khách thuê khi hợp đồng còn khoảng 3 tháng.",
+                    "CONTRACT",
+                    List.of(NotificationChannel.PUSH),
+                    leaseReminderVariables(),
+                    leaseReminderSampleData("FIRST"),
+                    "Hợp đồng [[${contractCode}]] sắp hết hạn",
+                    "Phòng [[${roomName}]] tại [[${propertyName}]] sẽ hết hạn vào [[${endDate}]]. Bạn muốn tái ký, chuyển phòng hay chuyển đi?"
+            ),
+            definitionForChannels(
+                    "LEASE_EXPIRY_REMINDER_SECOND",
+                    "Nhắc lần 2 hợp đồng sắp hết hạn",
+                    "Gửi lại cho khách thuê nếu chưa phản hồi sau lần nhắc đầu.",
+                    "CONTRACT",
+                    List.of(NotificationChannel.PUSH),
+                    leaseReminderVariables(),
+                    leaseReminderSampleData("SECOND"),
+                    "Bạn chưa phản hồi về hợp đồng [[${contractCode}]]",
+                    "Vui lòng chọn ý định cho phòng [[${roomName}]] trước ngày hết hạn [[${endDate}]] để quản lý sắp xếp kịp thời."
+            ),
+            definitionForChannels(
+                    "LEASE_EXPIRY_REMINDER_FINAL",
+                    "Nhắc lần cuối hợp đồng sắp hết hạn",
+                    "Gửi lần cuối cho khách thuê và kích hoạt công việc cho quản lý.",
+                    "CONTRACT",
+                    List.of(NotificationChannel.PUSH),
+                    leaseReminderVariables(),
+                    leaseReminderSampleData("FINAL"),
+                    "Nhắc lần cuối về hợp đồng [[${contractCode}]]",
+                    "Hợp đồng phòng [[${roomName}]] sắp hết hạn vào [[${endDate}]]. Vui lòng phản hồi để tránh chậm xử lý bàn giao hoặc tái ký."
+            ),
+            definitionForChannels(
+                    "LEASE_EXPIRY_MANAGER_VISIT_REQUIRED",
+                    "Cần gặp trực tiếp khách sắp hết hạn hợp đồng",
+                    "Gửi cho quản lý khi khách không phản hồi sau 3 lần nhắc.",
+                    "MANAGER_TASK",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    leaseManagerVariables(),
+                    leaseManagerSampleData("Khách chưa phản hồi sau 3 lần nhắc."),
+                    "Cần gặp khách phòng [[${roomName}]]",
+                    "Hợp đồng [[${contractCode}]] hết hạn ngày [[${endDate}]], hạn công việc [[${dueDate}]]. Lý do: [[${reason}]]."
+            ),
+            definitionForChannels(
+                    "LEASE_RENEWAL_TERMS_CONFIRMATION_DUE",
+                    "Cần chốt điều khoản tái ký",
+                    "Gửi cho quản lý khi khách đã chọn tái ký.",
+                    "MANAGER_TASK",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    leaseManagerVariables(),
+                    leaseManagerSampleData("Khách đã chọn tái ký hợp đồng."),
+                    "Cần chốt tái ký hợp đồng [[${contractCode}]]",
+                    "Khách phòng [[${roomName}]] đã chọn tái ký. Cần chốt giá, thời hạn, tiền cọc và lịch ký trước [[${dueDate}]]."
+            ),
+            definitionForChannels(
+                    "LEASE_HANDOVER_CONFIRMATION_DUE",
+                    "Cần chốt lịch bàn giao phòng",
+                    "Gửi cho quản lý khi hợp đồng sắp đến hạn bàn giao.",
+                    "MANAGER_TASK",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    leaseManagerVariables(),
+                    leaseManagerSampleData("Cần chốt ngày giờ bàn giao."),
+                    "Cần chốt bàn giao phòng [[${roomName}]]",
+                    "Hợp đồng [[${contractCode}]] sắp đến hạn [[${endDate}]]. Hạn công việc [[${dueDate}]]. Lý do: [[${reason}]]."
             )
     );
 
@@ -573,6 +676,64 @@ public class NotificationTemplateDefaults {
             data.put((String) entries[index], entries[index + 1]);
         }
         return Collections.unmodifiableMap(data);
+    }
+
+    private List<Variable> leaseReminderVariables() {
+        return variables(
+                "contractId",
+                "contractCode",
+                "roomId",
+                "roomName",
+                "propertyName",
+                "endDate",
+                "daysRemaining",
+                "stage",
+                "targetRoute"
+        );
+    }
+
+    private Map<String, Object> leaseReminderSampleData(String stage) {
+        return sampleData(
+                "contractId", 123L,
+                "contractCode", "HD-001",
+                "roomId", 10L,
+                "roomName", "Phòng 101",
+                "propertyName", "Nhà trọ Hải Đăng",
+                "endDate", "2026-10-17",
+                "daysRemaining", 90,
+                "stage", stage,
+                "targetRoute", "/contract"
+        );
+    }
+
+    private List<Variable> leaseManagerVariables() {
+        return variables(
+                "taskId",
+                "contractId",
+                "contractCode",
+                "roomId",
+                "roomName",
+                "propertyName",
+                "endDate",
+                "dueDate",
+                "reason",
+                "targetRoute"
+        );
+    }
+
+    private Map<String, Object> leaseManagerSampleData(String reason) {
+        return sampleData(
+                "taskId", 456L,
+                "contractId", 123L,
+                "contractCode", "HD-001",
+                "roomId", 10L,
+                "roomName", "Phòng 101",
+                "propertyName", "Nhà trọ Hải Đăng",
+                "endDate", "2026-10-17",
+                "dueDate", "2026-10-03",
+                "reason", reason,
+                "targetRoute", "/dashboard/contracts/123"
+        );
     }
 
     private Map<NotificationChannel, DefaultTemplate> allChannelTemplates(String titleTemplate, String bodyTemplate) {

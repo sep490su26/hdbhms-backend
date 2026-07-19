@@ -335,6 +335,11 @@ class CompleteInvoiceServiceTest {
         }
 
         @Override
+        public RoomTransferRequest refreshTransferEligibilitySnapshot(Long requestId) {
+            throw unexpectedRepositoryCall("RoomTransferUseCase.refreshTransferEligibilitySnapshot");
+        }
+
+        @Override
         public RoomTransferRequest getTransferRequestById(Long requestId) {
             throw unexpectedRepositoryCall("RoomTransferUseCase.getTransferRequestById");
         }

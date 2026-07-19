@@ -11,4 +11,6 @@ public interface JpaManagerTaskRepository extends JpaRepository<ManagerTaskEntit
             Long leaseContractId,
             ManagerTaskStatus status
     );
+
+    Optional<ManagerTaskEntity> findFirstByIdempotencyKey(String idempotencyKey);
 }

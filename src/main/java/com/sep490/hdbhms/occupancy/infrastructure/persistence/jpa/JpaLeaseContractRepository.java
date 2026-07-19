@@ -30,6 +30,32 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
 
     List<LeaseContractEntity> findAllByStatusInAndDeletedAtIsNull(List<LeaseStatus> statuses);
 
+    @Query("""
+            SELECT DISTINCT contract FROM LeaseContractEntity contract
+            JOIN FETCH contract.room room
+            JOIN FETCH room.property
+            LEFT JOIN FETCH contract.primaryTenantProfile primaryTenantProfile
+            LEFT JOIN FETCH primaryTenantProfile.user
+            WHERE contract.deletedAt IS NULL
+              AND contract.status IN :statuses
+            """)
+    List<LeaseContractEntity> findLifecycleCandidates(@Param("statuses") List<LeaseStatus> statuses);
+
+    @Query("""
+            SELECT DISTINCT contract FROM LeaseContractEntity contract
+            JOIN FETCH contract.room room
+            JOIN FETCH room.property
+            LEFT JOIN FETCH contract.primaryTenantProfile primaryTenantProfile
+            LEFT JOIN FETCH primaryTenantProfile.user
+            WHERE contract.deletedAt IS NULL
+              AND contract.id = :contractId
+              AND contract.status IN :statuses
+            """)
+    Optional<LeaseContractEntity> findLifecycleCandidateById(
+            @Param("contractId") Long contractId,
+            @Param("statuses") List<LeaseStatus> statuses
+    );
+
     Optional<LeaseContractEntity> findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(
             Long roomId,
             List<LeaseStatus> statuses

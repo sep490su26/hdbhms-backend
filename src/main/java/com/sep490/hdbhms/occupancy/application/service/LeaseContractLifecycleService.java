@@ -31,18 +31,17 @@ public class LeaseContractLifecycleService {
     JpaLeaseContractRepository leaseContractRepository;
     JpaRoomRepository roomRepository;
     JdbcTemplate jdbcTemplate;
+    LeaseExpiryReminderService leaseExpiryReminderService;
 
     @Transactional
     public void processAll(LocalDate today) {
-        leaseContractRepository.findAllByStatusInAndDeletedAtIsNull(EXPIRY_CANDIDATE_STATUSES)
+        leaseContractRepository.findLifecycleCandidates(EXPIRY_CANDIDATE_STATUSES)
                 .forEach(contract -> processContract(contract, today));
     }
 
     @Transactional
     public void processContract(Long contractId, LocalDate today) {
-        leaseContractRepository.findById(contractId)
-                .filter(contract -> contract.getDeletedAt() == null)
-                .filter(contract -> EXPIRY_CANDIDATE_STATUSES.contains(contract.getStatus()))
+        leaseContractRepository.findLifecycleCandidateById(contractId, EXPIRY_CANDIDATE_STATUSES)
                 .ifPresent(contract -> processContract(contract, today));
     }
 
@@ -62,6 +61,7 @@ public class LeaseContractLifecycleService {
                 hasActivatedRenewal
         );
         if (today.isAfter(contract.getEndDate()) && hasActivatedRenewal) {
+            leaseExpiryReminderService.processContract(contract, today, true);
                 log.info(
                         "Skip contract expiry because active renewed contract exists. contractId={}, status={}",
                         contract.getId(),
@@ -80,6 +80,7 @@ public class LeaseContractLifecycleService {
                     "Contract has three months or less remaining"
             );
         }
+        leaseExpiryReminderService.processContract(contract, today, hasActivatedRenewal);
     }
 
     static LeaseStatus resolveTargetStatus(

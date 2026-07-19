@@ -2,6 +2,7 @@ package com.sep490.hdbhms.identityandaccess.infrastructure.web.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sep490.hdbhms.changerequest.application.service.ChangeRequestNotificationService;
 import com.sep490.hdbhms.changerequest.application.port.in.command.ApproveRequestCommand;
 import com.sep490.hdbhms.changerequest.application.port.in.command.RejectRequestCommand;
 import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequestQueryUseCase;
@@ -54,6 +55,7 @@ public class PermissionRequestController {
     ChangeRequestUseCase changeRequestUseCase;
     ObjectMapper objectMapper;
     SnowflakeIdGenerator snowflakeIdGenerator;
+    ChangeRequestNotificationService changeRequestNotificationService;
 
     @GetMapping
     public ApiResponse<PageResponse<PermissionRequestResponse>> getPermissionRequests(
@@ -99,8 +101,11 @@ public class PermissionRequestController {
                 .status(RequestStatus.PENDING)
                 .build();
 
+        ChangeRequest savedRequest = changeRequestRepository.save(changeRequest);
+        changeRequestNotificationService.notifyCreated(savedRequest);
+
         return ApiResponse.<PermissionRequestResponse>builder()
-                .data(toResponse(changeRequestRepository.save(changeRequest)))
+                .data(toResponse(savedRequest))
                 .build();
     }
 

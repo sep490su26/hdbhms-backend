@@ -11,6 +11,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -51,6 +52,16 @@ public class ScheduledTaskProcessor {
     Map<TaskType, ScheduledTaskHandler> taskHandlerRegistry = new EnumMap<>(TaskType.class);
     Map<TaskType, Semaphore> taskTypeLocks = new ConcurrentHashMap<>();
     String workerId = createWorkerId();
+    @NonFinal
+    volatile LocalDateTime lastPollAt;
+    @NonFinal
+    volatile LocalDateTime lastPollFinishedAt;
+    @NonFinal
+    volatile int lastClaimableTaskCount;
+    @NonFinal
+    volatile int lastSubmittedTaskCount;
+    @NonFinal
+    volatile String lastPollError;
 
     @PostConstruct
     public void registerTaskHandlers() {
@@ -66,17 +77,32 @@ public class ScheduledTaskProcessor {
 
     @Scheduled(fixedDelay = 10_000)
     public void processDueTasks() {
-        List<ScheduledTask> claimableTasks = scheduledTaskRepository.findClaimable(LocalDateTime.now(), POLL_BATCH_SIZE);
-        for (ScheduledTask candidate : claimableTasks) {
-            claimAndSubmit(candidate);
+        lastPollAt = LocalDateTime.now();
+        try {
+            List<ScheduledTask> claimableTasks = scheduledTaskRepository.findClaimable(LocalDateTime.now(), POLL_BATCH_SIZE);
+            lastClaimableTaskCount = claimableTasks.size();
+            int submittedCount = 0;
+            for (ScheduledTask candidate : claimableTasks) {
+                if (claimAndSubmit(candidate)) {
+                    submittedCount++;
+                }
+            }
+            lastSubmittedTaskCount = submittedCount;
+            lastPollError = null;
+        } catch (RuntimeException exception) {
+            lastPollError = exception.getClass().getSimpleName() + ": " + exception.getMessage();
+            log.error("Scheduled task poll failed: {}", exception.getMessage(), exception);
+            throw exception;
+        } finally {
+            lastPollFinishedAt = LocalDateTime.now();
         }
     }
 
-    private void claimAndSubmit(ScheduledTask candidate) {
+    private boolean claimAndSubmit(ScheduledTask candidate) {
         ScheduledTaskPolicy policy = policyFor(candidate.getTaskType());
         TaskExecutionLocks executionLocks = acquireExecutionLocks(candidate.getTaskType(), policy);
         if (executionLocks == null) {
-            return;
+            return false;
         }
 
         LocalDateTime claimedAt = LocalDateTime.now();
@@ -89,11 +115,12 @@ public class ScheduledTaskProcessor {
         );
         if (!claimed) {
             releaseExecutionLocks(executionLocks);
-            return;
+            return false;
         }
 
         try {
             scheduledTaskExecutor.execute(() -> processClaimedTask(candidate.getId(), executionLocks, policy));
+            return true;
         } catch (RuntimeException e) {
             releaseExecutionLocks(executionLocks);
             log.error("Failed to submit scheduled task to worker pool. taskId={}, taskType={}: {}",
@@ -101,7 +128,21 @@ public class ScheduledTaskProcessor {
                     candidate.getTaskType(),
                     e.getMessage(),
                     e);
+            return false;
         }
+    }
+
+    public ProcessorSnapshot snapshot() {
+        return new ProcessorSnapshot(
+                workerId,
+                lastPollAt,
+                lastPollFinishedAt,
+                lastClaimableTaskCount,
+                lastSubmittedTaskCount,
+                lastPollError,
+                scheduledTaskExecutor.getActiveCount(),
+                scheduledTaskExecutor.getThreadPoolExecutor().getQueue().size()
+        );
     }
 
     private void processClaimedTask(Long taskId, TaskExecutionLocks executionLocks, ScheduledTaskPolicy policy) {
@@ -320,5 +361,17 @@ public class ScheduledTaskProcessor {
         private static TaskExecutionLocks none() {
             return new TaskExecutionLocks(null, null, false);
         }
+    }
+
+    public record ProcessorSnapshot(
+            String workerId,
+            LocalDateTime lastPollAt,
+            LocalDateTime lastPollFinishedAt,
+            int lastClaimableTaskCount,
+            int lastSubmittedTaskCount,
+            String lastPollError,
+            int activeWorkerCount,
+            int queuedWorkerCount
+    ) {
     }
 }

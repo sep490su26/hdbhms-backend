@@ -47,7 +47,8 @@ class LeaseContractManagementServiceDraftTest {
                 leaseContractRepository,
                 mock(JpaDepositAgreementRepository.class),
                 mock(JpaContractLiquidationRepository.class),
-                mock(RoomCommitmentChecker.class)
+                mock(RoomCommitmentChecker.class),
+                mock(LeaseExpiryReminderService.class)
         );
 
         ResponseStatusException exception = assertThrows(

@@ -23,7 +23,11 @@ import java.time.LocalDateTime;
         name = "manager_tasks",
         indexes = {
                 @Index(name = "idx_manager_task_status_due", columnList = "status, due_date"),
-                @Index(name = "idx_manager_task_contract", columnList = "lease_contract_id, status")
+                @Index(name = "idx_manager_task_contract", columnList = "lease_contract_id, status"),
+                @Index(name = "idx_manager_task_type_contract", columnList = "task_type, lease_contract_id, status")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_manager_task_idempotency_key", columnNames = "idempotency_key")
         }
 )
 public class ManagerTaskEntity {
@@ -37,6 +41,12 @@ public class ManagerTaskEntity {
 
     @Column(columnDefinition = "TEXT")
     String description;
+
+    @Column(name = "task_type", length = 80)
+    String taskType;
+
+    @Column(name = "idempotency_key", length = 180)
+    String idempotencyKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id")

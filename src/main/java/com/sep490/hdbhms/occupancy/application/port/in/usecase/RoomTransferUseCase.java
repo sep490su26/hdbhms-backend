@@ -32,6 +32,7 @@ public interface RoomTransferUseCase {
     TransferOutUtilityEstimateResponse estimateTransferOutUtility(ExecuteTransferCommand command);
     int expireTargetHolderApprovals();
     int expireSourceHolderNominations();
+    RoomTransferRequest refreshTransferEligibilitySnapshot(Long requestId);
     RoomTransferRequest getTransferRequestById(Long requestId);
     RoomTransferRequest getTransferRequestByCode(String requestCode);
     List<RoomTransferRequest> getPendingHolderNominations(Long holderUserId);

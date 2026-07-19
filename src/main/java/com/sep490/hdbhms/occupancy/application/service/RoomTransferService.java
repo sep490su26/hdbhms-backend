@@ -180,7 +180,10 @@ public class RoomTransferService implements RoomTransferUseCase {
                 activeOccupants,
                 debtSnapshot,
                 violationSnapshot,
-                transferHistorySnapshot
+                transferHistorySnapshot,
+                true,
+                List.of(),
+                eligibilityCheckedAt
         );
 
         RoomTransferRequest transferRequest = RoomTransferRequest.builder()
@@ -699,6 +702,63 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     @Override
     @Transactional
+    public RoomTransferRequest refreshTransferEligibilitySnapshot(Long requestId) {
+        RoomTransferRequest request = getTransfer(requestId);
+        LeaseContract sourceContract = getContract(request.getOldContractId());
+        Room targetRoom = roomRepository.findById(request.getTargetRoomId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
+        List<ContractOccupant> activeOccupants = activeOccupants(sourceContract.getId());
+        List<Long> transferringProfileIds = request.getTransferringTenantProfileIds() == null
+                ? List.of()
+                : request.getTransferringTenantProfileIds();
+        LocalDateTime eligibilityCheckedAt = LocalDateTime.now();
+        DebtSnapshotDetails debtSnapshot = readDebtSnapshotDetails(sourceContract);
+        Long debtSnapshotId = saveDebtSnapshot(sourceContract, debtSnapshot, eligibilityCheckedAt.toLocalDate());
+        String violationSnapshot = buildViolationSnapshot(sourceContract.getId());
+        String transferHistorySnapshot = buildTransferHistorySnapshot(request.getRequesterId());
+        TargetTransferType transferType = Optional.ofNullable(request.getTargetTransferType())
+                .orElse(TargetTransferType.NEW_CONTRACT);
+        boolean eligible = true;
+        List<String> blockingReasons = new ArrayList<>();
+
+        try {
+            validateTransferEligibilityWindow(sourceContract, transferringProfileIds, activeOccupants);
+            targetRoom = validateTargetRoomForTransferType(targetRoom, transferType, request.getRequestedTransferDate());
+            validateDestinationAvailability(
+                    targetRoom,
+                    transferringProfileIds.size(),
+                    request.getRequestedTransferDate(),
+                    request.getId()
+            );
+        } catch (RuntimeException exception) {
+            eligible = false;
+            blockingReasons.add(exception.getMessage() == null
+                    ? exception.getClass().getSimpleName()
+                    : exception.getMessage());
+        }
+
+        request.setDebtSnapshotId(debtSnapshotId);
+        request.setEligibilityCheckedAt(eligibilityCheckedAt);
+        request.setViolationSnapshot(violationSnapshot);
+        request.setTransferHistorySnapshot(transferHistorySnapshot);
+        request.setEligibilitySnapshot(buildEligibilitySnapshot(
+                sourceContract,
+                targetRoom,
+                transferType,
+                transferringProfileIds,
+                activeOccupants,
+                debtSnapshot,
+                violationSnapshot,
+                transferHistorySnapshot,
+                eligible,
+                blockingReasons,
+                eligibilityCheckedAt
+        ));
+        return syncPaidTransferDifferenceStatus(roomTransferRepository.save(request));
+    }
+
+    @Override
+    @Transactional
     public void executeTransfer(ExecuteTransferCommand command) {
         RoomTransferRequest request = getTransfer(command.requestId());
         requireStatus(request, TransferRequestStatus.WAITING_TRANSFER_DATE, TransferRequestStatus.READY_FOR_HANDOVER);
@@ -1009,7 +1069,10 @@ public class RoomTransferService implements RoomTransferUseCase {
             List<ContractOccupant> activeOccupants,
             DebtSnapshotDetails debtSnapshot,
             String violationSnapshot,
-            String transferHistorySnapshot
+            String transferHistorySnapshot,
+            boolean eligible,
+            List<String> blockingReasons,
+            LocalDateTime checkedAt
     ) {
         LocalDate today = LocalDate.now();
         LocalDate currentRoomMoveInDate = activeOccupants.stream()
@@ -1029,8 +1092,9 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
 
         Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("eligible", true);
-        snapshot.put("checkedAt", LocalDateTime.now());
+        snapshot.put("eligible", eligible);
+        snapshot.put("checkedAt", checkedAt);
+        snapshot.put("blockingReasons", blockingReasons == null ? List.of() : blockingReasons);
         snapshot.put("sourceContractId", sourceContract.getId());
         snapshot.put("sourceRoomId", sourceContract.getRoomId());
         snapshot.put("targetRoomId", targetRoom.getId());
@@ -1227,19 +1291,16 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private void publishManagerActionRequired(RoomTransferRequest request, String actionType) {
-        List<Long> managerUserIds = userRepository.findIdsByRolesAndStatus(
-                List.of(Role.OWNER, Role.MANAGER),
-                AccountStatus.ACTIVE
-        );
+        Room oldRoom = roomRepository.findById(request.getOldRoomId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
+        Room targetRoom = roomRepository.findById(request.getTargetRoomId())
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
+        List<Long> managerUserIds = managerRecipientIds(oldRoom, targetRoom);
         if (managerUserIds.isEmpty()) {
             log.warn("Cannot notify manager for room transfer {} because no active manager or owner was found",
                     request.getId());
             return;
         }
-        Room oldRoom = roomRepository.findById(request.getOldRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
-        Room targetRoom = roomRepository.findById(request.getTargetRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
 
         applicationEventPublisher.publishEvent(new RoomTransferManagerActionRequiredEvent(
                 request.getId(),
@@ -1253,6 +1314,41 @@ public class RoomTransferService implements RoomTransferUseCase {
                 targetRoom.getName(),
                 request.getRequestedTransferDate()
         ));
+    }
+
+    private List<Long> managerRecipientIds(Room oldRoom, Room targetRoom) {
+        LinkedHashSet<Long> propertyIds = new LinkedHashSet<>();
+        if (oldRoom != null && oldRoom.getPropertyId() != null) {
+            propertyIds.add(oldRoom.getPropertyId());
+        }
+        if (targetRoom != null && targetRoom.getPropertyId() != null) {
+            propertyIds.add(targetRoom.getPropertyId());
+        }
+
+        LinkedHashSet<Long> recipientIds = new LinkedHashSet<>();
+        for (Long propertyId : propertyIds) {
+            recipientIds.addAll(jdbcTemplate.queryForList("""
+                            SELECT psa.staff_user_id
+                            FROM property_staff_assignments psa
+                            JOIN users u ON u.user_id = psa.staff_user_id
+                            WHERE psa.property_id = ?
+                              AND psa.assignment_status = 'ACTIVE'
+                              AND psa.assigned_role = 'MANAGER'
+                              AND u.status = 'ACTIVE'
+                              AND u.deleted_at IS NULL
+                            ORDER BY psa.is_primary DESC, psa.property_staff_assignment_id ASC
+                            """,
+                    Long.class,
+                    propertyId
+            ));
+        }
+        if (!recipientIds.isEmpty()) {
+            return new ArrayList<>(recipientIds);
+        }
+        return userRepository.findIdsByRolesAndStatus(
+                List.of(Role.OWNER),
+                AccountStatus.ACTIVE
+        );
     }
 
     private String managerActionLabel(String actionType) {

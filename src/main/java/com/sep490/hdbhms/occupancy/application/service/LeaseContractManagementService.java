@@ -76,6 +76,7 @@ public class LeaseContractManagementService {
     JpaDepositAgreementRepository depositAgreementRepository;
     JpaContractLiquidationRepository contractLiquidationRepository;
     RoomCommitmentChecker roomCommitmentChecker;
+    LeaseExpiryReminderService leaseExpiryReminderService;
 
     @Transactional(readOnly = true)
     public List<LeaseContractManagementResponse> findAllForManagement() {
@@ -472,7 +473,7 @@ public class LeaseContractManagementService {
             String requestedContractCode,
             String note
     ) {
-        assertOwnerCanRenew();
+        assertOwnerOrManagerCanRenew();
         LeaseContractEntity oldContract = leaseContractRepository.findById(leaseContractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
         if (oldContract.getDeletedAt() != null) {
@@ -801,6 +802,7 @@ public class LeaseContractManagementService {
                 + "; source=" + (source == null ? "" : source)
                 + "; note=" + (note == null ? "" : note.trim());
         appendContractEvent(contract.getId(), "INTENTION_RECORDED", eventData);
+        leaseExpiryReminderService.onTenantIntentionRecorded(contract, LocalDate.now());
         return findOne(contract.getId());
     }
 
@@ -1759,16 +1761,17 @@ public class LeaseContractManagementService {
         );
     }
 
-    private void assertOwnerCanRenew() {
+    private void assertOwnerOrManagerCanRenew() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        boolean isOwner = authentication != null
+        boolean canRenew = authentication != null
                 && authentication.getAuthorities() != null
                 && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority()));
-        if (!isOwner) {
+                .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority())
+                        || "ROLE_MANAGER".equals(authority.getAuthority()));
+        if (!canRenew) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "OWNER_APPROVAL_REQUIRED: Chi chu tro moi co quyen xac nhan tai ky hop dong. Vui long trinh yeu cau cho chu tro."
+                    "RENEWAL_APPROVAL_REQUIRED: Chi chu tro hoac quan ly moi co quyen xac nhan tai ky hop dong."
             );
         }
     }

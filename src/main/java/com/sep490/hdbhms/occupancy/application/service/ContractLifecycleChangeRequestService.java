@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sep490.hdbhms.changerequest.application.service.ChangeRequestNotificationService;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.AssignedRole;
@@ -68,6 +69,7 @@ public class ContractLifecycleChangeRequestService {
     ChangeRequestRepository changeRequestRepository;
     ObjectMapper objectMapper;
     SnowflakeIdGenerator snowflakeIdGenerator;
+    ChangeRequestNotificationService changeRequestNotificationService;
 
     @Transactional
     public ChangeRequest submitLiquidationRequest(Long leaseContractId, LocalDate liquidationDate, String reason) {
@@ -174,7 +176,9 @@ public class ContractLifecycleChangeRequestService {
                 .assignedRole(AssignedRole.OWNER)
                 .status(RequestStatus.PENDING)
                 .build();
-        return changeRequestRepository.save(changeRequest);
+        ChangeRequest savedRequest = changeRequestRepository.save(changeRequest);
+        changeRequestNotificationService.notifyCreated(savedRequest);
+        return savedRequest;
     }
 
     private Map<String, Object> basePayload(String requestKind, LeaseContractEntity contract) {

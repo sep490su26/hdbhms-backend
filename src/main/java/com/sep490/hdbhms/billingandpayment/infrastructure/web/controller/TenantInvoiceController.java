@@ -22,6 +22,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.Tenant
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TenantInvoiceLineResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TenantInvoiceResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TenantMeterReadingReviewResponse;
+import com.sep490.hdbhms.changerequest.application.service.ChangeRequestNotificationService;
+import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.AssignedRole;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
@@ -91,6 +93,7 @@ public class TenantInvoiceController {
     ObjectMapper objectMapper;
     PayOSProperties payOSProperties;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
+    ChangeRequestNotificationService changeRequestNotificationService;
 
     @GetMapping
     public ApiResponse<List<TenantInvoiceResponse>> getMyInvoices() {
@@ -177,6 +180,7 @@ public class TenantInvoiceController {
 
         reading.setReviewStatus(MeterReadingReviewStatus.PENDING);
         reading.setReviewCount((reading.getReviewCount() == null ? 0 : reading.getReviewCount()) + 1);
+        changeRequestNotificationService.notifyCreated(toDomain(created));
 
         return ApiResponse.<TenantMeterReadingReviewResponse>builder()
                 .data(new TenantMeterReadingReviewResponse(
@@ -185,6 +189,25 @@ public class TenantInvoiceController {
                         created.getStatus().name()
                 ))
                 .message("Đã gửi khiếu nại chỉ số điện nước.")
+                .build();
+    }
+
+    private ChangeRequest toDomain(ChangeRequestEntity entity) {
+        return ChangeRequest.builder()
+                .id(entity.getId())
+                .requestCode(entity.getRequestCode())
+                .requestType(entity.getRequestType())
+                .requesterId(entity.getRequester() == null ? null : entity.getRequester().getId())
+                .requesterRole(entity.getRequesterRole())
+                .targetType(entity.getTargetType())
+                .targetId(entity.getTargetId())
+                .title(entity.getTitle())
+                .description(entity.getDescription())
+                .requestPayload(entity.getRequestPayload())
+                .evidenceFileId(entity.getEvidenceFile() == null ? null : entity.getEvidenceFile().getId())
+                .assignedRole(entity.getAssignedRole())
+                .assignedTo(entity.getAssignedTo() == null ? null : entity.getAssignedTo().getId())
+                .status(entity.getStatus())
                 .build();
     }
 

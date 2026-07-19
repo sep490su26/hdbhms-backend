@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -42,6 +43,12 @@ import java.util.Objects;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationService implements SendNotificationUseCase, NotificationQueryUseCase, ManageNotificationUseCase {
+    private static final Set<String> TENANT_MOBILE_ONLY_EVENT_TYPES = Set.of(
+            "LEASE_EXPIRY_REMINDER_FIRST",
+            "LEASE_EXPIRY_REMINDER_SECOND",
+            "LEASE_EXPIRY_REMINDER_FINAL"
+    );
+
     NotificationTemplateRepository templateRepository;
     NotificationOutboxRepository outboxRepository;
     NotificationDeliveryRepository deliveryRepository;
@@ -103,16 +110,25 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
                 .toList();
         List<NotificationTemplate> defaults = templateDefaults.defaultTemplates(eventType);
         if (defaults.isEmpty()) {
-            return dbTemplates;
+            return applyChannelPolicy(eventType, dbTemplates);
         }
         if (dbTemplates.isEmpty()) {
-            return defaults;
+            return applyChannelPolicy(eventType, defaults);
         }
 
         Map<NotificationChannel, NotificationTemplate> templatesByChannel = new LinkedHashMap<>();
         defaults.forEach(template -> templatesByChannel.put(template.getChannel(), template));
         dbTemplates.forEach(template -> templatesByChannel.put(template.getChannel(), template));
-        return List.copyOf(templatesByChannel.values());
+        return applyChannelPolicy(eventType, List.copyOf(templatesByChannel.values()));
+    }
+
+    private List<NotificationTemplate> applyChannelPolicy(String eventType, List<NotificationTemplate> templates) {
+        if (!TENANT_MOBILE_ONLY_EVENT_TYPES.contains(eventType)) {
+            return templates;
+        }
+        return templates.stream()
+                .filter(template -> template.getChannel() == NotificationChannel.PUSH)
+                .toList();
     }
 
     private boolean isLegacyRoomTransferTemplate(NotificationTemplate template) {
