@@ -798,6 +798,8 @@ public class RoomTransferService implements RoomTransferUseCase {
         validateTransferHandoverDate(payload, "transfer-out");
         Room oldRoom = roomRepository.findById(request.getOldRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
+        LeaseContract oldContract = getContract(request.getOldContractId());
+        LocalDate handoverDate = payload.handoverDate() == null ? LocalDate.now() : payload.handoverDate();
 
         TransferOutUtilityEstimateResponse.MeterChargeEstimate electricity = estimateMeterCharge(
                 oldRoom.getId(),
@@ -812,11 +814,19 @@ public class RoomTransferService implements RoomTransferUseCase {
                 payload.water()
         );
         long incidentalAmount = safe(payload.incidentalChargeAmount());
-        long totalAmount = safe(electricity.amount()) + safe(water.amount()) + incidentalAmount;
+        ServiceFeeCharge serviceFee = buildTransferServiceFeeCharge(
+                oldContract.getId(),
+                oldRoom.getPropertyId(),
+                YearMonth.from(handoverDate).toString(),
+                handoverDate,
+                electricity.amount()
+        );
+        long totalAmount = safe(electricity.amount()) + safe(water.amount()) + incidentalAmount + serviceFee.amount();
         return new TransferOutUtilityEstimateResponse(
                 electricity,
                 water,
                 incidentalAmount,
+                serviceFee.amount(),
                 totalAmount
         );
     }

@@ -63,9 +63,10 @@ public class MeterReadingController {
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<BatchMeterReadingStatusResponse> getBatchStatus(
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) Long propertyId) {
+            @RequestParam(required = false) Long propertyId,
+            @RequestParam(required = false) Long batchId) {
         return ApiResponse.<BatchMeterReadingStatusResponse>builder()
-                .data(getBatchMeterReadingsService.getBatchStatus(period, propertyId))
+                .data(getBatchMeterReadingsService.getBatchStatus(period, propertyId, batchId))
                 .build();
     }
 

@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class MeterReading {
     Long id;
+    @Setter
     Long batchId;
     Long meterId;
     Long roomId;

@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -25,6 +27,17 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
 public class UtilityBillingRunController {
     UtilityBillingRunService utilityBillingRunService;
+
+    @GetMapping
+    public ApiResponse<List<UtilityBillingRunResponse>> listRuns(
+            @RequestParam(required = false) String billingPeriod,
+            @RequestParam(required = false) Long propertyId,
+            @RequestParam(required = false) String status
+    ) {
+        return ApiResponse.<List<UtilityBillingRunResponse>>builder()
+                .data(utilityBillingRunService.listRuns(billingPeriod, propertyId, status))
+                .build();
+    }
 
     @PostMapping("/properties/{propertyId}")
     public ApiResponse<UtilityBillingRunResponse> createPreview(
@@ -74,6 +87,20 @@ public class UtilityBillingRunController {
     ) {
         return ApiResponse.<UtilityBillingRunResponse>builder()
                 .data(utilityBillingRunService.generateInvoices(
+                        runId,
+                        dueDays,
+                        AuthUtils.getCurrentAuthenticationId()
+                ))
+                .build();
+    }
+
+    @PostMapping("/{runId}/publish")
+    public ApiResponse<UtilityBillingRunResponse> publishBatch(
+            @PathVariable Long runId,
+            @RequestParam(required = false) Integer dueDays
+    ) {
+        return ApiResponse.<UtilityBillingRunResponse>builder()
+                .data(utilityBillingRunService.publishBatch(
                         runId,
                         dueDays,
                         AuthUtils.getCurrentAuthenticationId()

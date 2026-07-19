@@ -323,6 +323,74 @@ public class NotificationTemplateDefaults {
                     "Tài khoản thuê phòng của [[${tenantName}]] cho hợp đồng [[${contractCode}]] tại [[${roomName}]] - [[${propertyName}]] đã được tạo. Tên đăng nhập: [[${loginIdentifier}]]. Cần hỗ trợ liên hệ [[${supportContact}]]."
             ),
             definitionForChannels(
+                    "UTILITY_METER_READING_PERIOD_OPENED",
+                    "Kỳ nhập điện nước đã mở",
+                    "Gửi cho quản lý cơ sở khi hệ thống mở kỳ nhập điện nước hằng tháng.",
+                    "UTILITY_BILLING_RUN",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "runId",
+                            "propertyId",
+                            "propertyName",
+                            "billingPeriod",
+                            "period",
+                            "totalRooms",
+                            "readyCount",
+                            "warningCount",
+                            "skippedCount",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "runId", 91L,
+                            "propertyId", 2L,
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "billingPeriod", "2026-07",
+                            "period", "2026-07",
+                            "totalRooms", 24,
+                            "readyCount", 0,
+                            "warningCount", 0,
+                            "skippedCount", 24,
+                            "targetRoute", "/dashboard/meter-readings"
+                    ),
+                    "Đã mở kỳ nhập điện nước [[${billingPeriod}]]",
+                    "Kỳ điện nước [[${billingPeriod}]] tại [[${propertyName}]] đã sẵn sàng. Có [[${totalRooms}]] phòng cần nhập chỉ số trước khi phát hành hóa đơn."
+            ),
+            definitionForChannels(
+                    "INVOICE_ISSUED",
+                    "Hóa đơn mới đã phát hành",
+                    "Gửi cho khách thuê khi hóa đơn mới được phát hành.",
+                    "INVOICE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "invoiceId",
+                            "invoiceCode",
+                            "invoiceType",
+                            "roomCode",
+                            "propertyName",
+                            "billingPeriod",
+                            "amount",
+                            "totalAmount",
+                            "remainingAmount",
+                            "dueDate",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "invoiceId", 91L,
+                            "invoiceCode", "INV-UTL-MONTHLY-404-202607",
+                            "invoiceType", "UTILITY",
+                            "roomCode", "404",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "billingPeriod", "2026-07",
+                            "amount", 645000L,
+                            "totalAmount", 645000L,
+                            "remainingAmount", 645000L,
+                            "dueDate", "2026-07-31",
+                            "targetRoute", "/payment"
+                    ),
+                    "Có hóa đơn mới [[${invoiceCode}]]",
+                    "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] kỳ [[${billingPeriod}]] đã phát hành. Số tiền cần thanh toán: [[${remainingAmount}]] VND. Hạn thanh toán: [[${dueDate}]]."
+            ),
+            definitionForChannels(
                     "INVOICE_OVERDUE",
                     "Cảnh báo hóa đơn quá hạn",
                     "Gửi cho khách thuê khi hóa đơn đã hết hạn thanh toán.",

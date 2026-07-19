@@ -104,6 +104,7 @@ public enum ApiErrorCode {
     METER_READING_BATCH_CANCELLED(40908, "Meter reading batch cancelled", "Đợt chốt điện nước đã bị hủy", HttpStatus.BAD_REQUEST),
     METER_READING_ROOM_NOT_ELIGIBLE(40909, "Meter reading room not eligible", "Phòng không có hợp đồng thuê phát sinh trong kỳ", HttpStatus.BAD_REQUEST),
     METER_READING_NO_ELIGIBLE_ROOMS(40910, "No rooms require meter reading", "Không có phòng cần chốt điện nước trong kỳ này", HttpStatus.BAD_REQUEST),
+    METER_READING_BATCH_CONFIRMED(40911, "Meter reading batch confirmed", "Kỳ ghi chỉ số đã chốt, không thể chỉnh sửa", HttpStatus.BAD_REQUEST),
 
     // --- BILLING & PAYMENT (30xxx) ---
     TRANSFER_SETTLEMENT_NOT_FOUND(30101, "Transfer settlement not found", "Không tìm thấy quyết toán chuyển phòng", HttpStatus.NOT_FOUND),

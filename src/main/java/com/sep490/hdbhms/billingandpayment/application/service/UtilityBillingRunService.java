@@ -18,7 +18,10 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaUti
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaUtilityBillingRunRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.UtilityBillingItemAdjustmentRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.UtilityBillingRunResponse;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
+import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.occupancy.domain.value_objects.AnomalyType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
@@ -53,6 +56,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -72,7 +76,12 @@ public class UtilityBillingRunService {
             LeaseStatus.TERMINATION_PENDING
     );
     static final String SOURCE_TYPE = "UTILITY_BILLING_RUN_ITEM";
+    static final String INVOICE_TARGET = "INVOICE";
+    static final String INVOICE_ISSUED_EVENT = "INVOICE_ISSUED";
+    static final String UTILITY_BILLING_RUN_TARGET = "UTILITY_BILLING_RUN";
+    static final String UTILITY_METER_READING_PERIOD_OPENED_EVENT = "UTILITY_METER_READING_PERIOD_OPENED";
     static final DateTimeFormatter LEGACY_PERIOD = DateTimeFormatter.ofPattern("M/uuuu");
+    static final DateTimeFormatter METER_READING_PERIOD = DateTimeFormatter.ofPattern("MM-uuuu");
 
     JpaPropertyRepository propertyRepository;
     JpaLeaseContractRepository leaseContractRepository;
@@ -85,6 +94,7 @@ public class UtilityBillingRunService {
     JpaInvoiceRepository invoiceRepository;
     JpaInvoiceLineRepository invoiceLineRepository;
     JpaUserRepository userRepository;
+    BusinessNotificationPublisher notificationPublisher;
     SnowflakeIdGenerator snowflakeIdGenerator;
     JdbcTemplate jdbcTemplate;
 
@@ -100,7 +110,8 @@ public class UtilityBillingRunService {
                         InvoiceReason.MONTHLY,
                         UtilityBillingRunStatus.CANCELLED
                 )) {
-                    createPreview(property.getId(), period.toString(), InvoiceReason.MONTHLY.name(), null);
+                    UtilityBillingRunResponse run = createPreview(property.getId(), period.toString(), InvoiceReason.MONTHLY.name(), null);
+                    publishMeterReadingPeriodOpened(run);
                     created++;
                 }
             } catch (RuntimeException exception) {
@@ -165,6 +176,28 @@ public class UtilityBillingRunService {
         return toResponse(run, itemRepository.findByRun_IdOrderByRoom_RoomCodeAscIdAsc(runId));
     }
 
+    @Transactional(readOnly = true)
+    public List<UtilityBillingRunResponse> listRuns(String billingPeriod, Long propertyId, String status) {
+        String normalizedPeriod = billingPeriod == null || billingPeriod.isBlank()
+                ? null
+                : requirePeriod(billingPeriod).toString();
+        UtilityBillingRunStatus parsedStatus = parseRunStatus(status);
+        List<UtilityBillingRunEntity> runs;
+        if (propertyId != null && normalizedPeriod != null) {
+            runs = runRepository.findByProperty_IdAndBillingPeriodOrderByIdDesc(propertyId, normalizedPeriod);
+        } else if (propertyId != null) {
+            runs = runRepository.findByProperty_IdOrderByBillingPeriodDescIdDesc(propertyId);
+        } else if (normalizedPeriod != null) {
+            runs = runRepository.findByBillingPeriodOrderByProperty_NameAscIdDesc(normalizedPeriod);
+        } else {
+            runs = runRepository.findAllByOrderByBillingPeriodDescIdDesc();
+        }
+        return runs.stream()
+                .filter(run -> parsedStatus == null || run.getStatus() == parsedStatus)
+                .map(run -> toResponse(run, List.of()))
+                .toList();
+    }
+
     @Transactional
     public UtilityBillingRunResponse updateAdjustment(
             Long runId,
@@ -210,28 +243,39 @@ public class UtilityBillingRunService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Due days must be greater than 0.");
         }
 
+        List<UtilityBillingRunItemEntity> items = itemRepository.findByRun_IdOrderByRoom_RoomCodeAscIdAsc(runId);
+        long warningCount = items.stream()
+                .filter(item -> item.getStatus() == UtilityBillingRunItemStatus.WARNING)
+                .count();
+        if (warningCount > 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Utility billing batch still has items that need review."
+            );
+        }
+
         int invoiceCount = 0;
         LocalDateTime now = LocalDateTime.now();
-        for (UtilityBillingRunItemEntity item : itemRepository.findByRun_IdOrderByRoom_RoomCodeAscIdAsc(runId)) {
+        for (UtilityBillingRunItemEntity item : items) {
             if (!hasBillableReadings(item)) {
                 item.setStatus(UtilityBillingRunItemStatus.SKIPPED);
                 itemRepository.save(item);
                 continue;
             }
 
-            InvoiceEntity invoice = null;
             if (safe(item.getTotalAmount()) > 0) {
-                invoice = findExistingInvoice(item, run)
+                InvoiceEntity invoice = findExistingInvoice(item, run)
                         .orElseGet(() -> createInvoice(item, run, paymentDueDays, now, currentUserId));
                 item.setInvoice(invoice);
                 item.setStatus(UtilityBillingRunItemStatus.INVOICED);
                 invoiceCount++;
+                advanceBaseline(item.getElectricityReading(), invoice);
+                advanceBaseline(item.getWaterReading(), invoice);
             } else {
                 item.setStatus(UtilityBillingRunItemStatus.SKIPPED);
+                advanceBaseline(item.getElectricityReading(), null);
+                advanceBaseline(item.getWaterReading(), null);
             }
-
-            advanceBaseline(item.getElectricityReading(), invoice);
-            advanceBaseline(item.getWaterReading(), invoice);
             itemRepository.save(item);
         }
 
@@ -244,20 +288,18 @@ public class UtilityBillingRunService {
         return getRun(runId);
     }
 
+    @Transactional
+    public UtilityBillingRunResponse publishBatch(Long runId, Integer dueDays, Long currentUserId) {
+        return generateInvoices(runId, dueDays, currentUserId);
+    }
+
     private UtilityBillingRunItemEntity buildItem(
             UtilityBillingRunEntity run,
             RoomEntity room,
             YearMonth period
     ) {
         LeaseContractEntity contract = findContract(room.getId(), period);
-        Map<MeterType, MeterReadingEntity> readings = meterReadingRepository
-                .findLatestActiveByRoomAndPeriod(room.getId(), period.toString())
-                .stream()
-                .collect(Collectors.toMap(
-                        reading -> reading.getMeter().getMeterType(),
-                        Function.identity(),
-                        (first, ignored) -> first
-                ));
+        Map<MeterType, MeterReadingEntity> readings = findReadings(room.getId(), period);
 
         MeterReadingEntity electricity = readings.get(MeterType.ELECTRICITY);
         MeterReadingEntity water = readings.get(MeterType.WATER);
@@ -384,7 +426,50 @@ public class UtilityBillingRunService {
 
         invoice.setStatus(InvoiceStatus.ISSUED);
         invoice.setIssuedAt(now);
-        return invoiceRepository.saveAndFlush(invoice);
+        InvoiceEntity issuedInvoice = invoiceRepository.saveAndFlush(invoice);
+        publishInvoiceIssued(issuedInvoice, currentUserId);
+        return issuedInvoice;
+    }
+
+    private void publishMeterReadingPeriodOpened(UtilityBillingRunResponse run) {
+        if (run == null || run.runId() == null) {
+            return;
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("runId", run.runId());
+        data.put("propertyId", run.propertyId());
+        data.put("propertyName", run.propertyName());
+        data.put("billingPeriod", run.billingPeriod());
+        data.put("period", run.billingPeriod());
+        data.put("totalRooms", run.totalRooms());
+        data.put("readyCount", run.readyCount());
+        data.put("warningCount", run.warningCount());
+        data.put("skippedCount", run.skippedCount());
+        data.put("targetRoute", "/dashboard/meter-readings");
+
+        for (Long recipientId : managerRecipientIds(run.propertyId())) {
+            notificationPublisher.publish(
+                    UTILITY_METER_READING_PERIOD_OPENED_EVENT,
+                    recipientId,
+                    UTILITY_BILLING_RUN_TARGET,
+                    run.runId(),
+                    data
+            );
+        }
+    }
+
+    private void publishInvoiceIssued(InvoiceEntity invoice, Long actorUserId) {
+        if (invoice == null || invoice.getId() == null) {
+            return;
+        }
+        List<Long> recipients = findInvoiceTenantRecipientIds(invoice);
+        if (recipients.isEmpty()) {
+            return;
+        }
+        Map<String, Object> data = invoiceNotificationData(invoice, actorUserId);
+        for (Long recipientId : recipients) {
+            notificationPublisher.publish(INVOICE_ISSUED_EVENT, recipientId, INVOICE_TARGET, invoice.getId(), data);
+        }
     }
 
     private void saveServiceFeeLine(InvoiceEntity invoice, UtilityBillingRunItemEntity item) {
@@ -438,6 +523,20 @@ public class UtilityBillingRunService {
                 .sourceType(SOURCE_TYPE)
                 .sourceId(item.getId())
                 .build());
+    }
+
+    private Map<MeterType, MeterReadingEntity> findReadings(Long roomId, YearMonth period) {
+        List<MeterReadingEntity> readings = meterReadingRepository
+                .findLatestActiveByRoomAndPeriod(roomId, period.format(METER_READING_PERIOD));
+        if (readings.isEmpty()) {
+            readings = meterReadingRepository.findLatestActiveByRoomAndPeriod(roomId, period.toString());
+        }
+        return readings.stream()
+                .collect(Collectors.toMap(
+                        reading -> reading.getMeter().getMeterType(),
+                        Function.identity(),
+                        (first, ignored) -> first
+                ));
     }
 
     private Optional<InvoiceEntity> findExistingInvoice(UtilityBillingRunItemEntity item, UtilityBillingRunEntity run) {
@@ -633,6 +732,87 @@ public class UtilityBillingRunService {
         return (maxRevision == null ? 0 : maxRevision) + 1;
     }
 
+    private List<Long> managerRecipientIds(Long propertyId) {
+        if (propertyId != null) {
+            List<Long> managerIds = jdbcTemplate.queryForList("""
+                            SELECT staff_user_id
+                            FROM property_staff_assignments
+                            WHERE property_id = ?
+                              AND assignment_status = 'ACTIVE'
+                              AND assigned_role = 'MANAGER'
+                            ORDER BY is_primary DESC, property_staff_assignment_id ASC
+                            """,
+                    Long.class,
+                    propertyId
+            );
+            if (!managerIds.isEmpty()) {
+                return managerIds;
+            }
+        }
+        return userRepository.findIdsByRolesAndStatus(List.of(Role.OWNER), AccountStatus.ACTIVE);
+    }
+
+    private List<Long> findInvoiceTenantRecipientIds(InvoiceEntity invoice) {
+        if (invoice == null || invoice.getRoom() == null || invoice.getRoom().getId() == null) {
+            return List.of();
+        }
+        return jdbcTemplate.queryForList("""
+                        SELECT DISTINCT u.user_id
+                        FROM users u
+                        JOIN person_profiles pp
+                          ON pp.user_id = u.user_id
+                         AND pp.deleted_at IS NULL
+                        JOIN (
+                            SELECT lc.primary_tenant_profile_id AS tenant_profile_id
+                            FROM lease_contracts lc
+                            WHERE lc.deleted_at IS NULL
+                              AND lc.room_id = ?
+                              AND lc.status IN ('SIGNED', 'ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                            UNION
+                            SELECT co.tenant_profile_id AS tenant_profile_id
+                            FROM contract_occupants co
+                            JOIN lease_contracts lc
+                              ON lc.lease_contract_id = co.contract_id
+                            WHERE co.status = 'ACTIVE'
+                              AND co.tenant_profile_id IS NOT NULL
+                              AND lc.deleted_at IS NULL
+                              AND lc.room_id = ?
+                              AND lc.status IN ('SIGNED', 'ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                        ) occupied
+                          ON occupied.tenant_profile_id = pp.person_profile_id
+                        WHERE u.status = 'ACTIVE'
+                          AND u.deleted_at IS NULL
+                          AND u.role = 'TENANT'
+                        ORDER BY u.user_id
+                        """,
+                Long.class,
+                invoice.getRoom().getId(),
+                invoice.getRoom().getId()
+        );
+    }
+
+    private Map<String, Object> invoiceNotificationData(InvoiceEntity invoice, Long actorUserId) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("invoiceId", invoice.getId());
+        payload.put("invoiceCode", invoice.getInvoiceCode());
+        payload.put("invoiceType", invoice.getInvoiceType() == null ? null : invoice.getInvoiceType().name());
+        payload.put("billingPeriod", invoice.getBillingPeriod());
+        payload.put("period", invoice.getBillingPeriod());
+        payload.put("propertyId", invoice.getProperty() == null ? null : invoice.getProperty().getId());
+        payload.put("propertyName", invoice.getProperty() == null ? null : invoice.getProperty().getName());
+        payload.put("roomId", invoice.getRoom() == null ? null : invoice.getRoom().getId());
+        payload.put("roomCode", invoice.getRoom() == null ? null : invoice.getRoom().getRoomCode());
+        payload.put("amount", safe(invoice.getTotalAmount()));
+        payload.put("totalAmount", safe(invoice.getTotalAmount()));
+        payload.put("paidAmount", safe(invoice.getPaidAmount()));
+        payload.put("remainingAmount", safe(invoice.getRemainingAmount()));
+        payload.put("dueDate", invoice.getDueDate() == null ? null : invoice.getDueDate().toLocalDate().toString());
+        payload.put("status", invoice.getStatus() == null ? null : invoice.getStatus().name());
+        payload.put("actorUserId", actorUserId);
+        payload.put("targetRoute", "/payment");
+        return payload;
+    }
+
     private UtilityBillingRunResponse toResponse(UtilityBillingRunEntity run, List<UtilityBillingRunItemEntity> items) {
         return new UtilityBillingRunResponse(
                 run.getId(),
@@ -698,6 +878,23 @@ public class UtilityBillingRunService {
             return InvoiceReason.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid invoice reason.");
+        }
+    }
+
+    private UtilityBillingRunStatus parseRunStatus(String value) {
+        if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value.trim())) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if ("PREVIEW".equals(normalized)) {
+            normalized = UtilityBillingRunStatus.PREVIEWED.name();
+        } else if ("PUBLISHED".equals(normalized)) {
+            normalized = UtilityBillingRunStatus.INVOICES_CREATED.name();
+        }
+        try {
+            return UtilityBillingRunStatus.valueOf(normalized);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid utility billing batch status.");
         }
     }
 

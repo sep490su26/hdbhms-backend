@@ -17,6 +17,12 @@ public interface JpaUtilityBillingRunRepository extends JpaRepository<UtilityBil
 
     List<UtilityBillingRunEntity> findByProperty_IdOrderByBillingPeriodDescIdDesc(Long propertyId);
 
+    List<UtilityBillingRunEntity> findAllByOrderByBillingPeriodDescIdDesc();
+
+    List<UtilityBillingRunEntity> findByBillingPeriodOrderByProperty_NameAscIdDesc(String billingPeriod);
+
+    List<UtilityBillingRunEntity> findByProperty_IdAndBillingPeriodOrderByIdDesc(Long propertyId, String billingPeriod);
+
     boolean existsByProperty_IdAndBillingPeriodAndInvoiceReasonAndStatusNot(
             Long propertyId,
             String billingPeriod,

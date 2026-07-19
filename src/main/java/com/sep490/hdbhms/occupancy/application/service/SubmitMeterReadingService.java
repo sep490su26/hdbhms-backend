@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.application.service.UtilityBillingRunService;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
@@ -26,8 +28,11 @@ import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -52,6 +57,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
     JpaMeterReadingAnomalyRepository meterReadingAnomalyRepository;
     JpaMeterReadingRepository jpaMeterReadingRepository;
     JpaMeterReadingBatchRepository jpaMeterReadingBatchRepository;
+    UtilityBillingRunService utilityBillingRunService;
+    JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
@@ -114,6 +121,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                     readingPeriod, command.readingDate(), input.waterPhotoId(),
                     batch, currentUser);
         }
+        createMonthlyUtilityBillingBatch(batch, currentUser.getId());
     }
 
     private void submitMeterValue(Room room, MeterType meterType, BigDecimal newValue,
@@ -215,6 +223,9 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         if (batch.getStatus() == BatchStatus.CANCELLED) {
             throw new AppException(ApiErrorCode.METER_READING_BATCH_CANCELLED);
         }
+        if (batch.getStatus() == BatchStatus.CONFIRMED) {
+            throw new AppException(ApiErrorCode.METER_READING_BATCH_CONFIRMED);
+        }
 
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
@@ -229,6 +240,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         
         // Water
         saveOrUpdateMeterValue(room, MeterType.WATER, waterValue, batch, waterPhotoId, currentUser);
+        refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
     }
 
     private void saveOrUpdateMeterValue(Room room, MeterType meterType, BigDecimal newValue, MeterReadingBatch batch, Long photoId, User currentUser) {
@@ -242,6 +254,21 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         var existingReadingOpt = meterReadingRepository.findByMeterIdAndBatchId(activeMeter.getId(), batch.getId());
         if (existingReadingOpt.isPresent()) {
             MeterReading existing = existingReadingOpt.get();
+            existing.setBatchId(batch.getId());
+            existing.setCurrentValue(newValue);
+            existing.setPhotoFileId(photoId);
+            saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()));
+            return;
+        }
+
+        var existingPeriodReadingOpt = meterReadingRepository.findFirstByMeterIdAndReadingPeriodOrderByRevisionNoDesc(
+                activeMeter.getId(),
+                batch.getReadingPeriod()
+        );
+        if (existingPeriodReadingOpt.isPresent()
+                && existingPeriodReadingOpt.get().getStatus() != ReadingStatus.VOIDED) {
+            MeterReading existing = existingPeriodReadingOpt.get();
+            existing.setBatchId(batch.getId());
             existing.setCurrentValue(newValue);
             existing.setPhotoFileId(photoId);
             saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()));
@@ -253,11 +280,15 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         
         MeterReading previousReading = latestReadingOpt.orElse(null);
         BigDecimal prevValue = previousReading == null ? BigDecimal.ZERO : previousReading.getCurrentValue();
+        int nextRevision = existingPeriodReadingOpt
+                .map(MeterReading::getRevisionNo)
+                .map(revision -> revision + 1)
+                .orElse(1);
         MeterReading reading = MeterReading.builder()
                 .meterId(activeMeter.getId())
                 .roomId(room.getId())
                 .readingPeriod(batch.getReadingPeriod())
-                .revisionNo(1)
+                .revisionNo(nextRevision)
                 .previousValue(prevValue)
                 .currentValue(newValue)
                 .readingDate(LocalDate.now())
@@ -323,6 +354,20 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         jpaMeterReadingBatchRepository.findById(batchId).ifPresent(batch -> {
             long count = meterReadingAnomalyRepository.countByBatch_IdAndResolvedAtIsNull(batchId);
             batch.setAnomalyCount(count > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) count);
+            jpaMeterReadingBatchRepository.save(batch);
+        });
+    }
+
+    private void refreshBatchProgress(Long batchId, Long propertyId, String readingPeriod) {
+        if (batchId == null) {
+            return;
+        }
+
+        int totalRooms = countMeterReadingRooms(propertyId, readingPeriod);
+        int completedRooms = countCompletedRooms(batchId, propertyId, readingPeriod);
+        jpaMeterReadingBatchRepository.findById(batchId).ifPresent(batch -> {
+            batch.setTotalRooms(totalRooms);
+            batch.setCompletedRooms(completedRooms);
             jpaMeterReadingBatchRepository.save(batch);
         });
     }
@@ -450,6 +495,89 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         batch.setConfirmedAt(java.time.LocalDateTime.now());
 
         meterReadingBatchRepository.save(batch);
+        refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
+        createMonthlyUtilityBillingBatch(batch, currentUser.getId());
+    }
+
+    private void createMonthlyUtilityBillingBatch(MeterReadingBatch batch, Long currentUserId) {
+        requireCompletedReadings(batch);
+        String billingPeriod = MeterReadingPeriod.parse(batch.getReadingPeriod()).toString();
+        utilityBillingRunService.createPreview(
+                batch.getPropertyId(),
+                billingPeriod,
+                InvoiceReason.MONTHLY.name(),
+                currentUserId
+        );
+    }
+
+    private void requireCompletedReadings(MeterReadingBatch batch) {
+        int totalRooms = requireMeterReadingRooms(batch.getPropertyId(), batch.getReadingPeriod());
+        int completedRooms = countCompletedRooms(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
+        if (completedRooms < totalRooms) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cannot confirm meter reading batch before all eligible rooms have electricity and water readings."
+            );
+        }
+    }
+
+    private int countCompletedRooms(Long batchId, Long propertyId, String readingPeriod) {
+        YearMonth period = MeterReadingPeriod.parse(readingPeriod);
+        Integer completedRooms = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(1)
+                        FROM (
+                            SELECT mr.room_id
+                            FROM meter_readings mr
+                            JOIN meter_reading_batches mb
+                              ON mb.meter_reading_batch_id = mr.batch_id
+                            JOIN meters m
+                              ON m.meter_id = mr.meter_id
+                            JOIN (
+                                SELECT DISTINCT lc.room_id
+                                FROM lease_contracts lc
+                                JOIN rooms r
+                                  ON r.room_id = lc.room_id
+                                LEFT JOIN contract_liquidations cl
+                                  ON cl.contract_id = lc.lease_contract_id
+                                 AND cl.status = 'CONFIRMED'
+                                WHERE lc.deleted_at IS NULL
+                                  AND r.deleted_at IS NULL
+                                  AND lc.status IN (
+                                      'ACTIVE',
+                                      'EXPIRING_SOON',
+                                      'TERMINATION_PENDING',
+                                      'EXPIRED',
+                                      'LIQUIDATED',
+                                      'RENEWED'
+                                  )
+                                  AND (? IS NULL OR r.property_id = ?)
+                                  AND COALESCE(lc.rent_start_date, lc.start_date) <= ?
+                                  AND (
+                                      COALESCE(cl.liquidation_date, lc.end_date) IS NULL
+                                      OR COALESCE(cl.liquidation_date, lc.end_date) >= ?
+                                  )
+                            ) eligible_rooms
+                              ON eligible_rooms.room_id = mr.room_id
+                            WHERE mr.batch_id = ?
+                              AND mr.status <> 'VOIDED'
+                              AND (
+                                  mb.status <> 'CONFIRMED'
+                                  OR mb.confirmed_at IS NULL
+                                  OR mr.created_at <= mb.confirmed_at
+                              )
+                              AND m.meter_type IN ('ELECTRICITY', 'WATER')
+                            GROUP BY mr.room_id
+                            HAVING COUNT(DISTINCT m.meter_type) = 2
+                        ) completed_rooms
+                        """,
+                Integer.class,
+                propertyId,
+                propertyId,
+                period.atEndOfMonth(),
+                period.atDay(1),
+                batchId
+        );
+        return completedRooms == null ? 0 : completedRooms;
     }
 
     private int countMeterReadingRooms(Long propertyId, String readingPeriod) {

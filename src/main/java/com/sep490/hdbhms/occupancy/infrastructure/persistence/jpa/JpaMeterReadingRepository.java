@@ -39,6 +39,24 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
     );
 
     @Query("""
+        SELECT r FROM MeterReadingEntity r
+        JOIN FETCH r.room rm
+        JOIN FETCH rm.property p
+        JOIN FETCH r.meter m
+        LEFT JOIN FETCH r.createdBy u
+        LEFT JOIN FETCH r.photoFile f
+        WHERE r.batch.id = :batchId
+          AND r.status <> com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus.VOIDED
+          AND (
+              r.batch.status <> com.sep490.hdbhms.occupancy.domain.value_objects.BatchStatus.CONFIRMED
+              OR r.batch.confirmedAt IS NULL
+              OR r.createdAt <= r.batch.confirmedAt
+          )
+        ORDER BY p.id, rm.sortOrder, rm.roomCode, m.meterType
+    """)
+    List<MeterReadingEntity> findByBatchIdWithRoomAndMeter(@Param("batchId") Long batchId);
+
+    @Query("""
         SELECT reading FROM MeterReadingEntity reading
         JOIN FETCH reading.room room
         JOIN FETCH reading.meter meter
