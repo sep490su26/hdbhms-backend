@@ -18,7 +18,11 @@ import java.time.LocalDateTime;
 @Table(
         name = "scheduled_tasks",
         indexes = {
-                @Index(name = "idx_tasks_due", columnList = "status, due_at")
+                @Index(name = "idx_tasks_due", columnList = "status, due_at"),
+                @Index(name = "idx_tasks_claimable", columnList = "status, due_at, lock_until")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_scheduled_tasks_idempotency_key", columnNames = "idempotency_key")
         }
 )
 public class ScheduledTaskEntity {
@@ -53,6 +57,28 @@ public class ScheduledTaskEntity {
     @Lob
     @Column(columnDefinition = "BLOB")
     byte[] payload;
+
+    @Column(name = "idempotency_key", length = 180)
+    String idempotencyKey;
+
+    @Column(nullable = false)
+    @Builder.Default
+    Boolean recurring = false;
+
+    @Column(name = "schedule_expression", length = 100)
+    String scheduleExpression;
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
+    String lastError;
+
+    @Column(name = "claimed_at")
+    LocalDateTime claimedAt;
+
+    @Column(name = "claimed_by", length = 120)
+    String claimedBy;
+
+    @Column(name = "lock_until")
+    LocalDateTime lockUntil;
 
     @Column(name = "executed_at")
     LocalDateTime executedAt;

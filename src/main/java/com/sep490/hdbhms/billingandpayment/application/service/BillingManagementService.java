@@ -38,7 +38,6 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -109,7 +108,6 @@ public class BillingManagementService {
                 .toList();
     }
 
-    @Scheduled(cron = "0 30 8 * * *", zone = "Asia/Ho_Chi_Minh")
     @Transactional
     public void sendAutomaticOverdueWarnings() {
         Map<String, Object> result = processOverdueWarnings(null);

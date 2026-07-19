@@ -41,7 +41,6 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -89,7 +88,6 @@ public class UtilityBillingRunService {
     SnowflakeIdGenerator snowflakeIdGenerator;
     JdbcTemplate jdbcTemplate;
 
-    @Scheduled(cron = "0 0 2 25 * *", zone = "Asia/Ho_Chi_Minh")
     @Transactional
     public void createMonthlyRunsOnBillingDay() {
         YearMonth period = YearMonth.now();
@@ -278,12 +276,15 @@ public class UtilityBillingRunService {
         if (waterCharge.warning() != null) warnings.add(waterCharge.warning());
         if (anomalyMessage != null && !anomalyMessage.isBlank()) warnings.add(anomalyMessage);
 
-        long subtotal = electricityCharge.amount() + waterCharge.amount();
         boolean canInvoice = contract != null
                 && electricity != null
                 && water != null
                 && electricityCharge.warning() == null
                 && waterCharge.warning() == null;
+        ServiceFeeCharge serviceFeeCharge = canInvoice
+                ? buildServiceFeeCharge(contract, room.getProperty().getId(), period, electricityCharge.amount())
+                : ServiceFeeCharge.empty();
+        long subtotal = electricityCharge.amount() + waterCharge.amount() + serviceFeeCharge.amount();
         UtilityBillingRunItemStatus status;
         if (!canInvoice || subtotal <= 0) {
             status = UtilityBillingRunItemStatus.SKIPPED;
@@ -311,6 +312,11 @@ public class UtilityBillingRunService {
                 .waterQuantity(waterCharge.quantity())
                 .waterUnitPrice(waterCharge.unitPrice())
                 .waterAmount(waterCharge.amount())
+                .serviceFeeUnitPrice(serviceFeeCharge.unitPrice())
+                .serviceFeeAmount(serviceFeeCharge.amount())
+                .serviceFeeWaived(serviceFeeCharge.waived())
+                .serviceFeeWaiveReason(serviceFeeCharge.waiveReason())
+                .serviceFeeLineRequired(serviceFeeCharge.lineRequired())
                 .subtotalAmount(subtotal)
                 .discountAmount(0L)
                 .totalAmount(subtotal)
@@ -374,10 +380,29 @@ public class UtilityBillingRunService {
                 item.getElectricityQuantity(), item.getElectricityUnitPrice(), "Electricity");
         saveInvoiceLine(invoice, item, InvoiceLineType.WATER, item.getWaterReading(),
                 item.getWaterQuantity(), item.getWaterUnitPrice(), "Water");
+        saveServiceFeeLine(invoice, item);
 
         invoice.setStatus(InvoiceStatus.ISSUED);
         invoice.setIssuedAt(now);
         return invoiceRepository.saveAndFlush(invoice);
+    }
+
+    private void saveServiceFeeLine(InvoiceEntity invoice, UtilityBillingRunItemEntity item) {
+        if (!Boolean.TRUE.equals(item.getServiceFeeLineRequired()) && safe(item.getServiceFeeAmount()) <= 0) {
+            return;
+        }
+        String description = item.getServiceFeeWaiveReason() != null && !item.getServiceFeeWaiveReason().isBlank()
+                ? item.getServiceFeeWaiveReason()
+                : "Service fee " + invoice.getBillingPeriod();
+        invoiceLineRepository.save(InvoiceLineEntity.builder()
+                .invoice(invoice)
+                .lineType(InvoiceLineType.SERVICE_FEE)
+                .description(description)
+                .quantity(safe(item.getServiceFeeAmount()) > 0 ? 1 : 0)
+                .unitPrice(safe(item.getServiceFeeUnitPrice()))
+                .sourceType(SOURCE_TYPE)
+                .sourceId(item.getId())
+                .build());
     }
 
     private void saveInvoiceLine(
@@ -477,6 +502,67 @@ public class UtilityBillingRunService {
                 && notNegative(item.getWaterUsage());
     }
 
+    private ServiceFeeCharge buildServiceFeeCharge(
+            LeaseContractEntity contract,
+            Long propertyId,
+            YearMonth period,
+            long electricityAmount
+    ) {
+        if (contract == null) {
+            return ServiceFeeCharge.empty();
+        }
+        String billingPeriod = period.toString();
+        if (hasServiceFeeLineForContractAndPeriod(contract.getId(), billingPeriod)
+                || hasServiceFeeSettledByRoomTransfer(contract.getId(), billingPeriod)) {
+            return new ServiceFeeCharge(0L, 0L, true, "Service fee already settled in transfer month.", false);
+        }
+
+        UtilityTariffSnapshot tariff = readTariff(propertyId, UtilityType.SERVICE_FEE, period.atEndOfMonth());
+        Long waiveThreshold = tariff.serviceFeeWaiveElectricityThreshold();
+        if (waiveThreshold != null && electricityAmount < waiveThreshold) {
+            return new ServiceFeeCharge(
+                    tariff.unitPrice(),
+                    0L,
+                    true,
+                    "Service fee waived because electricity amount is below " + waiveThreshold + ".",
+                    true
+            );
+        }
+        return new ServiceFeeCharge(tariff.unitPrice(), tariff.unitPrice(), false, null, true);
+    }
+
+    private boolean hasServiceFeeLineForContractAndPeriod(Long contractId, String billingPeriod) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM invoices invoice
+                JOIN invoice_lines line ON line.invoice_id = invoice.invoice_id
+                WHERE invoice.lease_contract_id = ?
+                  AND invoice.billing_period = ?
+                  AND invoice.status <> 'VOIDED'
+                  AND line.line_type = 'SERVICE_FEE'
+                """, Integer.class, contractId, billingPeriod);
+        return count != null && count > 0;
+    }
+
+    private boolean hasServiceFeeSettledByRoomTransfer(Long contractId, String billingPeriod) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM room_transfer_requests request
+                JOIN invoices invoice
+                  ON invoice.billing_period = ?
+                 AND invoice.status <> 'VOIDED'
+                JOIN invoice_lines line
+                  ON line.invoice_id = invoice.invoice_id
+                 AND line.line_type = 'SERVICE_FEE'
+                WHERE DATE_FORMAT(request.requested_transfer_date, '%Y-%m') = ?
+                  AND (
+                        (request.new_contract_id = ? AND invoice.lease_contract_id = request.old_contract_id)
+                     OR (request.old_contract_id = ? AND invoice.lease_contract_id = request.new_contract_id)
+                  )
+                """, Integer.class, billingPeriod, billingPeriod, contractId, contractId);
+        return count != null && count > 0;
+    }
+
     private boolean notNegative(BigDecimal value) {
         return value == null || value.compareTo(BigDecimal.ZERO) >= 0;
     }
@@ -517,14 +603,18 @@ public class UtilityBillingRunService {
                 .findFirst()
                 .map(this::toSnapshot)
                 .orElseGet(() -> switch (utilityType) {
-                    case ELECTRICITY -> new UtilityTariffSnapshot(3500L, 0L);
-                    case WATER -> new UtilityTariffSnapshot(20000L, 6L);
-                    default -> new UtilityTariffSnapshot(0L, 0L);
+                    case ELECTRICITY -> new UtilityTariffSnapshot(3500L, 0L, null);
+                    case WATER -> new UtilityTariffSnapshot(20000L, 6L, null);
+                    case SERVICE_FEE -> new UtilityTariffSnapshot(50000L, 0L, 100000L);
                 });
     }
 
     private UtilityTariffSnapshot toSnapshot(UtilityTariffEntity tariff) {
-        return new UtilityTariffSnapshot(safe(tariff.getUnitPrice()), safe(tariff.getFreeAllowance()));
+        return new UtilityTariffSnapshot(
+                safe(tariff.getUnitPrice()),
+                safe(tariff.getFreeAllowance()),
+                tariff.getServiceFeeWaiveElectricityThreshold()
+        );
     }
 
     private int nextRevision(Long contractId, String billingPeriod, InvoiceType invoiceType) {
@@ -585,6 +675,10 @@ public class UtilityBillingRunService {
                 item.getWaterQuantity(),
                 item.getWaterUnitPrice(),
                 item.getWaterAmount(),
+                item.getServiceFeeUnitPrice(),
+                item.getServiceFeeAmount(),
+                item.getServiceFeeWaived(),
+                item.getServiceFeeWaiveReason(),
                 item.getSubtotalAmount(),
                 item.getDiscountAmount(),
                 item.getTotalAmount(),
@@ -649,6 +743,18 @@ public class UtilityBillingRunService {
         }
     }
 
-    private record UtilityTariffSnapshot(long unitPrice, long freeAllowance) {
+    private record UtilityTariffSnapshot(long unitPrice, long freeAllowance, Long serviceFeeWaiveElectricityThreshold) {
+    }
+
+    private record ServiceFeeCharge(
+            long unitPrice,
+            long amount,
+            boolean waived,
+            String waiveReason,
+            boolean lineRequired
+    ) {
+        static ServiceFeeCharge empty() {
+            return new ServiceFeeCharge(0L, 0L, false, null, false);
+        }
     }
 }

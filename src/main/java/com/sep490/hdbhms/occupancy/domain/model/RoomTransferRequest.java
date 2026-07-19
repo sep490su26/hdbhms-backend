@@ -31,6 +31,10 @@ public class RoomTransferRequest {
     Long targetHolderApprovedById;
     LocalDateTime targetHolderApprovedAt;
     LocalDateTime targetHolderRejectedAt;
+    Long approvedById;
+    LocalDateTime approvedAt;
+    LocalDateTime executedAt;
+    LocalDateTime completedAt;
 
     LocalDate requestedTransferDate;
     String reason;
@@ -43,6 +47,11 @@ public class RoomTransferRequest {
     Long newContractId; // Destination contract for NEW_CONTRACT, transfer agreement for OTHER_CONTRACT.
     Long replacementOldContractId;
     SettlementType positiveDifferenceSettlementType; // Choice made at tenant confirmation
+    LocalDateTime eligibilityCheckedAt;
+    Boolean eligibleAtCreation;
+    String eligibilitySnapshot;
+    String violationSnapshot;
+    String transferHistorySnapshot;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 

@@ -95,6 +95,18 @@ public class RoomTransferRequestEntity {
     @Column(name = "target_holder_rejected_at")
     LocalDateTime targetHolderRejectedAt;
 
+    @Column(name = "approved_by")
+    Long approvedById;
+
+    @Column(name = "approved_at")
+    LocalDateTime approvedAt;
+
+    @Column(name = "executed_at")
+    LocalDateTime executedAt;
+
+    @Column(name = "completed_at")
+    LocalDateTime completedAt;
+
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
@@ -116,6 +128,21 @@ public class RoomTransferRequestEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "replacement_old_contract_id")
     LeaseContractEntity replacementOldContract;
+
+    @Column(name = "eligibility_checked_at")
+    LocalDateTime eligibilityCheckedAt;
+
+    @Column(name = "is_eligible_at_creation")
+    Boolean eligibleAtCreation;
+
+    @Column(name = "eligibility_snapshot", columnDefinition = "JSON")
+    String eligibilitySnapshot;
+
+    @Column(name = "violation_snapshot", columnDefinition = "JSON")
+    String violationSnapshot;
+
+    @Column(name = "transfer_history_snapshot", columnDefinition = "JSON")
+    String transferHistorySnapshot;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)

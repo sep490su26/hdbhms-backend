@@ -26,6 +26,12 @@ public class CreateRoomHoldTaskAdapter implements CreateRoomHoldTaskPort {
                 roomHold.getId(),
                 roomHold.getExpiresAt()
         );
-        scheduledTaskRepository.save(scheduledTask);
+        scheduledTaskRepository.ensureOneOffTask(
+                scheduledTask.getTaskType(),
+                scheduledTask.getTargetType(),
+                scheduledTask.getTargetId(),
+                scheduledTask.getDueAt(),
+                scheduledTask.getIdempotencyKey()
+        );
     }
 }

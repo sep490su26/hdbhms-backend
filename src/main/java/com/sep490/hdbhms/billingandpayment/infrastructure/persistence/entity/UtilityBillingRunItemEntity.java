@@ -93,6 +93,25 @@ public class UtilityBillingRunItemEntity {
     @Builder.Default
     Long waterAmount = 0L;
 
+    @Column(name = "service_fee_unit_price", nullable = false)
+    @Builder.Default
+    Long serviceFeeUnitPrice = 0L;
+
+    @Column(name = "service_fee_amount", nullable = false)
+    @Builder.Default
+    Long serviceFeeAmount = 0L;
+
+    @Column(name = "service_fee_waived", nullable = false)
+    @Builder.Default
+    Boolean serviceFeeWaived = false;
+
+    @Column(name = "service_fee_waive_reason", length = 500)
+    String serviceFeeWaiveReason;
+
+    @Column(name = "service_fee_line_required", nullable = false)
+    @Builder.Default
+    Boolean serviceFeeLineRequired = false;
+
     @Column(name = "subtotal_amount", nullable = false)
     @Builder.Default
     Long subtotalAmount = 0L;

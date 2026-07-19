@@ -21,6 +21,13 @@ public class ScheduledTask {
     @Setter
     Integer retryCount;
     byte[] payload;
+    String idempotencyKey;
+    Boolean recurring;
+    String scheduleExpression;
+    String lastError;
+    LocalDateTime claimedAt;
+    String claimedBy;
+    LocalDateTime lockUntil;
     LocalDateTime executedAt;
     LocalDateTime createdAt;
 
@@ -35,15 +42,49 @@ public class ScheduledTask {
                 .dueAt(dueAt)
                 .status(TaskStatus.PENDING)
                 .retryCount(0)
+                .idempotencyKey(defaultIdempotencyKey(taskType, targetType, targetId))
+                .recurring(false)
                 .build();
     }
 
     public void execute() {
         status = TaskStatus.DONE;
         executedAt = LocalDateTime.now();
+        retryCount = 0;
+        lastError = null;
+        releaseClaim();
     }
 
-    public void failed() {
+    public void reschedule(LocalDateTime nextDueAt) {
+        status = TaskStatus.PENDING;
+        dueAt = nextDueAt;
+        executedAt = LocalDateTime.now();
+        retryCount = 0;
+        lastError = null;
+        releaseClaim();
+    }
+
+    public void retryLater(LocalDateTime nextDueAt, String errorMessage) {
+        status = TaskStatus.PENDING;
+        dueAt = nextDueAt;
+        retryCount = retryCount == null ? 1 : retryCount + 1;
+        lastError = errorMessage;
+        releaseClaim();
+    }
+
+    public void failed(String errorMessage) {
         status = TaskStatus.FAILED;
+        lastError = errorMessage;
+        releaseClaim();
+    }
+
+    private void releaseClaim() {
+        claimedAt = null;
+        claimedBy = null;
+        lockUntil = null;
+    }
+
+    private static String defaultIdempotencyKey(TaskType taskType, String targetType, Long targetId) {
+        return taskType + ":" + targetType + ":" + targetId;
     }
 }

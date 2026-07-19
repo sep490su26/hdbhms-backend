@@ -12,7 +12,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +29,6 @@ public class ExpiredRoomHoldReconciler {
     RoomDepositLockService roomDepositLockService;
 
     @Transactional
-    @Scheduled(fixedDelay = 60_000, initialDelay = 15_000)
     public void releaseStaleRoomHolds() {
         LocalDateTime now = LocalDateTime.now();
         List<RoomHold> expiredHolds = roomHoldRepository.findExpiredUnconfirmedHolds(now);

@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.DepositTransferStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 
 import java.time.LocalDate;
@@ -36,6 +37,10 @@ public record RoomTransferResponse(
     Long targetHolderApprovedById,
     LocalDateTime targetHolderApprovedAt,
     LocalDateTime targetHolderRejectedAt,
+    Long approvedById,
+    LocalDateTime approvedAt,
+    LocalDateTime executedAt,
+    LocalDateTime completedAt,
     TransferRequestStatus status,
     Long newContractId,
     Long replacementOldContractId,
@@ -49,10 +54,49 @@ public record RoomTransferResponse(
     SettlementType priceDifferenceSettlementType,
     Long transferDifferenceInvoiceId,
     Long oldRoomFinalInvoiceId,
+    DepositTransferSummary depositTransferSummary,
+    DebtSummary debtSummary,
+    ViolationSummary violationSummary,
+    Integer transferCountThisYear,
+    LocalDateTime eligibilityCheckedAt,
+    Boolean eligibleAtCreation,
+    String eligibilitySnapshot,
+    String violationSnapshot,
+    String transferHistorySnapshot,
+    List<String> eligibilityWarnings,
     String paymentBranch,
     Boolean transferOutHandoverRequired,
     Boolean transferInHandoverRequired,
     Boolean roomHandoverRequired,
     List<String> allowedActions,
     List<String> blockingReasons
-) {}
+) {
+    public record DebtSummary(
+            Long rentDebtAmount,
+            Long utilityDebtAmount,
+            Long otherDebtAmount,
+            Integer rentDebtMonths,
+            Integer utilityDebtMonths,
+            Long totalDebtAmount,
+            Long debtLimitAmount,
+            Boolean overLimit
+    ) {}
+
+    public record ViolationSummary(
+            Integer totalCount,
+            List<String> latestDescriptions
+    ) {}
+
+    public record DepositTransferSummary(
+            Long id,
+            Long oldContractId,
+            Long newContractId,
+            Long oldDepositAgreementId,
+            Long amount,
+            Long fromRoomId,
+            Long toRoomId,
+            DepositTransferStatus status,
+            LocalDate effectiveDate,
+            String note
+    ) {}
+}

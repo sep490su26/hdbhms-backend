@@ -2,10 +2,12 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.mapper;
 
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferRequestCommand;
 import com.sep490.hdbhms.occupancy.application.port.out.ContractOccupantRepository;
+import com.sep490.hdbhms.occupancy.application.port.out.DepositTransferRecordRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.TransferSettlementRepository;
 import com.sep490.hdbhms.occupancy.domain.model.ContractOccupant;
+import com.sep490.hdbhms.occupancy.domain.model.DepositTransferRecord;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
@@ -44,6 +46,9 @@ public abstract class RoomTransferWebMapper {
     protected TransferSettlementRepository transferSettlementRepository;
 
     @Autowired
+    protected DepositTransferRecordRepository depositTransferRecordRepository;
+
+    @Autowired
     protected JdbcTemplate jdbcTemplate;
 
     public CreateTransferRequestCommand toCommand(CreateTransferRequestRequest request) {
@@ -70,7 +75,7 @@ public abstract class RoomTransferWebMapper {
         String oldContractCode = resolveOldContractCode(request);
         Long oldRoomPrice = resolveOldRoomPrice(request);
         Long newRoomPrice = resolveNewRoomPrice(request);
-        Long priceDifferenceToPay = calculatePriceDifferenceToPay(oldRoomPrice, newRoomPrice);
+        Long priceDifferenceToPay = calculatePriceDifferenceToPay(request, oldRoomPrice, newRoomPrice);
         Integer remainingOccupantCountAfterTransfer = resolveRemainingOccupantCountAfterTransfer(request);
         Boolean sourceRoomWillBeEmptyAfterTransfer = remainingOccupantCountAfterTransfer != null
                 ? remainingOccupantCountAfterTransfer == 0
@@ -84,6 +89,10 @@ public abstract class RoomTransferWebMapper {
         Map<Long, String> transferringTenantNames = resolveTransferringTenantNames(request);
         List<Long> sourceHolderCandidateProfileIds = resolveSourceHolderCandidateProfileIds(request);
         Map<Long, String> sourceHolderCandidateNames = resolveProfileNames(sourceHolderCandidateProfileIds);
+        RoomTransferResponse.DebtSummary debtSummary = resolveDebtSummary(request, oldRoomPrice);
+        RoomTransferResponse.ViolationSummary violationSummary = resolveViolationSummary(request);
+        Integer transferCountThisYear = resolveTransferCountThisYear(request);
+        List<String> eligibilityWarnings = resolveEligibilityWarnings(debtSummary, violationSummary, transferCountThisYear);
 
         return new RoomTransferResponse(
             request.getId(),
@@ -112,6 +121,10 @@ public abstract class RoomTransferWebMapper {
             request.getTargetHolderApprovedById(),
             request.getTargetHolderApprovedAt(),
             request.getTargetHolderRejectedAt(),
+            request.getApprovedById(),
+            request.getApprovedAt(),
+            request.getExecutedAt(),
+            request.getCompletedAt(),
             request.getStatus(),
             request.getNewContractId(),
             request.getReplacementOldContractId(),
@@ -125,12 +138,46 @@ public abstract class RoomTransferWebMapper {
             request.getPositiveDifferenceSettlementType(),
             transferDifferenceInvoiceId,
             oldRoomFinalInvoiceId,
+            resolveDepositTransferSummary(request),
+            debtSummary,
+            violationSummary,
+            transferCountThisYear,
+            request.getEligibilityCheckedAt(),
+            request.getEligibleAtCreation(),
+            request.getEligibilitySnapshot(),
+            request.getViolationSnapshot(),
+            request.getTransferHistorySnapshot(),
+            eligibilityWarnings,
             resolvePaymentBranch(request, oldRoomPrice, newRoomPrice),
             isTransferOutHandoverRequired(request),
             isTransferInHandoverRequired(request),
             isRoomHandoverRequired(request, sourceRoomWillBeEmptyAfterTransfer),
             resolveAllowedActions(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoicePaid),
             resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid)
+        );
+    }
+
+    private RoomTransferResponse.DepositTransferSummary resolveDepositTransferSummary(RoomTransferRequest request) {
+        if (request == null || request.getId() == null) {
+            return null;
+        }
+        DepositTransferRecord record = depositTransferRecordRepository
+                .findByTransferRequestId(request.getId())
+                .orElse(null);
+        if (record == null) {
+            return null;
+        }
+        return new RoomTransferResponse.DepositTransferSummary(
+                record.getId(),
+                record.getOldContractId(),
+                record.getNewContractId(),
+                record.getOldDepositAgreementId(),
+                record.getAmount(),
+                record.getFromRoomId(),
+                record.getToRoomId(),
+                record.getStatus(),
+                record.getEffectiveDate(),
+                record.getNote()
         );
     }
 
@@ -151,6 +198,122 @@ public abstract class RoomTransferWebMapper {
                 invoiceId
         );
         return !statuses.isEmpty() && "PAID".equals(statuses.get(0));
+    }
+
+    private RoomTransferResponse.DebtSummary resolveDebtSummary(RoomTransferRequest request, Long debtLimitAmount) {
+        if (request.getOldContractId() == null) {
+            return emptyDebtSummary(debtLimitAmount);
+        }
+        Map<String, Object> row = jdbcTemplate.queryForMap("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN invoice_type = 'RENT' THEN remaining_amount ELSE 0 END), 0) AS rent_debt_amount,
+                    COALESCE(SUM(CASE WHEN invoice_type = 'UTILITY' THEN remaining_amount ELSE 0 END), 0) AS utility_debt_amount,
+                    COALESCE(SUM(CASE WHEN invoice_type NOT IN ('RENT', 'UTILITY') THEN remaining_amount ELSE 0 END), 0) AS other_debt_amount,
+                    COUNT(DISTINCT CASE WHEN invoice_type = 'RENT' THEN billing_period END) AS rent_debt_months,
+                    COUNT(DISTINCT CASE WHEN invoice_type = 'UTILITY' THEN billing_period END) AS utility_debt_months
+                FROM invoices
+                WHERE lease_contract_id = ?
+                  AND status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
+                  AND COALESCE(remaining_amount, 0) > 0
+                """, request.getOldContractId());
+
+        long rentDebt = asLong(row.get("rent_debt_amount"));
+        long utilityDebt = asLong(row.get("utility_debt_amount"));
+        long otherDebt = asLong(row.get("other_debt_amount"));
+        long totalDebt = rentDebt + utilityDebt + otherDebt;
+        return new RoomTransferResponse.DebtSummary(
+                rentDebt,
+                utilityDebt,
+                otherDebt,
+                asInteger(row.get("rent_debt_months")),
+                asInteger(row.get("utility_debt_months")),
+                totalDebt,
+                debtLimitAmount,
+                debtLimitAmount != null && totalDebt > debtLimitAmount
+        );
+    }
+
+    private RoomTransferResponse.DebtSummary emptyDebtSummary(Long debtLimitAmount) {
+        return new RoomTransferResponse.DebtSummary(
+                0L,
+                0L,
+                0L,
+                0,
+                0,
+                0L,
+                debtLimitAmount,
+                false
+        );
+    }
+
+    private RoomTransferResponse.ViolationSummary resolveViolationSummary(RoomTransferRequest request) {
+        if (request.getOldContractId() == null) {
+            return new RoomTransferResponse.ViolationSummary(0, List.of());
+        }
+        Integer totalCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM rule_violations
+                WHERE contract_id = ?
+                  AND status IN ('RECORDED', 'INVOICED')
+                """, Integer.class, request.getOldContractId());
+        List<String> latestDescriptions = jdbcTemplate.queryForList("""
+                SELECT description
+                FROM rule_violations
+                WHERE contract_id = ?
+                  AND status IN ('RECORDED', 'INVOICED')
+                ORDER BY violation_date DESC, rule_violation_id DESC
+                LIMIT 5
+                """, String.class, request.getOldContractId());
+        return new RoomTransferResponse.ViolationSummary(
+                totalCount == null ? 0 : totalCount,
+                latestDescriptions
+        );
+    }
+
+    private Integer resolveTransferCountThisYear(RoomTransferRequest request) {
+        if (request.getRequesterId() == null) {
+            return 0;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM room_transfer_requests
+                WHERE requester_id = ?
+                  AND status IN ('EXECUTED', 'COMPLETED')
+                  AND created_at >= MAKEDATE(YEAR(CURRENT_DATE), 1)
+                """, Integer.class, request.getRequesterId());
+        return count == null ? 0 : count;
+    }
+
+    private List<String> resolveEligibilityWarnings(
+            RoomTransferResponse.DebtSummary debtSummary,
+            RoomTransferResponse.ViolationSummary violationSummary,
+            Integer transferCountThisYear
+    ) {
+        List<String> warnings = new ArrayList<>();
+        if (debtSummary != null && Boolean.TRUE.equals(debtSummary.overLimit())) {
+            warnings.add("Debt is over the configured warning threshold.");
+        }
+        if (violationSummary != null && violationSummary.totalCount() != null && violationSummary.totalCount() > 0) {
+            warnings.add("Tenant has recorded rule violations.");
+        }
+        if (transferCountThisYear != null && transferCountThisYear > 0) {
+            warnings.add("Tenant already has room transfer history this year.");
+        }
+        return warnings;
+    }
+
+    private long asLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
+    }
+
+    private int asInteger(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return 0;
     }
 
     private String resolveOldContractCode(RoomTransferRequest request) {
@@ -189,11 +352,58 @@ public abstract class RoomTransferWebMapper {
             .orElse(null);
     }
 
-    private Long calculatePriceDifferenceToPay(Long oldRoomPrice, Long newRoomPrice) {
+    private Long calculatePriceDifferenceToPay(RoomTransferRequest request, Long oldRoomPrice, Long newRoomPrice) {
         if (oldRoomPrice == null || newRoomPrice == null) {
             return null;
         }
-        return Math.max(0, newRoomPrice - oldRoomPrice);
+        int chargeableMonths = resolveChargeableRemainingMonths(request);
+        return Math.max(0, (newRoomPrice - oldRoomPrice) * chargeableMonths);
+    }
+
+    private int resolveChargeableRemainingMonths(RoomTransferRequest request) {
+        if (request.getOldContractId() == null) {
+            return 0;
+        }
+        LeaseContract oldContract = leaseContractRepository.findById(request.getOldContractId()).orElse(null);
+        if (oldContract == null) {
+            return 0;
+        }
+        int paymentCycleMonths = oldContract.getPaymentCycleMonths() == null
+                ? 1
+                : Math.max(1, oldContract.getPaymentCycleMonths());
+        if (paymentCycleMonths <= 1) {
+            return 0;
+        }
+        java.time.LocalDate transferDate = request.getRequestedTransferDate() == null
+                ? java.time.LocalDate.now()
+                : request.getRequestedTransferDate();
+        java.time.LocalDate cycleStart = java.util.Optional.ofNullable(oldContract.getRentStartDate())
+                .or(() -> java.util.Optional.ofNullable(oldContract.getStartDate()))
+                .orElse(transferDate.withDayOfMonth(1));
+        while (!transferDate.isBefore(cycleStart.plusMonths(paymentCycleMonths))) {
+            cycleStart = cycleStart.plusMonths(paymentCycleMonths);
+        }
+        while (transferDate.isBefore(cycleStart)) {
+            cycleStart = cycleStart.minusMonths(paymentCycleMonths);
+        }
+        java.time.LocalDate cycleEndExclusive = cycleStart.plusMonths(paymentCycleMonths);
+        java.time.LocalDate chargeStart = transferDate.getDayOfMonth() >= 11
+                ? transferDate.plusMonths(1).withDayOfMonth(1)
+                : transferDate.withDayOfMonth(1);
+        java.time.LocalDate cycleStartMonth = cycleStart.withDayOfMonth(1);
+        if (chargeStart.isBefore(cycleStartMonth)) {
+            chargeStart = cycleStartMonth;
+        }
+        if (!chargeStart.isBefore(cycleEndExclusive)) {
+            return 0;
+        }
+        return Math.max(
+                0,
+                (int) java.time.temporal.ChronoUnit.MONTHS.between(
+                        java.time.YearMonth.from(chargeStart),
+                        java.time.YearMonth.from(cycleEndExclusive)
+                )
+        );
     }
 
     private Map<Long, String> resolveTransferringTenantNames(RoomTransferRequest request) {

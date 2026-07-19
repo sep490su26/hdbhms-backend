@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceRepository;
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
@@ -110,6 +112,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     ContractOccupantRepository contractOccupantRepository;
     RoomTransferRequestRepository roomTransferRequestRepository;
     TransferSettlementRepository transferSettlementRepository;
+    DepositTransferRecordRepository depositTransferRecordRepository;
     InvoiceRepository invoiceRepository;
     InvoiceLineRepository invoiceLineRepository;
     IssuedInvoiceChargeService issuedInvoiceChargeService;
@@ -117,6 +120,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     SnowflakeIdGenerator snowflakeIdGenerator;
     ApplicationEventPublisher applicationEventPublisher;
     JdbcTemplate jdbcTemplate;
+    ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -161,7 +165,23 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
         ensureRequesterIsCurrentOccupant(requesterProfile.getId(), activeOccupants);
         ensureTransferredProfilesBelongToContract(transferringProfileIds, activeOccupants);
+        validateTransferEligibilityWindow(sourceContract, transferringProfileIds, activeOccupants);
         validateDestinationAvailability(targetRoom, transferringProfileIds.size(), command.requestedTransferDate(), null);
+        LocalDateTime eligibilityCheckedAt = LocalDateTime.now();
+        DebtSnapshotDetails debtSnapshot = readDebtSnapshotDetails(sourceContract);
+        Long debtSnapshotId = saveDebtSnapshot(sourceContract, debtSnapshot, eligibilityCheckedAt.toLocalDate());
+        String violationSnapshot = buildViolationSnapshot(sourceContract.getId());
+        String transferHistorySnapshot = buildTransferHistorySnapshot(requesterTenant.getId());
+        String eligibilitySnapshot = buildEligibilitySnapshot(
+                sourceContract,
+                targetRoom,
+                targetTransferType,
+                transferringProfileIds,
+                activeOccupants,
+                debtSnapshot,
+                violationSnapshot,
+                transferHistorySnapshot
+        );
 
         RoomTransferRequest transferRequest = RoomTransferRequest.builder()
                 .requestCode(nextTransferCode())
@@ -177,6 +197,12 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .requestedTransferDate(command.requestedTransferDate())
                 .reason(command.reason())
                 .status(TransferRequestStatus.REQUESTED)
+                .debtSnapshotId(debtSnapshotId)
+                .eligibilityCheckedAt(eligibilityCheckedAt)
+                .eligibleAtCreation(true)
+                .eligibilitySnapshot(eligibilitySnapshot)
+                .violationSnapshot(violationSnapshot)
+                .transferHistorySnapshot(transferHistorySnapshot)
                 .build();
         transferRequest = roomTransferRepository.save(transferRequest);
 
@@ -216,9 +242,13 @@ public class RoomTransferService implements RoomTransferUseCase {
         requireTransferringTenant(request, command.tenantId());
         applyHolderNominationFromTenantConfirmation(command, request, oldContract, activeOccupants);
 
-        long oldRent = safe(oldContract.getMonthlyRent());
-        long newRent = safe(targetRoom.getListedPrice());
-        long difference = newRent - oldRent;
+        TransferRentDifference rentDifference = calculateTransferRentDifference(
+                oldContract,
+                null,
+                targetRoom,
+                request.getRequestedTransferDate()
+        );
+        long difference = rentDifference.differenceAmount();
 
         validateSettlementType(difference, command.settlementType());
         if (isWaitingForImmediateDifferencePayment(request, difference)) {
@@ -275,9 +305,8 @@ public class RoomTransferService implements RoomTransferUseCase {
             throw new IllegalArgumentException("Settlement type for negative difference is required.");
         }
         if (difference < 0
-                && settlementType != SettlementType.REFUND_NOW
                 && settlementType != SettlementType.CREDIT_NEXT_CONTRACT) {
-            throw new IllegalArgumentException("Negative difference can only be refunded now or credited to next contract.");
+            throw new IllegalArgumentException("Negative difference can only be credited to next contract.");
         }
         if (difference == 0 && settlementType != null && settlementType != SettlementType.NO_DIFFERENCE) {
             throw new IllegalArgumentException("Settlement type is not applicable for zero difference.");
@@ -313,11 +342,12 @@ public class RoomTransferService implements RoomTransferUseCase {
         Room targetRoom = roomRepository.findById(request.getTargetRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
 
-        long oldRent = safe(oldContract.getMonthlyRent());
-        long newRent = settlementContract != null
-                ? safe(settlementContract.getMonthlyRent())
-                : safe(targetRoom.getListedPrice());
-        long difference = newRent - oldRent;
+        long difference = calculateTransferRentDifference(
+                oldContract,
+                settlementContract,
+                targetRoom,
+                request.getRequestedTransferDate()
+        ).differenceAmount();
         SettlementType settlementType = request.getPositiveDifferenceSettlementType();
         if (difference <= 0 || settlementType != SettlementType.TENANT_PAY_MORE) {
             return;
@@ -371,6 +401,8 @@ public class RoomTransferService implements RoomTransferUseCase {
         boolean requiresHolderNomination = holderNominationRequired(oldContract, request, activeOccupants);
 
         request.setPositiveDifferenceSettlementType(command.positiveDifferenceSettlementType());
+        request.setApprovedById(command.managerId());
+        request.setApprovedAt(LocalDateTime.now());
 
         if (requiresHolderNomination && request.getNominatedHolderProfileId() == null) {
             request.setStatus(TransferRequestStatus.MANAGER_APPROVED);
@@ -689,6 +721,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
 
         request.setStatus(TransferRequestStatus.WAITING_EXECUTION);
+        request.setExecutedAt(LocalDateTime.now());
         roomTransferRepository.save(request);
         log.info("Submitted transfer-out handover for room transfer request {}", request.getId());
     }
@@ -765,6 +798,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
 
         request.setStatus(TransferRequestStatus.EXECUTED);
+        request.setCompletedAt(LocalDateTime.now());
         roomTransferRepository.save(request);
         log.info("Completed room transfer request {}", request.getId());
     }
@@ -803,25 +837,243 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
     }
 
+    private void validateTransferEligibilityWindow(
+            LeaseContract sourceContract,
+            List<Long> transferringProfileIds,
+            List<ContractOccupant> activeOccupants
+    ) {
+        LocalDate today = LocalDate.now();
+        LocalDate currentRoomMoveInDate = activeOccupants.stream()
+                .filter(occupant -> transferringProfileIds.contains(occupant.getTenantProfileId()))
+                .map(ContractOccupant::getMoveInDate)
+                .filter(Objects::nonNull)
+                .min(LocalDate::compareTo)
+                .orElse(sourceContract.getStartDate());
+
+        if (currentRoomMoveInDate != null && today.isBefore(currentRoomMoveInDate.plusMonths(12))) {
+            throw new IllegalArgumentException("Tenant must stay in the current room for at least 12 months before requesting another room transfer.");
+        }
+
+        LocalDate contractStart = sourceContract.getStartDate();
+        LocalDate contractEnd = sourceContract.getEndDate();
+        if (contractStart == null || contractEnd == null || !contractEnd.isAfter(contractStart)) {
+            return;
+        }
+
+        long totalDays = java.time.temporal.ChronoUnit.DAYS.between(contractStart, contractEnd) + 1;
+        long stayedDays = Math.max(0, java.time.temporal.ChronoUnit.DAYS.between(contractStart, today) + 1);
+        long requiredDays = Math.ceilDiv(totalDays * 2, 3);
+        if (stayedDays < requiredDays) {
+            throw new IllegalArgumentException("Tenant must complete at least two-thirds of the current contract term before requesting a room transfer.");
+        }
+    }
+
+    private DebtSnapshotDetails readDebtSnapshotDetails(LeaseContract sourceContract) {
+        Map<String, Object> row = jdbcTemplate.queryForMap("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN invoice_type = 'RENT' THEN remaining_amount ELSE 0 END), 0) AS rent_debt_amount,
+                    COALESCE(SUM(CASE WHEN invoice_type = 'UTILITY' THEN remaining_amount ELSE 0 END), 0) AS utility_debt_amount,
+                    COALESCE(SUM(CASE WHEN invoice_type NOT IN ('RENT', 'UTILITY') THEN remaining_amount ELSE 0 END), 0) AS other_debt_amount,
+                    COUNT(DISTINCT CASE WHEN invoice_type = 'RENT' THEN billing_period END) AS rent_debt_months,
+                    COUNT(DISTINCT CASE WHEN invoice_type = 'UTILITY' THEN billing_period END) AS utility_debt_months
+                FROM invoices
+                WHERE lease_contract_id = ?
+                  AND status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
+                  AND COALESCE(remaining_amount, 0) > 0
+                """, sourceContract.getId());
+        long rentDebt = safeNumber(row.get("rent_debt_amount"));
+        long utilityDebt = safeNumber(row.get("utility_debt_amount"));
+        long otherDebt = safeNumber(row.get("other_debt_amount"));
+        long totalDebt = rentDebt + utilityDebt + otherDebt;
+        Long debtLimit = sourceContract.getMonthlyRent();
+        return new DebtSnapshotDetails(
+                rentDebt,
+                utilityDebt,
+                otherDebt,
+                safeInteger(row.get("rent_debt_months")),
+                safeInteger(row.get("utility_debt_months")),
+                totalDebt,
+                debtLimit,
+                debtLimit != null && totalDebt > debtLimit
+        );
+    }
+
+    private Long saveDebtSnapshot(LeaseContract sourceContract, DebtSnapshotDetails snapshot, LocalDate snapshotDate) {
+        Optional<Long> existingSnapshotId = jdbcTemplate.query("""
+                        SELECT debt_snapshot_id
+                        FROM debt_snapshots
+                        WHERE room_id = ?
+                          AND snapshot_date = ?
+                        ORDER BY debt_snapshot_id DESC
+                        LIMIT 1
+                        """,
+                (rs, rowNum) -> rs.getLong("debt_snapshot_id"),
+                sourceContract.getRoomId(),
+                snapshotDate
+        ).stream().findFirst();
+        if (existingSnapshotId.isPresent()) {
+            return existingSnapshotId.get();
+        }
+
+        jdbcTemplate.update("""
+                INSERT INTO debt_snapshots (
+                    room_id,
+                    contract_id,
+                    snapshot_date,
+                    rent_debt_amount,
+                    utility_debt_amount,
+                    other_debt_amount,
+                    rent_debt_months,
+                    utility_debt_months,
+                    mixed_debt_amount,
+                    debt_limit_amount,
+                    is_over_limit
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                sourceContract.getRoomId(),
+                sourceContract.getId(),
+                snapshotDate,
+                snapshot.rentDebtAmount(),
+                snapshot.utilityDebtAmount(),
+                snapshot.otherDebtAmount(),
+                snapshot.rentDebtMonths(),
+                snapshot.utilityDebtMonths(),
+                snapshot.totalDebtAmount(),
+                snapshot.debtLimitAmount(),
+                snapshot.overLimit()
+        );
+        return jdbcTemplate.query("""
+                        SELECT debt_snapshot_id
+                        FROM debt_snapshots
+                        WHERE room_id = ?
+                          AND snapshot_date = ?
+                        ORDER BY debt_snapshot_id DESC
+                        LIMIT 1
+                        """,
+                (rs, rowNum) -> rs.getLong("debt_snapshot_id"),
+                sourceContract.getRoomId(),
+                snapshotDate
+        ).stream().findFirst().orElse(null);
+    }
+
+    private String buildViolationSnapshot(Long contractId) {
+        Integer totalCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM rule_violations
+                WHERE contract_id = ?
+                  AND status IN ('RECORDED', 'INVOICED')
+                """, Integer.class, contractId);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT rule_violation_id, violation_date, description, fine_amount, status
+                FROM rule_violations
+                WHERE contract_id = ?
+                  AND status IN ('RECORDED', 'INVOICED')
+                ORDER BY violation_date DESC, rule_violation_id DESC
+                LIMIT 20
+                """, contractId);
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("totalCount", totalCount == null ? 0 : totalCount);
+        snapshot.put("items", rows);
+        return writeSnapshot(snapshot);
+    }
+
+    private String buildTransferHistorySnapshot(Long requesterId) {
+        Integer totalCount = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM room_transfer_requests
+                WHERE requester_id = ?
+                  AND created_at >= MAKEDATE(YEAR(CURRENT_DATE), 1)
+                  AND status IN ('EXECUTED', 'COMPLETED')
+                """, Integer.class, requesterId);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT room_transfer_request_id, request_code, old_room_id, target_room_id, status, created_at, executed_at, completed_at
+                FROM room_transfer_requests
+                WHERE requester_id = ?
+                  AND created_at >= MAKEDATE(YEAR(CURRENT_DATE), 1)
+                  AND status IN ('EXECUTED', 'COMPLETED')
+                ORDER BY created_at DESC, room_transfer_request_id DESC
+                LIMIT 20
+                """, requesterId);
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("countThisYear", totalCount == null ? 0 : totalCount);
+        snapshot.put("items", rows);
+        return writeSnapshot(snapshot);
+    }
+
+    private String buildEligibilitySnapshot(
+            LeaseContract sourceContract,
+            Room targetRoom,
+            TargetTransferType targetTransferType,
+            List<Long> transferringProfileIds,
+            List<ContractOccupant> activeOccupants,
+            DebtSnapshotDetails debtSnapshot,
+            String violationSnapshot,
+            String transferHistorySnapshot
+    ) {
+        LocalDate today = LocalDate.now();
+        LocalDate currentRoomMoveInDate = activeOccupants.stream()
+                .filter(occupant -> transferringProfileIds.contains(occupant.getTenantProfileId()))
+                .map(ContractOccupant::getMoveInDate)
+                .filter(Objects::nonNull)
+                .min(LocalDate::compareTo)
+                .orElse(sourceContract.getStartDate());
+        long totalContractDays = 0L;
+        long stayedDays = 0L;
+        if (sourceContract.getStartDate() != null && sourceContract.getEndDate() != null) {
+            totalContractDays = java.time.temporal.ChronoUnit.DAYS.between(
+                    sourceContract.getStartDate(),
+                    sourceContract.getEndDate()
+            ) + 1;
+            stayedDays = Math.max(0, java.time.temporal.ChronoUnit.DAYS.between(sourceContract.getStartDate(), today) + 1);
+        }
+
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("eligible", true);
+        snapshot.put("checkedAt", LocalDateTime.now());
+        snapshot.put("sourceContractId", sourceContract.getId());
+        snapshot.put("sourceRoomId", sourceContract.getRoomId());
+        snapshot.put("targetRoomId", targetRoom.getId());
+        snapshot.put("targetRoomStatus", targetRoom.getCurrentStatus());
+        snapshot.put("targetTransferType", targetTransferType);
+        snapshot.put("transferringTenantProfileIds", transferringProfileIds);
+        snapshot.put("currentRoomMoveInDate", currentRoomMoveInDate);
+        snapshot.put("contractStartDate", sourceContract.getStartDate());
+        snapshot.put("contractEndDate", sourceContract.getEndDate());
+        snapshot.put("totalContractDays", totalContractDays);
+        snapshot.put("stayedDays", stayedDays);
+        snapshot.put("debt", debtSnapshot);
+        snapshot.put("violationSnapshot", violationSnapshot);
+        snapshot.put("transferHistorySnapshot", transferHistorySnapshot);
+        return writeSnapshot(snapshot);
+    }
+
+    private String writeSnapshot(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Could not serialize room transfer snapshot.", exception);
+        }
+    }
+
     private TargetTransferType resolveTargetTransferType(
             Long requesterProfileId,
             Room targetRoom,
             Optional<LeaseContract> targetActiveLeaseContractResult
     ) {
-        if (targetRoom.getCurrentStatus() == RoomStatus.SOON_VACANT) {
-            return TargetTransferType.NEW_CONTRACT;
+        if (targetRoom.getCurrentStatus() == RoomStatus.OCCUPIED) {
+            throw new IllegalArgumentException("Target room is already occupied.");
         }
-        if (targetActiveLeaseContractResult.isEmpty()) {
-            return TargetTransferType.NEW_CONTRACT;
+        if (targetActiveLeaseContractResult.isPresent() && targetRoom.getCurrentStatus() != RoomStatus.SOON_VACANT) {
+            throw new IllegalArgumentException("Target room has an active contract and is not available for transfer.");
         }
-        LeaseContract targetContract = targetActiveLeaseContractResult.get();
-        List<ContractOccupant> targetOccupants = activeOccupants(targetContract.getId());
-        boolean requesterAlreadyInTargetContract = targetOccupants.stream()
-                .anyMatch(occupant -> occupant.getTenantProfileId().equals(requesterProfileId));
-        if (requesterAlreadyInTargetContract){
+        if (targetActiveLeaseContractResult
+                .map(LeaseContract::getPrimaryTenantProfileId)
+                .filter(requesterProfileId::equals)
+                .isPresent()) {
             throw new AppException(ApiErrorCode.UNDEFINED);
         }
-        return TargetTransferType.OTHER_CONTRACT;
+        return TargetTransferType.NEW_CONTRACT;
     }
 
     private Room validateTargetRoomForTransferType(
@@ -1103,6 +1355,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private void cancelGeneratedTransferContracts(RoomTransferRequest request) {
+        cancelDepositTransferRecord(request);
         if (request.getNewContractId() != null) {
             LeaseContract newContract = getContract(request.getNewContractId());
             newContract.cancelContract();
@@ -1168,6 +1421,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         newContract = leaseContractRepository.save(newContract);
 
         request.setNewContractId(newContract.getId());
+        ensureDepositTransferRecordDraft(request, oldContract, newContract, targetRoom);
         ensureReplacementOldContractDraft(request, completedById);
         request.setStatus(nextStatus);
         roomTransferRepository.save(request);
@@ -1204,14 +1458,17 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
         LeaseContract oldContract = getContract(request.getOldContractId());
         List<ContractOccupant> activeOccupants = activeOccupants(oldContract.getId());
-        if (!holderNominationRequired(oldContract, request, activeOccupants)) {
+        List<Long> remainingProfileIds = remainingProfileIds(request, activeOccupants);
+        if (remainingProfileIds.isEmpty()) {
             return;
         }
-        Long replacementHolderProfileId = request.getNominatedHolderProfileId();
+        Long replacementHolderProfileId = holderNominationRequired(oldContract, request, activeOccupants)
+                ? request.getNominatedHolderProfileId()
+                : oldContract.getPrimaryTenantProfileId();
         if (replacementHolderProfileId == null) {
             throw new IllegalStateException("Holder nomination must be accepted before creating replacement old-room contract.");
         }
-        if (!remainingProfileIds(request, activeOccupants).contains(replacementHolderProfileId)) {
+        if (!remainingProfileIds.contains(replacementHolderProfileId)) {
             throw new IllegalStateException("Replacement holder must be one of the remaining occupants.");
         }
 
@@ -1258,7 +1515,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             oldRoom.releaseRoom();
             leaseContractRepository.save(oldContract);
             roomRepository.save(oldRoom);
-        } else if (request.getTransferringTenantProfileIds().contains(oldContract.getPrimaryTenantProfileId())) {
+        } else {
             activateReplacementOldContract(request, oldContract, oldOccupants, remainingProfileIds, executionDate);
             leaseContractRepository.save(oldContract);
         }
@@ -1266,6 +1523,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         alignTransferContractStart(newContract, executionDate);
         newContract.activateContract();
         targetRoom.occupyRoom();
+        markDepositTransferRecordEffective(request, oldContract, newContract, targetRoom, executionDate);
         leaseContractRepository.save(newContract);
         roomRepository.save(targetRoom);
         SettlementType settlementType = Optional.ofNullable(command.positiveDifferenceSettlementType())
@@ -1281,6 +1539,89 @@ public class RoomTransferService implements RoomTransferUseCase {
             );
         }
         releaseTargetCapacity(request);
+    }
+
+    private void ensureDepositTransferRecordDraft(
+            RoomTransferRequest request,
+            LeaseContract oldContract,
+            LeaseContract newContract,
+            Room targetRoom
+    ) {
+        if (request == null || oldContract == null || newContract == null || targetRoom == null) {
+            return;
+        }
+        TargetTransferType transferType = Optional.ofNullable(request.getTargetTransferType())
+                .orElse(TargetTransferType.NEW_CONTRACT);
+        if (transferType != TargetTransferType.NEW_CONTRACT) {
+            return;
+        }
+
+        DepositTransferRecord existing = depositTransferRecordRepository
+                .findByTransferRequestId(request.getId())
+                .orElse(null);
+        if (existing != null) {
+            if (existing.getStatus() == DepositTransferStatus.CANCELLED) {
+                return;
+            }
+            existing.setOldContractId(oldContract.getId());
+            existing.setNewContractId(newContract.getId());
+            existing.setOldDepositAgreementId(oldContract.getDepositAgreementId());
+            existing.setFromRoomId(oldContract.getRoomId());
+            existing.setToRoomId(targetRoom.getId());
+            existing.setAmount(safe(oldContract.getDepositAmount()));
+            existing.setEffectiveDate(request.getRequestedTransferDate());
+            existing.setNote(buildDepositTransferNote(oldContract, newContract));
+            depositTransferRecordRepository.save(existing);
+            return;
+        }
+
+        depositTransferRecordRepository.save(DepositTransferRecord.builder()
+                .transferRequestId(request.getId())
+                .oldContractId(oldContract.getId())
+                .newContractId(newContract.getId())
+                .oldDepositAgreementId(oldContract.getDepositAgreementId())
+                .fromRoomId(oldContract.getRoomId())
+                .toRoomId(targetRoom.getId())
+                .amount(safe(oldContract.getDepositAmount()))
+                .status(DepositTransferStatus.DRAFT)
+                .effectiveDate(request.getRequestedTransferDate())
+                .note(buildDepositTransferNote(oldContract, newContract))
+                .build());
+    }
+
+    private void markDepositTransferRecordEffective(
+            RoomTransferRequest request,
+            LeaseContract oldContract,
+            LeaseContract newContract,
+            Room targetRoom,
+            LocalDate executionDate
+    ) {
+        ensureDepositTransferRecordDraft(request, oldContract, newContract, targetRoom);
+        DepositTransferRecord record = depositTransferRecordRepository
+                .findByTransferRequestId(request.getId())
+                .orElseThrow(() -> new IllegalStateException("Deposit transfer record is required before executing room transfer."));
+        record.markEffective(executionDate);
+        depositTransferRecordRepository.save(record);
+    }
+
+    private void cancelDepositTransferRecord(RoomTransferRequest request) {
+        if (request == null || request.getId() == null) {
+            return;
+        }
+        depositTransferRecordRepository.findByTransferRequestId(request.getId())
+                .filter(record -> record.getStatus() == DepositTransferStatus.DRAFT)
+                .ifPresent(record -> {
+                    record.cancel();
+                    depositTransferRecordRepository.save(record);
+                });
+    }
+
+    private String buildDepositTransferNote(LeaseContract oldContract, LeaseContract newContract) {
+        return "Carry over deposit from contract "
+                + valueOrBlank(oldContract.getContractCode())
+                + " to transfer contract "
+                + valueOrBlank(newContract.getContractCode())
+                + ".";
     }
 
     private void executeIntoExistingContract(
@@ -1316,7 +1657,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             oldRoom.releaseRoom();
             leaseContractRepository.save(oldContract);
             roomRepository.save(oldRoom);
-        } else if (request.getTransferringTenantProfileIds().contains(oldContract.getPrimaryTenantProfileId())) {
+        } else {
             activateReplacementOldContract(request, oldContract, oldOccupants, remainingProfileIds, executionDate);
             leaseContractRepository.save(oldContract);
         }
@@ -1634,6 +1975,80 @@ public class RoomTransferService implements RoomTransferUseCase {
         return contractOccupantRepository.findAllByContractIdAndStatus(contractId, OccupantStatus.ACTIVE);
     }
 
+    private record TransferRentDifference(
+            long oldRoomRemainingValue,
+            long newRoomRequiredValue,
+            long differenceAmount,
+            int chargeableRemainingMonths
+    ) {}
+
+    private record DebtSnapshotDetails(
+            long rentDebtAmount,
+            long utilityDebtAmount,
+            long otherDebtAmount,
+            int rentDebtMonths,
+            int utilityDebtMonths,
+            long totalDebtAmount,
+            Long debtLimitAmount,
+            boolean overLimit
+    ) {}
+
+    private TransferRentDifference calculateTransferRentDifference(
+            LeaseContract oldContract,
+            LeaseContract newContract,
+            Room targetRoom,
+            LocalDate requestedTransferDate
+    ) {
+        long oldRent = safe(oldContract.getMonthlyRent());
+        long newRent = newContract != null ? safe(newContract.getMonthlyRent()) : safe(targetRoom.getListedPrice());
+        int paymentCycleMonths = oldContract.getPaymentCycleMonths() == null
+                ? 1
+                : Math.max(1, oldContract.getPaymentCycleMonths());
+
+        if (paymentCycleMonths <= 1) {
+            return new TransferRentDifference(0L, 0L, 0L, 0);
+        }
+
+        LocalDate transferDate = requestedTransferDate == null ? LocalDate.now() : requestedTransferDate;
+        LocalDate cycleStart = Optional.ofNullable(oldContract.getRentStartDate())
+                .or(() -> Optional.ofNullable(oldContract.getStartDate()))
+                .orElse(transferDate.withDayOfMonth(1));
+        while (!transferDate.isBefore(cycleStart.plusMonths(paymentCycleMonths))) {
+            cycleStart = cycleStart.plusMonths(paymentCycleMonths);
+        }
+        while (transferDate.isBefore(cycleStart)) {
+            cycleStart = cycleStart.minusMonths(paymentCycleMonths);
+        }
+
+        LocalDate cycleEndExclusive = cycleStart.plusMonths(paymentCycleMonths);
+        LocalDate chargeStart = transferDate.getDayOfMonth() >= 11
+                ? transferDate.plusMonths(1).withDayOfMonth(1)
+                : transferDate.withDayOfMonth(1);
+        LocalDate cycleStartMonth = cycleStart.withDayOfMonth(1);
+        if (chargeStart.isBefore(cycleStartMonth)) {
+            chargeStart = cycleStartMonth;
+        }
+        if (!chargeStart.isBefore(cycleEndExclusive)) {
+            return new TransferRentDifference(0L, 0L, 0L, 0);
+        }
+
+        int chargeableMonths = Math.max(
+                0,
+                (int) java.time.temporal.ChronoUnit.MONTHS.between(
+                        YearMonth.from(chargeStart),
+                        YearMonth.from(cycleEndExclusive)
+                )
+        );
+        long oldRoomRemainingValue = oldRent * chargeableMonths;
+        long newRoomRequiredValue = newRent * chargeableMonths;
+        return new TransferRentDifference(
+                oldRoomRemainingValue,
+                newRoomRequiredValue,
+                newRoomRequiredValue - oldRoomRemainingValue,
+                chargeableMonths
+        );
+    }
+
     private void createRentDifferenceSettlement(
             RoomTransferRequest request,
             LeaseContract oldContract,
@@ -1642,9 +2057,15 @@ public class RoomTransferService implements RoomTransferUseCase {
             Long executorId,
             SettlementType positiveDifferenceSettlementType
     ) {
-        long oldRent = safe(oldContract.getMonthlyRent());
-        long newRent = (newContract != null) ? safe(newContract.getMonthlyRent()) : safe(targetRoom.getListedPrice());
-        long difference = newRent - oldRent;
+        TransferRentDifference rentDifference = calculateTransferRentDifference(
+                oldContract,
+                newContract,
+                targetRoom,
+                request.getRequestedTransferDate()
+        );
+        long oldRoomRemainingValue = rentDifference.oldRoomRemainingValue();
+        long newRoomRequiredValue = rentDifference.newRoomRequiredValue();
+        long difference = rentDifference.differenceAmount();
 
         if (difference > 0) {
             SettlementType settlementType = Optional.ofNullable(positiveDifferenceSettlementType)
@@ -1666,8 +2087,8 @@ public class RoomTransferService implements RoomTransferUseCase {
                 // to distinguish "add to next invoice" from "pay now".
                 saveSettlement(
                         request,
-                        oldRent,
-                        newRent,
+                        oldRoomRemainingValue,
+                        newRoomRequiredValue,
                         difference,
                         SettlementType.TENANT_PAY_MORE,
                         invoice.getId(),
@@ -1680,13 +2101,13 @@ public class RoomTransferService implements RoomTransferUseCase {
                 Invoice invoice = createTransferDifferenceInvoice(
                         request,
                         oldContract,
-                        oldRent,
-                        newRent,
+                        oldRoomRemainingValue,
+                        newRoomRequiredValue,
                         difference,
                         targetRoom,
                         executorId
                 );
-                saveSettlement(request, oldRent, newRent, difference, SettlementType.TENANT_PAY_MORE, invoice.getId(), executorId);
+                saveSettlement(request, oldRoomRemainingValue, newRoomRequiredValue, difference, SettlementType.TENANT_PAY_MORE, invoice.getId(), executorId);
             }
         } else if (difference < 0) {
             // New room is cheaper — tenant gets credit applied to next month's rent
@@ -1695,10 +2116,10 @@ public class RoomTransferService implements RoomTransferUseCase {
             }
             long credit = Math.abs(difference);
             createNextRentInvoiceWithTransferCredit(request, newContract, targetRoom, credit, executorId);
-            saveSettlement(request, oldRent, newRent, difference, SettlementType.CREDIT_NEXT_CONTRACT, null, executorId);
+            saveSettlement(request, oldRoomRemainingValue, newRoomRequiredValue, difference, SettlementType.CREDIT_NEXT_CONTRACT, null, executorId);
         } else {
             // Same rent — no settlement needed
-            saveSettlement(request, oldRent, newRent, 0L, SettlementType.NO_DIFFERENCE, null, executorId);
+            saveSettlement(request, oldRoomRemainingValue, newRoomRequiredValue, 0L, SettlementType.NO_DIFFERENCE, null, executorId);
         }
     }
 
@@ -1767,7 +2188,18 @@ public class RoomTransferService implements RoomTransferUseCase {
                 "Nuoc chuyen phong"
         );
         long incidentalAmount = transferOutHandover == null ? 0L : safe(transferOutHandover.incidentalChargeAmount());
-        long totalAmount = electricity.amount() + water.amount() + incidentalAmount;
+        LocalDate handoverDate = transferOutHandover == null || transferOutHandover.handoverDate() == null
+                ? LocalDate.now()
+                : transferOutHandover.handoverDate();
+        String billingPeriod = YearMonth.from(handoverDate).toString();
+        ServiceFeeCharge serviceFee = buildTransferServiceFeeCharge(
+                oldContract.getId(),
+                oldRoom.getPropertyId(),
+                billingPeriod,
+                handoverDate,
+                electricity.amount()
+        );
+        long totalAmount = electricity.amount() + water.amount() + incidentalAmount + serviceFee.amount();
         if (totalAmount <= 0) {
             return null;
         }
@@ -1779,6 +2211,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 transferOutHandover,
                 electricity,
                 water,
+                serviceFee,
                 incidentalAmount,
                 managerId,
                 totalAmount
@@ -1794,6 +2227,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             ExecuteTransferCommand.TransferHandoverData transferOutHandover,
             MeterChargeLine electricity,
             MeterChargeLine water,
+            ServiceFeeCharge serviceFee,
             long incidentalAmount,
             Long managerId,
             long totalAmount
@@ -1825,6 +2259,7 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         saveMeterChargeLine(invoice.getId(), request.getId(), electricity);
         saveMeterChargeLine(invoice.getId(), request.getId(), water);
+        saveServiceFeeLine(invoice.getId(), request.getId(), serviceFee);
         if (incidentalAmount > 0) {
             String note = transferOutHandover.incidentalChargeNote() == null
                     ? ""
@@ -1872,6 +2307,21 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .quantity(chargeLine.quantity())
                 .unitPrice(chargeLine.unitPrice())
                 .meterReadingId(chargeLine.meterReadingId())
+                .sourceType(SOURCE_ROOM_TRANSFER_UTILITY)
+                .sourceId(requestId)
+                .build());
+    }
+
+    private void saveServiceFeeLine(Long invoiceId, Long requestId, ServiceFeeCharge serviceFee) {
+        if (serviceFee == null || (!serviceFee.lineRequired() && serviceFee.amount() <= 0)) {
+            return;
+        }
+        invoiceLineRepository.save(InvoiceLine.builder()
+                .invoiceId(invoiceId)
+                .lineType(InvoiceLineType.SERVICE_FEE)
+                .description(serviceFee.description())
+                .quantity(serviceFee.amount() > 0 ? 1 : 0)
+                .unitPrice(serviceFee.unitPrice())
                 .sourceType(SOURCE_ROOM_TRANSFER_UTILITY)
                 .sourceId(requestId)
                 .build());
@@ -1979,9 +2429,50 @@ public class RoomTransferService implements RoomTransferUseCase {
         ).stream().findFirst().orElse(BigDecimal.ZERO);
     }
 
+    private ServiceFeeCharge buildTransferServiceFeeCharge(
+            Long oldContractId,
+            Long propertyId,
+            String billingPeriod,
+            LocalDate readingDate,
+            long electricityAmount
+    ) {
+        if (hasServiceFeeLineForContractAndPeriod(oldContractId, billingPeriod)) {
+            return ServiceFeeCharge.empty();
+        }
+        UtilityTariffSnapshot tariff = readUtilityTariff(propertyId, UtilityType.SERVICE_FEE, readingDate);
+        Long waiveThreshold = tariff.serviceFeeWaiveElectricityThreshold();
+        if (waiveThreshold != null && electricityAmount < waiveThreshold) {
+            return new ServiceFeeCharge(
+                    tariff.unitPrice(),
+                    0L,
+                    "Service fee waived because electricity amount is below " + waiveThreshold + ".",
+                    true
+            );
+        }
+        return new ServiceFeeCharge(
+                tariff.unitPrice(),
+                tariff.unitPrice(),
+                "Service fee " + billingPeriod,
+                true
+        );
+    }
+
+    private boolean hasServiceFeeLineForContractAndPeriod(Long contractId, String billingPeriod) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM invoices invoice
+                JOIN invoice_lines line ON line.invoice_id = invoice.invoice_id
+                WHERE invoice.lease_contract_id = ?
+                  AND invoice.billing_period = ?
+                  AND invoice.status <> 'VOIDED'
+                  AND line.line_type = 'SERVICE_FEE'
+                """, Integer.class, contractId, billingPeriod);
+        return count != null && count > 0;
+    }
+
     private UtilityTariffSnapshot readUtilityTariff(Long propertyId, UtilityType utilityType, LocalDate readingDate) {
         Optional<UtilityTariffSnapshot> propertyTariff = jdbcTemplate.query("""
-                        SELECT unit_price, free_allowance
+                        SELECT unit_price, free_allowance, service_fee_waive_electricity_threshold
                         FROM utility_tariffs
                         WHERE property_id = ?
                           AND utility_type = ?
@@ -1992,7 +2483,10 @@ public class RoomTransferService implements RoomTransferUseCase {
                         """,
                 (rs, rowNum) -> new UtilityTariffSnapshot(
                         rs.getLong("unit_price"),
-                        rs.getLong("free_allowance")
+                        rs.getLong("free_allowance"),
+                        rs.getObject("service_fee_waive_electricity_threshold") == null
+                                ? null
+                                : rs.getLong("service_fee_waive_electricity_threshold")
                 ),
                 propertyId,
                 utilityType.name(),
@@ -2005,9 +2499,9 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         // TODO ponytail: Temporary dev fallback until owner-managed utility tariffs are required before transfer checkout.
         return switch (utilityType) {
-            case ELECTRICITY -> new UtilityTariffSnapshot(3500L, 0L);
-            case WATER -> new UtilityTariffSnapshot(20000L, 6L);
-            default -> throw new AppException(ApiErrorCode.UTILITY_TARIFF_NOT_FOUND);
+            case ELECTRICITY -> new UtilityTariffSnapshot(3500L, 0L, null);
+            case WATER -> new UtilityTariffSnapshot(20000L, 6L, null);
+            case SERVICE_FEE -> new UtilityTariffSnapshot(50000L, 0L, 100000L);
         };
     }
 
@@ -2025,7 +2519,13 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private record MeterReadingSnapshot(BigDecimal previousValue, BigDecimal currentValue, LocalDate readingDate) {}
 
-    private record UtilityTariffSnapshot(long unitPrice, long freeAllowance) {}
+    private record UtilityTariffSnapshot(long unitPrice, long freeAllowance, Long serviceFeeWaiveElectricityThreshold) {}
+
+    private record ServiceFeeCharge(long unitPrice, long amount, String description, boolean lineRequired) {
+        static ServiceFeeCharge empty() {
+            return new ServiceFeeCharge(0L, 0L, null, false);
+        }
+    }
 
     private record MeterChargeLine(
             Long meterReadingId,
@@ -2458,6 +2958,18 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private long safe(Integer value) {
         return value == null ? 0L : value;
+    }
+
+    private long safeNumber(Object value) {
+        return value instanceof Number number ? number.longValue() : 0L;
+    }
+
+    private int safeInteger(Object value) {
+        return value instanceof Number number ? number.intValue() : 0;
+    }
+
+    private String valueOrBlank(String value) {
+        return value == null ? "" : value;
     }
 
     private RoomTransferRequest getTransfer(Long requestId) {

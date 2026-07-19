@@ -18,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -80,7 +79,6 @@ public class ScheduledBillingChargeService {
                 .build());
     }
 
-    @Scheduled(cron = "0 0 8 1 * *", zone = "Asia/Ho_Chi_Minh")
     @Transactional
     public void createMonthlyDraftInvoices() {
         int created = createDueDraftInvoices(LocalDateTime.now());
@@ -99,6 +97,18 @@ public class ScheduledBillingChargeService {
         int billed = 0;
         for (PendingBillingChargeEntity charge : dueCharges) {
             try {
+                java.util.Optional<InvoiceLineEntity> existingLine = invoiceLineRepository
+                        .findFirstBySourceTypeAndSourceIdOrderByIdDesc(charge.getSourceType(), charge.getSourceId());
+                if (existingLine.isPresent()) {
+                    InvoiceEntity invoice = syncInvoiceTotals(existingLine.get().getInvoice());
+                    charge.setInvoice(invoice);
+                    charge.setStatus(PendingBillingChargeStatus.BILLED);
+                    charge.setFailureReason(null);
+                    pendingBillingChargeRepository.save(charge);
+                    billed++;
+                    continue;
+                }
+
                 InvoiceEntity invoice = findOrCreateDraftInvoice(charge);
                 invoiceLineRepository.save(InvoiceLineEntity.builder()
                         .invoice(invoice)
@@ -109,11 +119,7 @@ public class ScheduledBillingChargeService {
                         .sourceType(charge.getSourceType())
                         .sourceId(charge.getSourceId())
                         .build());
-                long newSubtotal = safe(invoice.getSubtotalAmount()) + safe(charge.getAmount());
-                invoice.setSubtotalAmount(newSubtotal);
-                invoice.setTotalAmount(newSubtotal - safe(invoice.getDiscountAmount()));
-                invoice.setRemainingAmount(invoice.getTotalAmount() - safe(invoice.getPaidAmount()));
-                invoiceRepository.save(invoice);
+                invoice = syncInvoiceTotals(invoice);
                 charge.setInvoice(invoice);
                 charge.setStatus(PendingBillingChargeStatus.BILLED);
                 charge.setFailureReason(null);
@@ -172,6 +178,17 @@ public class ScheduledBillingChargeService {
                 .build());
     }
 
+    private InvoiceEntity syncInvoiceTotals(InvoiceEntity invoice) {
+        long subtotal = invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId())
+                .stream()
+                .mapToLong(this::lineAmount)
+                .sum();
+        invoice.setSubtotalAmount(subtotal);
+        invoice.setTotalAmount(subtotal - safe(invoice.getDiscountAmount()));
+        invoice.setRemainingAmount(invoice.getTotalAmount() - safe(invoice.getPaidAmount()));
+        return invoiceRepository.save(invoice);
+    }
+
     private String buildInvoiceCode(PendingBillingChargeEntity charge) {
         String period = charge.getBillingPeriod().replace("-", "");
         return "INV-OTHER-" + period + "-" + charge.getSourceId() + "-" + LocalDateTime.now().format(INVOICE_CODE_TIME_FORMAT);
@@ -190,5 +207,9 @@ public class ScheduledBillingChargeService {
 
     private long safe(Long value) {
         return value == null ? 0L : value;
+    }
+
+    private long lineAmount(InvoiceLineEntity line) {
+        return (long) (line.getQuantity() == null ? 0 : line.getQuantity()) * safe(line.getUnitPrice());
     }
 }

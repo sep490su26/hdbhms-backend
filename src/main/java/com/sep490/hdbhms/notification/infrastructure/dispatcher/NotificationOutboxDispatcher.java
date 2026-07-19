@@ -8,7 +8,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -23,7 +22,6 @@ public class NotificationOutboxDispatcher {
     NotificationOutboxRepository notificationOutboxRepository;
     NotificationOutboxProcessor processor;
 
-    @Scheduled(fixedDelayString = "${app.notification.outbox.poll-interval-ms:60000}")
     public void dispatch() {
         List<NotificationOutbox> pending = notificationOutboxRepository
                 .findByStatusAndNextRetryAtBefore(OutboxStatus.PENDING, LocalDateTime.now());

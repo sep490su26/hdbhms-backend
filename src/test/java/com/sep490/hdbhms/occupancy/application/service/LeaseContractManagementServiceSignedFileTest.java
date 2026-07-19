@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -175,7 +174,7 @@ class LeaseContractManagementServiceSignedFileTest {
     }
 
     @Test
-    void activateHandoverCheckDoesNotRequireSignedDocument() {
+    void activateHandoverCheckRequiresSignedDocument() {
         var jdbcTemplate = mock(JdbcTemplate.class);
         var leaseContractRepository = mock(JpaLeaseContractRepository.class);
         var room = RoomEntity.builder()
@@ -222,7 +221,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 .filter(sql -> sql.contains("contract_handover_records"))
                 .findFirst()
                 .orElseThrow();
-        assertFalse(handoverSql.contains("signed_document_id"));
+        assertTrue(handoverSql.contains("signed_document_id IS NOT NULL"));
     }
 
     private static LeaseContractManagementService newService(
