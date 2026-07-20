@@ -39,6 +39,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -286,10 +287,18 @@ public class ManageContractHandoverService {
 
     @Transactional(readOnly = true)
     public ContractHandoverDetailsResponse getHandoverDetails(Long contractId, HandoverType type) {
-        ContractHandoverRecordEntity record = handoverRecordRepository
-                .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, type)
+        return findHandoverDetails(contractId, type)
                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND));
+    }
 
+    @Transactional(readOnly = true)
+    public Optional<ContractHandoverDetailsResponse> findHandoverDetails(Long contractId, HandoverType type) {
+        return handoverRecordRepository
+                .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, type)
+                .map(this::toHandoverDetails);
+    }
+
+    private ContractHandoverDetailsResponse toHandoverDetails(ContractHandoverRecordEntity record) {
         return ContractHandoverDetailsResponse.builder()
                 .handoverRecordId(record.getId())
                 .handoverType(record.getHandoverType())

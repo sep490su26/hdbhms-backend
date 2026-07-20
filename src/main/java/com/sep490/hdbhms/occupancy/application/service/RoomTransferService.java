@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceRepository;
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
+import com.sep490.hdbhms.billingandpayment.application.service.UtilityBillingRunService;
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.domain.model.InvoiceLine;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
@@ -27,6 +29,7 @@ import com.sep490.hdbhms.occupancy.domain.event.RoomTransferTargetHolderApproval
 import com.sep490.hdbhms.occupancy.domain.model.*;
 import com.sep490.hdbhms.occupancy.domain.value_objects.*;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandoverRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.ContractHandoverDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUtilityEstimateResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -99,8 +102,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     static final String ACTION_SOURCE_HOLDER_NOMINATION_EXPIRED = "SOURCE_HOLDER_NOMINATION_EXPIRED";
     static final String ACTION_UPLOAD_SIGNED_CONTRACTS = "UPLOAD_SIGNED_CONTRACTS";
     static final String ACTION_READY_FOR_HANDOVER = "READY_FOR_HANDOVER";
-    static final String SOURCE_ROOM_TRANSFER_UTILITY = "ROOM_TRANSFER_UTILITY";
-    static final String SOURCE_ROOM_TRANSFER_INCIDENTAL = "ROOM_TRANSFER_INCIDENTAL";
+    static final String SOURCE_ROOM_TRANSFER_COMPENSATION = "ROOM_TRANSFER_COMPENSATION";
 
     RoomRepository roomRepository;
     TenantRepository tenantRepository;
@@ -116,6 +118,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     InvoiceRepository invoiceRepository;
     InvoiceLineRepository invoiceLineRepository;
     IssuedInvoiceChargeService issuedInvoiceChargeService;
+    UtilityBillingRunService utilityBillingRunService;
     ManageContractHandoverService manageContractHandoverService;
     SnowflakeIdGenerator snowflakeIdGenerator;
     ApplicationEventPublisher applicationEventPublisher;
@@ -512,13 +515,16 @@ public class RoomTransferService implements RoomTransferUseCase {
     @Transactional
     public void signTransferContract(Long requestId, Long tenantUserId) {
         RoomTransferRequest request = getTransfer(requestId);
-        requireStatus(request, TransferRequestStatus.WAITING_SIGNING, TransferRequestStatus.WAITING_CONTRACT_SIGNING);
         if (!currentUserHasAnyRole("ROLE_OWNER", "ROLE_MANAGER")) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "Only owner or manager can confirm signed transfer contract."
             );
         }
+        if (request.getStatus() == TransferRequestStatus.READY_FOR_HANDOVER) {
+            return;
+        }
+        requireStatus(request, TransferRequestStatus.WAITING_SIGNING, TransferRequestStatus.WAITING_CONTRACT_SIGNING);
         List<LeaseContract> contracts = requiredSigningContracts(request);
         if (contracts.isEmpty()) {
             throw new IllegalStateException("No transfer contract found for signing.");
@@ -764,21 +770,40 @@ public class RoomTransferService implements RoomTransferUseCase {
         requireStatus(request, TransferRequestStatus.WAITING_TRANSFER_DATE, TransferRequestStatus.READY_FOR_HANDOVER);
 
         LeaseContract oldContract = getContract(request.getOldContractId());
-        Room oldRoom = roomRepository.findById(request.getOldRoomId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         List<ContractOccupant> oldOccupants = activeOccupants(oldContract.getId());
         List<Long> remainingProfileIds = remainingProfileIds(request, oldOccupants);
         ensureHolderNominationResolved(oldContract, request, oldOccupants);
         boolean sourceRoomWillBeEmpty = remainingProfileIds.isEmpty();
+        if (!sourceRoomWillBeEmpty && safe(command.oldRoomCompensationAmount()) > 0) {
+            throw new IllegalArgumentException("Chỉ được ghi nhận bồi thường phòng cũ khi phòng cũ sẽ trống.");
+        }
         SubmitHandoverResponse transferOutHandover = submitTransferOutHandover(command, oldContract.getId(), sourceRoomWillBeEmpty);
-        createTransferOutUtilityInvoiceIfNeeded(
-                request,
-                oldContract,
-                oldRoom,
-                command.transferOutHandover(),
-                transferOutHandover,
-                command.executedById()
-        );
+        Long oldRoomFinalInvoiceId = transferSettlementRepository.findLatestByTransferRequestId(request.getId())
+                .map(TransferSettlement::getOldRoomFinalInvoiceId)
+                .orElse(null);
+        if (oldRoomFinalInvoiceId == null) {
+            oldRoomFinalInvoiceId = utilityBillingRunService.issueTransferInvoiceFromReadings(
+                    oldContract.getId(),
+                    transferOutHandover.getElectricityReadingId(),
+                    transferOutHandover.getWaterReadingId(),
+                    transferOutHandover.getHandoverDate() == null ? null : transferOutHandover.getHandoverDate().toLocalDate(),
+                    command.executedById()
+            );
+        }
+        if (oldRoomFinalInvoiceId != null) {
+            saveOldRoomFinalInvoiceSettlement(request, oldRoomFinalInvoiceId, command.executedById());
+        }
+        if (sourceRoomWillBeEmpty) {
+            createOldRoomCompensationInvoiceIfNeeded(
+                    request,
+                    oldContract,
+                    roomRepository.findById(request.getOldRoomId())
+                            .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND)),
+                    command.oldRoomCompensationAmount(),
+                    command.oldRoomCompensationNote(),
+                    command.executedById()
+            );
+        }
 
         request.setStatus(TransferRequestStatus.WAITING_EXECUTION);
         request.setExecutedAt(LocalDateTime.now());
@@ -858,7 +883,9 @@ public class RoomTransferService implements RoomTransferUseCase {
                 command.completedById(),
                 null,
                 command.transferInHandover(),
-                command.positiveDifferenceSettlementType()
+                command.positiveDifferenceSettlementType(),
+                null,
+                null
         );
 
         switch (transferType) {
@@ -1444,10 +1471,10 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private void signUploadedContract(LeaseContract contract) {
-        if (contract.getContractFileId() == null) {
+        if (contract.getSignedFileId() == null) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Can upload file hop dong da ky truc tiep truoc khi xac nhan ky."
+                    "Vui lòng upload file hợp đồng đã ký trước khi xác nhận đã ký."
             );
         }
         if (contract.getStatus() == LeaseStatus.CONFIRMED) {
@@ -1612,13 +1639,13 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (newContract.getStatus() != LeaseStatus.SIGNED) {
             throw new IllegalStateException("New contract must be SIGNED before executing transfer.");
         }
-        LocalDate executionDate = resolveExecutionDate(command.transferInHandover());
-        submitTransferInHandover(command.transferInHandover(), newContract.getId(), true);
+        LocalDate executionDate = submitTransferInHandover(command.transferInHandover(), newContract.getId(), true);
         moveTransferredOccupantsToNewContract(request, newContract, oldOccupants, executionDate);
 
         if (remainingProfileIds.isEmpty()) {
             oldContract.markTransferred();
             oldRoom.releaseRoom();
+            closeSupersededRenewals(oldContract, executionDate);
             leaseContractRepository.save(oldContract);
             roomRepository.save(oldRoom);
         } else {
@@ -1753,14 +1780,14 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (getContract(request.getNewContractId()).getStatus() != LeaseStatus.SIGNED) {
             throw new IllegalStateException("Transfer agreement must be SIGNED before executing transfer.");
         }
-        LocalDate executionDate = resolveExecutionDate(command.transferInHandover());
-        submitTransferInHandover(command.transferInHandover(), targetContract.getId(), false);
+        LocalDate executionDate = submitTransferInHandover(command.transferInHandover(), targetContract.getId(), false);
 
         moveTransferredOccupantsToExistingContract(request, targetContract, oldOccupants, executionDate);
 
         if (remainingProfileIds.isEmpty()) {
             oldContract.markTransferred();
             oldRoom.releaseRoom();
+            closeSupersededRenewals(oldContract, executionDate);
             leaseContractRepository.save(oldContract);
             roomRepository.save(oldRoom);
         } else {
@@ -1821,6 +1848,53 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
         contractOccupantRepository.saveAll(oldOccupants);
         contractOccupantRepository.saveAll(replacementOccupants);
+    }
+
+    private void closeSupersededRenewals(LeaseContract rootContract, LocalDate executionDate) {
+        if (rootContract == null || rootContract.getId() == null) {
+            return;
+        }
+        List<Long> renewalIds = jdbcTemplate.query("""
+                        WITH RECURSIVE contract_chain AS (
+                            SELECT lc.lease_contract_id, lc.status
+                            FROM lease_contracts lc
+                            WHERE lc.previous_contract_id = ?
+                              AND lc.room_id = ?
+                              AND lc.deleted_at IS NULL
+                            UNION ALL
+                            SELECT child.lease_contract_id, child.status
+                            FROM lease_contracts child
+                            JOIN contract_chain parent ON child.previous_contract_id = parent.lease_contract_id
+                            WHERE child.room_id = ?
+                              AND child.deleted_at IS NULL
+                        )
+                        SELECT lease_contract_id
+                        FROM contract_chain
+                        WHERE status IN ('DRAFT', 'PENDING_SIGNATURE', 'CONFIRMED', 'SIGNED', 'ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                        """,
+                (rs, rowNum) -> rs.getLong("lease_contract_id"),
+                rootContract.getId(),
+                rootContract.getRoomId(),
+                rootContract.getRoomId()
+        );
+        for (Long renewalId : renewalIds) {
+            leaseContractRepository.findById(renewalId).ifPresent(renewal -> {
+                LeaseStatus status = renewal.getStatus();
+                if (status == LeaseStatus.ACTIVE
+                        || status == LeaseStatus.EXPIRING_SOON
+                        || status == LeaseStatus.TERMINATION_PENDING) {
+                    renewal.markTransferred();
+                } else {
+                    renewal.cancelContract();
+                }
+                List<ContractOccupant> occupants = activeOccupants(renewal.getId());
+                for (ContractOccupant occupant : occupants) {
+                    occupant.moveOut(executionDate);
+                }
+                contractOccupantRepository.saveAll(occupants);
+                leaseContractRepository.save(renewal);
+            });
+        }
     }
 
     private void moveTransferredOccupantsToExistingContract(
@@ -2066,12 +2140,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         contractOccupantRepository.saveAll(newOccupants);
     }
 
-    private LocalDate resolveExecutionDate(ExecuteTransferCommand.TransferHandoverData transferInHandover) {
-        return transferInHandover != null && transferInHandover.handoverDate() != null
-                ? transferInHandover.handoverDate()
-                : LocalDate.now();
-    }
-
     private void alignTransferContractStart(LeaseContract contract, LocalDate executionDate) {
         contract.setStartDate(executionDate);
         contract.setRentStartDate(executionDate);
@@ -2236,7 +2304,11 @@ public class RoomTransferService implements RoomTransferUseCase {
     ) {
         ExecuteTransferCommand.TransferHandoverData payload = command.transferOutHandover();
         if (payload == null) {
-            throw new IllegalArgumentException("Transfer-out utility readings are required before executing transfer.");
+            return requireConfirmedHandover(
+                    oldContractId,
+                    HandoverType.TRANSFER_OUT,
+                    "Transfer-out handover must be saved before executing transfer."
+            );
         }
         validateTransferHandoverDate(payload, "transfer-out");
         if (sourceRoomWillBeEmpty && (payload.assets() == null || payload.assets().isEmpty())) {
@@ -2248,142 +2320,57 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
     }
 
-    private void submitTransferInHandover(
+    private LocalDate submitTransferInHandover(
             ExecuteTransferCommand.TransferHandoverData payload,
             Long targetContractId,
             boolean required
     ) {
         if (payload == null) {
             if (required) {
-                throw new IllegalArgumentException("Transfer-in utility baseline readings are required for a new target contract.");
+                SubmitHandoverResponse handover = requireConfirmedHandover(
+                        targetContractId,
+                        HandoverType.TRANSFER_IN,
+                        "Transfer-in handover must be saved before completing transfer."
+                );
+                return handover.getHandoverDate() == null ? LocalDate.now() : handover.getHandoverDate().toLocalDate();
             }
-            return;
+            return LocalDate.now();
         }
         validateTransferHandoverDate(payload, "transfer-in");
         manageContractHandoverService.submitHandover(
                 targetContractId,
                 toSubmitHandoverRequest(payload, HandoverType.TRANSFER_IN)
         );
+        return payload.handoverDate();
     }
 
-    private Long createTransferOutUtilityInvoiceIfNeeded(
-            RoomTransferRequest request,
-            LeaseContract oldContract,
-            Room oldRoom,
-            ExecuteTransferCommand.TransferHandoverData transferOutHandover,
-            SubmitHandoverResponse handoverResponse,
-            Long managerId
+    private SubmitHandoverResponse requireConfirmedHandover(
+            Long contractId,
+            HandoverType handoverType,
+            String missingMessage
     ) {
-        TransferSettlement existing = transferSettlementRepository.findLatestByTransferRequestId(request.getId()).orElse(null);
-        if (existing != null && existing.getOldRoomFinalInvoiceId() != null) {
-            return existing.getOldRoomFinalInvoiceId();
+        ContractHandoverDetailsResponse handover;
+        try {
+            handover = manageContractHandoverService.getHandoverDetails(contractId, handoverType);
+        } catch (AppException exception) {
+            throw new IllegalStateException(missingMessage);
         }
-
-        MeterChargeLine electricity = buildMeterChargeLine(
-                handoverResponse.getElectricityReadingId(),
-                InvoiceLineType.ELECTRICITY,
-                oldRoom.getPropertyId(),
-                UtilityType.ELECTRICITY,
-                "Dien chuyen phong"
-        );
-        MeterChargeLine water = buildMeterChargeLine(
-                handoverResponse.getWaterReadingId(),
-                InvoiceLineType.WATER,
-                oldRoom.getPropertyId(),
-                UtilityType.WATER,
-                "Nuoc chuyen phong"
-        );
-        long incidentalAmount = transferOutHandover == null ? 0L : safe(transferOutHandover.incidentalChargeAmount());
-        LocalDate handoverDate = transferOutHandover == null || transferOutHandover.handoverDate() == null
-                ? LocalDate.now()
-                : transferOutHandover.handoverDate();
-        String billingPeriod = YearMonth.from(handoverDate).toString();
-        ServiceFeeCharge serviceFee = buildTransferServiceFeeCharge(
-                oldContract.getId(),
-                oldRoom.getPropertyId(),
-                billingPeriod,
-                handoverDate,
-                electricity.amount()
-        );
-        long totalAmount = electricity.amount() + water.amount() + incidentalAmount + serviceFee.amount();
-        if (totalAmount <= 0) {
-            return null;
+        if (handover.getStatus() != HandoverStatus.CONFIRMED) {
+            throw new IllegalStateException(missingMessage);
         }
-
-        Invoice invoice = createTransferOutUtilityInvoice(
-                request,
-                oldContract,
-                oldRoom,
-                transferOutHandover,
-                electricity,
-                water,
-                serviceFee,
-                incidentalAmount,
-                managerId,
-                totalAmount
-        );
-        saveOldRoomFinalInvoiceSettlement(request, invoice.getId(), managerId);
-        return invoice.getId();
-    }
-
-    private Invoice createTransferOutUtilityInvoice(
-            RoomTransferRequest request,
-            LeaseContract oldContract,
-            Room oldRoom,
-            ExecuteTransferCommand.TransferHandoverData transferOutHandover,
-            MeterChargeLine electricity,
-            MeterChargeLine water,
-            ServiceFeeCharge serviceFee,
-            long incidentalAmount,
-            Long managerId,
-            long totalAmount
-    ) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate handoverDate = transferOutHandover.handoverDate() == null
-                ? LocalDate.now()
-                : transferOutHandover.handoverDate();
-
-        String billingPeriod = YearMonth.from(handoverDate).toString();
-        Invoice invoice = invoiceRepository.save(Invoice.builder()
-                .invoiceCode("INV-TR-UTL-" + request.getId() + "-" + snowflakeIdGenerator.next())
-                .propertyId(oldRoom.getPropertyId())
-                .roomId(oldRoom.getId())
-                .leaseContractId(oldContract.getId())
-                .invoiceType(InvoiceType.UTILITY)
-                .revisionNo(nextInvoiceRevision(oldContract.getId(), billingPeriod, InvoiceType.UTILITY))
-                .billingPeriod(billingPeriod)
-                .issueDate(now)
-                .dueDate(now.plusDays(7))
-                .status(InvoiceStatus.DRAFT)
-                .subtotalAmount(totalAmount)
-                .discountAmount(0L)
-                .totalAmount(totalAmount)
-                .paidAmount(0L)
-                .remainingAmount(totalAmount)
-                .createdBy(managerId)
-                .build());
-
-        saveMeterChargeLine(invoice.getId(), request.getId(), electricity);
-        saveMeterChargeLine(invoice.getId(), request.getId(), water);
-        saveServiceFeeLine(invoice.getId(), request.getId(), serviceFee);
-        if (incidentalAmount > 0) {
-            String note = transferOutHandover.incidentalChargeNote() == null
-                    ? ""
-                    : transferOutHandover.incidentalChargeNote().trim();
-            invoiceLineRepository.save(InvoiceLine.builder()
-                    .invoiceId(invoice.getId())
-                    .lineType(InvoiceLineType.MANUAL_ADJUSTMENT)
-                    .description(note.isBlank() ? "Phat sinh khi transfer checkout phong cu" : note)
-                    .quantity(1)
-                    .unitPrice(incidentalAmount)
-                    .sourceType(SOURCE_ROOM_TRANSFER_INCIDENTAL)
-                    .sourceId(request.getId())
-                    .build());
+        Long electricityReadingId = handover.getElectricity() == null ? null : handover.getElectricity().getId();
+        Long waterReadingId = handover.getWater() == null ? null : handover.getWater().getId();
+        if (electricityReadingId == null || waterReadingId == null) {
+            throw new IllegalStateException(missingMessage);
         }
-
-        issuedInvoiceChargeService.issueDraftInvoice(invoice.getId());
-        return invoiceRepository.findById(invoice.getId())
-                .orElseThrow(() -> new IllegalStateException("Transfer utility invoice could not be issued."));
+        return SubmitHandoverResponse.builder()
+                .handoverRecordId(handover.getHandoverRecordId())
+                .handoverType(handover.getHandoverType())
+                .status(handover.getStatus())
+                .handoverDate(handover.getHandoverDate())
+                .electricityReadingId(electricityReadingId)
+                .waterReadingId(waterReadingId)
+                .build();
     }
 
     private int nextInvoiceRevision(Long contractId, String billingPeriod, InvoiceType invoiceType) {
@@ -2400,37 +2387,6 @@ public class RoomTransferService implements RoomTransferUseCase {
                 invoiceType.name()
         );
         return (maxRevision == null ? 0 : maxRevision) + 1;
-    }
-
-    private void saveMeterChargeLine(Long invoiceId, Long requestId, MeterChargeLine chargeLine) {
-        if (chargeLine.amount() <= 0) {
-            return;
-        }
-        invoiceLineRepository.save(InvoiceLine.builder()
-                .invoiceId(invoiceId)
-                .lineType(chargeLine.lineType())
-                .description(chargeLine.description())
-                .quantity(chargeLine.quantity())
-                .unitPrice(chargeLine.unitPrice())
-                .meterReadingId(chargeLine.meterReadingId())
-                .sourceType(SOURCE_ROOM_TRANSFER_UTILITY)
-                .sourceId(requestId)
-                .build());
-    }
-
-    private void saveServiceFeeLine(Long invoiceId, Long requestId, ServiceFeeCharge serviceFee) {
-        if (serviceFee == null || (!serviceFee.lineRequired() && serviceFee.amount() <= 0)) {
-            return;
-        }
-        invoiceLineRepository.save(InvoiceLine.builder()
-                .invoiceId(invoiceId)
-                .lineType(InvoiceLineType.SERVICE_FEE)
-                .description(serviceFee.description())
-                .quantity(serviceFee.amount() > 0 ? 1 : 0)
-                .unitPrice(serviceFee.unitPrice())
-                .sourceType(SOURCE_ROOM_TRANSFER_UTILITY)
-                .sourceId(requestId)
-                .build());
     }
 
     private TransferOutUtilityEstimateResponse.MeterChargeEstimate estimateMeterCharge(
@@ -2465,57 +2421,6 @@ public class RoomTransferService implements RoomTransferUseCase {
                 tariff.unitPrice(),
                 amount
         );
-    }
-
-    private MeterChargeLine buildMeterChargeLine(
-            Long meterReadingId,
-            InvoiceLineType lineType,
-            Long propertyId,
-            UtilityType utilityType,
-            String label
-    ) {
-        MeterReadingSnapshot reading = readMeterReadingSnapshot(meterReadingId);
-        BigDecimal usage = reading.currentValue().subtract(reading.previousValue());
-        if (usage.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException(label + " must not be lower than previous baseline.");
-        }
-
-        // ponytail: Uses tariff allowance as-is; upgrade to prorated transfer allowance when policy is defined.
-        UtilityTariffSnapshot tariff = readUtilityTariff(propertyId, utilityType, reading.readingDate());
-        BigDecimal billableUsage = usage.subtract(BigDecimal.valueOf(tariff.freeAllowance()));
-        if (billableUsage.compareTo(BigDecimal.ZERO) <= 0) {
-            return new MeterChargeLine(meterReadingId, lineType, 0, tariff.unitPrice(), 0L, label);
-        }
-
-        int quantity = billableUsage.setScale(0, RoundingMode.CEILING).intValue();
-        long amount = quantity * tariff.unitPrice();
-        String description = "%s: %s -> %s, %d x %d".formatted(
-                label,
-                reading.previousValue().stripTrailingZeros().toPlainString(),
-                reading.currentValue().stripTrailingZeros().toPlainString(),
-                quantity,
-                tariff.unitPrice()
-        );
-        return new MeterChargeLine(meterReadingId, lineType, quantity, tariff.unitPrice(), amount, description);
-    }
-
-    private MeterReadingSnapshot readMeterReadingSnapshot(Long meterReadingId) {
-        if (meterReadingId == null) {
-            throw new IllegalStateException("Transfer utility meter reading was not created.");
-        }
-        return jdbcTemplate.query("""
-                        SELECT previous_value, current_value, reading_date
-                        FROM meter_readings
-                        WHERE meter_reading_id = ?
-                        """,
-                (rs, rowNum) -> new MeterReadingSnapshot(
-                        rs.getBigDecimal("previous_value"),
-                        rs.getBigDecimal("current_value"),
-                        rs.getDate("reading_date").toLocalDate()
-                ),
-                meterReadingId
-        ).stream().findFirst()
-                .orElseThrow(() -> new IllegalStateException("Transfer utility meter reading not found."));
     }
 
     private BigDecimal readLatestRoomReading(Long roomId, UtilityType utilityType) {
@@ -2613,17 +2518,109 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private void requireTransferOutUtilityInvoicePaid(RoomTransferRequest request) {
         TransferSettlement settlement = transferSettlementRepository.findLatestByTransferRequestId(request.getId()).orElse(null);
-        if (settlement == null || settlement.getOldRoomFinalInvoiceId() == null) {
-            return;
+        if (settlement != null && settlement.getOldRoomFinalInvoiceId() != null) {
+            requirePaidInvoice(
+                    settlement.getOldRoomFinalInvoiceId(),
+                    "Hóa đơn điện nước chốt phòng cũ #" + settlement.getOldRoomFinalInvoiceId()
+                            + " cần được thanh toán trước khi hoàn tất chuyển phòng."
+            );
         }
-        Invoice invoice = invoiceRepository.findById(settlement.getOldRoomFinalInvoiceId())
-                .orElseThrow(() -> new IllegalStateException("Transfer utility invoice not found."));
-        if (invoice.getStatus() != InvoiceStatus.PAID) {
-            throw new IllegalStateException("Transfer utility invoice must be paid before completing transfer.");
+
+        for (Long invoiceId : findOldRoomCompensationInvoiceIds(request)) {
+            requirePaidInvoice(
+                    invoiceId,
+                    "Hóa đơn bồi thường phòng cũ #" + invoiceId
+                            + " cần được thanh toán trước khi hoàn tất chuyển phòng."
+            );
         }
     }
 
-    private record MeterReadingSnapshot(BigDecimal previousValue, BigDecimal currentValue, LocalDate readingDate) {}
+    private void requirePaidInvoice(Long invoiceId, String unpaidMessage) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalStateException("Không tìm thấy hóa đơn chốt phòng cũ #" + invoiceId + "."));
+        if (invoice.getStatus() != InvoiceStatus.PAID) {
+            throw new IllegalStateException(unpaidMessage);
+        }
+    }
+
+    private void createOldRoomCompensationInvoiceIfNeeded(
+            RoomTransferRequest request,
+            LeaseContract oldContract,
+            Room oldRoom,
+            Long amount,
+            String note,
+            Long managerId
+    ) {
+        long compensationAmount = safe(amount);
+        if (compensationAmount <= 0) {
+            return;
+        }
+        List<Long> existingInvoiceIds = findOldRoomCompensationInvoiceIds(request);
+        if (!existingInvoiceIds.isEmpty()) {
+            return;
+        }
+
+        String billingPeriod = YearMonth.from(request.getRequestedTransferDate()).toString();
+        LocalDateTime now = LocalDateTime.now();
+        Invoice invoice = invoiceRepository.save(Invoice.builder()
+                .invoiceCode("INV-TR-COMP-" + request.getId() + "-" + snowflakeIdGenerator.next())
+                .propertyId(oldRoom.getPropertyId())
+                .roomId(oldRoom.getId())
+                .leaseContractId(oldContract.getId())
+                .invoiceType(InvoiceType.FINAL_SETTLEMENT)
+                .invoiceReason(InvoiceReason.ROOM_CLOSE)
+                .revisionNo(nextInvoiceRevision(oldContract.getId(), billingPeriod, InvoiceType.FINAL_SETTLEMENT))
+                .billingPeriod(billingPeriod)
+                .issueDate(now)
+                .dueDate(now.plusDays(7))
+                .status(InvoiceStatus.DRAFT)
+                .subtotalAmount(compensationAmount)
+                .discountAmount(0L)
+                .totalAmount(compensationAmount)
+                .paidAmount(0L)
+                .remainingAmount(compensationAmount)
+                .createdBy(managerId)
+                .build());
+        invoiceLineRepository.save(InvoiceLine.builder()
+                .invoiceId(invoice.getId())
+                .lineType(InvoiceLineType.MANUAL_ADJUSTMENT)
+                .description(buildOldRoomCompensationDescription(note))
+                .quantity(1)
+                .unitPrice(compensationAmount)
+                .sourceType(SOURCE_ROOM_TRANSFER_COMPENSATION)
+                .sourceId(request.getId())
+                .build());
+        issuedInvoiceChargeService.issueDraftInvoice(invoice.getId());
+    }
+
+    private List<Long> findOldRoomCompensationInvoiceIds(RoomTransferRequest request) {
+        if (request == null || request.getId() == null) {
+            return List.of();
+        }
+        return jdbcTemplate.query("""
+                        SELECT DISTINCT invoice.invoice_id
+                        FROM invoices invoice
+                        JOIN invoice_lines line ON line.invoice_id = invoice.invoice_id
+                        WHERE line.source_type = ?
+                          AND line.source_id = ?
+                          AND line.line_type = ?
+                          AND invoice.status <> 'VOIDED'
+                        ORDER BY invoice.invoice_id DESC
+                        """,
+                (rs, rowNum) -> rs.getLong("invoice_id"),
+                SOURCE_ROOM_TRANSFER_COMPENSATION,
+                request.getId(),
+                InvoiceLineType.MANUAL_ADJUSTMENT.name()
+        );
+    }
+
+    private String buildOldRoomCompensationDescription(String note) {
+        String trimmedNote = note == null ? "" : note.trim();
+        String description = trimmedNote.isBlank()
+                ? "Bồi thường khi bàn giao phòng cũ"
+                : "Bồi thường khi bàn giao phòng cũ: " + trimmedNote;
+        return description.length() <= 1000 ? description : description.substring(0, 1000);
+    }
 
     private record UtilityTariffSnapshot(long unitPrice, long freeAllowance, Long serviceFeeWaiveElectricityThreshold) {}
 
@@ -2631,65 +2628,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         static ServiceFeeCharge empty() {
             return new ServiceFeeCharge(0L, 0L, null, false);
         }
-    }
-
-    private record MeterChargeLine(
-            Long meterReadingId,
-            InvoiceLineType lineType,
-            int quantity,
-            long unitPrice,
-            long amount,
-            String description
-    ) {}
-
-    private Invoice createOldRoomFinalInvoice(
-            RoomTransferRequest request,
-            LeaseContract oldContract,
-            Room oldRoom,
-            ExecuteTransferCommand.TransferHandoverData transferOutHandover,
-            long amount,
-            Long managerId
-    ) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDate handoverDate = transferOutHandover.handoverDate() == null
-                ? LocalDate.now()
-                : transferOutHandover.handoverDate();
-        String note = transferOutHandover.incidentalChargeNote() == null
-                ? ""
-                : transferOutHandover.incidentalChargeNote().trim();
-        String description = note.isBlank()
-                ? "Chi phí phát sinh khi bàn giao phòng cũ"
-                : note;
-
-        Invoice invoice = invoiceRepository.save(Invoice.builder()
-                .invoiceCode("INV-TR-FINAL-" + request.getId() + "-" + snowflakeIdGenerator.next())
-                .propertyId(oldRoom.getPropertyId())
-                .roomId(oldRoom.getId())
-                .leaseContractId(oldContract.getId())
-                .invoiceType(InvoiceType.FINAL_SETTLEMENT)
-                .billingPeriod(YearMonth.from(handoverDate).toString())
-                .issueDate(now)
-                .dueDate(now.plusDays(7))
-                .status(InvoiceStatus.DRAFT)
-                .subtotalAmount(amount)
-                .discountAmount(0L)
-                .totalAmount(amount)
-                .paidAmount(0L)
-                .remainingAmount(amount)
-                .createdBy(managerId)
-                .build());
-        invoiceLineRepository.save(InvoiceLine.builder()
-                .invoiceId(invoice.getId())
-                .lineType(InvoiceLineType.MANUAL_ADJUSTMENT)
-                .description(description)
-                .quantity(1)
-                .unitPrice(amount)
-                .sourceType("ROOM_TRANSFER_FINAL_SETTLEMENT")
-                .sourceId(request.getId())
-                .build());
-        issuedInvoiceChargeService.issueDraftInvoice(invoice.getId());
-        return invoiceRepository.findById(invoice.getId())
-                .orElseThrow(() -> new IllegalStateException("Old room final invoice could not be issued."));
     }
 
     private void saveOldRoomFinalInvoiceSettlement(

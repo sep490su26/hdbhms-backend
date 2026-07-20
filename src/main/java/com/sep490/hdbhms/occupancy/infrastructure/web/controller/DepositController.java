@@ -35,6 +35,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositRoomHo
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomWebMapper;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder.DocumentType;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -200,7 +202,13 @@ public class DepositController {
         String contentType = fileData.contentType() == null
                 ? MediaType.APPLICATION_PDF_VALUE
                 : fileData.contentType();
-        String filename = "deposit-contract-" + depositAgreement.getDepositCode() + ".pdf";
+        Room room = roomRepository.findById(depositAgreement.getRoomId()).orElse(null);
+        String filename = DocumentFilenameBuilder.build(
+                room == null ? null : room.getRoomCode(),
+                null,
+                DocumentType.HDC,
+                depositAgreement.getExpectedMoveInDate()
+        );
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, contentType)
@@ -335,7 +343,7 @@ public class DepositController {
                     null,
                     null,
                     0,
-                    "PhÃ²ng sáº¯p trá»‘ng chÆ°a cÃ³ ngÃ y dá»± kiáº¿n bÃ n giao."
+                    "Phòng sắp trống chưa có ngày dự kiến bàn giao."
             );
         }
         if (expectedMoveInDate == null) {
@@ -345,7 +353,7 @@ public class DepositController {
                     null,
                     null,
                     0,
-                    "PhÃ²ng sáº¯p trá»‘ng. Vui lÃ²ng chá»n ngÃ y dá»± kiáº¿n vÃ o á»Ÿ Ä‘á»ƒ kiá»ƒm tra kháº£ dá»¥ng."
+                    "Phòng sắp trống. Vui lòng chọn ngày dự kiến vào ở để kiểm tra khả dụng."
             );
         }
         if (expectedLeaseSignDate == null) {
@@ -406,7 +414,7 @@ public class DepositController {
                 null,
                 null,
                 0,
-                "PhÃ²ng sáº¯p trá»‘ng, cÃ³ thá»ƒ Ä‘áº·t cá»c theo ngÃ y dá»± kiáº¿n vÃ o á»Ÿ."
+                "Phòng sắp trống, có thể đặt cọc theo ngày dự kiến vào ở."
         );
     }
 

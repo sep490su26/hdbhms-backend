@@ -499,7 +499,9 @@ public class MockOccupancyFlowController {
                 managerUserId,
                 toTransferHandoverData(request == null ? null : request.transferOutHandover()),
                 toTransferHandoverData(request == null ? null : request.transferInHandover()),
-                settlementType != null ? settlementType : request == null ? null : request.positiveDifferenceSettlementType()
+                settlementType != null ? settlementType : request == null ? null : request.positiveDifferenceSettlementType(),
+                request == null ? null : request.oldRoomCompensationAmount(),
+                request == null ? null : request.oldRoomCompensationNote()
         ));
         return ApiResponse.<MockRoomTransferStateResponse>builder()
                 .data(buildRoomTransferState(requestId))

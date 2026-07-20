@@ -178,7 +178,9 @@ public class RoomTransferController {
                 principal.getId(),
                 toCommandPayload(request == null ? null : request.transferOutHandover()),
                 toCommandPayload(request == null ? null : request.transferInHandover()),
-                request != null ? request.positiveDifferenceSettlementType() : null
+                request != null ? request.positiveDifferenceSettlementType() : null,
+                request != null ? request.oldRoomCompensationAmount() : null,
+                request != null ? request.oldRoomCompensationNote() : null
         );
         roomTransferUseCase.executeTransfer(command);
         return ApiResponse.<Void>builder().build();
@@ -194,6 +196,8 @@ public class RoomTransferController {
                 id,
                 principal.getId(),
                 toCommandPayload(request == null ? null : request.transferOutHandover()),
+                null,
+                null,
                 null,
                 null
         );

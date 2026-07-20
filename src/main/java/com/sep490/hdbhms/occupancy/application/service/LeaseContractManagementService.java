@@ -134,6 +134,15 @@ public class LeaseContractManagementService {
                     tr.status AS transfer_status,
                     tr.requested_transfer_date AS transfer_requested_date,
                     CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM room_transfer_requests source_transfer
+                            WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                              AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                        ) THEN TRUE
+                        ELSE FALSE
+                    END AS source_transfer_completed,
+                    CASE
                         WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
                         WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
                         ELSE NULL
@@ -262,6 +271,15 @@ public class LeaseContractManagementService {
                     tr.status AS transfer_status,
                     tr.requested_transfer_date AS transfer_requested_date,
                     CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                            FROM room_transfer_requests source_transfer
+                            WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                              AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                        ) THEN TRUE
+                        ELSE FALSE
+                    END AS source_transfer_completed,
+                    CASE
                         WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
                         WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
                         ELSE NULL
@@ -339,9 +357,7 @@ public class LeaseContractManagementService {
 
     @Transactional(readOnly = true)
     public PageResponse<LeaseContractManagementResponse> findAllForManagement(Pageable pageable) {
-        List<LeaseContractManagementResponse> rows = findAllForManagement().stream()
-                .filter(row -> row.getTransferRequestId() == null)
-                .toList();
+        List<LeaseContractManagementResponse> rows = findAllForManagement();
         List<LeaseContractManagementResponse> pageRows = rows.stream()
                 .skip(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -1164,6 +1180,15 @@ public class LeaseContractManagementService {
                             tr.status AS transfer_status,
                             tr.requested_transfer_date AS transfer_requested_date,
                             CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM room_transfer_requests source_transfer
+                                    WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                      AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                ) THEN TRUE
+                                ELSE FALSE
+                            END AS source_transfer_completed,
+                            CASE
                                 WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
                                 WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
                                 ELSE NULL
@@ -1863,7 +1888,12 @@ public class LeaseContractManagementService {
         Long renewedContractId = getLongOrNull(rs, "renewed_contract_id");
         Long transferRequestId = getLongOrNull(rs, "transfer_request_id");
         String transferStatus = rs.getString("transfer_status");
-        LeaseStatus parsedContractStatus = parseEnum(LeaseStatus.class, contractStatus);
+        String transferContractRole = rs.getString("transfer_contract_role");
+        boolean sourceTransferCompleted = rs.getBoolean("source_transfer_completed");
+        String effectiveContractStatus = sourceTransferCompleted
+                ? LeaseStatus.TRANSFERRED.name()
+                : contractStatus;
+        LeaseStatus parsedContractStatus = parseEnum(LeaseStatus.class, effectiveContractStatus);
         RoomCommitmentChecker.Blocker renewBlocker =
                 resolveRenewBlocker(roomId, leaseContractId, renewedContractId, parsedContractStatus);
         return LeaseContractManagementResponse.builder()
@@ -1908,11 +1938,13 @@ public class LeaseContractManagementService {
                 .transferRequestCode(rs.getString("transfer_request_code"))
                 .transferStatus(transferStatus)
                 .transferRequestedDate(toLocalDate(rs, "transfer_requested_date"))
-                .transferContractRole(rs.getString("transfer_contract_role"))
+                .transferContractRole(sourceTransferCompleted && transferContractRole == null
+                        ? "OLD_CONTRACT"
+                        : transferContractRole)
                 .transferActivationLocked(isTransferActivationLocked(transferRequestId, transferStatus))
                 .contractStatus(parsedContractStatus)
                 .depositStatus(parseEnum(DepositAgreementStatus.class, depositStatus))
-                .workflowStatus(resolveWorkflow(contractStatus, signedFileId != null ? signedFileId : contractFileId))
+                .workflowStatus(resolveWorkflow(effectiveContractStatus, signedFileId != null ? signedFileId : contractFileId))
                 .contractFileId(contractFileId)
                 .contractFileName(rs.getString("contract_file_name"))
                 .contractFileUploadedAt(toLocalDateTime(rs, "contract_file_uploaded_at"))
@@ -2019,6 +2051,7 @@ public class LeaseContractManagementService {
                 "TERMINATION_PENDING",
                 "LIQUIDATED",
                 "RENEWED",
+                "TRANSFERRED",
                 "AUTO_TERMINATED",
                 "CANCELLED"
         ).contains(contractStatus)) {

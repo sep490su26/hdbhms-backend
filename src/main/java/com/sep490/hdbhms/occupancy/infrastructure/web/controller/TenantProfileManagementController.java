@@ -145,6 +145,12 @@ public class TenantProfileManagementController {
                             LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
                               AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM room_transfer_requests completed_transfer
+                                  WHERE completed_transfer.old_contract_id = lc.lease_contract_id
+                                    AND completed_transfer.status IN ('EXECUTED','COMPLETED')
+                              )
                               AND pp.deleted_at IS NULL
 
                             UNION ALL
@@ -183,6 +189,12 @@ public class TenantProfileManagementController {
                             LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                             WHERE lc.deleted_at IS NULL
                               AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM room_transfer_requests completed_transfer
+                                  WHERE completed_transfer.old_contract_id = lc.lease_contract_id
+                                    AND completed_transfer.status IN ('EXECUTED','COMPLETED')
+                              )
                               AND pp.deleted_at IS NULL
                               AND NOT EXISTS (
                                   SELECT 1
@@ -473,6 +485,12 @@ public class TenantProfileManagementController {
                             JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
                             WHERE lc.deleted_at IS NULL
                               AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM room_transfer_requests completed_transfer
+                                  WHERE completed_transfer.old_contract_id = lc.lease_contract_id
+                                    AND completed_transfer.status IN ('EXECUTED','COMPLETED')
+                              )
                               AND pp.deleted_at IS NULL
 
                             UNION ALL
@@ -491,6 +509,12 @@ public class TenantProfileManagementController {
                             JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
                             WHERE lc.deleted_at IS NULL
                               AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM room_transfer_requests completed_transfer
+                                  WHERE completed_transfer.old_contract_id = lc.lease_contract_id
+                                    AND completed_transfer.status IN ('EXECUTED','COMPLETED')
+                              )
                               AND pp.deleted_at IS NULL
                               AND NOT EXISTS (
                                   SELECT 1
@@ -654,6 +678,12 @@ public class TenantProfileManagementController {
                         JOIN lease_contracts lc
                           ON lc.deleted_at IS NULL
                          AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                         AND NOT EXISTS (
+                             SELECT 1
+                             FROM room_transfer_requests completed_transfer
+                             WHERE completed_transfer.old_contract_id = lc.lease_contract_id
+                               AND completed_transfer.status IN ('EXECUTED','COMPLETED')
+                         )
                          AND (
                              lc.primary_tenant_profile_id = pp.person_profile_id
                              OR EXISTS (

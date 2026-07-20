@@ -15,7 +15,10 @@ import java.util.List;
 public record ExecuteTransferRequest(
         @Valid TransferHandoverPayload transferOutHandover,
         @Valid TransferHandoverPayload transferInHandover,
-        SettlementType positiveDifferenceSettlementType
+        SettlementType positiveDifferenceSettlementType,
+        @PositiveOrZero(message = "Khoản bồi thường phòng cũ không được âm")
+        Long oldRoomCompensationAmount,
+        String oldRoomCompensationNote
 ) {
     public record TransferHandoverPayload(
             LocalDate handoverDate,

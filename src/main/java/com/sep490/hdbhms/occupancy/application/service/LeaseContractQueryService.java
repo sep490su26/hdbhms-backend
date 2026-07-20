@@ -161,7 +161,15 @@ public class LeaseContractQueryService {
                             lc.monthly_rent,
                             lc.payment_cycle_months,
                             lc.deposit_amount,
-                            lc.status,
+                            CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM room_transfer_requests source_transfer
+                                    WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                      AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                ) THEN 'TRANSFERRED'
+                                ELSE lc.status
+                            END AS status,
                             lc.signed_at,
                             lc.previous_contract_id,
                             previous_contract.contract_code AS previous_contract_code,
@@ -173,11 +181,23 @@ public class LeaseContractQueryService {
                             tr.status AS transfer_status,
                             tr.requested_transfer_date AS transfer_requested_date,
                             CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM room_transfer_requests source_transfer
+                                    WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                      AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                ) THEN 'OLD_CONTRACT'
                                 WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
                                 WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
                                 ELSE NULL
                             END AS transfer_contract_role,
                             CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM room_transfer_requests source_transfer
+                                    WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                      AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                ) THEN FALSE
                                 WHEN tr.room_transfer_request_id IS NULL THEN FALSE
                                 WHEN tr.status = 'EXECUTED' THEN FALSE
                                 ELSE TRUE
@@ -308,7 +328,20 @@ public class LeaseContractQueryService {
         List<Object> params = new ArrayList<>();
         params.add(roomId);
         appendReadableScope(sql, params, scope);
-        sql.append(" ORDER BY CASE WHEN lc.status = 'ACTIVE' THEN 0 ELSE 1 END, lc.start_date DESC, lc.lease_contract_id DESC");
+        sql.append("""
+                 ORDER BY CASE
+                     WHEN EXISTS (
+                         SELECT 1
+                         FROM room_transfer_requests source_transfer
+                         WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                           AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                     ) THEN 1
+                     WHEN lc.status = 'ACTIVE' THEN 0
+                     ELSE 1
+                 END,
+                 lc.start_date DESC,
+                 lc.lease_contract_id DESC
+                """);
 
         List<Long> contractIds = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> rs.getLong("id"), params.toArray());
         List<LeaseContractQueryDetailsResponse> contracts = contractIds.stream()
@@ -344,7 +377,16 @@ public class LeaseContractQueryService {
                         SELECT lc.lease_contract_id AS id FROM lease_contracts lc
                         WHERE lc.room_id = ?
                           AND lc.deleted_at IS NULL
-                        ORDER BY CASE WHEN lc.status = 'ACTIVE' THEN 0 ELSE 1 END,
+                        ORDER BY CASE
+                                     WHEN EXISTS (
+                                         SELECT 1
+                                         FROM room_transfer_requests source_transfer
+                                         WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                           AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                     ) THEN 1
+                                     WHEN lc.status = 'ACTIVE' THEN 0
+                                     ELSE 1
+                                 END,
                                  lc.start_date DESC,
                                  lc.lease_contract_id DESC
                         """,
@@ -391,7 +433,15 @@ public class LeaseContractQueryService {
                             lc.monthly_rent,
                             lc.payment_cycle_months,
                             lc.deposit_amount,
-                            lc.status,
+                            CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM room_transfer_requests source_transfer
+                                    WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                      AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                ) THEN 'TRANSFERRED'
+                                ELSE lc.status
+                            END AS status,
                             lc.signed_at,
                             lc.previous_contract_id,
                             previous_contract.contract_code AS previous_contract_code,
@@ -403,11 +453,23 @@ public class LeaseContractQueryService {
                             tr.status AS transfer_status,
                             tr.requested_transfer_date AS transfer_requested_date,
                             CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM room_transfer_requests source_transfer
+                                    WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                      AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                ) THEN 'OLD_CONTRACT'
                                 WHEN tr.new_contract_id = lc.lease_contract_id THEN 'NEW_CONTRACT'
                                 WHEN tr.replacement_old_contract_id = lc.lease_contract_id THEN 'REPLACEMENT_OLD_CONTRACT'
                                 ELSE NULL
                             END AS transfer_contract_role,
                             CASE
+                                WHEN EXISTS (
+                                    SELECT 1
+                                    FROM room_transfer_requests source_transfer
+                                    WHERE source_transfer.old_contract_id = lc.lease_contract_id
+                                      AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
+                                ) THEN FALSE
                                 WHEN tr.room_transfer_request_id IS NULL THEN FALSE
                                 WHEN tr.status = 'EXECUTED' THEN FALSE
                                 ELSE TRUE
@@ -1105,6 +1167,20 @@ public class LeaseContractQueryService {
                             AND disabled_primary.tenant_profile_id = lc.primary_tenant_profile_id
                             AND disabled_primary.status = 'DISABLED'
                       )
+                      AND (
+                          EXISTS (
+                              SELECT 1
+                              FROM contract_occupants active_primary
+                              WHERE active_primary.contract_id = lc.lease_contract_id
+                                AND active_primary.tenant_profile_id = lc.primary_tenant_profile_id
+                                AND active_primary.status = 'ACTIVE'
+                          )
+                          OR NOT EXISTS (
+                              SELECT 1
+                              FROM contract_occupants any_occupant
+                              WHERE any_occupant.contract_id = lc.lease_contract_id
+                          )
+                      )
                     UNION ALL
                     SELECT co.contract_id, 1 AS role_rank
                     FROM contract_occupants co
@@ -1137,7 +1213,26 @@ public class LeaseContractQueryService {
                 JOIN rooms r ON r.room_id = lc.room_id AND r.deleted_at IS NULL
                 JOIN properties p ON p.property_id = r.property_id
                 WHERE lc.deleted_at IS NULL
-                  AND lc.status IN ('ACTIVE', 'EXPIRING_SOON', 'EXPIRED')
+                  AND lc.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM room_transfer_requests completed_transfer
+                      JOIN lease_contracts source_contract
+                        ON source_contract.lease_contract_id = completed_transfer.old_contract_id
+                      WHERE completed_transfer.status IN ('EXECUTED', 'COMPLETED')
+                        AND (
+                            completed_transfer.old_contract_id = lc.lease_contract_id
+                            OR (
+                                lc.previous_contract_id = completed_transfer.old_contract_id
+                                AND lc.room_id = source_contract.room_id
+                                AND (completed_transfer.new_contract_id IS NULL OR completed_transfer.new_contract_id <> lc.lease_contract_id)
+                                AND (
+                                    completed_transfer.replacement_old_contract_id IS NULL
+                                    OR completed_transfer.replacement_old_contract_id <> lc.lease_contract_id
+                                )
+                            )
+                        )
+                  )
                 GROUP BY
                     lc.lease_contract_id, lc.contract_code, r.room_id, r.room_code, r.name,
                     r.current_status, p.property_id, p.name, lc.status, lc.start_date,
@@ -1146,6 +1241,7 @@ public class LeaseContractQueryService {
                     CASE lc.status
                         WHEN 'ACTIVE' THEN 0
                         WHEN 'EXPIRING_SOON' THEN 1
+                        WHEN 'TERMINATION_PENDING' THEN 2
                         ELSE 2
                     END,
                     lc.start_date DESC,

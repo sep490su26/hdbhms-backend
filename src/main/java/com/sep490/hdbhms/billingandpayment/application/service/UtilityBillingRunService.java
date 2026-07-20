@@ -25,6 +25,7 @@ import com.sep490.hdbhms.notification.application.service.BusinessNotificationPu
 import com.sep490.hdbhms.occupancy.domain.value_objects.AnomalyType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingAnomalyEntity;
@@ -293,6 +294,79 @@ public class UtilityBillingRunService {
         return generateInvoices(runId, dueDays, currentUserId);
     }
 
+    @Transactional
+    public Long issueTransferInvoiceFromReadings(
+            Long contractId,
+            Long electricityReadingId,
+            Long waterReadingId,
+            LocalDate handoverDate,
+            Long currentUserId
+    ) {
+        LocalDate invoiceDate = handoverDate == null ? LocalDate.now() : handoverDate;
+        YearMonth period = YearMonth.from(invoiceDate);
+        LeaseContractEntity contract = leaseContractRepository.findByIdAndDeletedAtIsNull(contractId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease contract not found."));
+        RoomEntity room = contract.getRoom();
+        MeterReadingEntity electricity = requireReading(electricityReadingId, room.getId(), MeterType.ELECTRICITY);
+        MeterReadingEntity water = requireReading(waterReadingId, room.getId(), MeterType.WATER);
+
+        UtilityBillingRunEntity run = runRepository
+                .findByProperty_IdAndBillingPeriodAndInvoiceReason(
+                        room.getProperty().getId(),
+                        period.toString(),
+                        InvoiceReason.TRANSFER
+                )
+                .orElseGet(() -> UtilityBillingRunEntity.builder()
+                        .property(room.getProperty())
+                        .billingPeriod(period.toString())
+                        .invoiceReason(InvoiceReason.TRANSFER)
+                        .createdBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId))
+                        .build());
+        run.setStatus(UtilityBillingRunStatus.PREVIEWED);
+        run = runRepository.saveAndFlush(run);
+
+        UtilityBillingRunItemEntity existingItem = itemRepository.findByRun_IdAndRoom_Id(run.getId(), room.getId())
+                .orElse(null);
+        if (existingItem != null
+                && existingItem.getInvoice() != null
+                && existingItem.getInvoice().getStatus() != InvoiceStatus.VOIDED) {
+            return existingItem.getInvoice().getId();
+        }
+        if (existingItem != null) {
+            itemRepository.delete(existingItem);
+            itemRepository.flush();
+        }
+
+        UtilityBillingRunItemEntity item = itemRepository.saveAndFlush(
+                buildItem(run, room, contract, electricity, water, period)
+        );
+        Long invoiceId = null;
+        LocalDateTime now = LocalDateTime.now();
+        if (hasBillableReadings(item) && safe(item.getTotalAmount()) > 0) {
+            UtilityBillingRunItemEntity invoiceItem = item;
+            UtilityBillingRunEntity invoiceRun = run;
+            InvoiceEntity invoice = findExistingInvoice(invoiceItem, invoiceRun)
+                    .orElseGet(() -> createInvoice(invoiceItem, invoiceRun, 7, now, currentUserId));
+            item.setInvoice(invoice);
+            item.setStatus(UtilityBillingRunItemStatus.INVOICED);
+            invoiceId = invoice.getId();
+            advanceBaseline(item.getElectricityReading(), invoice);
+            advanceBaseline(item.getWaterReading(), invoice);
+        } else {
+            item.setStatus(UtilityBillingRunItemStatus.SKIPPED);
+            advanceBaseline(item.getElectricityReading(), null);
+            advanceBaseline(item.getWaterReading(), null);
+        }
+
+        itemRepository.save(item);
+        run.setStatus(UtilityBillingRunStatus.INVOICES_CREATED);
+        run.setGeneratedBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId));
+        run.setGeneratedAt(now);
+        runRepository.save(run);
+        syncRunTotals(run.getId());
+        return invoiceId;
+    }
+
     private UtilityBillingRunItemEntity buildItem(
             UtilityBillingRunEntity run,
             RoomEntity room,
@@ -303,6 +377,17 @@ public class UtilityBillingRunService {
 
         MeterReadingEntity electricity = readings.get(MeterType.ELECTRICITY);
         MeterReadingEntity water = readings.get(MeterType.WATER);
+        return buildItem(run, room, contract, electricity, water, period);
+    }
+
+    private UtilityBillingRunItemEntity buildItem(
+            UtilityBillingRunEntity run,
+            RoomEntity room,
+            LeaseContractEntity contract,
+            MeterReadingEntity electricity,
+            MeterReadingEntity water,
+            YearMonth period
+    ) {
         List<Long> readingIds = new ArrayList<>();
         if (electricity != null) readingIds.add(electricity.getId());
         if (water != null) readingIds.add(water.getId());
@@ -365,6 +450,24 @@ public class UtilityBillingRunService {
                 .warningMessage(warnings.length() == 0 ? null : warnings.toString())
                 .status(status)
                 .build();
+    }
+
+    private MeterReadingEntity requireReading(Long readingId, Long roomId, MeterType meterType) {
+        if (readingId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, meterType + " reading is required.");
+        }
+        MeterReadingEntity reading = meterReadingRepository.findById(readingId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meter reading not found."));
+        if (reading.getRoom() == null || !roomId.equals(reading.getRoom().getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Meter reading does not belong to transfer room.");
+        }
+        if (reading.getMeter() == null || reading.getMeter().getMeterType() != meterType) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Meter reading type is invalid.");
+        }
+        if (reading.getStatus() == ReadingStatus.VOIDED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Meter reading has been voided.");
+        }
+        return reading;
     }
 
     private Charge buildCharge(MeterReadingEntity reading, UtilityType utilityType) {

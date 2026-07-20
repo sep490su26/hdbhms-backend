@@ -17,14 +17,12 @@ public final class DocumentFilenameBuilder {
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
     private static final Pattern UNSAFE_CHARS = Pattern.compile("[/\\\\:*?\"<>|#]");
     private static final Pattern NON_PRINTABLE_ASCII = Pattern.compile("[^\\x20-\\x7E]");
-    private static final int MAX_TENANT_NAME_LENGTH = 40;
 
     public static String build(String roomCode, String tenantName, DocumentType type, LocalDate date) {
-        String safeRoomCode = normalize(roomCode, "Phong", false);
-        String safeTenantName = normalize(tenantName, "Khach-Thue", true);
-        String safeDate = date == null ? "ngay-chua-xac-dinh" : DATE_FORMATTER.format(date);
+        String safeRoomCode = withRoomPrefix(normalize(roomCode, "Phong-X"));
+        String safeDate = date == null ? "Chua-Ro-Ngay" : DATE_FORMATTER.format(date);
         String safeType = type == null ? "DOC" : type.name();
-        return "P%s_%s_%s_%s.pdf".formatted(safeRoomCode, safeTenantName, safeType, safeDate);
+        return "%s_%s_%s.pdf".formatted(safeType, safeRoomCode, safeDate);
     }
 
     public static String attachmentContentDisposition(String filename) {
@@ -32,7 +30,7 @@ public final class DocumentFilenameBuilder {
         return "attachment; filename*=UTF-8''" + encoded;
     }
 
-    private static String normalize(String value, String fallback, boolean limitTenantName) {
+    private static String normalize(String value, String fallback) {
         String input = value == null || value.isBlank() ? fallback : value.trim();
         String normalized = Normalizer.normalize(input, Normalizer.Form.NFD);
         normalized = DIACRITICS.matcher(normalized).replaceAll("")
@@ -45,10 +43,17 @@ public final class DocumentFilenameBuilder {
         if (normalized.isBlank()) {
             normalized = fallback;
         }
-        if (limitTenantName && normalized.length() > MAX_TENANT_NAME_LENGTH) {
-            normalized = normalized.substring(0, MAX_TENANT_NAME_LENGTH);
-        }
         return normalized;
+    }
+
+    private static String withRoomPrefix(String roomCode) {
+        if (roomCode.startsWith("Phong")) {
+            return roomCode;
+        }
+        if (roomCode.regionMatches(true, 0, "P", 0, 1)) {
+            return "P" + roomCode.substring(1);
+        }
+        return "P" + roomCode;
     }
 
     public enum DocumentType {

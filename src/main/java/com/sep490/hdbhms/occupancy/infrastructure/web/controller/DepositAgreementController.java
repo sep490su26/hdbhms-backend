@@ -590,7 +590,7 @@ public class DepositAgreementController {
         String date = expectedMoveInDate == null
                 ? "Chua-Ro-Ngay"
                 : DOCUMENT_FILENAME_DATE_FORMATTER.format(expectedMoveInDate);
-        return roomCode + "_HDC_" + date + ".pdf";
+        return "HDC_" + roomCode + "_" + date + ".pdf";
     }
 
     private String sanitizeFilenamePart(String value, String fallback) {

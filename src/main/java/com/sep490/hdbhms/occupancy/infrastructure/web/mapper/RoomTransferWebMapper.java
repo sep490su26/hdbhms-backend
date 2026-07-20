@@ -32,6 +32,7 @@ import java.util.Set;
 
 @Mapper(componentModel = "spring")
 public abstract class RoomTransferWebMapper {
+    private static final String SOURCE_ROOM_TRANSFER_COMPENSATION = "ROOM_TRANSFER_COMPENSATION";
 
     @Autowired
     protected LeaseContractRepository leaseContractRepository;
@@ -86,6 +87,11 @@ public abstract class RoomTransferWebMapper {
         Long transferDifferenceInvoiceId = settlement == null ? null : settlement.getTransferDifferenceInvoiceId();
         Long oldRoomFinalInvoiceId = settlement == null ? null : settlement.getOldRoomFinalInvoiceId();
         boolean oldRoomFinalInvoicePaid = oldRoomFinalInvoiceId == null || isInvoicePaid(oldRoomFinalInvoiceId);
+        List<Long> oldRoomCompensationInvoiceIds = resolveOldRoomCompensationInvoiceIds(request);
+        List<Long> unpaidOldRoomCompensationInvoiceIds = oldRoomCompensationInvoiceIds.stream()
+                .filter(invoiceId -> !isInvoicePaid(invoiceId))
+                .toList();
+        boolean oldRoomCheckoutInvoicesPaid = oldRoomFinalInvoicePaid && unpaidOldRoomCompensationInvoiceIds.isEmpty();
         Map<Long, String> transferringTenantNames = resolveTransferringTenantNames(request);
         List<Long> sourceHolderCandidateProfileIds = resolveSourceHolderCandidateProfileIds(request);
         Map<Long, String> sourceHolderCandidateNames = resolveProfileNames(sourceHolderCandidateProfileIds);
@@ -152,8 +158,8 @@ public abstract class RoomTransferWebMapper {
             isTransferOutHandoverRequired(request),
             isTransferInHandoverRequired(request),
             isRoomHandoverRequired(request, sourceRoomWillBeEmptyAfterTransfer),
-            resolveAllowedActions(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoicePaid),
-            resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid)
+            resolveAllowedActions(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomCheckoutInvoicesPaid),
+            resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid, unpaidOldRoomCompensationInvoiceIds)
         );
     }
 
@@ -198,6 +204,26 @@ public abstract class RoomTransferWebMapper {
                 invoiceId
         );
         return !statuses.isEmpty() && "PAID".equals(statuses.get(0));
+    }
+
+    private List<Long> resolveOldRoomCompensationInvoiceIds(RoomTransferRequest request) {
+        if (request == null || request.getId() == null) {
+            return List.of();
+        }
+        return jdbcTemplate.query("""
+                        SELECT DISTINCT invoice.invoice_id
+                        FROM invoices invoice
+                        JOIN invoice_lines line ON line.invoice_id = invoice.invoice_id
+                        WHERE line.source_type = ?
+                          AND line.source_id = ?
+                          AND line.line_type = 'MANUAL_ADJUSTMENT'
+                          AND invoice.status <> 'VOIDED'
+                        ORDER BY invoice.invoice_id DESC
+                        """,
+                (rs, rowNum) -> rs.getLong("invoice_id"),
+                SOURCE_ROOM_TRANSFER_COMPENSATION,
+                request.getId()
+        );
     }
 
     private RoomTransferResponse.DebtSummary resolveDebtSummary(RoomTransferRequest request, Long debtLimitAmount) {
@@ -582,7 +608,8 @@ public abstract class RoomTransferWebMapper {
             Long priceDifferenceToPay,
             Long transferDifferenceInvoiceId,
             Long oldRoomFinalInvoiceId,
-            boolean oldRoomFinalInvoicePaid
+            boolean oldRoomFinalInvoicePaid,
+            List<Long> unpaidOldRoomCompensationInvoiceIds
     ) {
         List<String> reasons = new ArrayList<>();
         TransferRequestStatus status = request.getStatus();
@@ -625,8 +652,18 @@ public abstract class RoomTransferWebMapper {
                 }
             }
             case WAITING_EXECUTION -> {
+                boolean blockedByOldRoomInvoices = false;
                 if (oldRoomFinalInvoiceId != null && !oldRoomFinalInvoicePaid) {
-                    reasons.add("Transfer utility invoice must be paid before final execution.");
+                    reasons.add("Hóa đơn điện nước chốt phòng cũ phải được thanh toán trước khi hoàn tất chuyển phòng.");
+                    blockedByOldRoomInvoices = true;
+                }
+                if (unpaidOldRoomCompensationInvoiceIds != null && !unpaidOldRoomCompensationInvoiceIds.isEmpty()) {
+                    reasons.add("Hóa đơn bồi thường phòng cũ #"
+                            + unpaidOldRoomCompensationInvoiceIds.get(0)
+                            + " phải được thanh toán trước khi hoàn tất chuyển phòng.");
+                    blockedByOldRoomInvoices = true;
+                }
+                if (blockedByOldRoomInvoices) {
                     break;
                 }
                 if (Boolean.TRUE.equals(isTransferInHandoverRequired(request))) {

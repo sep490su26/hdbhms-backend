@@ -68,7 +68,7 @@ public class ContractHandoverController {
             @PathVariable Long contractId,
             @RequestParam(required = false, defaultValue = "MOVE_IN") HandoverType type) {
         return ApiResponse.<com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.ContractHandoverDetailsResponse>builder()
-                .data(manageContractHandoverService.getHandoverDetails(contractId, type))
+                .data(manageContractHandoverService.findHandoverDetails(contractId, type).orElse(null))
                 .build();
     }
 

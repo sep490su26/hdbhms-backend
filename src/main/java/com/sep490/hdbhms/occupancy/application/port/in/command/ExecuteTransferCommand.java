@@ -12,7 +12,9 @@ public record ExecuteTransferCommand(
         Long executedById,
         TransferHandoverData transferOutHandover,
         TransferHandoverData transferInHandover,
-        SettlementType positiveDifferenceSettlementType
+        SettlementType positiveDifferenceSettlementType,
+        Long oldRoomCompensationAmount,
+        String oldRoomCompensationNote
 ) {
     public record TransferHandoverData(
             LocalDate handoverDate,

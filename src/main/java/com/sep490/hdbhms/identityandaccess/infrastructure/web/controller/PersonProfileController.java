@@ -12,10 +12,13 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -32,6 +35,28 @@ public class PersonProfileController {
     GetMyPersonProfileUseCase getMyPersonProfileUseCase;
     GetFileMetadataFromIdUseCase getFileMetadataFromIdUseCase;
     JdbcTemplate jdbcTemplate;
+
+    @GetMapping("/lookup")
+    public ApiResponse<PersonProfileLookupResponse> lookupPersonProfile(@RequestParam String phone) {
+        String normalizedPhone = normalizePhone(phone);
+        if (!normalizedPhone.matches("^0\\d{9}$")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại không hợp lệ.");
+        }
+
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM person_profiles
+                        WHERE REPLACE(REPLACE(REPLACE(phone, ' ', ''), '.', ''), '-', '') = ?
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                normalizedPhone
+        );
+
+        return ApiResponse.<PersonProfileLookupResponse>builder()
+                .data(new PersonProfileLookupResponse(count != null && count > 0))
+                .build();
+    }
 
     @GetMapping("/me")
     public ApiResponse<PersonProfileResponse> getMyPersonProfile() {
@@ -108,5 +133,12 @@ public class PersonProfileController {
 
     private String fileUrl(Long fileId) {
         return fileId == null ? null : "/api/v1/tenants/profiles/me/files/" + fileId;
+    }
+
+    private String normalizePhone(String phone) {
+        return phone == null ? "" : phone.replaceAll("\\D+", "");
+    }
+
+    public record PersonProfileLookupResponse(boolean exists) {
     }
 }

@@ -105,8 +105,13 @@ public class LeaseContract {
     }
 
     public void markTransferred() {
-        if (this.status != LeaseStatus.ACTIVE) {
-            throw new IllegalStateException("Only ACTIVE contracts can be marked TRANSFERRED.");
+        if (this.status == LeaseStatus.TRANSFERRED) {
+            return;
+        }
+        if (this.status != LeaseStatus.ACTIVE
+                && this.status != LeaseStatus.EXPIRING_SOON
+                && this.status != LeaseStatus.TERMINATION_PENDING) {
+            throw new IllegalStateException("Chỉ hợp đồng đang hiệu lực, sắp hết hạn hoặc chờ thanh lý mới được chuyển phòng.");
         }
         this.status = LeaseStatus.TRANSFERRED;
         this.updatedAt = LocalDateTime.now();
