@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder.DocumentType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -42,6 +44,11 @@ public class DepositAgreement {
     Long refundedAmount;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+
+    public static String buildDepositCode(String roomCode, LocalDate referenceDate) {
+        String filename = DocumentFilenameBuilder.build(roomCode, null, DocumentType.HDC, referenceDate);
+        return filename.endsWith(".pdf") ? filename.substring(0, filename.length() - 4) : filename;
+    }
 
     public static DepositAgreement newDepositAgreementForLeadUser(
             String depositCode,

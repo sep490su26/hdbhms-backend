@@ -628,7 +628,7 @@ public class DepositAgreementController {
             return null;
         }
         return fileMetadataRepository.findById(fileId)
-                .map(file -> file.getOriginalName() != null ? file.getOriginalName() : "deposit-contract-signed-" + fileId)
+                .map(file -> file.getOriginalName() != null ? file.getOriginalName() : "HDC_Phong-X_Chua-Ro-Ngay.pdf")
                 .orElse(null);
     }
 

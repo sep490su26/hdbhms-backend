@@ -12,6 +12,8 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreement
 public interface JpaDepositAgreementRepository extends JpaRepository<DepositAgreementEntity, Long>, JpaSpecificationExecutor<DepositAgreementEntity> {
     List<DepositAgreementEntity> findAllByTenant_Id(Long tenantId);
 
+    boolean existsByDepositCode(String depositCode);
+
     @Query("select count(d) from DepositAgreementEntity d where d.id in :ids and d.status in :statuses")
     long countByIdsAndStatuses(@Param("ids") List<Long> ids, @Param("statuses") List<DepositAgreementStatus> statuses);
 

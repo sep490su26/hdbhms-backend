@@ -76,7 +76,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
                 () -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)
         );
         DepositAgreement depositAgreement = DepositAgreement.newDepositAgreementForLeadUser(
-                otpCodeGenerator.generate(),
+                resolveDepositCode(room, depositForm.getExpectedMoveInDate()),
                 room.getId(),
                 depositForm.getId(),
                 roomHold.getId(),
@@ -126,6 +126,15 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
 
     private Long resolveDepositAmount() {
         return DEPOSIT_AMOUNT;
+    }
+
+    private String resolveDepositCode(Room room, LocalDate referenceDate) {
+        String baseCode = DepositAgreement.buildDepositCode(room.getRoomCode(), referenceDate);
+        String depositCode = baseCode;
+        for (int copy = 2; depositAgreementRepository.existsByDepositCode(depositCode); copy++) {
+            depositCode = baseCode + "_" + copy;
+        }
+        return depositCode;
     }
 
     private String toCheckoutPayload(

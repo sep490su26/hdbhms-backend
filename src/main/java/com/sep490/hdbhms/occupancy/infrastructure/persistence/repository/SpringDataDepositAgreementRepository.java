@@ -94,6 +94,11 @@ public class SpringDataDepositAgreementRepository implements DepositAgreementRep
     }
 
     @Override
+    public boolean existsByDepositCode(String depositCode) {
+        return jpaDepositAgreementRepository.existsByDepositCode(depositCode);
+    }
+
+    @Override
     public List<DepositAgreement> findAllByTenantId(Long tenantId) {
         return jpaDepositAgreementRepository.findAllByTenant_Id(tenantId).stream()
                 .map(depositAgreementPersistenceMapper::toDomain)

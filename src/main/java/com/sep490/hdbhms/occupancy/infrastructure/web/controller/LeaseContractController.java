@@ -471,7 +471,7 @@ public class LeaseContractController {
         String date = contract.getStartDate() == null
                 ? "Chua-Ro-Ngay"
                 : DOCUMENT_FILENAME_DATE_FORMATTER.format(contract.getStartDate());
-        return roomCode + "_HDT_" + date + ".pdf";
+        return "HDT_" + roomCode + "_" + date + ".pdf";
     }
 
     private String sanitizeFilenamePart(String value, String fallback) {

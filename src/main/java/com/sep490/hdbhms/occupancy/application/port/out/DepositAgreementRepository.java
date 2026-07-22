@@ -39,6 +39,10 @@ public interface DepositAgreementRepository {
         return List.of();
     }
 
+    default boolean existsByDepositCode(String depositCode) {
+        return false;
+    }
+
     List<DepositAgreement> findAllByTenantId(Long tenantId);
 
     List<DepositAgreement> findAllAccessibleByUserId(Long userId);

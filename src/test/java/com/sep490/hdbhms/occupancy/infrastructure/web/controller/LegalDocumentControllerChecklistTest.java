@@ -89,7 +89,7 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.downloadDepositDraftPdf(42L);
 
-        assertAttachmentFilenameWithFallback(response.getHeaders(), "P101_HDC_29_06_2026.pdf");
+        assertAttachmentFilenameWithFallback(response.getHeaders(), "HDC_P101_29_06_2026.pdf");
     }
 
     @Test
@@ -108,7 +108,7 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.downloadSignedDepositFile(42L);
 
-        assertAttachmentFilename(response.getHeaders(), "P101_HDC_29_06_2026.pdf");
+        assertAttachmentFilename(response.getHeaders(), "HDC_P101_29_06_2026.pdf");
     }
 
     @Test
@@ -123,7 +123,7 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.getDraftPdf(9L);
 
-        assertAttachmentFilename(response.getHeaders(), "P101_HDT_29_06_2026.pdf");
+        assertAttachmentFilename(response.getHeaders(), "HDT_P101_29_06_2026.pdf");
     }
 
     @Test
@@ -138,7 +138,7 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.downloadSignedLeaseContractFile(9L);
 
-        assertAttachmentFilename(response.getHeaders(), "P101_HDT_29_06_2026.pdf");
+        assertAttachmentFilename(response.getHeaders(), "HDT_P101_29_06_2026.pdf");
     }
 
     @Test
@@ -153,7 +153,7 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.getHandoverDraftPdf(9L, HandoverType.MOVE_IN);
 
-        assertAttachmentFilename(response.getHeaders(), "P101_Nguyen-Van-A_BBBG_29_06_2026.pdf");
+        assertAttachmentFilename(response.getHeaders(), "BBBG_P101_29_06_2026.pdf");
     }
 
     @Test
@@ -169,7 +169,7 @@ class LegalDocumentControllerChecklistTest {
 
         var response = controller.downloadSignedHandoverPdf(9L, HandoverType.MOVE_IN);
 
-        assertAttachmentFilename(response.getHeaders(), "P101_Nguyen-Van-A_BBBG_01_07_2026.pdf");
+        assertAttachmentFilename(response.getHeaders(), "BBBG_P101_01_07_2026.pdf");
     }
 
     @Test

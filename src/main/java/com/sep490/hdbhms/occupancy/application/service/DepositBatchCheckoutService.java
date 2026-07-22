@@ -19,6 +19,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator
 import com.sep490.hdbhms.occupancy.application.port.out.CreateRoomHoldTaskPort;
 import com.sep490.hdbhms.occupancy.application.port.out.EarlyCancelRoomHoldTaskPort;
 import com.sep490.hdbhms.occupancy.application.port.out.UploadIdentityFilePort;
+import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
 import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
 import com.sep490.hdbhms.occupancy.domain.value_objects.*;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.*;
@@ -158,7 +159,7 @@ public class DepositBatchCheckoutService {
             depositForm = depositFormRepository.save(depositForm);
 
             DepositAgreementEntity agreement = depositAgreementRepository.save(DepositAgreementEntity.builder()
-                    .depositCode(otpCodeGenerator.generate())
+                    .depositCode(resolveDepositCode(room, request.getExpectedMoveInDate()))
                     .room(room)
                     .depositForm(depositForm)
                     .roomHold(roomHold)
@@ -689,6 +690,15 @@ public class DepositBatchCheckoutService {
                 + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
                 + "-"
                 + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
+    }
+
+    private String resolveDepositCode(RoomEntity room, LocalDate referenceDate) {
+        String baseCode = DepositAgreement.buildDepositCode(room.getRoomCode(), referenceDate);
+        String depositCode = baseCode;
+        for (int copy = 2; depositAgreementRepository.existsByDepositCode(depositCode); copy++) {
+            depositCode = baseCode + "_" + copy;
+        }
+        return depositCode;
     }
 
     private String toCheckoutPayload(
