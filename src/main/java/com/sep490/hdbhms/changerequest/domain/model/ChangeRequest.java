@@ -46,6 +46,19 @@ public class ChangeRequest {
         this.resolvedAt = LocalDateTime.now();
     }
 
+    public void startProcessing(Long managerId) {
+        if (this.status != RequestStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING requests can be processed.");
+        }
+        this.status = RequestStatus.PROCESSING;
+        this.resolvedBy = managerId;
+        this.resolvedAt = LocalDateTime.now();
+    }
+
+    public void updateRequestPayload(String requestPayload) {
+        this.requestPayload = requestPayload;
+    }
+
     public void reject(Long managerId, String note) {
         if (this.status != RequestStatus.PENDING) {
             throw new IllegalStateException("Only PENDING requests can be rejected.");

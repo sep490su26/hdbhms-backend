@@ -18,5 +18,6 @@ public record ChangeRequestResponse(
         RequestStatus status,
         Long requesterId,
         String resolutionNote,
+        LocalDateTime resolvedAt,
         LocalDateTime createdAt
 ) {}

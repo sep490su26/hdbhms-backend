@@ -8,8 +8,11 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.RoomTransfe
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +44,22 @@ public class SpringDataRoomTransferRepository implements RoomTransferRepository 
     @Override
     public Optional<RoomTransferRequest> findByRequestCode(String requestCode) {
         return jpaRoomTransferRequestRepository.findByRequestCode(requestCode)
+                .map(roomTransferRequestPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Page<RoomTransferRequest> findHistory(
+            TransferRequestStatus status,
+            Long floorId,
+            Long roomId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            Pageable pageable
+    ) {
+        LocalDateTime fromDateTime = fromDate == null ? null : fromDate.atStartOfDay();
+        LocalDateTime toDateTime = toDate == null ? null : toDate.plusDays(1).atStartOfDay().minusNanos(1);
+        return jpaRoomTransferRequestRepository
+                .findHistory(status, floorId, roomId, fromDate, fromDateTime, toDate, toDateTime, pageable)
                 .map(roomTransferRequestPersistenceMapper::toDomain);
     }
 

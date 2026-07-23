@@ -60,6 +60,7 @@ public class ChangeRequestController {
                 req.getStatus(),
                 req.getRequesterId(),
                 req.getResolutionNote(),
+                req.getResolvedAt(),
                 req.getCreatedAt()
         ));
 
@@ -91,6 +92,7 @@ public class ChangeRequestController {
                 req.getStatus(),
                 req.getRequesterId(),
                 req.getResolutionNote(),
+                req.getResolvedAt(),
                 req.getCreatedAt()
         ));
 
@@ -143,6 +145,36 @@ public class ChangeRequestController {
                 .build();
     }
 
+    @PostMapping("/{id}/liquidation/deposit-refund/confirm-receipt")
+    @PreAuthorize("hasRole('TENANT')")
+    public ApiResponse<ChangeRequestResponse> confirmLiquidationDepositReceipt(@PathVariable Long id) {
+        ChangeRequest request = useCase.confirmLiquidationDepositReceipt(
+                id,
+                AuthUtils.getCurrentAuthenticationId()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .code(0)
+                .data(toResponse(request))
+                .build();
+    }
+
+    @PostMapping("/{id}/liquidation/deposit-refund/dispute")
+    @PreAuthorize("hasRole('TENANT')")
+    public ApiResponse<ChangeRequestResponse> disputeLiquidationDepositRefund(
+            @PathVariable Long id,
+            @RequestBody(required = false) DepositRefundDisputeRequest request
+    ) {
+        ChangeRequest changeRequest = useCase.disputeLiquidationDepositRefund(
+                id,
+                AuthUtils.getCurrentAuthenticationId(),
+                request == null ? null : request.reason()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .code(0)
+                .data(toResponse(changeRequest))
+                .build();
+    }
+
     private void assertCanResolve(ChangeRequest request) {
         if (request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS
                 && request.getRequestType() != RequestType.PERMISSION_ACCESS
@@ -162,5 +194,26 @@ public class ChangeRequestController {
         if (principal.getRole() != Role.OWNER) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only owner can approve this request.");
         }
+    }
+
+    private ChangeRequestResponse toResponse(ChangeRequest req) {
+        return new ChangeRequestResponse(
+                req.getId(),
+                req.getRequestCode(),
+                req.getRequestType(),
+                req.getTargetType(),
+                req.getTargetId(),
+                req.getTitle(),
+                req.getDescription(),
+                req.getRequestPayload(),
+                req.getStatus(),
+                req.getRequesterId(),
+                req.getResolutionNote(),
+                req.getResolvedAt(),
+                req.getCreatedAt()
+        );
+    }
+
+    record DepositRefundDisputeRequest(String reason) {
     }
 }

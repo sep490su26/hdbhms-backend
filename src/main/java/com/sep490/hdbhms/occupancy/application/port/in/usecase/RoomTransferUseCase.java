@@ -8,8 +8,12 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferReq
 import com.sep490.hdbhms.occupancy.application.port.in.command.ExecuteTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCommand;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUtilityEstimateResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface RoomTransferUseCase {
@@ -35,6 +39,14 @@ public interface RoomTransferUseCase {
     RoomTransferRequest refreshTransferEligibilitySnapshot(Long requestId);
     RoomTransferRequest getTransferRequestById(Long requestId);
     RoomTransferRequest getTransferRequestByCode(String requestCode);
+    Page<RoomTransferRequest> getTransferHistory(
+            TransferRequestStatus status,
+            Long floorId,
+            Long roomId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            Pageable pageable
+    );
     List<RoomTransferRequest> getPendingHolderNominations(Long holderUserId);
     List<RoomTransferRequest> getPendingTargetHolderApprovals(Long holderUserId);
 }

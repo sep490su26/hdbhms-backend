@@ -19,8 +19,11 @@ import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.domain.model.TransferSettlement;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUtilityEstimateResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -170,6 +173,17 @@ class CompleteInvoiceServiceTest {
         }
 
         @Override
+        public Page<RoomTransferRequest> findHistory(
+                TransferRequestStatus status,
+                Long floorId,
+                Long roomId,
+                LocalDate fromDate,
+                LocalDate toDate,
+                Pageable pageable) {
+            throw unexpectedRepositoryCall("RoomTransferRepository.findHistory");
+        }
+
+        @Override
         public List<RoomTransferRequest> findByStatusAndUpdatedAtBefore(
                 TransferRequestStatus status,
                 LocalDateTime updatedBefore) {
@@ -218,6 +232,17 @@ class CompleteInvoiceServiceTest {
         @Override
         public Optional<RoomTransferRequest> findByRequestCode(String requestCode) {
             throw unexpectedRepositoryCall("RoomTransferRepository.findByRequestCode");
+        }
+
+        @Override
+        public Page<RoomTransferRequest> findHistory(
+                TransferRequestStatus status,
+                Long floorId,
+                Long roomId,
+                LocalDate fromDate,
+                LocalDate toDate,
+                Pageable pageable) {
+            throw unexpectedRepositoryCall("RoomTransferRepository.findHistory");
         }
 
         @Override
@@ -347,6 +372,17 @@ class CompleteInvoiceServiceTest {
         @Override
         public RoomTransferRequest getTransferRequestByCode(String requestCode) {
             throw unexpectedRepositoryCall("RoomTransferUseCase.getTransferRequestByCode");
+        }
+
+        @Override
+        public Page<RoomTransferRequest> getTransferHistory(
+                TransferRequestStatus status,
+                Long floorId,
+                Long roomId,
+                LocalDate fromDate,
+                LocalDate toDate,
+                Pageable pageable) {
+            throw unexpectedRepositoryCall("RoomTransferUseCase.getTransferHistory");
         }
 
         @Override

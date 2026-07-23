@@ -40,6 +40,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -3120,6 +3122,19 @@ public class RoomTransferService implements RoomTransferUseCase {
         RoomTransferRequest request = roomTransferRepository.findByRequestCode(requestCode)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_REQUEST_NOT_FOUND));
         return syncPaidTransferDifferenceStatus(request);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RoomTransferRequest> getTransferHistory(
+            TransferRequestStatus status,
+            Long floorId,
+            Long roomId,
+            LocalDate fromDate,
+            LocalDate toDate,
+            Pageable pageable
+    ) {
+        return roomTransferRepository.findHistory(status, floorId, roomId, fromDate, toDate, pageable);
     }
 
     @Override

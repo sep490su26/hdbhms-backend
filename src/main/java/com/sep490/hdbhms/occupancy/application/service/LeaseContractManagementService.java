@@ -479,6 +479,81 @@ public class LeaseContractManagementService {
         return findOne(contract.getId());
     }
 
+    public LeaseContractManagementResponse startLiquidationProcessing(
+            Long leaseContractId,
+            LocalDate liquidationDate,
+            String reason
+    ) {
+        lockContractAndRoom(leaseContractId);
+        LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+        if (contract.getDeletedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+        }
+        if (contract.getStatus() == LeaseStatus.LIQUIDATED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng đã được thanh lý.");
+        }
+        if (contract.getStatus() != LeaseStatus.ACTIVE
+                && contract.getStatus() != LeaseStatus.EXPIRING_SOON
+                && contract.getStatus() != LeaseStatus.EXPIRED
+                && contract.getStatus() != LeaseStatus.TERMINATION_PENDING) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Chỉ xử lý thanh lý cho hợp đồng đang hiệu lực, sắp hết hạn, hết hạn hoặc chờ thanh lý."
+            );
+        }
+        RoomEntity room = contract.getRoom();
+        if (room == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa gắn phòng.");
+        }
+
+        LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
+        String finalReason = reason == null || reason.isBlank()
+                ? "Khách không tiếp tục thuê phòng."
+                : reason.trim();
+        Long depositAmount = contract.getDepositAmount() != null ? contract.getDepositAmount() : 0L;
+
+        ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contract.getId())
+                .orElseGet(() -> ContractLiquidationEntity.builder()
+                        .contract(contract)
+                        .depositAmount(depositAmount)
+                        .build());
+        if (liquidation.getStatus() == LiquidationStatus.CONFIRMED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hồ sơ thanh lý đã được xác nhận.");
+        }
+        liquidation.setLiquidationDate(finalLiquidationDate);
+        liquidation.setReason(finalReason);
+        liquidation.setDepositAmount(depositAmount);
+        Long deductionAmount = liquidation.getDepositDeductionAmount() != null
+                ? liquidation.getDepositDeductionAmount()
+                : 0L;
+        liquidation.setDepositDeductionAmount(deductionAmount);
+        liquidation.setDepositRefundAmount(Math.max(0L, depositAmount - deductionAmount));
+        liquidation.setStatus(LiquidationStatus.DRAFT);
+        contractLiquidationRepository.save(liquidation);
+
+        contract.setStatus(LeaseStatus.TERMINATION_PENDING);
+        contract.setTenantIntention("MOVE_OUT");
+        contract.setExpectedVacantDate(finalLiquidationDate);
+        contract.setIntentionRecordedAt(LocalDateTime.now());
+        leaseContractRepository.saveAndFlush(contract);
+
+        RoomStatus fromStatus = room.getCurrentStatus();
+        if (fromStatus != RoomStatus.SOON_VACANT) {
+            room.setCurrentStatus(RoomStatus.SOON_VACANT);
+            roomRepository.saveAndFlush(room);
+            appendRoomStatusHistory(
+                    room.getId(),
+                    fromStatus,
+                    RoomStatus.SOON_VACANT,
+                    "Bắt đầu quy trình thanh lý hợp đồng " + contract.getContractCode()
+            );
+        }
+        appendContractEvent(contract.getId(), "LIQUIDATION_PROCESSING_STARTED", finalReason);
+        leaseExpiryReminderService.onTenantIntentionRecorded(contract, LocalDate.now());
+        return findOne(contract.getId());
+    }
+
     public LeaseContractRenewalResponse renew(
             Long leaseContractId,
             LocalDate newStartDate,

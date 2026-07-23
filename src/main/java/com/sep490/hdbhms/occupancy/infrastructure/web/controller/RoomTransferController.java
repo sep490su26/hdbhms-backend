@@ -9,6 +9,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.ExecuteTransferCo
 import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
+import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateTransferRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ConfirmTenantTransferRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ExecuteTransferRequest;
@@ -16,13 +17,19 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.HolderReplacem
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomTransferResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUtilityEstimateResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomTransferWebMapper;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -245,6 +252,24 @@ public class RoomTransferController {
         RoomTransferRequest request = roomTransferUseCase.getTransferRequestByCode(requestCode);
         return ApiResponse.<RoomTransferResponse>builder()
                 .data(mapper.toResponse(request))
+                .build();
+    }
+
+    @GetMapping("/history")
+    public ApiResponse<PageResponse<RoomTransferResponse>> getTransferHistory(
+            @RequestParam(required = false, defaultValue = "EXECUTED") TransferRequestStatus status,
+            @RequestParam(required = false) Long floorId,
+            @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) LocalDate fromDate,
+            @RequestParam(required = false) LocalDate toDate,
+            @PageableDefault(size = 10, sort = "executedAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Page<RoomTransferResponse> page = roomTransferUseCase
+                .getTransferHistory(status, floorId, roomId, fromDate, toDate, pageable)
+                .map(mapper::toResponse);
+        return ApiResponse.<PageResponse<RoomTransferResponse>>builder()
+                .code(0)
+                .data(PageResponse.fromPageToPageResponse(page))
                 .build();
     }
 

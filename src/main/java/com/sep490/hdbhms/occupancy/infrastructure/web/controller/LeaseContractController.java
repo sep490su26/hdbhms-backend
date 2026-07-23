@@ -664,6 +664,7 @@ public class LeaseContractController {
                 req.getStatus(),
                 req.getRequesterId(),
                 req.getResolutionNote(),
+                req.getResolvedAt(),
                 req.getCreatedAt()
         );
     }

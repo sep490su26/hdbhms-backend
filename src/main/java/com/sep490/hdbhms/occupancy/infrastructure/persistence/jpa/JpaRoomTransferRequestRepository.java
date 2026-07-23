@@ -2,10 +2,13 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomTransferRequestEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -30,6 +33,35 @@ public interface JpaRoomTransferRequestRepository extends JpaRepository<RoomTran
     );
 
     boolean existsByOldContract_IdAndStatusIn(Long oldContractId, Collection<TransferRequestStatus> statuses);
+
+    @Query("""
+            SELECT r FROM RoomTransferRequestEntity r
+            WHERE (:status IS NULL OR r.status = :status)
+              AND (:floorId IS NULL OR r.oldRoom.floor.id = :floorId OR r.targetRoom.floor.id = :floorId)
+              AND (:roomId IS NULL OR r.oldRoom.id = :roomId OR r.targetRoom.id = :roomId)
+              AND (
+                    :fromDateTime IS NULL
+                    OR (r.completedAt IS NOT NULL AND r.completedAt >= :fromDateTime)
+                    OR (r.completedAt IS NULL AND r.executedAt IS NOT NULL AND r.executedAt >= :fromDateTime)
+                    OR (r.completedAt IS NULL AND r.executedAt IS NULL AND r.requestedTransferDate >= :fromDate)
+              )
+              AND (
+                    :toDateTime IS NULL
+                    OR (r.completedAt IS NOT NULL AND r.completedAt <= :toDateTime)
+                    OR (r.completedAt IS NULL AND r.executedAt IS NOT NULL AND r.executedAt <= :toDateTime)
+                    OR (r.completedAt IS NULL AND r.executedAt IS NULL AND r.requestedTransferDate <= :toDate)
+              )
+            """)
+    Page<RoomTransferRequestEntity> findHistory(
+            @Param("status") TransferRequestStatus status,
+            @Param("floorId") Long floorId,
+            @Param("roomId") Long roomId,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDate") LocalDate toDate,
+            @Param("toDateTime") LocalDateTime toDateTime,
+            Pageable pageable
+    );
 
     List<RoomTransferRequestEntity> findByStatusAndUpdatedAtBefore(
             TransferRequestStatus status,

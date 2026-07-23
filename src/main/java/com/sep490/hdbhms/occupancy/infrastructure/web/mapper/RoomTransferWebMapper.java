@@ -22,6 +22,7 @@ import org.mapstruct.Mapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -93,6 +94,7 @@ public abstract class RoomTransferWebMapper {
                 .toList();
         boolean oldRoomCheckoutInvoicesPaid = oldRoomFinalInvoicePaid && unpaidOldRoomCompensationInvoiceIds.isEmpty();
         Map<Long, String> transferringTenantNames = resolveTransferringTenantNames(request);
+        TenantContact requesterContact = resolveRequesterContact(request, transferringTenantNames);
         List<Long> sourceHolderCandidateProfileIds = resolveSourceHolderCandidateProfileIds(request);
         Map<Long, String> sourceHolderCandidateNames = resolveProfileNames(sourceHolderCandidateProfileIds);
         RoomTransferResponse.DebtSummary debtSummary = resolveDebtSummary(request, oldRoomPrice);
@@ -109,9 +111,13 @@ public abstract class RoomTransferWebMapper {
             request.getOldRoomId(),
             oldRoom == null ? null : oldRoom.getRoomCode(),
             oldRoom == null ? null : oldRoom.getName(),
+            oldRoom == null ? null : oldRoom.getFloorId(),
             request.getTargetRoomId(),
             targetRoom == null ? null : targetRoom.getRoomCode(),
             targetRoom == null ? null : targetRoom.getName(),
+            targetRoom == null ? null : targetRoom.getFloorId(),
+            requesterContact.name(),
+            requesterContact.phone(),
             request.getTransferringTenantProfileIds(),
             transferringTenantNames,
             sourceHolderCandidateProfileIds,
@@ -128,9 +134,11 @@ public abstract class RoomTransferWebMapper {
             request.getTargetHolderApprovedAt(),
             request.getTargetHolderRejectedAt(),
             request.getApprovedById(),
+            resolveUserDisplayName(request.getApprovedById()),
             request.getApprovedAt(),
             request.getExecutedAt(),
             request.getCompletedAt(),
+            resolveActualTransferDate(request),
             request.getStatus(),
             request.getNewContractId(),
             request.getReplacementOldContractId(),
@@ -437,6 +445,74 @@ public abstract class RoomTransferWebMapper {
         return resolveProfileNames(profileIds);
     }
 
+    private TenantContact resolveRequesterContact(RoomTransferRequest request, Map<Long, String> fallbackNames) {
+        if (request == null || request.getRequesterId() == null) {
+            return new TenantContact(firstTransferredTenantName(fallbackNames), null);
+        }
+
+        List<TenantContact> contacts = jdbcTemplate.query("""
+                        SELECT
+                            COALESCE(NULLIF(pp.full_name, ''), u.email, u.phone) AS display_name,
+                            COALESCE(NULLIF(pp.phone, ''), u.phone) AS phone
+                        FROM tenants t
+                        JOIN users u ON u.user_id = t.user_id
+                        LEFT JOIN person_profiles pp ON pp.user_id = u.user_id AND pp.deleted_at IS NULL
+                        WHERE t.tenant_id = ?
+                        ORDER BY pp.person_profile_id DESC
+                        LIMIT 1
+                        """,
+                (rs, rowNum) -> new TenantContact(rs.getString("display_name"), rs.getString("phone")),
+                request.getRequesterId()
+        );
+
+        if (contacts.isEmpty()) {
+            return new TenantContact(firstTransferredTenantName(fallbackNames), null);
+        }
+        TenantContact contact = contacts.get(0);
+        return new TenantContact(firstNonBlank(contact.name(), firstTransferredTenantName(fallbackNames)), contact.phone());
+    }
+
+    private String resolveUserDisplayName(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return jdbcTemplate.query("""
+                        SELECT COALESCE(NULLIF(pp.full_name, ''), u.email, u.phone) AS display_name
+                        FROM users u
+                        LEFT JOIN person_profiles pp ON pp.user_id = u.user_id AND pp.deleted_at IS NULL
+                        WHERE u.user_id = ?
+                        ORDER BY pp.person_profile_id DESC
+                        LIMIT 1
+                        """,
+                (rs, rowNum) -> rs.getString("display_name"),
+                userId
+        ).stream().findFirst().orElse(null);
+    }
+
+    private LocalDateTime resolveActualTransferDate(RoomTransferRequest request) {
+        if (request.getCompletedAt() != null) {
+            return request.getCompletedAt();
+        }
+        if (request.getExecutedAt() != null) {
+            return request.getExecutedAt();
+        }
+        return request.getRequestedTransferDate() == null ? null : request.getRequestedTransferDate().atStartOfDay();
+    }
+
+    private String firstTransferredTenantName(Map<Long, String> names) {
+        if (names == null || names.isEmpty()) {
+            return null;
+        }
+        return names.values().stream()
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first != null && !first.isBlank() ? first : second;
+    }
+
     private Map<Long, String> resolveProfileNames(List<Long> profileIds) {
         if (profileIds == null || profileIds.isEmpty()) {
             return Map.of();
@@ -465,6 +541,8 @@ public abstract class RoomTransferWebMapper {
         }
         return namesById;
     }
+
+    private record TenantContact(String name, String phone) {}
 
     private List<Long> resolveSourceHolderCandidateProfileIds(RoomTransferRequest request) {
         if (request.getOldContractId() == null) {

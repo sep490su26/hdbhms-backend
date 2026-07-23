@@ -33,7 +33,7 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
     public void onApproved(ChangeRequest request, Long managerId) {
         Map<String, Object> payload = payload(request);
         if (request.getRequestType() == RequestType.CONTRACT_LIQUIDATION) {
-            leaseContractManagementService.liquidate(
+            leaseContractManagementService.startLiquidationProcessing(
                     request.getTargetId(),
                     localDate(payload.get("liquidationDate")),
                     string(payload.get("reason"))
