@@ -2,7 +2,6 @@ package com.sep490.hdbhms.notification.application.port.out;
 
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,7 +12,7 @@ public interface NotificationOutboxRepository {
 
     Optional<NotificationOutbox> findById(Long id);
 
-    List<NotificationOutbox> findByStatusAndNextRetryAtBefore(OutboxStatus outboxStatus, LocalDateTime localDateTime);
+    List<NotificationOutbox> findReadyPending(LocalDateTime now, int limit);
 
     org.springframework.data.domain.Page<NotificationOutbox> findByRecipientUserIdAndChannelOrderByCreatedAtDesc(Long userId, NotificationChannel channel, org.springframework.data.domain.Pageable pageable);
 

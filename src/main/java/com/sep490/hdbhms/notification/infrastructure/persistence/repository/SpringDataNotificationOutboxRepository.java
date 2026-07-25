@@ -9,6 +9,7 @@ import com.sep490.hdbhms.notification.infrastructure.persistence.mapper.Notifica
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,9 +43,9 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
     }
 
     @Override
-    public List<NotificationOutbox> findByStatusAndNextRetryAtBefore(OutboxStatus outboxStatus, LocalDateTime localDateTime) {
+    public List<NotificationOutbox> findReadyPending(LocalDateTime now, int limit) {
         return jpaNotificationOutboxRepository
-                .findByStatusAndNextRetryAtBefore(outboxStatus, localDateTime).stream()
+                .findReadyPending(OutboxStatus.PENDING, now, PageRequest.of(0, limit)).stream()
                 .map(notificationOutboxPersistenceMapper::toDomain)
                 .toList();
     }

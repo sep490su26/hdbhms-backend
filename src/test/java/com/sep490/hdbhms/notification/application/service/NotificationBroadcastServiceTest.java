@@ -140,11 +140,8 @@ class NotificationBroadcastServiceTest {
         }
 
         @Override
-        public List<NotificationOutbox> findByStatusAndNextRetryAtBefore(
-                OutboxStatus outboxStatus,
-                LocalDateTime localDateTime
-        ) {
-            throw unexpected("NotificationOutboxRepository.findByStatusAndNextRetryAtBefore");
+        public List<NotificationOutbox> findReadyPending(LocalDateTime now, int limit) {
+            throw unexpected("NotificationOutboxRepository.findReadyPending");
         }
 
         @Override

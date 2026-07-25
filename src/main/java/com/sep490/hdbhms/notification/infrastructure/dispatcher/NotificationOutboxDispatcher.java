@@ -2,7 +2,6 @@ package com.sep490.hdbhms.notification.infrastructure.dispatcher;
 
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
-import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 import com.sep490.hdbhms.notification.infrastructure.processor.NotificationOutboxProcessor;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -18,13 +17,14 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class NotificationOutboxDispatcher {
+    private static final int DISPATCH_BATCH_SIZE = 100;
 
     NotificationOutboxRepository notificationOutboxRepository;
     NotificationOutboxProcessor processor;
 
     public void dispatch() {
         List<NotificationOutbox> pending = notificationOutboxRepository
-                .findByStatusAndNextRetryAtBefore(OutboxStatus.PENDING, LocalDateTime.now());
+                .findReadyPending(LocalDateTime.now(), DISPATCH_BATCH_SIZE);
 
         if (pending.isEmpty()) return;
 

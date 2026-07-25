@@ -30,7 +30,20 @@ public interface JpaNotificationOutboxRepository extends JpaRepository<Notificat
             Pageable pageable
     );
 
-    List<NotificationOutboxEntity> findByStatusAndNextRetryAtBefore(OutboxStatus outboxStatus, LocalDateTime localDateTime);
+    @Query("""
+            SELECT n FROM NotificationOutboxEntity n
+            WHERE n.status = :status
+              AND (
+                    n.nextRetryAt <= :now
+                    OR (n.nextRetryAt IS NULL AND n.scheduledAt <= :now)
+              )
+            ORDER BY COALESCE(n.nextRetryAt, n.scheduledAt), n.id
+            """)
+    List<NotificationOutboxEntity> findReadyPending(
+            @Param("status") OutboxStatus status,
+            @Param("now") LocalDateTime now,
+            Pageable pageable
+    );
 
     Page<NotificationOutboxEntity> findByRecipientUser_IdAndChannelOrderByCreatedAtDesc(Long userId, NotificationChannel channel, Pageable pageable);
 
