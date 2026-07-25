@@ -91,6 +91,7 @@ public class ContractLifecycleChangeRequestService {
             Long leaseContractId,
             LocalDate newStartDate,
             LocalDate newEndDate,
+            Integer renewalTermMonths,
             Long monthlyRent,
             Integer paymentCycleMonths,
             Long depositAmount,
@@ -103,9 +104,9 @@ public class ContractLifecycleChangeRequestService {
                 principal,
                 contract,
                 RequestType.CONTRACT_RENEWAL,
-                "Yeu cau tai ky hop dong " + contract.getContractCode(),
+                "Yeu cau gia han hop dong " + contract.getContractCode(),
                 note,
-                renewalPayload(contract, newStartDate, newEndDate, monthlyRent, paymentCycleMonths, depositAmount, note)
+                renewalPayload(contract, newStartDate, newEndDate, renewalTermMonths, monthlyRent, paymentCycleMonths, depositAmount, note)
         );
     }
 
@@ -204,6 +205,7 @@ public class ContractLifecycleChangeRequestService {
             LeaseContractEntity contract,
             LocalDate newStartDate,
             LocalDate newEndDate,
+            Integer renewalTermMonths,
             Long monthlyRent,
             Integer paymentCycleMonths,
             Long depositAmount,
@@ -213,6 +215,7 @@ public class ContractLifecycleChangeRequestService {
         payload.put("oldEndDate", contract.getEndDate());
         payload.put("newStartDate", newStartDate);
         payload.put("newEndDate", newEndDate);
+        payload.put("renewalTermMonths", renewalTermMonths);
         payload.put("monthlyRent", monthlyRent);
         payload.put("paymentCycleMonths", paymentCycleMonths);
         payload.put("depositAmount", depositAmount);
@@ -247,7 +250,7 @@ public class ContractLifecycleChangeRequestService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the thanh ly.");
         }
         if (requestType == RequestType.CONTRACT_RENEWAL && !RENEWABLE_STATUSES.contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the tai ky.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the gia han.");
         }
         if (requestType == RequestType.ADD_CO_OCCUPANT && !ADD_CO_OCCUPANT_STATUSES.contains(contract.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the them nguoi o cung.");

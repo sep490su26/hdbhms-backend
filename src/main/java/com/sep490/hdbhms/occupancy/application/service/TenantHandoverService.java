@@ -83,6 +83,8 @@ public class TenantHandoverService {
                 .note(item.getNote())
                 .evidenceFileId(evidenceFile != null ? evidenceFile.getId() : null)
                 .evidenceFileUrl(fileDownloadUrl(evidenceFile))
+                .compensationAmount(item.getCompensationAmount())
+                .compensationInvoiceId(item.getCompensationInvoice() != null ? item.getCompensationInvoice().getId() : null)
                 .build();
     }
 

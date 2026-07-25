@@ -53,5 +53,7 @@ public class ContractHandoverDetailsResponse {
         String note;
         Long evidenceFileId;
         String evidenceFileUrl;
+        Long compensationAmount;
+        Long compensationInvoiceId;
     }
 }

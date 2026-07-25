@@ -69,6 +69,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                 .category(category)
                 .title(title)
                 .description(command.description())
+                .repairRequested(command.repairRequested() == null || command.repairRequested())
                 .build();
         maintenanceTicket = maintenanceTicketRepository.save(maintenanceTicket);
         String ticketCode = String.format("#SC-%04d", maintenanceTicket.getId());

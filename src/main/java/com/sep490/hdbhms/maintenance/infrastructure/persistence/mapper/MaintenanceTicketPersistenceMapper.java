@@ -34,6 +34,7 @@ public class MaintenanceTicketPersistenceMapper {
                 .category(entity.getCategory())
                 .title(entity.getTitle())
                 .description(entity.getDescription())
+                .repairRequested(entity.getRepairRequested() == null || entity.getRepairRequested())
                 .status(entity.getStatus())
                 .rejectionReason(entity.getRejectionReason())
                 .assignedToId(entity.getAssignedTo() != null ? entity.getAssignedTo().getId() : null)
@@ -72,6 +73,7 @@ public class MaintenanceTicketPersistenceMapper {
                 .category(domain.getCategory())
                 .title(domain.getTitle())
                 .description(domain.getDescription())
+                .repairRequested(domain.getRepairRequested() == null || domain.getRepairRequested())
                 .status(domain.getStatus())
                 .rejectionReason(domain.getRejectionReason())
                 .assignedTo(domain.getAssignedToId() != null

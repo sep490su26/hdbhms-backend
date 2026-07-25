@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestResponse;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
@@ -17,6 +18,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUse
 import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService.LiquidationChargeInput;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
@@ -35,6 +37,7 @@ import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -216,13 +219,34 @@ public class LeaseContractController {
     @PreAuthorize("hasRole('OWNER')")
     public ApiResponse<LeaseContractManagementResponse> liquidateLeaseContract(
             @PathVariable Long leaseContractId,
-            @RequestBody(required = false) LeaseContractLiquidationRequest request
+            @Valid @RequestBody(required = false) LeaseContractLiquidationRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
                 .data(leaseContractManagementService.liquidate(
                         leaseContractId,
                         request != null ? request.liquidationDate() : null,
-                        request != null ? request.reason() : null
+                        request != null ? request.reason() : null,
+                        request != null ? request.depositDeductionAmount() : null,
+                        request != null ? request.depositDeductionReason() : null,
+                        liquidationCharges(request)
+                ))
+                .build();
+    }
+
+    @PatchMapping("/{leaseContractId}/liquidation")
+    @PreAuthorize("hasRole('OWNER')")
+    public ApiResponse<LeaseContractManagementResponse> updateLiquidationDraft(
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody(required = false) LeaseContractLiquidationRequest request
+    ) {
+        return ApiResponse.<LeaseContractManagementResponse>builder()
+                .data(leaseContractManagementService.updateLiquidationDraft(
+                        leaseContractId,
+                        request != null ? request.liquidationDate() : null,
+                        request != null ? request.reason() : null,
+                        request != null ? request.depositDeductionAmount() : null,
+                        request != null ? request.depositDeductionReason() : null,
+                        liquidationCharges(request)
                 ))
                 .build();
     }
@@ -278,6 +302,7 @@ public class LeaseContractController {
                 leaseContractId,
                 request.newStartDate(),
                 request.newEndDate(),
+                request.renewalTermMonths(),
                 request.monthlyRent(),
                 request.paymentCycleMonths(),
                 request.depositAmount(),
@@ -628,8 +653,40 @@ public class LeaseContractController {
 
     public record LeaseContractLiquidationRequest(
             LocalDate liquidationDate,
-            String reason
+            String reason,
+            @PositiveOrZero(message = "So tien khau tru khong duoc am.")
+            Long depositDeductionAmount,
+            @Size(max = 1000, message = "Ly do khau tru khong duoc vuot qua 1000 ky tu.")
+            String depositDeductionReason,
+            @Valid
+            List<LeaseContractLiquidationChargeRequest> charges
     ) {
+    }
+
+    public record LeaseContractLiquidationChargeRequest(
+            @NotNull(message = "Loai phi thanh ly khong duoc de trong.")
+            InvoiceLineType lineType,
+            @Size(max = 1000, message = "Mo ta phi thanh ly khong duoc vuot qua 1000 ky tu.")
+            String description,
+            @Positive(message = "So luong phai lon hon 0.")
+            Integer quantity,
+            @PositiveOrZero(message = "Don gia khong duoc am.")
+            Long unitPrice
+    ) {
+    }
+
+    private List<LiquidationChargeInput> liquidationCharges(LeaseContractLiquidationRequest request) {
+        if (request == null || request.charges() == null) {
+            return null;
+        }
+        return request.charges().stream()
+                .map(charge -> new LiquidationChargeInput(
+                        charge.lineType(),
+                        charge.description(),
+                        charge.quantity(),
+                        charge.unitPrice()
+                ))
+                .toList();
     }
 
     public record AddCoOccupantRequest(
@@ -692,6 +749,8 @@ public class LeaseContractController {
             LocalDate newStartDate,
             @NotNull(message = "Ngày kết thúc mới là bắt buộc.")
             LocalDate newEndDate,
+            @Min(value = 6, message = "Thoi han gia han toi thieu 6 thang.")
+            Integer renewalTermMonths,
             @NotNull(message = "Giá thuê mỗi tháng là bắt buộc.")
             @Positive(message = "Giá thuê mỗi tháng phải lớn hơn 0.")
             Long monthlyRent,

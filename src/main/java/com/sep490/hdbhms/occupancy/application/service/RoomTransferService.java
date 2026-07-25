@@ -122,6 +122,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     IssuedInvoiceChargeService issuedInvoiceChargeService;
     UtilityBillingRunService utilityBillingRunService;
     ManageContractHandoverService manageContractHandoverService;
+    RoomTransferCreateBypassRegistry roomTransferCreateBypassRegistry;
     SnowflakeIdGenerator snowflakeIdGenerator;
     ApplicationEventPublisher applicationEventPublisher;
     JdbcTemplate jdbcTemplate;
@@ -141,37 +142,53 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
         Room targetRoom = roomRepository.findById(command.targetRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
+        boolean bypassCreateValidation = roomTransferCreateBypassRegistry.consumeIfAllowed(
+                command.requesterId(),
+                command.sourceContractId(),
+                command.targetRoomId()
+        );
+        LocalDate requestedTransferDate = command.requestedTransferDate() == null && bypassCreateValidation
+                ? LocalDate.now()
+                : command.requestedTransferDate();
 
-        validateSourceContract(sourceContract, requesterProfile.getId());
-        if (roomTransferRequestRepository.existsOpenByOldContractId(sourceContract.getId(), OPEN_TRANSFER_STATUSES)) {
-            throw new IllegalStateException("Source contract already has an open room transfer request.");
-        }
-        if (sourceContract.getRoomId().equals(targetRoom.getId())) {
-            throw new IllegalArgumentException("Target room must be different from current room.");
+        if (!bypassCreateValidation) {
+            validateSourceContract(sourceContract, requesterProfile.getId());
+            if (roomTransferRequestRepository.existsOpenByOldContractId(sourceContract.getId(), OPEN_TRANSFER_STATUSES)) {
+                throw new IllegalStateException("Source contract already has an open room transfer request.");
+            }
+            if (sourceContract.getRoomId().equals(targetRoom.getId())) {
+                throw new IllegalArgumentException("Target room must be different from current room.");
+            }
         }
         Optional<LeaseContract> targetActiveLeaseContractResult = leaseContractRepository
                 .findFirstActiveContract(
                         targetRoom.getId(),
                         DESTINATION_BLOCKING_CONTRACT_STATUSES
                 );
-        TargetTransferType targetTransferType = resolveTargetTransferType(
-                requesterProfile.getId(),
-                targetRoom,
-                targetActiveLeaseContractResult
-        );
+        TargetTransferType targetTransferType = bypassCreateValidation
+                ? resolveBypassTargetTransferType(targetRoom, targetActiveLeaseContractResult)
+                : resolveTargetTransferType(
+                        requesterProfile.getId(),
+                        targetRoom,
+                        targetActiveLeaseContractResult
+                );
 
-        validateRequestedTransferDate(command.requestedTransferDate());
-        targetRoom = validateTargetRoomForTransferType(targetRoom, targetTransferType, command.requestedTransferDate());
+        if (!bypassCreateValidation) {
+            validateRequestedTransferDate(requestedTransferDate);
+            targetRoom = validateTargetRoomForTransferType(targetRoom, targetTransferType, requestedTransferDate);
+        }
 
         List<ContractOccupant> activeOccupants = activeOccupants(sourceContract.getId());
         List<Long> transferringProfileIds = normalizeTransferredProfiles(
                 command.transferredTenantProfileIds(),
                 requesterProfile.getId()
         );
-        ensureRequesterIsCurrentOccupant(requesterProfile.getId(), activeOccupants);
-        ensureTransferredProfilesBelongToContract(transferringProfileIds, activeOccupants);
-        validateTransferEligibilityWindow(sourceContract, transferringProfileIds, activeOccupants);
-        validateDestinationAvailability(targetRoom, transferringProfileIds.size(), command.requestedTransferDate(), null);
+        if (!bypassCreateValidation) {
+            ensureRequesterIsCurrentOccupant(requesterProfile.getId(), activeOccupants);
+            ensureTransferredProfilesBelongToContract(transferringProfileIds, activeOccupants);
+            validateTransferEligibilityWindow(sourceContract, transferringProfileIds, activeOccupants);
+            validateDestinationAvailability(targetRoom, transferringProfileIds.size(), requestedTransferDate, null);
+        }
         LocalDateTime eligibilityCheckedAt = LocalDateTime.now();
         DebtSnapshotDetails debtSnapshot = readDebtSnapshotDetails(sourceContract);
         Long debtSnapshotId = saveDebtSnapshot(sourceContract, debtSnapshot, eligibilityCheckedAt.toLocalDate());
@@ -187,7 +204,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 violationSnapshot,
                 transferHistorySnapshot,
                 true,
-                List.of(),
+                bypassCreateValidation ? List.of("MOCK_CREATE_VALIDATION_BYPASS") : List.of(),
                 eligibilityCheckedAt
         );
 
@@ -202,7 +219,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .targetContractId(targetTransferType == TargetTransferType.NEW_CONTRACT
                         ? null
                         : targetActiveLeaseContractResult.map(LeaseContract::getId).orElse(null))
-                .requestedTransferDate(command.requestedTransferDate())
+                .requestedTransferDate(requestedTransferDate)
                 .reason(command.reason())
                 .status(TransferRequestStatus.REQUESTED)
                 .debtSnapshotId(debtSnapshotId)
@@ -257,7 +274,6 @@ public class RoomTransferService implements RoomTransferUseCase {
                 request.getRequestedTransferDate()
         );
         long difference = rentDifference.differenceAmount();
-
         validateSettlementType(difference, command.settlementType());
         if (isWaitingForImmediateDifferencePayment(request, difference)) {
             if (command.settlementType() != SettlementType.TENANT_PAY_MORE) {
@@ -301,6 +317,9 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private void validateSettlementType(long difference, SettlementType settlementType) {
+        if (difference == 0) {
+            return;
+        }
         if (difference > 0 && settlementType == null) {
             throw new IllegalArgumentException("Settlement type for positive difference is required.");
         }
@@ -315,9 +334,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (difference < 0
                 && settlementType != SettlementType.CREDIT_NEXT_CONTRACT) {
             throw new IllegalArgumentException("Negative difference can only be credited to next contract.");
-        }
-        if (difference == 0 && settlementType != null && settlementType != SettlementType.NO_DIFFERENCE) {
-            throw new IllegalArgumentException("Settlement type is not applicable for zero difference.");
         }
     }
 
@@ -532,12 +548,33 @@ public class RoomTransferService implements RoomTransferUseCase {
             throw new IllegalStateException("No transfer contract found for signing.");
         }
         for (LeaseContract contract : contracts) {
-            signUploadedContract(contract);
+            requireSignedTransferContract(contract);
         }
         request.setStatus(TransferRequestStatus.READY_FOR_HANDOVER);
         request.setReservationExpiresAt(null);
         roomTransferRepository.save(request);
         publishManagerActionRequired(request, ACTION_READY_FOR_HANDOVER);
+    }
+
+    @Override
+    @Transactional
+    public void signTransferContractDocument(Long requestId, Long leaseContractId, Long tenantUserId) {
+        RoomTransferRequest request = getTransfer(requestId);
+        if (!currentUserHasAnyRole("ROLE_OWNER", "ROLE_MANAGER")) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Only owner or manager can confirm signed transfer contract."
+            );
+        }
+        requireStatus(request, TransferRequestStatus.WAITING_SIGNING, TransferRequestStatus.WAITING_CONTRACT_SIGNING);
+        LeaseContract contract = requiredSigningContracts(request).stream()
+                .filter(item -> Objects.equals(item.getId(), leaseContractId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Hợp đồng này không thuộc bộ hợp đồng cần ký của yêu cầu chuyển phòng."
+                ));
+        signUploadedContract(contract);
     }
 
     private boolean currentUserHasAnyRole(String... roles) {
@@ -949,9 +986,9 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .min(LocalDate::compareTo)
                 .orElse(sourceContract.getStartDate());
 
-        if (currentRoomMoveInDate != null && today.isBefore(currentRoomMoveInDate.plusMonths(12))) {
-            throw new IllegalArgumentException("Tenant must stay in the current room for at least 12 months before requesting another room transfer.");
-        }
+//        if (currentRoomMoveInDate != null && today.isBefore(currentRoomMoveInDate.plusMonths(12))) {
+//            throw new IllegalArgumentException("Tenant must stay in the current room for at least 12 months before requesting another room transfer.");
+//        }
 
         LocalDate contractStart = sourceContract.getStartDate();
         LocalDate contractEnd = sourceContract.getEndDate();
@@ -962,9 +999,9 @@ public class RoomTransferService implements RoomTransferUseCase {
         long totalDays = java.time.temporal.ChronoUnit.DAYS.between(contractStart, contractEnd) + 1;
         long stayedDays = Math.max(0, java.time.temporal.ChronoUnit.DAYS.between(contractStart, today) + 1);
         long requiredDays = Math.ceilDiv(totalDays * 2, 3);
-        if (stayedDays < requiredDays) {
-            throw new IllegalArgumentException("Tenant must complete at least two-thirds of the current contract term before requesting a room transfer.");
-        }
+//        if (stayedDays < requiredDays) {
+//            throw new IllegalArgumentException("Tenant must complete at least two-thirds of the current contract term before requesting a room transfer.");
+//        }
     }
 
     private DebtSnapshotDetails readDebtSnapshotDetails(LeaseContract sourceContract) {
@@ -1175,6 +1212,16 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .filter(requesterProfileId::equals)
                 .isPresent()) {
             throw new AppException(ApiErrorCode.UNDEFINED);
+        }
+        return TargetTransferType.NEW_CONTRACT;
+    }
+
+    private TargetTransferType resolveBypassTargetTransferType(
+            Room targetRoom,
+            Optional<LeaseContract> targetActiveLeaseContractResult
+    ) {
+        if (targetActiveLeaseContractResult.isPresent() && targetRoom.getCurrentStatus() == RoomStatus.OCCUPIED) {
+            return TargetTransferType.OTHER_CONTRACT;
         }
         return TargetTransferType.NEW_CONTRACT;
     }
@@ -1486,6 +1533,24 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
         if (contract.getStatus() != LeaseStatus.SIGNED) {
             throw new IllegalStateException("Only CONFIRMED or SIGNED transfer contracts can be signed.");
+        }
+    }
+
+    private void requireSignedTransferContract(LeaseContract contract) {
+        if (contract.getSignedFileId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Vui lòng upload file hợp đồng đã ký trước khi xác nhận đủ bộ."
+            );
+        }
+        if (contract.getStatus() == LeaseStatus.CONFIRMED || contract.getStatus() == LeaseStatus.PENDING_SIGNATURE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Vui lòng xác nhận từng hợp đồng đã ký trước khi xác nhận đủ bộ."
+            );
+        }
+        if (contract.getStatus() != LeaseStatus.SIGNED) {
+            throw new IllegalStateException("Only SIGNED transfer contracts can complete transfer signing.");
         }
     }
 
@@ -2180,10 +2245,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         int paymentCycleMonths = oldContract.getPaymentCycleMonths() == null
                 ? 1
                 : Math.max(1, oldContract.getPaymentCycleMonths());
-
-        if (paymentCycleMonths <= 1) {
-            return new TransferRentDifference(0L, 0L, 0L, 0);
-        }
 
         LocalDate transferDate = requestedTransferDate == null ? LocalDate.now() : requestedTransferDate;
         LocalDate cycleStart = Optional.ofNullable(oldContract.getRentStartDate())

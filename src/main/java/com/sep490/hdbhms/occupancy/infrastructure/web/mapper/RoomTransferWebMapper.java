@@ -77,7 +77,11 @@ public abstract class RoomTransferWebMapper {
         String oldContractCode = resolveOldContractCode(request);
         Long oldRoomPrice = resolveOldRoomPrice(request);
         Long newRoomPrice = resolveNewRoomPrice(request);
-        Long priceDifferenceToPay = calculatePriceDifferenceToPay(request, oldRoomPrice, newRoomPrice);
+        Long priceDifferenceAmount = calculatePriceDifferenceAmount(request, oldRoomPrice, newRoomPrice);
+        Long priceDifferenceToPay = priceDifferenceAmount == null ? null : Math.max(0, priceDifferenceAmount);
+        SettlementType priceDifferenceSettlementType = priceDifferenceAmount != null && priceDifferenceAmount == 0
+                ? SettlementType.NO_DIFFERENCE
+                : request.getPositiveDifferenceSettlementType();
         Integer remainingOccupantCountAfterTransfer = resolveRemainingOccupantCountAfterTransfer(request);
         Boolean sourceRoomWillBeEmptyAfterTransfer = remainingOccupantCountAfterTransfer != null
                 ? remainingOccupantCountAfterTransfer == 0
@@ -144,12 +148,13 @@ public abstract class RoomTransferWebMapper {
             request.getReplacementOldContractId(),
             oldRoomPrice,
             newRoomPrice,
+            priceDifferenceAmount,
             priceDifferenceToPay,
             sourceRoomWillBeEmptyAfterTransfer,
             remainingOccupantCountAfterTransfer,
             request.getCreatedAt(),
             request.getUpdatedAt(),
-            request.getPositiveDifferenceSettlementType(),
+            priceDifferenceSettlementType,
             transferDifferenceInvoiceId,
             oldRoomFinalInvoiceId,
             resolveDepositTransferSummary(request),
@@ -162,7 +167,7 @@ public abstract class RoomTransferWebMapper {
             request.getViolationSnapshot(),
             request.getTransferHistorySnapshot(),
             eligibilityWarnings,
-            resolvePaymentBranch(request, oldRoomPrice, newRoomPrice),
+            resolvePaymentBranch(request, priceDifferenceAmount),
             isTransferOutHandoverRequired(request),
             isTransferInHandoverRequired(request),
             isRoomHandoverRequired(request, sourceRoomWillBeEmptyAfterTransfer),
@@ -386,12 +391,12 @@ public abstract class RoomTransferWebMapper {
             .orElse(null);
     }
 
-    private Long calculatePriceDifferenceToPay(RoomTransferRequest request, Long oldRoomPrice, Long newRoomPrice) {
+    private Long calculatePriceDifferenceAmount(RoomTransferRequest request, Long oldRoomPrice, Long newRoomPrice) {
         if (oldRoomPrice == null || newRoomPrice == null) {
             return null;
         }
         int chargeableMonths = resolveChargeableRemainingMonths(request);
-        return Math.max(0, (newRoomPrice - oldRoomPrice) * chargeableMonths);
+        return (newRoomPrice - oldRoomPrice) * chargeableMonths;
     }
 
     private int resolveChargeableRemainingMonths(RoomTransferRequest request) {
@@ -405,9 +410,6 @@ public abstract class RoomTransferWebMapper {
         int paymentCycleMonths = oldContract.getPaymentCycleMonths() == null
                 ? 1
                 : Math.max(1, oldContract.getPaymentCycleMonths());
-        if (paymentCycleMonths <= 1) {
-            return 0;
-        }
         java.time.LocalDate transferDate = request.getRequestedTransferDate() == null
                 ? java.time.LocalDate.now()
                 : request.getRequestedTransferDate();
@@ -575,12 +577,10 @@ public abstract class RoomTransferWebMapper {
         return Math.max(0, activeOccupantCount - transferringCount);
     }
 
-    private String resolvePaymentBranch(RoomTransferRequest request, Long oldRoomPrice, Long newRoomPrice) {
-        if (oldRoomPrice == null || newRoomPrice == null) {
+    private String resolvePaymentBranch(RoomTransferRequest request, Long difference) {
+        if (difference == null) {
             return "UNKNOWN";
         }
-
-        long difference = newRoomPrice - oldRoomPrice;
         if (difference == 0) {
             return SettlementType.NO_DIFFERENCE.name();
         }

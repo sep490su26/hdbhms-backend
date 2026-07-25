@@ -13,6 +13,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.ReminderTrackerStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ReminderTrackerEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaReminderTrackerRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,7 @@ public class LeaseExpiryReminderService {
     private static final int HANDOVER_WINDOW_DAYS = 14;
 
     JpaReminderTrackerRepository reminderTrackerRepository;
+    JpaLeaseContractRepository leaseContractRepository;
     JpaManagerTaskRepository managerTaskRepository;
     JpaUserRepository userRepository;
     BusinessNotificationPublisher notificationPublisher;
@@ -62,6 +64,7 @@ public class LeaseExpiryReminderService {
         if (contract == null || contract.getId() == null || contract.getEndDate() == null) {
             return;
         }
+        contract = loadReminderContract(contract);
         if (hasActivatedRenewal) {
             completeLeaseExpiryIntention(contract.getId());
             return;
@@ -87,6 +90,7 @@ public class LeaseExpiryReminderService {
         if (contract == null || contract.getId() == null) {
             return;
         }
+        contract = loadReminderContract(contract);
         completeLeaseExpiryIntention(contract.getId());
         String intention = normalize(contract.getTenantIntention());
         if ("RENEW".equals(intention)) {
@@ -156,7 +160,7 @@ public class LeaseExpiryReminderService {
             TaskCreation taskCreation = ensureManagerTask(
                     MANAGER_VISIT_TASK,
                     "Cần gặp trực tiếp khách về hợp đồng sắp hết hạn",
-                    "Khách chưa phản hồi sau 3 lần nhắc về ý định hợp đồng. Cần gặp trực tiếp để chốt tái ký, chuyển phòng hoặc chuyển đi.",
+                    "Khách chưa phản hồi sau 3 lần nhắc về ý định hợp đồng. Cần gặp trực tiếp để chốt gia hạn, chuyển phòng hoặc chuyển đi.",
                     contract,
                     today.plusDays(1)
             );
@@ -178,8 +182,8 @@ public class LeaseExpiryReminderService {
     private void ensureRenewalTermsTask(LeaseContractEntity contract, LocalDate today) {
         TaskCreation taskCreation = ensureManagerTask(
                 RENEWAL_TERMS_TASK,
-                "Chốt điều khoản tái ký hợp đồng",
-                "Khách đã chọn ký hợp đồng mới. Cần chốt giá, thời hạn, tiền cọc và lịch ký.",
+                "Chốt điều khoản gia hạn hợp đồng",
+                "Khách đã chọn gia hạn hợp đồng. Cần chốt giá, thời hạn, tiền cọc và lịch ký.",
                 contract,
                 today.plusDays(7)
         );
@@ -188,7 +192,7 @@ public class LeaseExpiryReminderService {
                     "LEASE_RENEWAL_TERMS_CONFIRMATION_DUE",
                     taskCreation.task(),
                     contract,
-                    "Khách đã chọn tái ký hợp đồng.",
+                    "Khách đã chọn gia hạn hợp đồng.",
                     today
             );
         }
@@ -341,6 +345,10 @@ public class LeaseExpiryReminderService {
         return !today.isBefore(tracker.getNextDueAt().toLocalDate());
     }
 
+    private LeaseContractEntity loadReminderContract(LeaseContractEntity contract) {
+        return leaseContractRepository.findByIdForLeaseExpiryReminder(contract.getId()).orElse(contract);
+    }
+
     private void completeLeaseExpiryIntention(Long contractId) {
         reminderTrackerRepository.completeActiveTrackers(
                 LEASE_EXPIRY_INTENTION,
@@ -423,7 +431,7 @@ public class LeaseExpiryReminderService {
 
     private String intentionLabel(String intention) {
         return switch (intention) {
-            case "RENEW" -> "tái ký hợp đồng";
+            case "RENEW" -> "gia hạn hợp đồng";
             case "TRANSFER" -> "chuyển phòng";
             case "MOVE_OUT" -> "chuyển đi";
             default -> intention;

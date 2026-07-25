@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
@@ -14,10 +17,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -243,7 +243,7 @@ class LeaseContractManagementServiceSignedFileTest {
             JpaFileMetadataRepository fileMetadataRepository,
             JpaLeaseContractRepository leaseContractRepository
     ) {
-        return new LeaseContractManagementService(
+        return  new LeaseContractManagementService(
                 jdbcTemplate,
                 uploadFileService,
                 mock(JpaRoomRepository.class),
@@ -251,8 +251,12 @@ class LeaseContractManagementServiceSignedFileTest {
                 leaseContractRepository,
                 mock(JpaDepositAgreementRepository.class),
                 mock(JpaContractLiquidationRepository.class),
+                mock(JpaContractHandoverRecordRepository.class),
+                mock(JpaInvoiceRepository.class),
+                mock(JpaInvoiceLineRepository.class),
                 mock(RoomCommitmentChecker.class),
-                mock(LeaseExpiryReminderService.class)
+                mock(LeaseExpiryReminderService.class),
+                mock(ExpenseRequestService.class)
         );
     }
 

@@ -37,6 +37,17 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
             LEFT JOIN FETCH contract.primaryTenantProfile primaryTenantProfile
             LEFT JOIN FETCH primaryTenantProfile.user
             WHERE contract.deletedAt IS NULL
+              AND contract.id = :contractId
+            """)
+    Optional<LeaseContractEntity> findByIdForLeaseExpiryReminder(@Param("contractId") Long contractId);
+
+    @Query("""
+            SELECT DISTINCT contract FROM LeaseContractEntity contract
+            JOIN FETCH contract.room room
+            JOIN FETCH room.property
+            LEFT JOIN FETCH contract.primaryTenantProfile primaryTenantProfile
+            LEFT JOIN FETCH primaryTenantProfile.user
+            WHERE contract.deletedAt IS NULL
               AND contract.status IN :statuses
             """)
     List<LeaseContractEntity> findLifecycleCandidates(@Param("statuses") List<LeaseStatus> statuses);

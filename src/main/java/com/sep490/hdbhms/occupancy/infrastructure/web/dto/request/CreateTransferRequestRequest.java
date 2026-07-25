@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
-import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
@@ -13,10 +12,8 @@ public record CreateTransferRequestRequest(
         @NotNull(message = "Target room ID is required")
         Long targetRoomId,
 
-        @FutureOrPresent(message = "Expected transfer date must be today or later")
         LocalDate requestedTransferDate,
 
-        @FutureOrPresent(message = "Expected transfer date must be today or later")
         @NotNull(message = "Expected transfer date is required")
         LocalDate expectedTransferDate,
 

@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.BillingInvoiceLineResponse;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder(toBuilder = true)
@@ -88,9 +90,24 @@ public class LeaseContractManagementResponse {
     String liquidationDepositDeductionReason;
     Long liquidationDepositRefundAmount;
     Long liquidationFinalInvoiceId;
+    String liquidationFinalInvoiceCode;
+    String liquidationFinalInvoiceStatus;
+    Long liquidationFinalInvoiceSubtotalAmount;
+    Long liquidationFinalInvoiceDiscountAmount;
+    Long liquidationFinalInvoiceTotalAmount;
+    Long liquidationFinalInvoiceRemainingAmount;
+    List<BillingInvoiceLineResponse> liquidationFinalInvoiceLines;
     Long liquidationSignedFileId;
     LiquidationStatus liquidationStatus;
     LocalDateTime liquidationCreatedAt;
+    Long liquidationDepositRefundRequestId;
+    Long liquidationDepositRefundExpenseId;
+    Long liquidationDepositRefundExpenseRequestId;
+    String liquidationDepositRefundStatus;
+    Long liquidationDepositRefundProofFileId;
+    Long liquidationDepositRefundedAmount;
+    String liquidationDepositRefundedAt;
+    String liquidationDepositRefundTransactionRef;
 
     Boolean accountProvisioned;
     Boolean emailAvailable;

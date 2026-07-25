@@ -220,6 +220,9 @@ public class LeaseContractQueryService {
                             ) AS renewed_contract_code,
                             lc.contract_file_id,
                             fm.original_name AS contract_file_name,
+                            lc.signed_file_id,
+                            sfm.original_name AS signed_file_name,
+                            sfm.created_at AS signed_file_uploaded_at,
                             r.room_id AS room_id,
                             r.room_code,
                             r.name AS room_name,
@@ -273,6 +276,7 @@ public class LeaseContractQueryService {
                         LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
                         LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                         LEFT JOIN room_transfer_requests tr
                           ON tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id
                         WHERE lc.deleted_at IS NULL
@@ -492,6 +496,9 @@ public class LeaseContractQueryService {
                             ) AS renewed_contract_code,
                             lc.contract_file_id,
                             fm.original_name AS contract_file_name,
+                            lc.signed_file_id,
+                            sfm.original_name AS signed_file_name,
+                            sfm.created_at AS signed_file_uploaded_at,
                             r.room_id AS room_id,
                             r.room_code,
                             r.name AS room_name,
@@ -545,6 +552,7 @@ public class LeaseContractQueryService {
                         LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
                         LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
+                        LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                         LEFT JOIN room_transfer_requests tr
                           ON tr.new_contract_id = lc.lease_contract_id OR tr.replacement_old_contract_id = lc.lease_contract_id
                         WHERE lc.deleted_at IS NULL
@@ -741,6 +749,7 @@ public class LeaseContractQueryService {
             List<LeaseContractQueryDetailsResponse.EventInfo> events
     ) throws SQLException {
         Long fileId = getLongOrNull(rs, "contract_file_id");
+        Long signedFileId = getLongOrNull(rs, "signed_file_id");
         LeaseStatus status = LeaseStatus.valueOf(rs.getString("status"));
         Long renewedContractId = getLongOrNull(rs, "renewed_contract_id");
         AccountProvisioningSummary accountProvisioning =
@@ -795,6 +804,9 @@ public class LeaseContractQueryService {
                 accountProvisioning.canSend(),
                 accountProvisioning.status(),
                 fileId != null ? new LeaseContractQueryDetailsResponse.ContractFileInfo(fileId, rs.getString("contract_file_name")) : null,
+                signedFileId,
+                rs.getString("signed_file_name"),
+                toLocalDateTime(rs, "signed_file_uploaded_at"),
                 new LeaseContractQueryDetailsResponse.TenantProfileInfo(
                         rs.getLong("primary_tenant_profile_id"),
                         rs.getString("primary_full_name"),
@@ -851,6 +863,9 @@ public class LeaseContractQueryService {
                 accountProvisioning.canSend(),
                 accountProvisioning.status(),
                 details.contractFile(),
+                details.signedFileId(),
+                details.signedFileName(),
+                details.signedFileUploadedAt(),
                 details.primaryTenant(),
                 occupants,
                 events

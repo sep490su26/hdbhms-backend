@@ -185,7 +185,7 @@ public class ChangeRequestNotificationService {
             return "Yêu cầu";
         }
         return switch (request.getRequestType()) {
-            case CONTRACT_RENEWAL -> "Yêu cầu tái ký hợp đồng";
+            case CONTRACT_RENEWAL -> "Yêu cầu gia hạn hợp đồng";
             case CONTRACT_LIQUIDATION -> "Yêu cầu thanh lý hợp đồng";
             case ADD_CO_OCCUPANT -> "Yêu cầu thêm người ở cùng";
             case METER_READING_CORRECTION -> "Khiếu nại chỉ số điện nước";

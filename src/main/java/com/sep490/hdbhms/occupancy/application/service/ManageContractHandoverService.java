@@ -1,19 +1,31 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
+import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
+import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverItemEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomAssetEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverItemRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterRepository;
@@ -32,10 +44,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,9 +66,13 @@ public class ManageContractHandoverService {
     JpaMeterReadingRepository meterReadingRepository;
     JpaMeterRepository meterRepository;
     JpaContractHandoverRecordRepository handoverRecordRepository;
+    JpaContractHandoverItemRepository handoverItemRepository;
     JpaUserRepository userRepository;
     JpaFileMetadataRepository fileMetadataRepository;
     JpaRoomAssetRepository roomAssetRepository;
+    JpaInvoiceRepository invoiceRepository;
+    JpaInvoiceLineRepository invoiceLineRepository;
+    JdbcTemplate jdbcTemplate;
 
     @Transactional
     public HandoverMeterReadingsResponse createHandoverReadings(Long contractId, HandoverMeterReadingsRequest request, HandoverType handoverType) {
@@ -183,6 +203,12 @@ public class ManageContractHandoverService {
 
         Long roomId = contract.getRoom().getId();
         HandoverType handoverType = request.getHandoverType();
+        if (handoverType == HandoverType.MOVE_OUT) {
+            requireNoUnpaidLeaseInvoices(
+                    contractId,
+                    "Khach thue can thanh toan het hoa don con no truoc khi ban giao tra phong."
+            );
+        }
 
         // ── 1. Handover record (create or update existing DRAFT) ─────────────
         ContractHandoverRecordEntity record = handoverRecordRepository
@@ -222,6 +248,7 @@ public class ManageContractHandoverService {
 
         // ── 3. Room assets (upsert) ──────────────────────────────────────────
         List<SubmitHandoverResponse.AssetResult> assetResults = new ArrayList<>();
+        List<ContractHandoverItemEntity> damageItems = new ArrayList<>();
         if (request.getAssets() != null) {
             for (SubmitHandoverRequest.AssetInput input : request.getAssets()) {
                 boolean isNew = (input.getId() == null);
@@ -250,6 +277,9 @@ public class ManageContractHandoverService {
                 // If updating and no new fileImageId → keep existing image
 
                 entity = roomAssetRepository.save(entity);
+                if (handoverType == HandoverType.MOVE_OUT && isDamageItem(input)) {
+                    damageItems.add(toDamageItem(record, entity, input));
+                }
                 assetResults.add(SubmitHandoverResponse.AssetResult.builder()
                         .id(entity.getId())
                         .assetName(entity.getAssetName())
@@ -258,6 +288,7 @@ public class ManageContractHandoverService {
             }
         }
         softDeleteAssets(roomId, request.getDeletedAssetIds());
+        InvoiceEntity compensationInvoice = createMoveOutCompensationInvoiceIfNeeded(contract, record, damageItems);
 
         return SubmitHandoverResponse.builder()
                 .handoverRecordId(record.getId())
@@ -267,7 +298,152 @@ public class ManageContractHandoverService {
                 .electricityReadingId(electricReading.getId())
                 .waterReadingId(waterReading.getId())
                 .assets(assetResults)
+                .compensationInvoiceId(compensationInvoice == null ? null : compensationInvoice.getId())
+                .compensationAmount(compensationInvoice == null ? 0L : compensationInvoice.getTotalAmount())
                 .build();
+    }
+
+    private boolean isDamageItem(SubmitHandoverRequest.AssetInput input) {
+        if (input == null) {
+            return false;
+        }
+        long compensationAmount = input.getCompensationAmount() == null ? 0L : input.getCompensationAmount();
+        return compensationAmount > 0
+                || input.getCurrentCondition() == AssetCondition.BROKEN
+                || input.getCurrentCondition() == AssetCondition.MISSING
+                || hasText(input.getDamageNote());
+    }
+
+    private ContractHandoverItemEntity toDamageItem(
+            ContractHandoverRecordEntity record,
+            RoomAssetEntity roomAsset,
+            SubmitHandoverRequest.AssetInput input
+    ) {
+        Long evidenceFileId = input.getEvidenceFileId();
+        return ContractHandoverItemEntity.builder()
+                .handoverRecord(record)
+                .roomAsset(roomAsset)
+                .assetName(input.getAssetName().trim())
+                .quantity(input.getQuantity() == null ? 1 : input.getQuantity())
+                .conditionStatus(input.getCurrentCondition() == null ? AssetCondition.GOOD : input.getCurrentCondition())
+                .note(firstText(input.getDamageNote(), input.getDescription()))
+                .evidenceFile(evidenceFileId == null ? null : fileMetadataRepository.getReferenceById(evidenceFileId))
+                .compensationAmount(Math.max(0L, input.getCompensationAmount() == null ? 0L : input.getCompensationAmount()))
+                .build();
+    }
+
+    private InvoiceEntity createMoveOutCompensationInvoiceIfNeeded(
+            LeaseContractEntity contract,
+            ContractHandoverRecordEntity record,
+            List<ContractHandoverItemEntity> damageItems
+    ) {
+        if (damageItems.isEmpty()) {
+            return null;
+        }
+        damageItems = handoverItemRepository.saveAll(damageItems);
+
+        long totalAmount = damageItems.stream()
+                .mapToLong(item -> item.getCompensationAmount() == null ? 0L : item.getCompensationAmount())
+                .sum();
+        if (totalAmount <= 0) {
+            return null;
+        }
+
+        LocalDate handoverDate = record.getHandoverDate() == null
+                ? LocalDate.now()
+                : record.getHandoverDate().toLocalDate();
+        String billingPeriod = YearMonth.from(handoverDate).toString();
+        LocalDateTime now = LocalDateTime.now();
+        Long currentUserId = AuthUtils.getCurrentAuthenticationId();
+
+        InvoiceEntity invoice = invoiceRepository.save(InvoiceEntity.builder()
+                .invoiceCode("INV-HO-COMP-" + record.getId() + "-" + now.toString().replace(":", "").replace("-", "").replace("T", "").replace(".", ""))
+                .property(contract.getRoom().getProperty())
+                .room(contract.getRoom())
+                .leastContract(contract)
+                .invoiceType(InvoiceType.COMPENSATION)
+                .invoiceReason(InvoiceReason.ROOM_CLOSE)
+                .revisionNo(nextInvoiceRevision(contract.getId(), billingPeriod, InvoiceType.COMPENSATION))
+                .billingPeriod(billingPeriod)
+                .issueDate(now)
+                .dueDate(now.plusDays(7))
+                .status(InvoiceStatus.ISSUED)
+                .subtotalAmount(totalAmount)
+                .discountAmount(0L)
+                .totalAmount(totalAmount)
+                .paidAmount(0L)
+                .remainingAmount(totalAmount)
+                .createdBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId))
+                .issuedAt(now)
+                .build());
+
+        for (ContractHandoverItemEntity item : damageItems) {
+            long amount = item.getCompensationAmount() == null ? 0L : item.getCompensationAmount();
+            if (amount <= 0) {
+                continue;
+            }
+            invoiceLineRepository.save(InvoiceLineEntity.builder()
+                    .invoice(invoice)
+                    .lineType(InvoiceLineType.MAINTENANCE_COMPENSATION)
+                    .description(buildDamageDescription(item))
+                    .quantity(1)
+                    .unitPrice(amount)
+                    .sourceType("CONTRACT_HANDOVER_DAMAGE")
+                    .sourceId(item.getId())
+                    .build());
+            item.setCompensationInvoice(invoice);
+        }
+        handoverItemRepository.saveAll(damageItems);
+        return invoiceRepository.save(invoice);
+    }
+
+    private int nextInvoiceRevision(Long contractId, String billingPeriod, InvoiceType invoiceType) {
+        Integer maxRevision = jdbcTemplate.queryForObject("""
+                        SELECT COALESCE(MAX(revision_no), 0)
+                        FROM invoices
+                        WHERE lease_contract_id = ?
+                          AND billing_period = ?
+                          AND invoice_type = ?
+                        """,
+                Integer.class,
+                contractId,
+                billingPeriod,
+                invoiceType.name()
+        );
+        return (maxRevision == null ? 0 : maxRevision) + 1;
+    }
+
+    private void requireNoUnpaidLeaseInvoices(Long contractId, String message) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM invoices
+                        WHERE lease_contract_id = ?
+                          AND status NOT IN ('PAID', 'VOIDED')
+                          AND remaining_amount > 0
+                        """,
+                Integer.class,
+                contractId
+        );
+        if (count != null && count > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, message);
+        }
+    }
+
+    private String buildDamageDescription(ContractHandoverItemEntity item) {
+        String suffix = hasText(item.getNote()) ? ": " + item.getNote().trim() : "";
+        String description = "Boi thuong thiet hai khi ban giao tra phong - " + item.getAssetName() + suffix;
+        return description.length() <= 1000 ? description : description.substring(0, 1000);
+    }
+
+    private String firstText(String first, String second) {
+        if (hasText(first)) {
+            return first.trim();
+        }
+        return hasText(second) ? second.trim() : null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     void softDeleteAssets(Long roomId, List<Long> assetIds) {
@@ -299,6 +475,10 @@ public class ManageContractHandoverService {
     }
 
     private ContractHandoverDetailsResponse toHandoverDetails(ContractHandoverRecordEntity record) {
+        List<ContractHandoverDetailsResponse.HandoverItemDetails> items =
+                handoverItemRepository.findWithEvidenceFileByHandoverRecordId(record.getId()).stream()
+                        .map(this::mapHandoverItem)
+                        .toList();
         return ContractHandoverDetailsResponse.builder()
                 .handoverRecordId(record.getId())
                 .handoverType(record.getHandoverType())
@@ -309,6 +489,22 @@ public class ManageContractHandoverService {
                 .signedDocumentUrl(record.getSignedDocument() != null ? "/api/v1/files/" + record.getSignedDocument().getId() : null)
                 .electricity(mapReading(record.getElectricityReading()))
                 .water(mapReading(record.getWaterReading()))
+                .items(items)
+                .build();
+    }
+
+    private ContractHandoverDetailsResponse.HandoverItemDetails mapHandoverItem(ContractHandoverItemEntity item) {
+        FileMetadataEntity evidenceFile = item.getEvidenceFile();
+        return ContractHandoverDetailsResponse.HandoverItemDetails.builder()
+                .id(item.getId())
+                .assetName(item.getAssetName())
+                .quantity(item.getQuantity())
+                .conditionStatus(item.getConditionStatus())
+                .note(item.getNote())
+                .evidenceFileId(evidenceFile != null ? evidenceFile.getId() : null)
+                .evidenceFileUrl(evidenceFile == null ? null : "/api/v1/files/" + evidenceFile.getId())
+                .compensationAmount(item.getCompensationAmount())
+                .compensationInvoiceId(item.getCompensationInvoice() == null ? null : item.getCompensationInvoice().getId())
                 .build();
     }
 

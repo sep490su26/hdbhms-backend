@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.accounting.application.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.accounting.domain.value_objects.ExpenseAttachmentType;
 import com.sep490.hdbhms.accounting.domain.value_objects.ExpensePaymentMethod;
@@ -61,11 +62,19 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ExpenseRequestService {
+    private static final String SOURCE_REQUEST_TYPE_CONTRACT_LIQUIDATION = "CONTRACT_LIQUIDATION";
+    private static final List<RequestStatus> LIQUIDATION_REQUEST_STATUSES = List.of(
+            RequestStatus.PENDING,
+            RequestStatus.PROCESSING,
+            RequestStatus.APPROVED,
+            RequestStatus.COMPLETED
+    );
 
     JpaOperatingExpenseRepository operatingExpenseRepository;
     JpaExpenseApprovalRequestRepository approvalRequestRepository;
@@ -194,6 +203,7 @@ public class ExpenseRequestService {
         recordChangeEvent(changeRequest, RequestStatus.PENDING, RequestStatus.APPROVED,
                 "Owner duyệt yêu cầu chi, chờ thanh toán", ownerId);
         notifyRequester(expense, changeRequest, "EXPENSE_APPROVED");
+        syncLinkedLiquidationRefund(expense, changeRequest);
         return toResponse(expense);
     }
 
@@ -219,6 +229,7 @@ public class ExpenseRequestService {
         changeRequestRepository.save(changeRequest);
         recordChangeEvent(changeRequest, RequestStatus.PENDING, RequestStatus.REJECTED, reason, ownerId);
         notifyRequester(expense, changeRequest, "EXPENSE_REJECTED");
+        syncLinkedLiquidationRefund(expense, changeRequest);
         return toResponse(expense);
     }
 
@@ -243,8 +254,126 @@ public class ExpenseRequestService {
         return toResponse(expense);
     }
 
+    @Transactional(readOnly = true)
+    public LiquidationDepositRefundLink getLiquidationDepositRefundLink(Long contractId) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        if (sourceRequest == null) {
+            return LiquidationDepositRefundLink.empty();
+        }
+        return toLiquidationDepositRefundLink(sourceRequest, payloadMap(sourceRequest.getRequestPayload()));
+    }
+
     @Transactional
-    public ExpenseRequestResponse markPaid(Long id, MarkExpensePaidRequest request, Long ownerId) {
+    public LiquidationDepositRefundLink ensureLiquidationDepositRefundRequest(
+            Long contractId,
+            String contractCode,
+            Long propertyId,
+            Long roomId,
+            String roomCode,
+            Long amount,
+            LocalDate liquidationDate,
+            Long currentUserId
+    ) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        if (sourceRequest == null) {
+            return LiquidationDepositRefundLink.empty();
+        }
+
+        Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
+        long refundAmount = safeAmount(amount);
+        if (refundAmount <= 0) {
+            markRefundNotRequired(sourceRequest, sourcePayload);
+            return toLiquidationDepositRefundLink(sourceRequest, sourcePayload);
+        }
+
+        Long existingExpenseId = toLong(sourcePayload.get("depositRefundExpenseId"));
+        OperatingExpenseEntity existingExpense = existingExpenseId == null
+                ? null
+                : operatingExpenseRepository.findById(existingExpenseId).orElse(null);
+        if (existingExpense != null) {
+            updateLinkedRefundExpense(existingExpense, refundAmount);
+            ExpenseApprovalRequestEntity approval = approvalRequestRepository
+                    .findByOperatingExpense_Id(existingExpense.getId())
+                    .orElse(null);
+            syncLiquidationRefundPayload(sourceRequest, existingExpense, approval, null, null, null);
+            return toLiquidationDepositRefundLink(sourceRequest, payloadMap(sourceRequest.getRequestPayload()));
+        }
+
+        UserEntity requester = requireUser(currentUserId);
+        PropertyEntity property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy cơ sở."));
+        RoomEntity room = resolveRoom(roomId, property.getId());
+        String reason = "Hoàn cọc thanh lý hợp đồng " + defaultText(contractCode, "#" + contractId);
+        String roomLabel = roomCode == null || roomCode.isBlank() ? "" : " phòng " + roomCode;
+
+        OperatingExpenseEntity expense = operatingExpenseRepository.save(OperatingExpenseEntity.builder()
+                .property(property)
+                .room(room)
+                .expenseCode("EXP-" + snowflakeIdGenerator.next())
+                .expenseType(ExpenseType.OTHER)
+                .description(reason + roomLabel)
+                .amount(refundAmount)
+                .expenseDate(liquidationDate == null ? LocalDate.now() : liquidationDate)
+                .status(ExpenseStatus.PENDING_APPROVAL)
+                .createdBy(requester)
+                .build());
+
+        ChangeRequestEntity expenseChangeRequest = changeRequestRepository.save(ChangeRequestEntity.builder()
+                .requestCode("CR-" + snowflakeIdGenerator.next())
+                .requestType(RequestType.EXPENSE_APPROVAL)
+                .requester(requester)
+                .requesterRole(toRequesterRole(requester.getRole()))
+                .targetType(TargetType.OPERATING_EXPENSE)
+                .targetId(expense.getId())
+                .title("Yêu cầu duyệt hoàn cọc " + defaultText(contractCode, "#" + contractId))
+                .description(reason + roomLabel)
+                .requestPayload(toJson(payload(
+                        "operatingExpenseId", expense.getId(),
+                        "expenseCode", expense.getExpenseCode(),
+                        "amount", expense.getAmount(),
+                        "propertyId", property.getId(),
+                        "roomId", room == null ? null : room.getId(),
+                        "roomCode", roomCode,
+                        "sourceRequestType", SOURCE_REQUEST_TYPE_CONTRACT_LIQUIDATION,
+                        "liquidationChangeRequestId", sourceRequest.getId(),
+                        "contractId", contractId,
+                        "contractCode", contractCode,
+                        "depositRefundAmount", refundAmount,
+                        "liquidationDate", liquidationDate
+                )))
+                .assignedRole(AssignedRole.OWNER)
+                .status(RequestStatus.PENDING)
+                .build());
+
+        ExpenseApprovalRequestEntity approval = approvalRequestRepository.save(ExpenseApprovalRequestEntity.builder()
+                .operatingExpense(expense)
+                .changeRequest(expenseChangeRequest)
+                .reason(reason + roomLabel)
+                .expectedPaymentDate(liquidationDate)
+                .build());
+        recordChangeEvent(expenseChangeRequest, null, RequestStatus.PENDING, "Tạo yêu cầu duyệt hoàn cọc", currentUserId);
+        notifyOwners(expense, expenseChangeRequest);
+        syncLiquidationRefundPayload(sourceRequest, expense, approval, null, null, null);
+        return toLiquidationDepositRefundLink(sourceRequest, payloadMap(sourceRequest.getRequestPayload()));
+    }
+
+    @Transactional
+    public void completeLiquidationRequest(Long contractId) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        if (sourceRequest == null || sourceRequest.getStatus() == RequestStatus.COMPLETED) {
+            return;
+        }
+        Map<String, Object> payload = payloadMap(sourceRequest.getRequestPayload());
+        payload.put("liquidationStage", "CONFIRMED");
+        markChecklist(payload, "canConfirm", true);
+        sourceRequest.setStatus(RequestStatus.COMPLETED);
+        sourceRequest.setResolvedAt(LocalDateTime.now());
+        sourceRequest.setRequestPayload(toJson(payload));
+        changeRequestRepository.save(sourceRequest);
+    }
+
+    @Transactional
+    public ExpenseRequestResponse markPaid(Long id, MarkExpensePaidRequest request, Long currentUserId, Role currentRole) {
         OperatingExpenseEntity expense = requireExpense(id);
         ExpenseApprovalRequestEntity approval = requireApproval(expense.getId());
         if (approval.getChangeRequest().getStatus() != RequestStatus.APPROVED
@@ -255,7 +384,12 @@ public class ExpenseRequestService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Yêu cầu chi này đã được ghi nhận thanh toán.");
         }
 
-        UserEntity owner = requireUser(ownerId);
+        if (currentRole != Role.OWNER
+                && !(currentRole == Role.MANAGER && isLinkedLiquidationRefund(approval.getChangeRequest()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền ghi nhận thanh toán khoản chi này.");
+        }
+
+        UserEntity owner = requireUser(currentUserId);
         FileMetadataEntity receipt = resolveFile(request == null ? null : request.receiptFileId());
         LocalDateTime now = LocalDateTime.now();
         paymentRepository.save(ExpensePaymentEntity.builder()
@@ -275,8 +409,266 @@ public class ExpenseRequestService {
         expense.setPaidByUser(owner);
         expense.setReceiptFile(receipt);
         operatingExpenseRepository.save(expense);
-        notifyRequester(expense, approval.getChangeRequest(), "EXPENSE_PAID");
+        ChangeRequestEntity expenseChangeRequest = approval.getChangeRequest();
+        expenseChangeRequest.setStatus(RequestStatus.COMPLETED);
+        expenseChangeRequest.setResolvedBy(owner);
+        expenseChangeRequest.setResolvedAt(now);
+        changeRequestRepository.save(expenseChangeRequest);
+        notifyRequester(expense, expenseChangeRequest, "EXPENSE_PAID");
+        syncLiquidationDepositRefundRecorded(expense, expenseChangeRequest, request, receipt, owner, now);
         return toResponse(expense);
+    }
+
+    private Optional<ChangeRequestEntity> findLatestLiquidationRequest(Long contractId) {
+        if (contractId == null) {
+            return Optional.empty();
+        }
+        return changeRequestRepository.findFirstByRequestTypeAndTargetTypeAndTargetIdAndStatusInOrderByCreatedAtDesc(
+                RequestType.CONTRACT_LIQUIDATION,
+                TargetType.CONTRACT,
+                contractId,
+                LIQUIDATION_REQUEST_STATUSES
+        );
+    }
+
+    private void updateLinkedRefundExpense(OperatingExpenseEntity expense, long refundAmount) {
+        if (expense.getStatus() == ExpenseStatus.PAID && !Objects.equals(expense.getAmount(), refundAmount)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Khoản hoàn cọc đã ghi nhận thanh toán, không thể đổi số tiền hoàn."
+            );
+        }
+        if (expense.getStatus() == ExpenseStatus.CANCELLED || expense.getStatus() == ExpenseStatus.REJECTED) {
+            return;
+        }
+        if (!Objects.equals(expense.getAmount(), refundAmount)) {
+            expense.setAmount(refundAmount);
+            ExpenseApprovalRequestEntity approval = approvalRequestRepository
+                    .findByOperatingExpense_Id(expense.getId())
+                    .orElse(null);
+            if (approval != null && expense.getStatus() == ExpenseStatus.READY_FOR_PAYMENT) {
+                expense.setStatus(ExpenseStatus.PENDING_APPROVAL);
+                approval.getChangeRequest().setStatus(RequestStatus.PENDING);
+                approval.getChangeRequest().setResolvedBy(null);
+                approval.getChangeRequest().setResolvedAt(null);
+                changeRequestRepository.save(approval.getChangeRequest());
+            }
+            operatingExpenseRepository.save(expense);
+        }
+    }
+
+    private void markRefundNotRequired(ChangeRequestEntity sourceRequest, Map<String, Object> payload) {
+        Long existingExpenseId = toLong(payload.get("depositRefundExpenseId"));
+        if (existingExpenseId != null) {
+            OperatingExpenseEntity expense = operatingExpenseRepository.findById(existingExpenseId).orElse(null);
+            if (expense != null && expense.getStatus() == ExpenseStatus.PAID) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Khoản hoàn cọc đã ghi nhận thanh toán, không thể chuyển sang không hoàn cọc."
+                );
+            }
+            if (expense != null) {
+                expense.setStatus(ExpenseStatus.CANCELLED);
+                operatingExpenseRepository.save(expense);
+                approvalRequestRepository.findByOperatingExpense_Id(expense.getId())
+                        .map(ExpenseApprovalRequestEntity::getChangeRequest)
+                        .ifPresent(request -> {
+                            request.setStatus(RequestStatus.CANCELLED);
+                            changeRequestRepository.save(request);
+                        });
+            }
+        }
+        payload.put("depositRefundStatus", "NOT_REQUIRED");
+        payload.put("depositRefundAmount", 0L);
+        payload.put("depositRefundedAmount", 0L);
+        markChecklist(payload, "depositRefundConfirmed", true);
+        sourceRequest.setRequestPayload(toJson(payload));
+        changeRequestRepository.save(sourceRequest);
+    }
+
+    private void syncLiquidationRefundPayload(
+            ChangeRequestEntity sourceRequest,
+            OperatingExpenseEntity expense,
+            ExpenseApprovalRequestEntity approval,
+            MarkExpensePaidRequest paymentRequest,
+            FileMetadataEntity receipt,
+            LocalDateTime paidAt
+    ) {
+        if (sourceRequest == null || expense == null) {
+            return;
+        }
+        Map<String, Object> payload = payloadMap(sourceRequest.getRequestPayload());
+        String currentStatus = Objects.toString(payload.get("depositRefundStatus"), "");
+        String nextStatus = liquidationRefundStatus(expense.getStatus(), approval, currentStatus);
+        payload.put("depositRefundStatus", nextStatus);
+        payload.put("depositRefundAmount", expense.getAmount());
+        payload.put("depositRefundExpenseId", expense.getId());
+        payload.put("depositRefundExpenseStatus", expense.getStatus() == null ? null : expense.getStatus().name());
+        if (approval != null && approval.getChangeRequest() != null) {
+            payload.put("depositRefundExpenseRequestId", approval.getChangeRequest().getId());
+            payload.put("depositRefundExpenseRequestCode", approval.getChangeRequest().getRequestCode());
+            payload.put("depositRefundApprovalStatus", approval.getChangeRequest().getStatus() == null
+                    ? null
+                    : approval.getChangeRequest().getStatus().name());
+        }
+        if (paidAt != null) {
+            payload.put("depositRefundedAmount", expense.getAmount());
+            payload.put("depositRefundProofFileId", receipt == null ? null : receipt.getId());
+            payload.put("depositRefundedBy", expense.getPaidByUser() == null ? null : expense.getPaidByUser().getId());
+            payload.put("depositRefundedAt", paidAt.toString());
+            payload.put("depositRefundMethod", paymentRequest == null || paymentRequest.paymentMethod() == null
+                    ? ExpensePaymentMethod.CASH.name()
+                    : paymentRequest.paymentMethod().name());
+            payload.put("depositRefundTransactionRef", blankToNull(paymentRequest == null ? null : paymentRequest.paymentReference()));
+            payload.put("depositRefundNote", blankToNull(paymentRequest == null ? null : paymentRequest.note()));
+        }
+        if (!"TENANT_CONFIRMED".equals(nextStatus)) {
+            markChecklist(payload, "depositRefundConfirmed", false);
+        }
+        payload.put("liquidationStage", "WAITING_DEPOSIT_REFUND");
+        sourceRequest.setRequestPayload(toJson(payload));
+        changeRequestRepository.save(sourceRequest);
+    }
+
+    private void syncLinkedLiquidationRefund(
+            OperatingExpenseEntity expense,
+            ChangeRequestEntity expenseChangeRequest
+    ) {
+        if (!isLinkedLiquidationRefund(expenseChangeRequest)) {
+            return;
+        }
+        Map<String, Object> expensePayload = payloadMap(expenseChangeRequest.getRequestPayload());
+        Long sourceRequestId = toLong(expensePayload.get("liquidationChangeRequestId"));
+        if (sourceRequestId == null) {
+            return;
+        }
+        changeRequestRepository.findById(sourceRequestId).ifPresent(sourceRequest ->
+                syncLiquidationRefundPayload(
+                        sourceRequest,
+                        expense,
+                        approvalRequestRepository.findByOperatingExpense_Id(expense.getId()).orElse(null),
+                        null,
+                        null,
+                        null
+                )
+        );
+    }
+
+    private void syncLiquidationDepositRefundRecorded(
+            OperatingExpenseEntity expense,
+            ChangeRequestEntity expenseChangeRequest,
+            MarkExpensePaidRequest paymentRequest,
+            FileMetadataEntity receipt,
+            UserEntity paidBy,
+            LocalDateTime paidAt
+    ) {
+        if (!isLinkedLiquidationRefund(expenseChangeRequest)) {
+            return;
+        }
+        Map<String, Object> expensePayload = payloadMap(expenseChangeRequest.getRequestPayload());
+        Long sourceRequestId = toLong(expensePayload.get("liquidationChangeRequestId"));
+        if (sourceRequestId == null) {
+            return;
+        }
+        ChangeRequestEntity sourceRequest = changeRequestRepository.findById(sourceRequestId).orElse(null);
+        if (sourceRequest == null) {
+            return;
+        }
+        syncLiquidationRefundPayload(
+                sourceRequest,
+                expense,
+                approvalRequestRepository.findByOperatingExpense_Id(expense.getId()).orElse(null),
+                paymentRequest,
+                receipt,
+                paidAt
+        );
+        notifyTenantRefundRecorded(sourceRequest, expense, receipt, paidBy);
+    }
+
+    private void notifyTenantRefundRecorded(
+            ChangeRequestEntity sourceRequest,
+            OperatingExpenseEntity expense,
+            FileMetadataEntity receipt,
+            UserEntity paidBy
+    ) {
+        if (sourceRequest == null || sourceRequest.getRequester() == null) {
+            return;
+        }
+        Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
+        Map<String, Object> data = payload(
+                "requestId", sourceRequest.getId(),
+                "requestCode", sourceRequest.getRequestCode(),
+                "contractId", sourcePayload.get("contractId"),
+                "contractCode", sourcePayload.get("contractCode"),
+                "roomCode", sourcePayload.get("roomCode"),
+                "amount", expense.getAmount(),
+                "depositRefundAmount", expense.getAmount(),
+                "depositRefundProofFileId", receipt == null ? null : receipt.getId(),
+                "paidBy", paidBy == null ? null : paidBy.getId(),
+                "targetRoute", "/requests"
+        );
+        notificationPublisher.publish(
+                "LIQUIDATION_DEPOSIT_REFUND_RECORDED",
+                sourceRequest.getRequester().getId(),
+                "CHANGE_REQUEST",
+                sourceRequest.getId(),
+                data
+        );
+    }
+
+    private boolean isLinkedLiquidationRefund(ChangeRequestEntity changeRequest) {
+        if (changeRequest == null) {
+            return false;
+        }
+        Map<String, Object> payload = payloadMap(changeRequest.getRequestPayload());
+        return SOURCE_REQUEST_TYPE_CONTRACT_LIQUIDATION.equals(payload.get("sourceRequestType"))
+                && toLong(payload.get("liquidationChangeRequestId")) != null;
+    }
+
+    static String liquidationRefundStatus(
+            ExpenseStatus expenseStatus,
+            ExpenseApprovalRequestEntity approval,
+            String currentStatus
+    ) {
+        if ("TENANT_CONFIRMED".equals(currentStatus)) {
+            return "TENANT_CONFIRMED";
+        }
+        if (expenseStatus == ExpenseStatus.PAID) {
+            return "RECORDED_BY_MANAGER";
+        }
+        if (expenseStatus == ExpenseStatus.READY_FOR_PAYMENT) {
+            return "APPROVED_WAITING_REFUND";
+        }
+        if (expenseStatus == ExpenseStatus.REJECTED) {
+            return "OWNER_REJECTED";
+        }
+        if (expenseStatus == ExpenseStatus.CANCELLED) {
+            return "CANCELLED";
+        }
+        if (approval != null && approval.getChangeRequest() != null
+                && approval.getChangeRequest().getStatus() == RequestStatus.PENDING) {
+            return "WAITING_OWNER_APPROVAL";
+        }
+        return "PENDING";
+    }
+
+    private LiquidationDepositRefundLink toLiquidationDepositRefundLink(
+            ChangeRequestEntity sourceRequest,
+            Map<String, Object> payload
+    ) {
+        if (sourceRequest == null) {
+            return LiquidationDepositRefundLink.empty();
+        }
+        return new LiquidationDepositRefundLink(
+                sourceRequest.getId(),
+                toLong(payload.get("depositRefundExpenseId")),
+                toLong(payload.get("depositRefundExpenseRequestId")),
+                payload.get("depositRefundStatus") == null ? null : payload.get("depositRefundStatus").toString(),
+                toLong(payload.get("depositRefundProofFileId")),
+                toLong(payload.get("depositRefundedAmount")),
+                payload.get("depositRefundedAt") == null ? null : payload.get("depositRefundedAt").toString(),
+                payload.get("depositRefundTransactionRef") == null ? null : payload.get("depositRefundTransactionRef").toString()
+        );
     }
 
     private OperatingExpenseEntity updateExpenseStatus(
@@ -538,6 +930,33 @@ public class ExpenseRequestService {
         return value;
     }
 
+    private Map<String, Object> payloadMap(String payloadJson) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        if (payloadJson == null || payloadJson.isBlank()) {
+            return data;
+        }
+        try {
+            data.putAll(objectMapper.readValue(
+                    payloadJson,
+                    new TypeReference<Map<String, Object>>() {
+                    }
+            ));
+        } catch (Exception e) {
+            throw new IllegalStateException("Invalid change request payload.", e);
+        }
+        return data;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void markChecklist(Map<String, Object> payload, String key, boolean value) {
+        Object rawChecklist = payload.get("liquidationChecklist");
+        Map<String, Object> checklist = rawChecklist instanceof Map<?, ?> raw
+                ? new LinkedHashMap<>((Map<String, Object>) raw)
+                : new LinkedHashMap<>();
+        checklist.put(key, value);
+        payload.put("liquidationChecklist", checklist);
+    }
+
     private String toJson(Map<String, Object> value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -558,5 +977,38 @@ public class ExpenseRequestService {
 
     private String blankToNull(String value) {
         return value == null || value.trim().isBlank() ? null : value.trim();
+    }
+
+    private Long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private long safeAmount(Long amount) {
+        return amount == null ? 0L : Math.max(0L, amount);
+    }
+
+    public record LiquidationDepositRefundLink(
+            Long liquidationChangeRequestId,
+            Long expenseId,
+            Long expenseRequestId,
+            String status,
+            Long proofFileId,
+            Long refundedAmount,
+            String refundedAt,
+            String transactionRef
+    ) {
+        public static LiquidationDepositRefundLink empty() {
+            return new LiquidationDepositRefundLink(null, null, null, null, null, null, null, null);
+        }
     }
 }

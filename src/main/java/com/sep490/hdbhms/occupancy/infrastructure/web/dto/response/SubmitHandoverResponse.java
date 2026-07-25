@@ -23,6 +23,8 @@ public class SubmitHandoverResponse {
 
     Long electricityReadingId;
     Long waterReadingId;
+    Long compensationInvoiceId;
+    Long compensationAmount;
 
     List<AssetResult> assets;
 

@@ -44,6 +44,9 @@ public record LeaseContractQueryDetailsResponse(
         boolean canSendAccount,
         String accountProvisioningStatus,
         ContractFileInfo contractFile,
+        Long signedFileId,
+        String signedFileName,
+        LocalDateTime signedFileUploadedAt,
         TenantProfileInfo primaryTenant,
         List<OccupantInfo> occupants,
         List<EventInfo> events

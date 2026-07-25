@@ -320,6 +320,11 @@ class CompleteInvoiceServiceTest {
         }
 
         @Override
+        public void signTransferContractDocument(Long requestId, Long leaseContractId, Long tenantUserId) {
+            throw unexpectedRepositoryCall("RoomTransferUseCase.signTransferContractDocument");
+        }
+
+        @Override
         public void signTransferContract(Long requestId, Long tenantUserId) {
             throw unexpectedRepositoryCall("RoomTransferUseCase.signTransferContract");
         }

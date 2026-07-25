@@ -466,6 +466,37 @@ public class NotificationTemplateDefaults {
                     "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] đã ghi nhận [[${paymentAmount}]] VND. Số tiền còn lại: [[${remainingAmount}]] VND."
             ),
             definitionForChannels(
+                    "LIQUIDATION_DEPOSIT_REFUND_RECORDED",
+                    "Xác nhận nhận hoàn cọc",
+                    "Gửi cho khách thuê khi quản lý hoặc chủ trọ đã hoàn cọc ngoài hệ thống và upload minh chứng.",
+                    "CHANGE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "requestId",
+                            "requestCode",
+                            "contractId",
+                            "contractCode",
+                            "roomCode",
+                            "amount",
+                            "depositRefundAmount",
+                            "depositRefundProofFileId",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "requestId", 680965088362757L,
+                            "requestCode", "CR-680965088362757",
+                            "contractId", 91L,
+                            "contractCode", "HD-001",
+                            "roomCode", "101",
+                            "amount", 2000000L,
+                            "depositRefundAmount", 2000000L,
+                            "depositRefundProofFileId", 901L,
+                            "targetRoute", "/requests"
+                    ),
+                    "Vui lòng xác nhận khoản hoàn cọc",
+                    "Khoản hoàn cọc [[${depositRefundAmount}]] VND cho hợp đồng [[${contractCode}]] phòng [[${roomCode}]] đã được ghi nhận. Vui lòng kiểm tra minh chứng và xác nhận đã nhận tiền."
+            ),
+            definitionForChannels(
                     "EXPENSE_APPROVAL_REQUESTED",
                     "Yêu cầu chi cần duyệt",
                     "Gửi cho chủ trọ khi quản lý tạo yêu cầu chi.",
@@ -577,9 +608,9 @@ public class NotificationTemplateDefaults {
                             "requestId", 680965088362756L,
                             "requestCode", "CR-680965088362756",
                             "requestType", "CONTRACT_RENEWAL",
-                            "requestTypeLabel", "Yêu cầu tái ký hợp đồng",
-                            "title", "Yêu cầu tái ký hợp đồng HD-001",
-                            "description", "Khách muốn tái ký hợp đồng.",
+                            "requestTypeLabel", "Yêu cầu gia hạn hợp đồng",
+                            "title", "Yêu cầu gia hạn hợp đồng HD-001",
+                            "description", "Khách muốn gia hạn hợp đồng.",
                             "requesterId", 12L,
                             "requesterRole", "TENANT",
                             "assignedRole", "OWNER",
@@ -599,7 +630,7 @@ public class NotificationTemplateDefaults {
                     leaseReminderVariables(),
                     leaseReminderSampleData("FIRST"),
                     "Hợp đồng [[${contractCode}]] sắp hết hạn",
-                    "Phòng [[${roomName}]] tại [[${propertyName}]] sẽ hết hạn vào [[${endDate}]]. Bạn muốn tái ký, chuyển phòng hay chuyển đi?"
+                    "Phòng [[${roomName}]] tại [[${propertyName}]] sẽ hết hạn vào [[${endDate}]]. Bạn muốn gia hạn, chuyển phòng hay chuyển đi?"
             ),
             definitionForChannels(
                     "LEASE_EXPIRY_REMINDER_SECOND",
@@ -621,7 +652,7 @@ public class NotificationTemplateDefaults {
                     leaseReminderVariables(),
                     leaseReminderSampleData("FINAL"),
                     "Nhắc lần cuối về hợp đồng [[${contractCode}]]",
-                    "Hợp đồng phòng [[${roomName}]] sắp hết hạn vào [[${endDate}]]. Vui lòng phản hồi để tránh chậm xử lý bàn giao hoặc tái ký."
+                    "Hợp đồng phòng [[${roomName}]] sắp hết hạn vào [[${endDate}]]. Vui lòng phản hồi để tránh chậm xử lý bàn giao hoặc gia hạn."
             ),
             definitionForChannels(
                     "LEASE_EXPIRY_MANAGER_VISIT_REQUIRED",
@@ -636,14 +667,14 @@ public class NotificationTemplateDefaults {
             ),
             definitionForChannels(
                     "LEASE_RENEWAL_TERMS_CONFIRMATION_DUE",
-                    "Cần chốt điều khoản tái ký",
-                    "Gửi cho quản lý khi khách đã chọn tái ký.",
+                    "Cần chốt điều khoản gia hạn",
+                    "Gửi cho quản lý khi khách đã chọn gia hạn.",
                     "MANAGER_TASK",
                     List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
                     leaseManagerVariables(),
-                    leaseManagerSampleData("Khách đã chọn tái ký hợp đồng."),
-                    "Cần chốt tái ký hợp đồng [[${contractCode}]]",
-                    "Khách phòng [[${roomName}]] đã chọn tái ký. Cần chốt giá, thời hạn, tiền cọc và lịch ký trước [[${dueDate}]]."
+                    leaseManagerSampleData("Khách đã chọn gia hạn hợp đồng."),
+                    "Cần chốt gia hạn hợp đồng [[${contractCode}]]",
+                    "Khách phòng [[${roomName}]] đã chọn gia hạn. Cần chốt giá, thời hạn, tiền cọc và lịch ký trước [[${dueDate}]]."
             ),
             definitionForChannels(
                     "LEASE_HANDOVER_CONFIRMATION_DUE",

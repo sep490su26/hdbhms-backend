@@ -118,7 +118,7 @@ public class ExpenseRequestController {
     }
 
     @PostMapping("/{id}/mark-paid")
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<ExpenseRequestResponse> markPaid(
             @PathVariable Long id,
             @Valid @RequestBody(required = false) MarkExpensePaidRequest request,
@@ -126,7 +126,7 @@ public class ExpenseRequestController {
     ) {
         return ApiResponse.<ExpenseRequestResponse>builder()
                 .code(0)
-                .data(expenseRequestService.markPaid(id, request, principal.getId()))
+                .data(expenseRequestService.markPaid(id, request, principal.getId(), principal.getRole()))
                 .build();
     }
 }

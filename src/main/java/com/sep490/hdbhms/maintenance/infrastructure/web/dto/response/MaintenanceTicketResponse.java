@@ -30,6 +30,7 @@ public class MaintenanceTicketResponse {
     String category;
     String title;
     String description;
+    Boolean repairRequested;
     String status;
     UserSummary createdBy;
     String workerName;

@@ -28,6 +28,7 @@ public interface RoomTransferUseCase {
     void rejectTargetHolderTransfer(Long requestId, Long holderUserId);
     void confirmTransferContract(Long requestId, Long tenantUserId);
     void advanceTransferAfterDifferencePayment(Long requestId, Long tenantUserId);
+    void signTransferContractDocument(Long requestId, Long leaseContractId, Long tenantUserId);
     void signTransferContract(Long requestId, Long tenantUserId);
     void rejectTransferContract(Long requestId, Long tenantUserId);
     void cancelTransferRequest(Long requestId);

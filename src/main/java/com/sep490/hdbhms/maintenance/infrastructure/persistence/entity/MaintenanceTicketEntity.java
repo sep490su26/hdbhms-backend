@@ -76,6 +76,10 @@ public class MaintenanceTicketEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     String description;
 
+    @Column(name = "repair_requested", nullable = false)
+    @Builder.Default
+    Boolean repairRequested = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     @Builder.Default

@@ -1,23 +1,25 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -47,8 +49,12 @@ class LeaseContractManagementServiceDraftTest {
                 leaseContractRepository,
                 mock(JpaDepositAgreementRepository.class),
                 mock(JpaContractLiquidationRepository.class),
+                mock(JpaContractHandoverRecordRepository.class),
+                mock(JpaInvoiceRepository.class),
+                mock(JpaInvoiceLineRepository.class),
                 mock(RoomCommitmentChecker.class),
-                mock(LeaseExpiryReminderService.class)
+                mock(LeaseExpiryReminderService.class),
+                mock(ExpenseRequestService.class)
         );
 
         ResponseStatusException exception = assertThrows(
@@ -60,5 +66,14 @@ class LeaseContractManagementServiceDraftTest {
         assertTrue(exception.getReason().contains("Phòng 505"));
         assertTrue(exception.getReason().contains("DEMO-LEASE-505-DRAFT"));
         assertTrue(exception.getReason().contains("DRAFT"));
+    }
+
+    @Test
+    void keepsDepositRefundableInsideFinalContractMonth() {
+        LocalDate endDate = LocalDate.of(2026, 8, 31);
+
+        assertFalse(LeaseContractManagementService.shouldForfeitDepositOnLiquidation(endDate, LocalDate.of(2026, 7, 31)));
+        assertFalse(LeaseContractManagementService.shouldForfeitDepositOnLiquidation(endDate, LocalDate.of(2026, 8, 20)));
+        assertTrue(LeaseContractManagementService.shouldForfeitDepositOnLiquidation(endDate, LocalDate.of(2026, 7, 30)));
     }
 }

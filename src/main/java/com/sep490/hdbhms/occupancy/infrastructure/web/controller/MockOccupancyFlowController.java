@@ -11,6 +11,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCom
 import com.sep490.hdbhms.notification.infrastructure.dispatcher.NotificationOutboxDispatcher;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractLifecycleService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
+import com.sep490.hdbhms.occupancy.application.service.RoomTransferCreateBypassRegistry;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
@@ -81,6 +82,7 @@ public class MockOccupancyFlowController {
     LeaseContractManagementService leaseContractManagementService;
     JpaLeaseContractRepository leaseContractRepository;
     RoomTransferUseCase roomTransferUseCase;
+    RoomTransferCreateBypassRegistry roomTransferCreateBypassRegistry;
     RoomTransferWebMapper roomTransferWebMapper;
     NotificationOutboxDispatcher notificationOutboxDispatcher;
     ScheduledTaskProcessor scheduledTaskProcessor;
@@ -294,6 +296,40 @@ public class MockOccupancyFlowController {
         prepareRoomTransferContractEligibility(contractId, monthsStayed, startDate, endDate);
         return ApiResponse.<Map<String, Object>>builder()
                 .data(buildRoomTransferContractEligibilityState(contractId))
+                .build();
+    }
+
+    @PostMapping("/room-transfers/create-validation-bypass")
+    public ApiResponse<Map<String, Object>> enableRoomTransferCreateValidationBypass(
+            @RequestParam(required = false) Long requesterUserId,
+            @RequestParam Long sourceContractId,
+            @RequestParam(required = false) Long targetRoomId,
+            @RequestParam(defaultValue = "1") int uses,
+            @RequestParam(defaultValue = "15") int expiresInMinutes
+    ) {
+        requireContract(sourceContractId);
+        if (requesterUserId != null) {
+            requireUser(requesterUserId);
+        }
+        if (targetRoomId != null) {
+            requireRoom(targetRoomId);
+        }
+        RoomTransferCreateBypassRegistry.Grant grant = roomTransferCreateBypassRegistry.enable(
+                requesterUserId,
+                sourceContractId,
+                targetRoomId,
+                uses,
+                expiresInMinutes
+        );
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("requesterUserId", grant.requesterUserId());
+        data.put("sourceContractId", grant.sourceContractId());
+        data.put("targetRoomId", grant.targetRoomId());
+        data.put("expiresAt", grant.expiresAt());
+        data.put("remainingUses", grant.remainingUses());
+        data.put("nextCreateEndpoint", "POST /api/v1/occupant-transfer-requests");
+        return ApiResponse.<Map<String, Object>>builder()
+                .data(data)
                 .build();
     }
 
@@ -683,6 +719,42 @@ public class MockOccupancyFlowController {
                         HttpStatus.NOT_FOUND,
                         "Khong tim thay hop dong thue: " + contractId
                 ));
+    }
+
+    private void requireRoom(Long roomId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM rooms
+                        WHERE room_id = ?
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                roomId
+        );
+        if (count == null || count == 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Khong tim thay phong: " + roomId
+            );
+        }
+    }
+
+    private void requireUser(Long userId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM users
+                        WHERE user_id = ?
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                userId
+        );
+        if (count == null || count == 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Khong tim thay user: " + userId
+            );
+        }
     }
 
     private void markRecurringSchedulerDue(

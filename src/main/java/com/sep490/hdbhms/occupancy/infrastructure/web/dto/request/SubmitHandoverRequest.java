@@ -84,5 +84,13 @@ public class SubmitHandoverRequest {
 
         /** File ID from /api/v1/files/upload – nullable */
         Long fileImageId;
+
+        @PositiveOrZero(message = "So tien boi thuong khong duoc am")
+        Long compensationAmount;
+
+        @Size(max = 1000, message = "Ghi chu thiet hai khong duoc vuot qua 1000 ky tu")
+        String damageNote;
+
+        Long evidenceFileId;
     }
 }

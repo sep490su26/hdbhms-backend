@@ -49,15 +49,13 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
             );
             return;
         }
-        leaseContractManagementService.renew(
+        leaseContractManagementService.updateTerms(
                 request.getTargetId(),
-                localDate(payload.get("newStartDate")),
+                localDate(payload.get("startDate")),
                 localDate(payload.get("newEndDate")),
-                longValue(payload.get("monthlyRent")),
                 intValue(payload.get("paymentCycleMonths")),
-                longValue(payload.get("depositAmount")),
-                null,
-                string(payload.get("note"))
+                longValue(payload.get("monthlyRent")),
+                longValue(payload.get("depositAmount"))
         );
     }
 

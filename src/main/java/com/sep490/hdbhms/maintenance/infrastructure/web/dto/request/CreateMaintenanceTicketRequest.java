@@ -24,6 +24,7 @@ public class CreateMaintenanceTicketRequest {
     Priority priority;
     Priority severity;
     String description;
+    Boolean repairRequested;
     List<Long> attachmentIds;
     Long actualCost;
     String accountingNote;

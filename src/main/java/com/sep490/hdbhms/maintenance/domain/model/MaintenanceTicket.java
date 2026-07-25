@@ -31,6 +31,8 @@ public class MaintenanceTicket {
     @Builder.Default
     String title = "";
     String description;
+    @Builder.Default
+    Boolean repairRequested = true;
 
     @Builder.Default
     MaintenanceTicketStatus status = MaintenanceTicketStatus.PENDING_ACCEPTANCE;

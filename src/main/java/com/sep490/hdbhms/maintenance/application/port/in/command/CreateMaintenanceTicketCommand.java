@@ -13,6 +13,7 @@ public record CreateMaintenanceTicketCommand(
         TicketScope ticketScope,
         Priority priority,
         String description,
+        Boolean repairRequested,
         List<Long> attachmentIds
 ) {
 }

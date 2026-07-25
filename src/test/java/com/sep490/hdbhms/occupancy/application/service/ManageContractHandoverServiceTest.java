@@ -1,16 +1,15 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomAssetEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomAssetRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,9 +31,13 @@ class ManageContractHandoverServiceTest {
             mock(JpaMeterReadingRepository.class),
             mock(JpaMeterRepository.class),
             mock(JpaContractHandoverRecordRepository.class),
+            mock(JpaContractHandoverItemRepository.class),
             mock(JpaUserRepository.class),
             mock(JpaFileMetadataRepository.class),
-            roomAssetRepository
+            roomAssetRepository,
+            mock(JpaInvoiceRepository.class),
+            mock(JpaInvoiceLineRepository.class),
+            mock(JdbcTemplate.class)
     );
 
     @Test

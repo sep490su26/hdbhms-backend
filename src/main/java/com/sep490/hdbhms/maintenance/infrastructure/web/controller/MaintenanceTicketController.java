@@ -700,6 +700,7 @@ public class MaintenanceTicketController {
                 .category(category)
                 .title(firstNonBlank(request.getTitle(), category))
                 .description(request.getDescription().trim())
+                .repairRequested(request.getRepairRequested() == null || request.getRepairRequested())
                 .status(MaintenanceTicketStatus.PENDING_ACCEPTANCE)
                 .build();
         ticket = maintenanceTicketRepository.save(ticket);
@@ -967,6 +968,7 @@ public class MaintenanceTicketController {
                 .category(ticket.getCategory())
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
+                .repairRequested(ticket.getRepairRequested() == null || ticket.getRepairRequested())
                 .status(toBusinessStatus(ticket.getStatus()))
                 .ticketStatus(toBusinessStatus(ticket.getStatus()))
                 .ticketStatusLabel(ticketStatusLabel(ticket))
@@ -1028,6 +1030,7 @@ public class MaintenanceTicketController {
                 .category(ticket.getCategory())
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
+                .repairRequested(ticket.getRepairRequested() == null || ticket.getRepairRequested())
                 .status(toBusinessStatus(ticket.getStatus()))
                 .ticketStatus(toBusinessStatus(ticket.getStatus()))
                 .ticketStatusLabel(ticketStatusLabel(ticket))

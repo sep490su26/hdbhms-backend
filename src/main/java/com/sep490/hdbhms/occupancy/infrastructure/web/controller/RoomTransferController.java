@@ -160,6 +160,15 @@ public class RoomTransferController {
         return ApiResponse.<Void>builder().build();
     }
 
+    @PostMapping("/{id}/contracts/{leaseContractId}/sign")
+    public ApiResponse<Void> signTransferContractDocument(
+            @PathVariable Long id,
+            @PathVariable Long leaseContractId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        roomTransferUseCase.signTransferContractDocument(id, leaseContractId, principal.getId());
+        return ApiResponse.<Void>builder().build();
+    }
+
     @PostMapping("/{id}/contract/reject")
     public ApiResponse<Void> rejectTransferContract(
             @PathVariable Long id,

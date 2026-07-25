@@ -52,6 +52,7 @@ public record RoomTransferResponse(
     Long replacementOldContractId,
     Long oldRoomPrice,
     Long newRoomPrice,
+    Long priceDifferenceAmount,
     Long priceDifferenceToPay,
     Boolean sourceRoomWillBeEmptyAfterTransfer,
     Integer remainingOccupantCountAfterTransfer,
