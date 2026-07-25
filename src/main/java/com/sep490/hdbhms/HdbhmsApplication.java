@@ -5,6 +5,7 @@ import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.ResetPasswordConfig;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.AuthProperties;
 import com.sep490.hdbhms.shared.constant.DefaultConfig;
+import com.sep490.hdbhms.shared.infrastructure.sms.android_sms.AndroidSmsGatewayProperties;
 import com.sep490.hdbhms.shared.infrastructure.sms.esms.ESmsProperties;
 import com.sep490.hdbhms.shared.infrastructure.sms.twillio.TwillioProperties;
 import org.springframework.boot.SpringApplication;
@@ -21,6 +22,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
         PayOSProperties.class,
         TwillioProperties.class,
         ESmsProperties.class,
+        AndroidSmsGatewayProperties.class
 })
 public class HdbhmsApplication {
 

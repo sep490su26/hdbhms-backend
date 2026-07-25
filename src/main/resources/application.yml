@@ -50,6 +50,10 @@ esms:
   api-key: ${ESMS_API_KEY}
   secret-key: ${ESMS_SECRET_KEY}
   brand-name: ${ESMS_BRAND_NAME}
+android_sms:
+  server-address: ${ANDROID_SMS_GATEWAY_URL}
+  username: ${ANDROID_SMS_GATEWAY_USERNAME}
+  password: ${ANDROID_SMS_GATEWAY_PASSWORD}
 app:
   jwt:
     secret: ${APP_JWT_SECRET:${SIGNER_KEY}}
