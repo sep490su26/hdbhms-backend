@@ -935,7 +935,10 @@ public class LeaseContractQueryService {
                     ) AS account_status,
                     tap.sent_at AS account_sent_at,
                     u.last_login_at,
-                    u.must_change_password
+                    u.must_change_password,
+                    coi.intention AS occupant_intention,
+                    coi.note AS occupant_intention_note,
+                    coi.recorded_at AS occupant_intention_recorded_at
                 FROM (
                     SELECT
                         active_occupant.contract_occupant_id AS id,
@@ -975,6 +978,9 @@ public class LeaseContractQueryService {
                 JOIN lease_contracts lc
                     ON lc.lease_contract_id = co.contract_id
                     AND lc.deleted_at IS NULL
+                LEFT JOIN contract_occupant_intentions coi
+                    ON coi.contract_id = co.contract_id
+                    AND coi.contract_occupant_id = co.id
                 LEFT JOIN deposit_agreements da
                     ON da.deposit_agreement_id = lc.deposit_agreement_id
                 LEFT JOIN deposit_forms df
@@ -1003,7 +1009,10 @@ public class LeaseContractQueryService {
                 TenantAccountProvisioningStatus.valueOf(rs.getString("account_status")),
                 toLocalDateTime(rs, "account_sent_at"),
                 toLocalDateTime(rs, "last_login_at"),
-                getBooleanOrNull(rs, "must_change_password")
+                getBooleanOrNull(rs, "must_change_password"),
+                rs.getString("occupant_intention"),
+                rs.getString("occupant_intention_note"),
+                toLocalDateTime(rs, "occupant_intention_recorded_at")
         ), contractId);
     }
 

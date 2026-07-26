@@ -24,6 +24,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.Billi
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.BillingPaymentHistoryResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.ManualPaymentResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.RentOverrideResponse;
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
@@ -90,6 +91,7 @@ public class BillingManagementService {
     JpaUserRepository userRepository;
     BusinessNotificationPublisher notificationPublisher;
     JdbcTemplate jdbcTemplate;
+    ExpenseRequestService expenseRequestService;
 
     @Transactional(readOnly = true)
     public List<BillingInvoiceResponse> listInvoices(
@@ -301,6 +303,11 @@ public class BillingManagementService {
         invoice = invoiceRepository.save(invoice);
         cancelPendingPaymentIntents(invoice);
         notifyInvoicePayment(invoice, amount, currentUserId);
+        if (invoice.getStatus() == InvoiceStatus.PAID && invoice.getInvoiceType() == InvoiceType.FINAL_SETTLEMENT) {
+            expenseRequestService.syncLiquidationFinalInvoicePaid(
+                    invoice.getLeastContract() == null ? null : invoice.getLeastContract().getId()
+            );
+        }
 
         return new ManualPaymentResponse(toInvoiceResponse(invoice), toPaymentHistory(allocation));
     }
@@ -558,7 +565,17 @@ public class BillingManagementService {
                 line.getDescription(),
                 line.getQuantity(),
                 line.getUnitPrice(),
-                lineAmount(line)
+                lineAmount(line),
+                line.getMeterReading() == null ? null : line.getMeterReading().getId(),
+                line.getMeterReading() == null || line.getMeterReading().getPhotoFile() == null
+                        ? null
+                        : line.getMeterReading().getPhotoFile().getId(),
+                line.getMeterReading() == null || line.getMeterReading().getPreviousValue() == null
+                        ? null
+                        : line.getMeterReading().getPreviousValue().stripTrailingZeros().toPlainString(),
+                line.getMeterReading() == null || line.getMeterReading().getCurrentValue() == null
+                        ? null
+                        : line.getMeterReading().getCurrentValue().stripTrailingZeros().toPlainString()
         );
     }
 

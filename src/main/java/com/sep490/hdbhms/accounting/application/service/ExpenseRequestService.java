@@ -22,6 +22,10 @@ import com.sep490.hdbhms.accounting.infrastructure.web.dto.response.ExpenseAttac
 import com.sep490.hdbhms.accounting.infrastructure.web.dto.response.ExpensePaymentResponse;
 import com.sep490.hdbhms.accounting.infrastructure.web.dto.response.ExpenseRequestResponse;
 import com.sep490.hdbhms.accounting.infrastructure.web.dto.response.ExpenseTimelineResponse;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.changerequest.domain.value_objects.AssignedRole;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
@@ -86,6 +90,7 @@ public class ExpenseRequestService {
     JpaRoomRepository roomRepository;
     JpaUserRepository userRepository;
     JpaFileMetadataRepository fileMetadataRepository;
+    JpaInvoiceRepository invoiceRepository;
     BusinessNotificationPublisher notificationPublisher;
     SnowflakeIdGenerator snowflakeIdGenerator;
     ObjectMapper objectMapper;
@@ -482,6 +487,9 @@ public class ExpenseRequestService {
         payload.put("depositRefundAmount", 0L);
         payload.put("depositRefundedAmount", 0L);
         markChecklist(payload, "depositRefundConfirmed", true);
+        payload.put("liquidationStage", syncFinalInvoicePaid(payload)
+                ? "WAITING_SIGNED_DOCUMENT"
+                : "WAITING_PAYMENT");
         sourceRequest.setRequestPayload(toJson(payload));
         changeRequestRepository.save(sourceRequest);
     }
@@ -525,9 +533,26 @@ public class ExpenseRequestService {
         if (!"TENANT_CONFIRMED".equals(nextStatus)) {
             markChecklist(payload, "depositRefundConfirmed", false);
         }
-        payload.put("liquidationStage", "WAITING_DEPOSIT_REFUND");
+        boolean finalInvoicePaid = syncFinalInvoicePaid(payload);
+        payload.put("liquidationStage", liquidationStageAfterRefundSync(finalInvoicePaid, nextStatus));
         sourceRequest.setRequestPayload(toJson(payload));
         changeRequestRepository.save(sourceRequest);
+    }
+
+    @Transactional
+    public void syncLiquidationFinalInvoicePaid(Long contractId) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        if (sourceRequest == null || sourceRequest.getStatus() == RequestStatus.COMPLETED) {
+            return;
+        }
+        Map<String, Object> payload = payloadMap(sourceRequest.getRequestPayload());
+        boolean finalInvoicePaid = syncFinalInvoicePaid(payload);
+        if (finalInvoicePaid) {
+            String refundStatus = Objects.toString(payload.get("depositRefundStatus"), "");
+            payload.put("liquidationStage", liquidationStageAfterRefundSync(true, refundStatus));
+            sourceRequest.setRequestPayload(toJson(payload));
+            changeRequestRepository.save(sourceRequest);
+        }
     }
 
     private void syncLinkedLiquidationRefund(
@@ -650,6 +675,40 @@ public class ExpenseRequestService {
             return "WAITING_OWNER_APPROVAL";
         }
         return "PENDING";
+    }
+
+    private String liquidationStageAfterRefundSync(boolean finalInvoicePaid, String refundStatus) {
+        if (!finalInvoicePaid) {
+            return "WAITING_PAYMENT";
+        }
+        if ("TENANT_CONFIRMED".equals(refundStatus) || "NOT_REQUIRED".equals(refundStatus)) {
+            return "WAITING_SIGNED_DOCUMENT";
+        }
+        return "WAITING_DEPOSIT_REFUND";
+    }
+
+    private boolean syncFinalInvoicePaid(Map<String, Object> payload) {
+        Long contractId = toLong(payload.get("contractId"));
+        InvoiceEntity invoice = contractId == null
+                ? null
+                : invoiceRepository
+                .findFirstByLeastContract_IdAndInvoiceTypeAndStatusNotOrderByIdDesc(
+                        contractId,
+                        InvoiceType.FINAL_SETTLEMENT,
+                        InvoiceStatus.VOIDED
+                )
+                .orElse(null);
+        boolean paid = invoice != null
+                && invoice.getStatus() == InvoiceStatus.PAID
+                && safeAmount(invoice.getRemainingAmount()) <= 0;
+        payload.put("finalInvoicePaid", paid);
+        markChecklist(payload, "finalInvoicePaid", paid);
+        if (invoice != null) {
+            payload.put("finalInvoiceId", invoice.getId());
+            payload.put("finalInvoiceCode", invoice.getInvoiceCode());
+            payload.put("finalInvoiceRemainingAmount", safeAmount(invoice.getRemainingAmount()));
+        }
+        return paid;
     }
 
     private LiquidationDepositRefundLink toLiquidationDepositRefundLink(

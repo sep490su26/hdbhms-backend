@@ -34,6 +34,10 @@ public class LeaseContractDetailsResponse {
     String roleInContract;
     Boolean isPrimary;
     Boolean canRecordIntention;
+    Boolean canRecordOccupantIntention;
+    String occupantIntention;
+    String occupantIntentionNote;
+    LocalDateTime occupantIntentionRecordedAt;
     Boolean canRenew;
     String canRenewBlockedReason;
     LocalDateTime signedAt;

@@ -55,6 +55,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -226,8 +227,6 @@ public class LeaseContractController {
                         leaseContractId,
                         request != null ? request.liquidationDate() : null,
                         request != null ? request.reason() : null,
-                        request != null ? request.depositDeductionAmount() : null,
-                        request != null ? request.depositDeductionReason() : null,
                         liquidationCharges(request)
                 ))
                 .build();
@@ -244,8 +243,6 @@ public class LeaseContractController {
                         leaseContractId,
                         request != null ? request.liquidationDate() : null,
                         request != null ? request.reason() : null,
-                        request != null ? request.depositDeductionAmount() : null,
-                        request != null ? request.depositDeductionReason() : null,
                         liquidationCharges(request)
                 ))
                 .build();
@@ -352,6 +349,39 @@ public class LeaseContractController {
                         request.note()
                 ))
                 .build();
+    }
+
+    @PostMapping("/{leaseContractId}/occupant-intention")
+    @PreAuthorize("hasRole('TENANT')")
+    public ApiResponse<LeaseContractDetailsResponse> recordOccupantIntention(
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody OccupantIntentionRequest request
+    ) {
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+        OccupantScope occupant = currentActiveOccupant(leaseContractId, userId);
+        jdbcTemplate.update("""
+                        INSERT INTO contract_occupant_intentions (
+                            contract_id,
+                            contract_occupant_id,
+                            tenant_profile_id,
+                            intention,
+                            note,
+                            recorded_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, NOW(6))
+                        ON DUPLICATE KEY UPDATE
+                            tenant_profile_id = VALUES(tenant_profile_id),
+                            intention = VALUES(intention),
+                            note = VALUES(note),
+                            recorded_at = NOW(6)
+                        """,
+                leaseContractId,
+                occupant.contractOccupantId(),
+                occupant.tenantProfileId(),
+                normalizeOccupantIntention(request.intention()),
+                blankToNull(request.note())
+        );
+        return getLeaseContractDetails(leaseContractId);
     }
 
     @GetMapping("/me")
@@ -469,11 +499,19 @@ public class LeaseContractController {
         boolean isOccupant = isPrimary || isCurrentUserActiveOccupant(leaseContractId, userId);
         response.setIsPrimary(isPrimary);
         response.setRoleInContract(isPrimary ? "PRIMARY" : isOccupant ? "CO_OCCUPANT" : null);
+        response.setCanRecordOccupantIntention(false);
         boolean canRecordIntention = isPrimary
                 && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(response.getStatus())
                 && response.getEndDate() != null
                 && !LocalDate.now().isBefore(response.getEndDate().minusMonths(3));
         response.setCanRecordIntention(canRecordIntention);
+        if (!isPrimary && isOccupant) {
+            response.setCanRecordOccupantIntention(
+                    List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.TERMINATION_PENDING)
+                            .contains(response.getStatus())
+            );
+            enrichCurrentOccupantIntention(response, leaseContractId, userId);
+        }
 
         RoomCommitmentChecker.Blocker renewBlocker = response.getRoom() == null || response.getRoom().getId() == null
                 ? RoomCommitmentChecker.Blocker.NONE
@@ -559,6 +597,87 @@ public class LeaseContractController {
                 userId
         );
         return count != null && count > 0;
+    }
+
+    private OccupantScope currentActiveOccupant(Long leaseContractId, Long userId) {
+        if (userId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
+        }
+        return jdbcTemplate.query("""
+                        SELECT co.contract_occupant_id, co.tenant_profile_id
+                        FROM contract_occupants co
+                        JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
+                        LEFT JOIN tenant_account_provisionings tap
+                               ON tap.tenant_profile_id = pp.person_profile_id
+                              AND tap.user_id = ?
+                        WHERE co.contract_id = ?
+                          AND co.status = 'ACTIVE'
+                          AND co.occupant_role = 'CO_OCCUPANT'
+                          AND pp.deleted_at IS NULL
+                          AND (pp.user_id = ? OR tap.user_id = ?)
+                        ORDER BY co.contract_occupant_id DESC
+                        LIMIT 1
+                        """,
+                rs -> {
+                    if (!rs.next()) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong phai nguoi o cung cua hop dong nay.");
+                    }
+                    return new OccupantScope(
+                            rs.getLong("contract_occupant_id"),
+                            rs.getLong("tenant_profile_id")
+                    );
+                },
+                userId,
+                leaseContractId,
+                userId,
+                userId
+        );
+    }
+
+    private void enrichCurrentOccupantIntention(LeaseContractDetailsResponse response, Long leaseContractId, Long userId) {
+        jdbcTemplate.query("""
+                        SELECT coi.intention, coi.note, coi.recorded_at
+                        FROM contract_occupant_intentions coi
+                        JOIN contract_occupants co
+                          ON co.contract_occupant_id = coi.contract_occupant_id
+                        JOIN person_profiles pp
+                          ON pp.person_profile_id = coi.tenant_profile_id
+                        LEFT JOIN tenant_account_provisionings tap
+                               ON tap.tenant_profile_id = pp.person_profile_id
+                              AND tap.user_id = ?
+                        WHERE coi.contract_id = ?
+                          AND co.status = 'ACTIVE'
+                          AND pp.deleted_at IS NULL
+                          AND (pp.user_id = ? OR tap.user_id = ?)
+                        ORDER BY coi.recorded_at DESC
+                        LIMIT 1
+                        """,
+                rs -> {
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    response.setOccupantIntention(rs.getString("intention"));
+                    response.setOccupantIntentionNote(rs.getString("note"));
+                    response.setOccupantIntentionRecordedAt(rs.getObject("recorded_at", LocalDateTime.class));
+                    return null;
+                },
+                userId,
+                leaseContractId,
+                userId,
+                userId
+        );
+    }
+
+    private String normalizeOccupantIntention(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase();
+        if (List.of("FOLLOW_PRIMARY_MOVE_OUT", "JOIN_RENEWAL").contains(normalized)) {
+            return normalized;
+        }
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Y dinh nguoi o cung khong hop le.");
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void assertOwnerOrAssignedManagerCanAccessContract(Long leaseContractId) {
@@ -654,10 +773,6 @@ public class LeaseContractController {
     public record LeaseContractLiquidationRequest(
             LocalDate liquidationDate,
             String reason,
-            @PositiveOrZero(message = "So tien khau tru khong duoc am.")
-            Long depositDeductionAmount,
-            @Size(max = 1000, message = "Ly do khau tru khong duoc vuot qua 1000 ky tu.")
-            String depositDeductionReason,
             @Valid
             List<LeaseContractLiquidationChargeRequest> charges
     ) {
@@ -668,10 +783,15 @@ public class LeaseContractController {
             InvoiceLineType lineType,
             @Size(max = 1000, message = "Mo ta phi thanh ly khong duoc vuot qua 1000 ky tu.")
             String description,
-            @Positive(message = "So luong phai lon hon 0.")
+            @PositiveOrZero(message = "So luong khong duoc am.")
             Integer quantity,
             @PositiveOrZero(message = "Don gia khong duoc am.")
-            Long unitPrice
+            Long unitPrice,
+            @PositiveOrZero(message = "Chi so cu khong duoc am.")
+            BigDecimal previousValue,
+            @PositiveOrZero(message = "Chi so moi khong duoc am.")
+            BigDecimal currentValue,
+            Long photoFileId
     ) {
     }
 
@@ -684,7 +804,10 @@ public class LeaseContractController {
                         charge.lineType(),
                         charge.description(),
                         charge.quantity(),
-                        charge.unitPrice()
+                        charge.unitPrice(),
+                        charge.previousValue(),
+                        charge.currentValue(),
+                        charge.photoFileId()
                 ))
                 .toList();
     }
@@ -771,5 +894,16 @@ public class LeaseContractController {
             @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
             String note
     ) {
+    }
+
+    public record OccupantIntentionRequest(
+            @NotNull(message = "Ý định người ở cùng là bắt buộc.")
+            String intention,
+            @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
+            String note
+    ) {
+    }
+
+    private record OccupantScope(Long contractOccupantId, Long tenantProfileId) {
     }
 }

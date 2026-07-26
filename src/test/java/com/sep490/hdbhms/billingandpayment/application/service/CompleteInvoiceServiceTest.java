@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.domain.model.InvoiceLine;
@@ -32,6 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class CompleteInvoiceServiceTest {
 
@@ -45,7 +48,8 @@ class CompleteInvoiceServiceTest {
                 new FailingTransferSettlementRepository(),
                 new FailingRoomTransferRepository(),
                 new FailingInvoiceLineRepository(),
-                new FailingRoomTransferUseCase()
+                new FailingRoomTransferUseCase(),
+                mock(ExpenseRequestService.class)
         );
 
         service.execute(Invoice.builder()
@@ -68,7 +72,8 @@ class CompleteInvoiceServiceTest {
                 new FailingTransferSettlementRepository(),
                 new FailingRoomTransferRepository(),
                 new FailingInvoiceLineRepository(),
-                new FailingRoomTransferUseCase()
+                new FailingRoomTransferUseCase(),
+                mock(ExpenseRequestService.class)
         );
 
         service.execute(Invoice.builder()
@@ -95,7 +100,8 @@ class CompleteInvoiceServiceTest {
                 new TransferDifferenceSettlementRepository(77L, 9L, 13L),
                 roomTransferRepository,
                 new FailingInvoiceLineRepository(),
-                roomTransferUseCase
+                roomTransferUseCase,
+                mock(ExpenseRequestService.class)
         );
 
         service.execute(Invoice.builder()
@@ -107,6 +113,28 @@ class CompleteInvoiceServiceTest {
         assertNull(roomTransferRepository.saved.get());
         assertEquals(9L, roomTransferUseCase.advancedRequestId.get());
         assertEquals(13L, roomTransferUseCase.advancedTenantUserId.get());
+    }
+
+    @Test
+    void paidFinalSettlementSyncsLiquidationPayment() {
+        ExpenseRequestService expenseRequestService = mock(ExpenseRequestService.class);
+        CompleteInvoiceService service = new CompleteInvoiceService(
+                invoice -> { },
+                invoice -> { },
+                new FailingTransferSettlementRepository(),
+                new FailingRoomTransferRepository(),
+                new FailingInvoiceLineRepository(),
+                new FailingRoomTransferUseCase(),
+                expenseRequestService
+        );
+
+        service.execute(Invoice.builder()
+                .invoiceType(InvoiceType.FINAL_SETTLEMENT)
+                .status(InvoiceStatus.PAID)
+                .leaseContractId(18L)
+                .build(), null);
+
+        verify(expenseRequestService).syncLiquidationFinalInvoicePaid(18L);
     }
 
     private record TransferDifferenceSettlementRepository(

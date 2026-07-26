@@ -6,6 +6,10 @@ public record BillingInvoiceLineResponse(
         String description,
         Integer quantity,
         Long unitPrice,
-        Long amount
+        Long amount,
+        Long meterReadingId,
+        Long photoFileId,
+        String previousValue,
+        String currentValue
 ) {
 }

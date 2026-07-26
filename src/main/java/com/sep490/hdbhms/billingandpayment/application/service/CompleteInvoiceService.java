@@ -14,6 +14,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCa
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.domain.model.TransferSettlement;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -33,6 +34,7 @@ public class CompleteInvoiceService implements CompleteInvoiceUseCase {
     RoomTransferRepository roomTransferRepository;
     InvoiceLineRepository invoiceLineRepository;
     RoomTransferUseCase roomTransferUseCase;
+    ExpenseRequestService expenseRequestService;
 
     @Override
     public void execute(Invoice invoice, PaymentAllocation paymentAllocation) {
@@ -50,6 +52,9 @@ public class CompleteInvoiceService implements CompleteInvoiceUseCase {
                 break;
             case TRANSFER_DIFFERENCE:
                 handleTransferDifferenceInvoicePaid(invoice);
+                break;
+            case FINAL_SETTLEMENT:
+                expenseRequestService.syncLiquidationFinalInvoicePaid(invoice.getLeaseContractId());
                 break;
             case OTHER:
             default:

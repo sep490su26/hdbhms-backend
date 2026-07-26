@@ -90,7 +90,10 @@ public record LeaseContractQueryDetailsResponse(
             TenantAccountProvisioningStatus accountStatus,
             LocalDateTime accountSentAt,
             LocalDateTime lastLoginAt,
-            Boolean mustChangePassword
+            Boolean mustChangePassword,
+            String occupantIntention,
+            String occupantIntentionNote,
+            LocalDateTime occupantIntentionRecordedAt
     ) {
     }
 

@@ -76,8 +76,10 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         payload.put("depositRefundStatus", "TENANT_CONFIRMED");
         payload.put("depositRefundConfirmedBy", tenantId);
         payload.put("depositRefundConfirmedAt", LocalDateTime.now().toString());
-        if ("WAITING_DEPOSIT_REFUND".equals(payload.get("liquidationStage"))) {
+        if (isFinalInvoicePaid(payload) && "WAITING_DEPOSIT_REFUND".equals(payload.get("liquidationStage"))) {
             payload.put("liquidationStage", "WAITING_SIGNED_DOCUMENT");
+        } else if (!isFinalInvoicePaid(payload)) {
+            payload.put("liquidationStage", "WAITING_PAYMENT");
         }
         markChecklist(payload, "depositRefundConfirmed", true);
         request.updateRequestPayload(writePayload(payload));
@@ -213,6 +215,20 @@ public class ChangeRequestService implements ChangeRequestUseCase {
                 : new LinkedHashMap<>();
         checklist.put(key, value);
         payload.put("liquidationChecklist", checklist);
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isFinalInvoicePaid(Map<String, Object> payload) {
+        Object direct = payload.get("finalInvoicePaid");
+        if (direct instanceof Boolean value) {
+            return value;
+        }
+        Object rawChecklist = payload.get("liquidationChecklist");
+        if (rawChecklist instanceof Map<?, ?> raw) {
+            Object value = ((Map<String, Object>) raw).get("finalInvoicePaid");
+            return value instanceof Boolean paid && paid;
+        }
+        return false;
     }
 
     private String writePayload(Map<String, Object> payload) {

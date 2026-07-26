@@ -14,12 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -52,6 +50,8 @@ class LeaseContractManagementServiceDraftTest {
                 mock(JpaContractHandoverRecordRepository.class),
                 mock(JpaInvoiceRepository.class),
                 mock(JpaInvoiceLineRepository.class),
+                mock(JpaMeterRepository.class),
+                mock(JpaMeterReadingRepository.class),
                 mock(RoomCommitmentChecker.class),
                 mock(LeaseExpiryReminderService.class),
                 mock(ExpenseRequestService.class)
@@ -68,12 +68,4 @@ class LeaseContractManagementServiceDraftTest {
         assertTrue(exception.getReason().contains("DRAFT"));
     }
 
-    @Test
-    void keepsDepositRefundableInsideFinalContractMonth() {
-        LocalDate endDate = LocalDate.of(2026, 8, 31);
-
-        assertFalse(LeaseContractManagementService.shouldForfeitDepositOnLiquidation(endDate, LocalDate.of(2026, 7, 31)));
-        assertFalse(LeaseContractManagementService.shouldForfeitDepositOnLiquidation(endDate, LocalDate.of(2026, 8, 20)));
-        assertTrue(LeaseContractManagementService.shouldForfeitDepositOnLiquidation(endDate, LocalDate.of(2026, 7, 30)));
-    }
 }
