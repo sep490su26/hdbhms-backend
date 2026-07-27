@@ -1,9 +1,11 @@
 package com.sep490.hdbhms;
 
+import com.sep490.hdbhms.advisor.infrastructure.config.AdvisorProperties;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.ResetPasswordConfig;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.AuthProperties;
+import com.sep490.hdbhms.identityverification.infrastructure.config.IdentityVerificationProperties;
 import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import com.sep490.hdbhms.shared.infrastructure.sms.android_sms.AndroidSmsGatewayProperties;
 import com.sep490.hdbhms.shared.infrastructure.sms.esms.ESmsProperties;
@@ -16,8 +18,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @SpringBootApplication(scanBasePackages = {"com.sep490.*"}, exclude = {RedisRepositoriesAutoConfiguration.class})
 @EnableConfigurationProperties({
         AuthProperties.class,
+        AdvisorProperties.class,
         DefaultConfig.class,
         FileProperties.class,
+        IdentityVerificationProperties.class,
         ResetPasswordConfig.class,
         PayOSProperties.class,
         TwillioProperties.class,

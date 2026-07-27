@@ -69,6 +69,12 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
 app:
+  advisor:
+    base-url: ${AI_ADVISOR_BASE_URL:http://localhost:8000/api/v1/advisor}
+    timeout-ms: ${AI_ADVISOR_TIMEOUT_MS:120000}
+  identity-verification:
+    vision-base-url: ${IDENTITY_VERIFICATION_VISION_BASE_URL:http://localhost:8000}
+    vision-timeout-ms: ${IDENTITY_VERIFICATION_VISION_TIMEOUT_MS:180000}
   reset-password:
     web-confirmation-url: ${APP_RESET_PASSWORD_WEB_CONFIRMATION_URL:http://localhost:3000/confirm-reset}
     mobile-confirmation-url: https://hdbhms-mobile-auto.com/reset-password
