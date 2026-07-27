@@ -101,7 +101,8 @@ class ChangeRequestServiceTest {
                         {
                           "liquidationStage":"WAITING_DEPOSIT_REFUND",
                           "depositRefundStatus":"RECORDED_BY_MANAGER",
-                          "liquidationChecklist":{"depositRefundConfirmed":false}
+                          "finalInvoicePaid":true,
+                          "liquidationChecklist":{"depositRefundConfirmed":false,"finalInvoicePaid":true}
                         }
                         """)
                 .targetType(TargetType.CONTRACT)
