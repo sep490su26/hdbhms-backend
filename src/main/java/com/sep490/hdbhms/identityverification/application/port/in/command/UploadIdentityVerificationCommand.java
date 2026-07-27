@@ -5,6 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Builder
 public record UploadIdentityVerificationCommand(
-        MultipartFile cccdImage
+        MultipartFile frontImage,
+        MultipartFile backImage
 ) {
 }

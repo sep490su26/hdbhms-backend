@@ -18,12 +18,14 @@ import org.springframework.web.multipart.MultipartFile;
 public class IdentityVerificationController {
     private final UploadIdentityVerificationUseCase uploadIdentityVerificationUseCase;
 
-    @PostMapping(value = "/cccd/qr/scan", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<IdentityVerificationResponse> scanCccdQr(
-            @RequestPart("cccdImage") MultipartFile cccdImage
+    @PostMapping(value = "/cccd/extract", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<IdentityVerificationResponse> extractCccd(
+            @RequestPart("frontImage") MultipartFile frontImage,
+            @RequestPart("backImage") MultipartFile backImage
     ) {
         UploadIdentityVerificationCommand command = UploadIdentityVerificationCommand.builder()
-                .cccdImage(cccdImage)
+                .frontImage(frontImage)
+                .backImage(backImage)
                 .build();
 
         return ApiResponse.<IdentityVerificationResponse>builder()

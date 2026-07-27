@@ -12,6 +12,7 @@ public record CccdExtractedIdentity(
         LocalDate dob,
         Gender gender,
         String address,
-        LocalDate issuedDate
+        LocalDate issuedDate,
+        String issuedPlace
 ) {
 }

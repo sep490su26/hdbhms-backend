@@ -12,7 +12,7 @@ import java.util.Optional;
 @ConditionalOnMissingBean(CccdOcrExtractionPort.class)
 public class NoopCccdOcrExtractionAdapter implements CccdOcrExtractionPort {
     @Override
-    public Optional<CccdExtractedIdentity> extract(MultipartFile cccdImage) {
+    public Optional<CccdExtractedIdentity> extract(MultipartFile frontImage, MultipartFile backImage) {
         return Optional.empty();
     }
 }

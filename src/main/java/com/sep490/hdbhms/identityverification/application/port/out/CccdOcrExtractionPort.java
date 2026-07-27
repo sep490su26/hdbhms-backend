@@ -6,5 +6,5 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Optional;
 
 public interface CccdOcrExtractionPort {
-    Optional<CccdExtractedIdentity> extract(MultipartFile cccdImage);
+    Optional<CccdExtractedIdentity> extract(MultipartFile frontImage, MultipartFile backImage);
 }

@@ -39,6 +39,7 @@ public class IdentityVerificationResponse {
         String gender;
         String address;
         LocalDate issuedDate;
+        String issuedPlace;
         String oldIdNumber;
     }
 }
