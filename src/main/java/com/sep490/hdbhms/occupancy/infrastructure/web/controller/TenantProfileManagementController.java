@@ -9,6 +9,9 @@ import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequesterRole;
 import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
+import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
+import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
+import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
@@ -62,8 +65,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -75,6 +80,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @RestController
 @RequiredArgsConstructor
@@ -82,11 +89,21 @@ import java.util.Set;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TenantProfileManagementController {
     private static final String EXCEL_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private static final String ZIP_CONTENT_TYPE = "application/zip";
     private static final List<PoliceReportColumn> DEFAULT_POLICE_REPORT_COLUMNS = List.of(
+            PoliceReportColumn.PROPERTY_NAME,
+            PoliceReportColumn.ROOM_CODE,
+            PoliceReportColumn.CONTRACT_CODE,
             PoliceReportColumn.FULL_NAME,
             PoliceReportColumn.CCCD_NUMBER,
+            PoliceReportColumn.DOCUMENT_TYPE,
             PoliceReportColumn.DATE_OF_BIRTH,
+            PoliceReportColumn.GENDER,
+            PoliceReportColumn.PHONE,
             PoliceReportColumn.PERMANENT_ADDRESS,
+            PoliceReportColumn.ISSUED_DATE,
+            PoliceReportColumn.ISSUED_PLACE,
+            PoliceReportColumn.EXPIRY_DATE,
             PoliceReportColumn.CCCD_IMAGE_LINKS
     );
 
@@ -96,6 +113,7 @@ public class TenantProfileManagementController {
     ObjectMapper objectMapper;
     SnowflakeIdGenerator snowflakeIdGenerator;
     PermissionGrantService permissionGrantService;
+    DownloadFileUseCase downloadFileUseCase;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -331,6 +349,26 @@ public class TenantProfileManagementController {
                 .body(new ByteArrayResource(bytes));
     }
 
+    @GetMapping("/police-report/export-package")
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<Resource> exportPoliceReportPackage(
+            @RequestParam(name = "columns", required = false) List<String> columns
+    ) {
+        List<PoliceReportColumn> selectedColumns = resolvePoliceReportColumns(columns);
+        List<PoliceReportRow> rows = fetchPoliceReportRows();
+        if (rows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ChÆ°a cÃ³ dá»¯ liá»‡u cÆ° dÃ¢n Ä‘á»ƒ xuáº¥t.");
+        }
+
+        byte[] bytes = generatePoliceReportPackage(rows, selectedColumns);
+        String filename = "Ho so bao cong an " + LocalDate.now() + ".zip";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
+                .contentType(MediaType.parseMediaType(ZIP_CONTENT_TYPE))
+                .body(new ByteArrayResource(bytes));
+    }
+
     @PostMapping("/{profileId}/access-requests")
     @Transactional(isolation = Isolation.READ_COMMITTED)
     @PreAuthorize("hasRole('MANAGER')")
@@ -463,19 +501,31 @@ public class TenantProfileManagementController {
 
     private List<PoliceReportRow> fetchPoliceReportRows() {
         return jdbcTemplate.query("""
-                        SELECT resident_profiles.full_name,
+                        SELECT resident_profiles.property_name,
+                               resident_profiles.room_code,
+                               resident_profiles.contract_code,
+                               resident_profiles.full_name,
                                resident_profiles.dob,
+                               resident_profiles.gender,
+                               resident_profiles.phone,
                                resident_profiles.permanent_address,
+                               id_doc.doc_type,
                                id_doc.doc_number,
+                               id_doc.issued_date,
+                               id_doc.issued_place,
+                               id_doc.expiry_date,
                                id_doc.front_file_id,
                                id_doc.back_file_id
                         FROM (
                             SELECT lc.lease_contract_id AS contract_id,
+                                   lc.contract_code,
                                    r.room_code,
                                    p.name AS property_name,
                                    pp.person_profile_id AS profile_id,
                                    pp.full_name,
                                    pp.dob,
+                                   pp.gender,
+                                   pp.phone,
                                    pp.permanent_address,
                                    co.occupant_role AS room_role
                             FROM lease_contracts lc
@@ -496,11 +546,14 @@ public class TenantProfileManagementController {
                             UNION ALL
 
                             SELECT lc.lease_contract_id AS contract_id,
+                                   lc.contract_code,
                                    r.room_code,
                                    p.name AS property_name,
                                    pp.person_profile_id AS profile_id,
                                    pp.full_name,
                                    pp.dob,
+                                   pp.gender,
+                                   pp.phone,
                                    pp.permanent_address,
                                    'PRIMARY' AS room_role
                             FROM lease_contracts lc
@@ -540,10 +593,19 @@ public class TenantProfileManagementController {
                                  resident_profiles.full_name
                         """,
                 (rs, rowNum) -> new PoliceReportRow(
+                        rs.getString("property_name"),
+                        rs.getString("room_code"),
+                        rs.getString("contract_code"),
                         rs.getString("full_name"),
                         normalizeIdentityNumber(rs.getString("doc_number")),
+                        rs.getString("doc_type"),
                         nullableLocalDate(rs, "dob"),
+                        rs.getString("gender"),
+                        rs.getString("phone"),
                         rs.getString("permanent_address"),
+                        nullableLocalDate(rs, "issued_date"),
+                        rs.getString("issued_place"),
+                        nullableLocalDate(rs, "expiry_date"),
                         formatIdentityImageLinks(
                                 nullableLong(rs, "front_file_id"),
                                 nullableLong(rs, "back_file_id")
@@ -591,6 +653,332 @@ public class TenantProfileManagementController {
         } catch (IOException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file Excel thất bại, vui lòng thử lại.");
         }
+    }
+
+    private byte[] generatePoliceReportPackage(
+            List<PoliceReportRow> rows,
+            List<PoliceReportColumn> selectedColumns
+    ) {
+        List<PoliceReportRoomPackage> rooms = fetchPoliceReportRoomPackages();
+        List<String> missingFiles = new ArrayList<>();
+        Set<String> usedEntries = new LinkedHashSet<>();
+
+        try (
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                ZipOutputStream zip = new ZipOutputStream(outputStream)
+        ) {
+            addZipEntry(
+                    zip,
+                    usedEntries,
+                    "danh-sach-cu-dan.xlsx",
+                    generatePoliceReportWorkbook(rows, selectedColumns)
+            );
+
+            for (PoliceReportRoomPackage room : rooms) {
+                writePoliceReportRoomPackage(zip, usedEntries, room, missingFiles);
+            }
+
+            if (!missingFiles.isEmpty()) {
+                addZipEntry(
+                        zip,
+                        usedEntries,
+                        "MISSING_FILES.txt",
+                        String.join(System.lineSeparator(), missingFiles).getBytes(java.nio.charset.StandardCharsets.UTF_8)
+                );
+            }
+
+            zip.finish();
+            return outputStream.toByteArray();
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file ZIP thất bại, vui lòng thử lại.");
+        }
+    }
+
+    private void writePoliceReportRoomPackage(
+            ZipOutputStream zip,
+            Set<String> usedEntries,
+            PoliceReportRoomPackage room,
+            List<String> missingFiles
+    ) throws IOException {
+        String roomLabel = policeReportRoomLabel(room.roomCode());
+        String roomFolder = roomLabel + "/";
+        int residentCount = room.residents().size();
+        String countToken = residentCount < 10 ? "0" + residentCount : String.valueOf(residentCount);
+        PoliceReportPackageRow primaryResident = room.residents().stream()
+                .filter(row -> "PRIMARY".equalsIgnoreCase(row.roomRole()))
+                .findFirst()
+                .orElse(room.residents().getFirst());
+        String contractPrefix = roomLabel + "_" + countToken + "_" + sanitizePoliceReportToken(primaryResident.fullName(), "KhongTen");
+
+        addPoliceReportFile(
+                zip,
+                usedEntries,
+                roomFolder + contractPrefix + "_hop_dong_coc.pdf",
+                room.depositSignedFileId() != null ? room.depositSignedFileId() : room.depositContractFileId(),
+                "application/pdf",
+                missingFiles,
+                roomLabel + " - hợp đồng cọc"
+        );
+        addPoliceReportFile(
+                zip,
+                usedEntries,
+                roomFolder + contractPrefix + "_hop_dong_tro.pdf",
+                room.leaseSignedFileId() != null ? room.leaseSignedFileId() : room.leaseContractFileId(),
+                "application/pdf",
+                missingFiles,
+                roomLabel + " - hợp đồng trọ"
+        );
+
+        for (PoliceReportPackageRow resident : room.residents()) {
+            String residentPrefix = roomLabel + "_" + countToken + "_" + sanitizePoliceReportToken(resident.fullName(), "KhongTen");
+            addPoliceReportFile(
+                    zip,
+                    usedEntries,
+                    roomFolder + residentPrefix + "_CCCD_mat_truoc.jpg",
+                    resident.frontFileId(),
+                    "image/jpeg",
+                    missingFiles,
+                    roomLabel + " - " + resident.fullName() + " - CCCD mặt trước"
+            );
+            addPoliceReportFile(
+                    zip,
+                    usedEntries,
+                    roomFolder + residentPrefix + "_CCCD_mat_sau.jpg",
+                    resident.backFileId(),
+                    "image/jpeg",
+                    missingFiles,
+                    roomLabel + " - " + resident.fullName() + " - CCCD mặt sau"
+            );
+        }
+    }
+
+    private void addPoliceReportFile(
+            ZipOutputStream zip,
+            Set<String> usedEntries,
+            String entryName,
+            Long fileId,
+            String defaultContentType,
+            List<String> missingFiles,
+            String missingLabel
+    ) throws IOException {
+        if (fileId == null) {
+            missingFiles.add(missingLabel + ": chưa có file.");
+            return;
+        }
+
+        try {
+            FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(fileId));
+            if (fileData == null || fileData.resource() == null) {
+                missingFiles.add(missingLabel + ": không tìm thấy file #" + fileId + ".");
+                return;
+            }
+
+            String contentType = fileData.contentType() == null ? defaultContentType : fileData.contentType();
+            String resolvedEntryName = replaceExtension(entryName, extensionForContentType(contentType, defaultContentType));
+            try (InputStream inputStream = fileData.resource().getInputStream()) {
+                addZipEntry(zip, usedEntries, resolvedEntryName, inputStream.readAllBytes());
+            }
+        } catch (IOException | RuntimeException exception) {
+            missingFiles.add(missingLabel + ": không đọc được file #" + fileId + ".");
+        }
+    }
+
+    private void addZipEntry(
+            ZipOutputStream zip,
+            Set<String> usedEntries,
+            String requestedName,
+            byte[] bytes
+    ) throws IOException {
+        String entryName = uniqueZipEntryName(usedEntries, requestedName);
+        zip.putNextEntry(new ZipEntry(entryName));
+        zip.write(bytes);
+        zip.closeEntry();
+    }
+
+    private String uniqueZipEntryName(Set<String> usedEntries, String requestedName) {
+        String entryName = requestedName;
+        int counter = 2;
+        while (!usedEntries.add(entryName)) {
+            int slashIndex = requestedName.lastIndexOf('/');
+            int dotIndex = requestedName.lastIndexOf('.');
+            boolean hasExtension = dotIndex > slashIndex;
+            String baseName = hasExtension ? requestedName.substring(0, dotIndex) : requestedName;
+            String extension = hasExtension ? requestedName.substring(dotIndex) : "";
+            entryName = baseName + "_" + counter + extension;
+            counter++;
+        }
+        return entryName;
+    }
+
+    private String replaceExtension(String filename, String extension) {
+        int slashIndex = filename.lastIndexOf('/');
+        int dotIndex = filename.lastIndexOf('.');
+        if (dotIndex <= slashIndex) {
+            return filename + extension;
+        }
+        return filename.substring(0, dotIndex) + extension;
+    }
+
+    private String extensionForContentType(String contentType, String defaultContentType) {
+        String effectiveContentType = contentType == null ? defaultContentType : contentType.toLowerCase();
+        if (effectiveContentType.contains("pdf")) {
+            return ".pdf";
+        }
+        if (effectiveContentType.contains("png")) {
+            return ".png";
+        }
+        if (effectiveContentType.contains("jpeg") || effectiveContentType.contains("jpg")) {
+            return ".jpg";
+        }
+        if (effectiveContentType.contains("webp")) {
+            return ".webp";
+        }
+        return "application/pdf".equals(defaultContentType) ? ".pdf" : ".jpg";
+    }
+
+    private List<PoliceReportRoomPackage> fetchPoliceReportRoomPackages() {
+        List<PoliceReportPackageRow> rows = jdbcTemplate.query("""
+                        SELECT resident_profiles.contract_id,
+                               resident_profiles.contract_code,
+                               resident_profiles.room_code,
+                               resident_profiles.property_name,
+                               resident_profiles.profile_id,
+                               resident_profiles.full_name,
+                               resident_profiles.room_role,
+                               id_doc.front_file_id,
+                               id_doc.back_file_id,
+                               lc.contract_file_id AS lease_contract_file_id,
+                               lc.signed_file_id AS lease_signed_file_id,
+                               da.contract_file_id AS deposit_contract_file_id,
+                               da.signed_file_id AS deposit_signed_file_id
+                        FROM (
+                            SELECT lc.lease_contract_id AS contract_id,
+                                   lc.contract_code,
+                                   r.room_code,
+                                   p.name AS property_name,
+                                   pp.person_profile_id AS profile_id,
+                                   pp.full_name,
+                                   co.occupant_role AS room_role
+                            FROM lease_contracts lc
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            JOIN properties p ON p.property_id = r.property_id
+                            JOIN contract_occupants co ON co.contract_id = lc.lease_contract_id AND co.status = 'ACTIVE'
+                            JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
+                            WHERE lc.deleted_at IS NULL
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM room_transfer_requests completed_transfer
+                                  WHERE completed_transfer.old_contract_id = lc.lease_contract_id
+                                    AND completed_transfer.status IN ('EXECUTED','COMPLETED')
+                              )
+                              AND pp.deleted_at IS NULL
+
+                            UNION ALL
+
+                            SELECT lc.lease_contract_id AS contract_id,
+                                   lc.contract_code,
+                                   r.room_code,
+                                   p.name AS property_name,
+                                   pp.person_profile_id AS profile_id,
+                                   pp.full_name,
+                                   'PRIMARY' AS room_role
+                            FROM lease_contracts lc
+                            JOIN rooms r ON r.room_id = lc.room_id
+                            JOIN properties p ON p.property_id = r.property_id
+                            JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
+                            WHERE lc.deleted_at IS NULL
+                              AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM room_transfer_requests completed_transfer
+                                  WHERE completed_transfer.old_contract_id = lc.lease_contract_id
+                                    AND completed_transfer.status IN ('EXECUTED','COMPLETED')
+                              )
+                              AND pp.deleted_at IS NULL
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM contract_occupants co_primary
+                                  WHERE co_primary.contract_id = lc.lease_contract_id
+                                    AND co_primary.tenant_profile_id = pp.person_profile_id
+                                    AND co_primary.status = 'ACTIVE'
+                              )
+                        ) resident_profiles
+                        JOIN lease_contracts lc ON lc.lease_contract_id = resident_profiles.contract_id
+                        LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
+                        LEFT JOIN identity_documents id_doc
+                          ON id_doc.identity_document_id = (
+                              SELECT latest.identity_document_id
+                              FROM identity_documents latest
+                              WHERE latest.profile_id = resident_profiles.profile_id
+                                AND latest.status = 'ACTIVE'
+                              ORDER BY latest.updated_at DESC, latest.identity_document_id DESC
+                              LIMIT 1
+                          )
+                        ORDER BY resident_profiles.property_name,
+                                 resident_profiles.room_code,
+                                 resident_profiles.contract_id,
+                                 resident_profiles.room_role DESC,
+                                 resident_profiles.full_name
+                        """,
+                (rs, rowNum) -> new PoliceReportPackageRow(
+                        nullableLong(rs, "contract_id"),
+                        rs.getString("contract_code"),
+                        rs.getString("room_code"),
+                        rs.getString("property_name"),
+                        nullableLong(rs, "profile_id"),
+                        rs.getString("full_name"),
+                        rs.getString("room_role"),
+                        nullableLong(rs, "front_file_id"),
+                        nullableLong(rs, "back_file_id"),
+                        nullableLong(rs, "lease_contract_file_id"),
+                        nullableLong(rs, "lease_signed_file_id"),
+                        nullableLong(rs, "deposit_contract_file_id"),
+                        nullableLong(rs, "deposit_signed_file_id")
+                )
+        );
+
+        Map<Long, List<PoliceReportPackageRow>> rowsByContract = new LinkedHashMap<>();
+        for (PoliceReportPackageRow row : rows) {
+            rowsByContract.computeIfAbsent(row.contractId(), ignored -> new ArrayList<>()).add(row);
+        }
+
+        List<PoliceReportRoomPackage> rooms = new ArrayList<>();
+        for (List<PoliceReportPackageRow> roomRows : rowsByContract.values()) {
+            if (roomRows.isEmpty()) {
+                continue;
+            }
+            PoliceReportPackageRow first = roomRows.getFirst();
+            rooms.add(new PoliceReportRoomPackage(
+                    first.contractId(),
+                    first.contractCode(),
+                    first.roomCode(),
+                    first.propertyName(),
+                    first.leaseContractFileId(),
+                    first.leaseSignedFileId(),
+                    first.depositContractFileId(),
+                    first.depositSignedFileId(),
+                    roomRows
+            ));
+        }
+        return rooms;
+    }
+
+    private String policeReportRoomLabel(String roomCode) {
+        String roomToken = sanitizePoliceReportToken(roomCode, "Phong");
+        return roomToken.toLowerCase().startsWith("phong")
+                ? roomToken
+                : "Phong" + roomToken;
+    }
+
+    private String sanitizePoliceReportToken(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        String normalized = Normalizer.normalize(value.replace('Đ', 'D').replace('đ', 'd'), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^A-Za-z0-9]", "");
+        return normalized.isBlank() ? fallback : normalized;
     }
 
     private PoliceReportExcelStyles createPoliceReportExcelStyles(Workbook workbook) {
@@ -1189,11 +1577,50 @@ public class TenantProfileManagementController {
     }
 
     private record PoliceReportRow(
+            String propertyName,
+            String roomCode,
+            String contractCode,
             String fullName,
             String cccdNumber,
+            String documentType,
             LocalDate dateOfBirth,
+            String gender,
+            String phone,
             String permanentAddress,
+            LocalDate issuedDate,
+            String issuedPlace,
+            LocalDate expiryDate,
             String cccdImageLinks
+    ) {
+    }
+
+    private record PoliceReportPackageRow(
+            Long contractId,
+            String contractCode,
+            String roomCode,
+            String propertyName,
+            Long profileId,
+            String fullName,
+            String roomRole,
+            Long frontFileId,
+            Long backFileId,
+            Long leaseContractFileId,
+            Long leaseSignedFileId,
+            Long depositContractFileId,
+            Long depositSignedFileId
+    ) {
+    }
+
+    private record PoliceReportRoomPackage(
+            Long contractId,
+            String contractCode,
+            String roomCode,
+            String propertyName,
+            Long leaseContractFileId,
+            Long leaseSignedFileId,
+            Long depositContractFileId,
+            Long depositSignedFileId,
+            List<PoliceReportPackageRow> residents
     ) {
     }
 
@@ -1205,10 +1632,19 @@ public class TenantProfileManagementController {
     }
 
     private enum PoliceReportColumn {
+        PROPERTY_NAME("propertyName", "Cơ sở", 28 * 256),
+        ROOM_CODE("roomCode", "Phòng", 16 * 256),
+        CONTRACT_CODE("contractCode", "Mã hợp đồng", 22 * 256),
         FULL_NAME("fullName", "Họ tên", 28 * 256),
         CCCD_NUMBER("cccdNumber", "CCCD", 18 * 256),
+        DOCUMENT_TYPE("documentType", "Loại giấy tờ", 18 * 256),
         DATE_OF_BIRTH("dateOfBirth", "Ngày sinh", 16 * 256),
+        GENDER("gender", "Giới tính", 14 * 256),
+        PHONE("phone", "Số điện thoại", 18 * 256),
         PERMANENT_ADDRESS("permanentAddress", "Địa chỉ thường trú", 44 * 256),
+        ISSUED_DATE("issuedDate", "Ngày cấp", 16 * 256),
+        ISSUED_PLACE("issuedPlace", "Nơi cấp", 32 * 256),
+        EXPIRY_DATE("expiryDate", "Ngày hết hạn", 16 * 256),
         CCCD_IMAGE_LINKS("cccdImageLinks", "Link ảnh CCCD", 72 * 256);
 
         private final String key;
@@ -1240,10 +1676,19 @@ public class TenantProfileManagementController {
 
         Object value(PoliceReportRow row) {
             return switch (this) {
+                case PROPERTY_NAME -> row.propertyName();
+                case ROOM_CODE -> row.roomCode();
+                case CONTRACT_CODE -> row.contractCode();
                 case FULL_NAME -> row.fullName();
                 case CCCD_NUMBER -> row.cccdNumber();
+                case DOCUMENT_TYPE -> row.documentType();
                 case DATE_OF_BIRTH -> row.dateOfBirth();
+                case GENDER -> row.gender();
+                case PHONE -> row.phone();
                 case PERMANENT_ADDRESS -> row.permanentAddress();
+                case ISSUED_DATE -> row.issuedDate();
+                case ISSUED_PLACE -> row.issuedPlace();
+                case EXPIRY_DATE -> row.expiryDate();
                 case CCCD_IMAGE_LINKS -> row.cccdImageLinks();
             };
         }
