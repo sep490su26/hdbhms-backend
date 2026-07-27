@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -20,8 +21,10 @@ class ContractLifecycleChangeRequestDecisionHandlerTest {
     @Test
     void approvedRenewalUpdatesCurrentContractTermsInsteadOfCreatingNewContract() {
         LeaseContractManagementService managementService = mock(LeaseContractManagementService.class);
+        TenantAccountProvisioningService provisioningService = mock(TenantAccountProvisioningService.class);
         ContractLifecycleChangeRequestDecisionHandler handler = new ContractLifecycleChangeRequestDecisionHandler(
                 managementService,
+                provisioningService,
                 new ObjectMapper()
         );
         ChangeRequest request = ChangeRequest.builder()
@@ -59,5 +62,37 @@ class ContractLifecycleChangeRequestDecisionHandlerTest {
                 any(),
                 any()
         );
+    }
+
+    @Test
+    void approvedAddCoOccupantProvisionsAddedTenantAccount() {
+        LeaseContractManagementService managementService = mock(LeaseContractManagementService.class);
+        TenantAccountProvisioningService provisioningService = mock(TenantAccountProvisioningService.class);
+        ContractLifecycleChangeRequestDecisionHandler handler = new ContractLifecycleChangeRequestDecisionHandler(
+                managementService,
+                provisioningService,
+                new ObjectMapper()
+        );
+        ChangeRequest request = ChangeRequest.builder()
+                .requestType(RequestType.ADD_CO_OCCUPANT)
+                .targetType(TargetType.CONTRACT)
+                .targetId(18L)
+                .requestPayload("""
+                        {
+                          "tenantProfileId":77,
+                          "moveInDate":"2026-07-27"
+                        }
+                        """)
+                .build();
+
+        handler.onApproved(request, 40L);
+
+        verify(managementService).addCoOccupantFromChangeRequest(
+                18L,
+                77L,
+                LocalDate.parse("2026-07-27"),
+                40L
+        );
+        verify(provisioningService).provisionTenantAccount(18L, 77L, false);
     }
 }

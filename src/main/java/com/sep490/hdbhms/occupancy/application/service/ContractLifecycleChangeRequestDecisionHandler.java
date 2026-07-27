@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisionHandler;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +21,7 @@ import java.util.Map;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequestDecisionHandler {
     LeaseContractManagementService leaseContractManagementService;
+    TenantAccountProvisioningService tenantAccountProvisioningService;
     ObjectMapper objectMapper;
 
     @Override
@@ -41,12 +43,14 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
             return;
         }
         if (request.getRequestType() == RequestType.ADD_CO_OCCUPANT) {
+            Long tenantProfileId = longValue(payload.get("tenantProfileId"));
             leaseContractManagementService.addCoOccupantFromChangeRequest(
                     request.getTargetId(),
-                    longValue(payload.get("tenantProfileId")),
+                    tenantProfileId,
                     localDate(payload.get("moveInDate")),
                     managerId
             );
+            tenantAccountProvisioningService.provisionTenantAccount(request.getTargetId(), tenantProfileId, false);
             return;
         }
         leaseContractManagementService.updateTerms(

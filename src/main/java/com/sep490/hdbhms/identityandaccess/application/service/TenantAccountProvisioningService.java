@@ -157,6 +157,49 @@ public class TenantAccountProvisioningService {
                 .build();
     }
 
+    public TenantAccountProvisioningResponse provisionTenantAccount(
+            Long contractId,
+            Long tenantProfileId,
+            boolean retryFailed
+    ) {
+        ContractProvisioningContext context = findContractContext(contractId);
+        validateContractContext(context);
+
+        TenantAccountProvisioningResponse occupant = findContractOccupant(contractId, tenantProfileId);
+        if (!isProvisioningEligibleContext(occupant)) {
+            return occupant.toBuilder()
+                    .message("TENANT_CONTEXT_DISABLED")
+                    .build();
+        }
+
+        PreparationOutcome outcome = transactionTemplate().execute(status ->
+                prepareProvisioningAttempt(occupant, contractId, retryFailed));
+        if (outcome != PreparationOutcome.CLAIMED) {
+            TenantAccountProvisioningResponse current = findContractOccupant(contractId, tenantProfileId);
+            return current.toBuilder()
+                    .message(resolveNoSendMessage(List.of(current), retryFailed))
+                    .build();
+        }
+
+        try {
+            Integer sentCount = transactionTemplate().execute(status ->
+                    createAccountsAndSend(contractId, List.of(tenantProfileId), occupant, true));
+            TenantAccountProvisioningResponse current = findContractOccupant(contractId, tenantProfileId);
+            return current.toBuilder()
+                    .message(buildSendMessage(sentCount == null ? 0 : sentCount, List.of(current)))
+                    .build();
+        } catch (RuntimeException exception) {
+            String failureReason = shortFailureReason(exception);
+            transactionTemplate().executeWithoutResult(status ->
+                    markProvisioningFailed(List.of(tenantProfileId), contractId, failureReason));
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Gá»­i tÃ i khoáº£n tháº¥t báº¡i. CÃ³ thá»ƒ thá»­ gá»­i láº¡i sau khi xÃ¡c nháº­n.",
+                    exception
+            );
+        }
+    }
+
     public TenantAccountProvisioningResponse disableTenantContext(
             Long contractId,
             Long tenantProfileId,
@@ -309,6 +352,15 @@ public class TenantAccountProvisioningService {
             List<Long> claimedProfileIds,
             TenantAccountProvisioningResponse primary
     ) {
+        return createAccountsAndSend(contractId, claimedProfileIds, primary, false);
+    }
+
+    private int createAccountsAndSend(
+            Long contractId,
+            List<Long> claimedProfileIds,
+            TenantAccountProvisioningResponse recipient,
+            boolean directRecipient
+    ) {
         log.info("test");
         List<TenantAccountProvisioningResponse> occupants = findContractOccupants(contractId).stream()
                 .filter(item -> claimedProfileIds.contains(item.getProfileId()))
@@ -372,11 +424,11 @@ public class TenantAccountProvisioningService {
         log.info(credentials.toString());
         if (!credentials.isEmpty()) {
             Long recipientUserId = provisionedAccounts.stream()
-                    .filter(account -> Objects.equals(account.profileId(), primary.getProfileId()))
+                    .filter(account -> Objects.equals(account.profileId(), recipient.getProfileId()))
                     .map(ProvisionedAccount::userId)
                     .findFirst()
                     .orElseGet(() -> {
-                        User existingPrimaryUser = resolveExistingUser(primary, primary.getProfileId());
+                        User existingPrimaryUser = resolveExistingUser(recipient, recipient.getProfileId());
                         return existingPrimaryUser == null ? null : existingPrimaryUser.getId();
                     });
 
@@ -385,15 +437,28 @@ public class TenantAccountProvisioningService {
                     contractId,
                     credentials.size()
             );
-            sendPreCreatedAccountPort.sendAccountInformationBatch(
-                    contractId,
-                    primary.getProfileId(),
-                    recipientUserId,
-                    primary.getRecipientEmail(),
-                    primary.getFullName(),
-                    primary.getPhone(),
-                    credentials
-            );
+            if (directRecipient && credentials.size() == 1) {
+                SendPreCreatedAccountPort.AccountCredential credential = credentials.getFirst();
+                sendPreCreatedAccountPort.sendAccountInformation(
+                        contractId,
+                        recipient.getProfileId(),
+                        recipientUserId,
+                        recipient.getEmail(),
+                        recipient.getFullName(),
+                        recipient.getPhone(),
+                        credential.randomPassword()
+                );
+            } else {
+                sendPreCreatedAccountPort.sendAccountInformationBatch(
+                        contractId,
+                        recipient.getProfileId(),
+                        recipientUserId,
+                        recipient.getRecipientEmail(),
+                        recipient.getFullName(),
+                        recipient.getPhone(),
+                        credentials
+                );
+            }
             log.info(
                     "Tenant account email accepted by mail sender. contractId={}, accountCount={}",
                     contractId,
@@ -717,10 +782,10 @@ public class TenantAccountProvisioningService {
     }
 
     private void validateContractContext(ContractProvisioningContext context) {
-        if (context.contractStatus() != LeaseStatus.ACTIVE) {
+        if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(context.contractStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Chỉ được gửi tài khoản khi hợp đồng đang ACTIVE."
+                    "Chỉ được gửi tài khoản khi hợp đồng đang ACTIVE hoặc EXPIRING_SOON."
             );
         }
         if (context.roomStatus() != RoomStatus.OCCUPIED) {
@@ -788,7 +853,7 @@ public class TenantAccountProvisioningService {
                     pp.full_name,
                     pp.phone,
                     pp.email,
-                    COALESCE(primary_pp.email, primary_user.email) AS recipient_email,
+                    COALESCE(NULLIF(pp.email, ''), primary_pp.email, primary_user.email) AS recipient_email,
                     co.occupant_role AS room_role,
                     co.status AS occupant_status,
                     GREATEST((

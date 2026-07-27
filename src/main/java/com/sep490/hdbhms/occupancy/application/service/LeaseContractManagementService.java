@@ -514,6 +514,7 @@ public class LeaseContractManagementService {
                         finalLiquidationDate,
                         contract.getId()
         );
+        deactivateTenantAccountsWithoutValidContract(contract.getId());
 
         liquidation.setStatus(LiquidationStatus.CONFIRMED);
         contractLiquidationRepository.save(liquidation);
@@ -526,6 +527,60 @@ public class LeaseContractManagementService {
         expenseRequestService.completeLiquidationRequest(contract.getId());
 
         return findOne(contract.getId());
+    }
+
+    int deactivateTenantAccountsWithoutValidContract(Long contractId) {
+        return jdbcTemplate.update("""
+                UPDATE users u
+                SET u.status = 'INACTIVE',
+                    u.updated_at = CURRENT_TIMESTAMP(6)
+                WHERE u.role = 'TENANT'
+                  AND u.status = 'ACTIVE'
+                  AND u.deleted_at IS NULL
+                  AND u.user_id IN (
+                    SELECT user_id
+                    FROM (
+                        SELECT pp.user_id
+                        FROM contract_occupants co
+                        JOIN person_profiles pp ON pp.person_profile_id = co.tenant_profile_id
+                        WHERE co.contract_id = ?
+                          AND pp.user_id IS NOT NULL
+                          AND pp.deleted_at IS NULL
+                        UNION
+                        SELECT t.user_id
+                        FROM contract_occupants co
+                        JOIN tenants t ON t.tenant_id = co.tenant_id
+                        WHERE co.contract_id = ?
+                          AND t.deleted_at IS NULL
+                        UNION
+                        SELECT pp.user_id
+                        FROM lease_contracts lc
+                        JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
+                        WHERE lc.lease_contract_id = ?
+                          AND pp.user_id IS NOT NULL
+                          AND pp.deleted_at IS NULL
+                    ) liquidated_users
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM contract_occupants active_co
+                    JOIN lease_contracts active_lc ON active_lc.lease_contract_id = active_co.contract_id
+                    LEFT JOIN person_profiles active_pp
+                      ON active_pp.person_profile_id = active_co.tenant_profile_id
+                     AND active_pp.deleted_at IS NULL
+                    LEFT JOIN tenants active_t
+                      ON active_t.tenant_id = active_co.tenant_id
+                     AND active_t.deleted_at IS NULL
+                    WHERE active_co.status = 'ACTIVE'
+                      AND active_lc.deleted_at IS NULL
+                      AND active_lc.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                      AND (active_pp.user_id = u.user_id OR active_t.user_id = u.user_id)
+                  )
+                """,
+                contractId,
+                contractId,
+                contractId
+        );
     }
 
     public LeaseContractManagementResponse startLiquidationProcessing(

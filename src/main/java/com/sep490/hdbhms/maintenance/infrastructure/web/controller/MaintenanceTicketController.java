@@ -1551,6 +1551,7 @@ public class MaintenanceTicketController {
             case OWNER -> PaidBy.LANDLORD;
             case OPERATION -> PaidBy.MANAGER;
             case UNDECIDED -> PaidBy.OTHER;
+            case PROPERTY -> PaidBy.LANDLORD;
         };
     }
 

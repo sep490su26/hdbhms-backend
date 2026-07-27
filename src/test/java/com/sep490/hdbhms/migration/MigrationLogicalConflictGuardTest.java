@@ -36,6 +36,19 @@ class MigrationLogicalConflictGuardTest {
         assertTrue(sql.contains("'TENANT_PROFILE_ACCESS', 'PERMISSION_ACCESS'"));
     }
 
+    @Test
+    void userStatusMigrationConvertsDisabledBeforeRemovingIt() throws IOException {
+        String sql = read("migration/dev/V40__align_user_account_status_enum.sql");
+        int transitionalEnum = sql.indexOf("'DISABLED'");
+        int dataUpdate = sql.indexOf("WHERE status = 'DISABLED'");
+        int finalEnum = sql.lastIndexOf("MODIFY COLUMN status ENUM");
+        String finalDefinition = sql.substring(finalEnum);
+
+        assertTrue(transitionalEnum >= 0 && transitionalEnum < dataUpdate && dataUpdate < finalEnum);
+        assertTrue(finalDefinition.contains("'INACTIVE'"));
+        assertTrue(!finalDefinition.contains("'DISABLED'"));
+    }
+
     private String read(String resource) throws IOException {
         try (var stream = getClass().getClassLoader().getResourceAsStream(resource)) {
             if (stream == null) {

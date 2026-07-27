@@ -80,7 +80,7 @@ public class ContractLifecycleChangeRequestService {
                 principal,
                 contract,
                 RequestType.CONTRACT_LIQUIDATION,
-                "Yeu cau thanh ly hop dong " + contract.getContractCode(),
+                "Yêu cầu thanh lý hợp đồng " + contract.getRoom().getName(),
                 reason,
                 liquidationPayload(contract, liquidationDate, reason)
         );
