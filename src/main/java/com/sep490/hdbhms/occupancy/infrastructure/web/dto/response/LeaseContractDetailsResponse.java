@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -32,6 +33,8 @@ public class LeaseContractDetailsResponse {
     String tenantIntention;
     LocalDate expectedVacantDate;
     String roleInContract;
+    Long currentTenantProfileId;
+    List<LeaseContractQueryDetailsResponse.OccupantInfo> occupants;
     Boolean isPrimary;
     Boolean canRecordIntention;
     Boolean canRecordOccupantIntention;

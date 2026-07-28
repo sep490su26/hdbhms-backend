@@ -37,6 +37,13 @@ import java.util.Optional;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class VisionCccdOcrExtractionAdapter implements CccdOcrExtractionPort {
     static final DateTimeFormatter SLASH_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
+            DateTimeFormatter.ISO_LOCAL_DATE,
+            SLASH_DATE,
+            DateTimeFormatter.ofPattern("dd.MM.yyyy"),
+            DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+            DateTimeFormatter.ofPattern("ddMMyyyy")
+    );
 
     IdentityVerificationProperties properties;
     RestClient.Builder builder;
@@ -130,11 +137,14 @@ public class VisionCccdOcrExtractionAdapter implements CccdOcrExtractionPort {
         if (isBlank(value)) {
             return null;
         }
-        try {
-            return LocalDate.parse(value.trim(), SLASH_DATE);
-        } catch (DateTimeParseException ignored) {
-            return null;
+        String text = value.trim();
+        for (DateTimeFormatter formatter : DATE_FORMATTERS) {
+            try {
+                return LocalDate.parse(text, formatter);
+            } catch (DateTimeParseException ignored) {
+            }
         }
+        return null;
     }
 
     private Gender parseGender(String value) {

@@ -8,6 +8,7 @@ import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
@@ -24,6 +25,8 @@ import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryDetailsResponse;
@@ -495,6 +498,8 @@ public class LeaseContractController {
         if (userId == null) {
             return;
         }
+        response.setOccupants(findTenantContractOccupants(leaseContractId));
+        response.setCurrentTenantProfileId(findCurrentTenantProfileId(leaseContractId, userId));
         boolean isPrimary = isCurrentUserPrimarySigner(leaseContractId, userId);
         boolean isOccupant = isPrimary || isCurrentUserActiveOccupant(leaseContractId, userId);
         response.setIsPrimary(isPrimary);
@@ -520,6 +525,118 @@ public class LeaseContractController {
         response.setCanRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
                 ? null
                 : renewBlockedMessage(renewBlocker));
+    }
+
+    private List<LeaseContractQueryDetailsResponse.OccupantInfo> findTenantContractOccupants(Long leaseContractId) {
+        return jdbcTemplate.query("""
+                        SELECT
+                            pp.person_profile_id AS tenant_profile_id,
+                            pp.full_name,
+                            pp.phone,
+                            COALESCE(pp.email, u.email) AS email,
+                            co.occupant_role,
+                            co.move_in_date,
+                            co.move_out_date,
+                            co.status
+                        FROM (
+                            SELECT
+                                active_occupant.contract_occupant_id AS id,
+                                active_occupant.contract_id,
+                                active_occupant.tenant_profile_id,
+                                active_occupant.occupant_role,
+                                active_occupant.move_in_date,
+                                active_occupant.move_out_date,
+                                active_occupant.status
+                            FROM contract_occupants active_occupant
+                            WHERE active_occupant.status = 'ACTIVE'
+                              AND active_occupant.tenant_profile_id IS NOT NULL
+
+                            UNION ALL
+
+                            SELECT
+                                NULL AS id,
+                                fallback_contract.lease_contract_id AS contract_id,
+                                fallback_contract.primary_tenant_profile_id AS tenant_profile_id,
+                                'PRIMARY' AS occupant_role,
+                                fallback_contract.start_date AS move_in_date,
+                                NULL AS move_out_date,
+                                'ACTIVE' AS status
+                            FROM lease_contracts fallback_contract
+                            WHERE fallback_contract.deleted_at IS NULL
+                              AND NOT EXISTS (
+                                  SELECT 1
+                                  FROM contract_occupants primary_occupant
+                                  WHERE primary_occupant.contract_id = fallback_contract.lease_contract_id
+                                    AND primary_occupant.tenant_profile_id = fallback_contract.primary_tenant_profile_id
+                              )
+                        ) co
+                        JOIN person_profiles pp
+                          ON pp.person_profile_id = co.tenant_profile_id
+                         AND pp.deleted_at IS NULL
+                        LEFT JOIN users u
+                          ON u.user_id = pp.user_id
+                         AND u.deleted_at IS NULL
+                        WHERE co.contract_id = ?
+                        ORDER BY CASE WHEN co.occupant_role = 'PRIMARY' THEN 0 ELSE 1 END, co.id
+                        """,
+                (rs, rowNum) -> new LeaseContractQueryDetailsResponse.OccupantInfo(
+                        rs.getLong("tenant_profile_id"),
+                        rs.getString("full_name"),
+                        rs.getString("phone"),
+                        rs.getString("email"),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        OccupantRole.valueOf(rs.getString("occupant_role")),
+                        rs.getObject("move_in_date", LocalDate.class),
+                        rs.getObject("move_out_date", LocalDate.class),
+                        OccupantStatus.valueOf(rs.getString("status")),
+                        TenantAccountProvisioningStatus.NOT_PROVISIONED,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null
+                ),
+                leaseContractId
+        );
+    }
+
+    private Long findCurrentTenantProfileId(Long leaseContractId, Long userId) {
+        return jdbcTemplate.query("""
+                        SELECT pp.person_profile_id
+                        FROM lease_contracts lc
+                        JOIN person_profiles pp
+                          ON pp.deleted_at IS NULL
+                         AND (
+                              pp.person_profile_id = lc.primary_tenant_profile_id
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM contract_occupants co
+                                  WHERE co.contract_id = lc.lease_contract_id
+                                    AND co.tenant_profile_id = pp.person_profile_id
+                                    AND co.status = 'ACTIVE'
+                              )
+                         )
+                        LEFT JOIN tenant_account_provisionings tap
+                          ON tap.tenant_profile_id = pp.person_profile_id
+                         AND tap.user_id = ?
+                         AND tap.status <> 'DISABLED'
+                        WHERE lc.lease_contract_id = ?
+                          AND lc.deleted_at IS NULL
+                          AND (pp.user_id = ? OR tap.user_id = ?)
+                        ORDER BY CASE WHEN pp.person_profile_id = lc.primary_tenant_profile_id THEN 0 ELSE 1 END
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getLong("person_profile_id") : null,
+                userId,
+                leaseContractId,
+                userId,
+                userId
+        );
     }
 
     private String renewBlockedMessage(RoomCommitmentChecker.Blocker blocker) {
