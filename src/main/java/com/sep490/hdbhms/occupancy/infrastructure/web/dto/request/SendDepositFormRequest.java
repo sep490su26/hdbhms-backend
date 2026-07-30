@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -23,6 +24,8 @@ public class SendDepositFormRequest {
     @NotNull
     @PastOrPresent(message = "Ngày sinh không được lớn hơn ngày hiện tại")
     LocalDate dob;
+    @NotBlank
+    String gender;
     @Email
     String email;
     @NotBlank
@@ -60,6 +63,11 @@ public class SendDepositFormRequest {
     @NotNull
     @FutureOrPresent(message = "Ngày hẹn ký hợp đồng không được là ngày trong quá khứ")
     LocalDate expectedLeaseSignDate;
+
+    @AssertTrue(message = "Giới tính không hợp lệ.")
+    public boolean isGenderValid() {
+        return gender == null || Gender.fromLabel(gender) != Gender.UNKNOWN;
+    }
 
     @AssertTrue(message = "DEPOSIT_001")
     public boolean isCoOccupantInformationValid() {

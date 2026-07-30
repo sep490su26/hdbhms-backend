@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.occupancy.domain.value_objects.DepositFormStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -24,6 +25,8 @@ public class DepositForm {
     LocalDate idIssueDate;
     String idIssuePlace;
     LocalDate dob;
+    @Builder.Default
+    Gender gender = Gender.UNKNOWN;
     String email;
     String phone;
     Long idFrontFileId;
@@ -50,6 +53,7 @@ public class DepositForm {
             Long roomId,
             String fullName,
             LocalDate dob,
+            Gender gender,
             String email,
             String phone,
             String permanentAddress,
@@ -69,6 +73,7 @@ public class DepositForm {
         return DepositForm.builder()
                 .roomId(roomId)
                 .dob(dob)
+                .gender(gender == null ? Gender.UNKNOWN : gender)
                 .idNumber(idNumber)
                 .fullName(fullName)
                 .email(email)

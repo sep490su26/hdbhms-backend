@@ -57,4 +57,9 @@ public class SpringDataChangeRequestRepository implements ChangeRequestRepositor
         return jpaChangeRequestRepository.findFilteredByRequester(requesterId, RequestType.ROOM_TRANSFER, type, status, search, pageable)
                 .map(mapper::toDomain);
     }
+
+    @Override
+    public boolean existsByRequestCode(String requestCode) {
+        return jpaChangeRequestRepository.existsByRequestCode(requestCode);
+    }
 }

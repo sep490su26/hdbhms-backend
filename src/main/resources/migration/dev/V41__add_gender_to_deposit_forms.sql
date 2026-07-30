@@ -1,0 +1,2 @@
+ALTER TABLE hdbhms.deposit_forms
+    ADD COLUMN gender ENUM ('MALE', 'FEMALE', 'OTHER', 'UNKNOWN') DEFAULT 'UNKNOWN' NOT NULL AFTER dob;

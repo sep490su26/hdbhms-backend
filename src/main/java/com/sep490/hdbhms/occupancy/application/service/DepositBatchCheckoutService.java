@@ -16,6 +16,7 @@ import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.occupancy.application.port.out.CreateRoomHoldTaskPort;
 import com.sep490.hdbhms.occupancy.application.port.out.EarlyCancelRoomHoldTaskPort;
 import com.sep490.hdbhms.occupancy.application.port.out.UploadIdentityFilePort;
@@ -96,6 +97,7 @@ public class DepositBatchCheckoutService {
         FileMetadataEntity idFrontEntity = fileMetadataRepository.getReferenceById(idFront.getId());
         FileMetadataEntity idBackEntity = fileMetadataRepository.getReferenceById(idBack.getId());
         FileMetadataEntity portraitEntity = fileMetadataRepository.getReferenceById(portrait.getId());
+        Gender gender = Gender.fromLabel(request.getGender());
 
         long totalAmount = DEPOSIT_AMOUNT_PER_ROOM * roomIds.size();
         LocalDateTime holdExpiresAt = LocalDateTime.now().plusMinutes(HOLD_DURATION_MINUTES);
@@ -139,6 +141,7 @@ public class DepositBatchCheckoutService {
                     .idIssueDate(request.getIdIssueDate())
                     .idIssuePlace(trimToNull(request.getIdIssuePlace()))
                     .dob(request.getDob())
+                    .gender(gender)
                     .fullName(request.getFullName().trim())
                     .email(request.getEmail() == null ? "" : request.getEmail().trim())
                     .phone(request.getPhone().trim())

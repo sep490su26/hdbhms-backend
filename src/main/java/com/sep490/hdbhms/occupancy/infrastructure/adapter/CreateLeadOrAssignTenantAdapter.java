@@ -9,6 +9,7 @@ import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.occupancy.application.port.out.*;
 import com.sep490.hdbhms.occupancy.domain.model.*;
@@ -85,11 +86,13 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
 
     private PersonProfile ensurePersonProfile(User user, DepositForm depositForm) {
         return personProfileRepository.findByUserId(user.getId())
+                .map(profile -> applyDepositGender(profile, depositForm))
                 .orElseGet(() -> personProfileRepository.save(
                         PersonProfile.create(
                                 user.getId(),
                                 depositForm.getFullName(),
                                 depositForm.getDob(),
+                                depositForm.getGender(),
                                 depositForm.getPhone(),
                                 depositForm.getEmail(),
                                 depositForm.getPermanentAddress(),
@@ -101,7 +104,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     private PersonProfile ensurePersonProfile(DepositForm depositForm) {
         Optional<PersonProfile> existing = personProfileRepository.findByPhone(depositForm.getPhone());
         if (existing.isPresent()) {
-            return existing.get();
+            return applyDepositGender(existing.get(), depositForm);
         }
 
         return personProfileRepository.save(
@@ -109,12 +112,24 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
                         null,
                         depositForm.getFullName(),
                         depositForm.getDob(),
+                        depositForm.getGender(),
                         depositForm.getPhone(),
                         depositForm.getEmail(),
                         depositForm.getPermanentAddress(),
                         depositForm.getPortraitFileId()
                 )
         );
+    }
+
+    private PersonProfile applyDepositGender(PersonProfile personProfile, DepositForm depositForm) {
+        Gender gender = depositForm.getGender();
+        if (gender == null
+                || gender == Gender.UNKNOWN
+                || (personProfile.getGender() != null && personProfile.getGender() != Gender.UNKNOWN)) {
+            return personProfile;
+        }
+        personProfile.setGender(gender);
+        return personProfileRepository.save(personProfile);
     }
 
     private void ensureIdentityDocument(PersonProfile personProfile, DepositForm depositForm) {

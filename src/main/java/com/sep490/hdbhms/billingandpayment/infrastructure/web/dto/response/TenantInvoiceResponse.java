@@ -35,6 +35,7 @@ public class TenantInvoiceResponse {
     Long paymentIntentId;
     String checkoutUrl;
     String qrCode;
+    String qrPayload;
     String providerOrderCode;
     String paymentLinkId;
     String bankBin;

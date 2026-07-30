@@ -249,6 +249,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 mock(JpaRoomRepository.class),
                 fileMetadataRepository,
                 leaseContractRepository,
+                mock(JpaContractOccupantRepository.class),
                 mock(JpaDepositAgreementRepository.class),
                 mock(JpaContractLiquidationRepository.class),
                 mock(JpaContractHandoverRecordRepository.class),

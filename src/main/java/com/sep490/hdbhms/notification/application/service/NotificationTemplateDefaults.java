@@ -38,7 +38,7 @@ public class NotificationTemplateDefaults {
                     ),
                     sampleData(
                             "requestId", 680965088362752L,
-                            "requestCode", "TR-680965088362752",
+                            "requestCode", "CP_P206_07_07_2026",
                             "nominatorUserId", 15L,
                             "nominatedHolderProfileId", 41L,
                             "oldRoomId", 104L,
@@ -70,7 +70,7 @@ public class NotificationTemplateDefaults {
                     ),
                     sampleData(
                             "requestId", 680965088362752L,
-                            "requestCode", "TR-680965088362752",
+                            "requestCode", "CP_P206_07_07_2026",
                             "requesterUserId", 12L,
                             "oldRoomId", 104L,
                             "targetRoomId", 206L,
@@ -102,7 +102,7 @@ public class NotificationTemplateDefaults {
                     ),
                     sampleData(
                             "requestId", 680965088362752L,
-                            "requestCode", "TR-680965088362752",
+                            "requestCode", "CP_P206_07_07_2026",
                             "actionType", "UPLOAD_SIGNED_CONTRACT",
                             "actionLabel", "Tải bản hợp đồng đã ký trực tiếp",
                             "oldRoomId", 104L,
@@ -484,7 +484,7 @@ public class NotificationTemplateDefaults {
                     ),
                     sampleData(
                             "requestId", 680965088362757L,
-                            "requestCode", "CR-680965088362757",
+                            "requestCode", "TLHD_P101_29_07_2026",
                             "contractId", 91L,
                             "contractCode", "HD-001",
                             "roomCode", "101",
@@ -606,7 +606,7 @@ public class NotificationTemplateDefaults {
                     ),
                     sampleData(
                             "requestId", 680965088362756L,
-                            "requestCode", "CR-680965088362756",
+                            "requestCode", "GHHD_P101_29_07_2026",
                             "requestType", "CONTRACT_RENEWAL",
                             "requestTypeLabel", "Yêu cầu gia hạn hợp đồng",
                             "title", "Yêu cầu gia hạn hợp đồng HD-001",

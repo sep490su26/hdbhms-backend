@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 public interface JpaOperatingExpenseRepository extends JpaRepository<OperatingExpenseEntity, Long> {
 
@@ -44,4 +45,8 @@ public interface JpaOperatingExpenseRepository extends JpaRepository<OperatingEx
             @Param("keyword") String keyword,
             Pageable pageable
     );
+
+    Optional<OperatingExpenseEntity> findFirstByTicketIdOrderByIdAsc(Long ticketId);
+
+    boolean existsByExpenseCode(String expenseCode);
 }

@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.occupancy.domain.value_objects.DepositFormStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -43,6 +44,11 @@ public class DepositFormEntity {
 
     @Column(name = "dob")
     LocalDate dob;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", nullable = false, length = 50)
+    @Builder.Default
+    Gender gender = Gender.UNKNOWN;
 
     @Column(name = "full_name", length = 255, nullable = false)
     String fullName;

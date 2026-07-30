@@ -48,6 +48,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRep
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -159,7 +160,7 @@ public class ExpenseRequestService {
                 .build());
 
         ChangeRequestEntity changeRequest = changeRequestRepository.save(ChangeRequestEntity.builder()
-                .requestCode("CR-" + snowflakeIdGenerator.next())
+                .requestCode(nextRequestCode(RequestType.EXPENSE_APPROVAL, room == null ? null : room.getRoomCode()))
                 .requestType(RequestType.EXPENSE_APPROVAL)
                 .requester(requester)
                 .requesterRole(toRequesterRole(currentRole))
@@ -324,7 +325,10 @@ public class ExpenseRequestService {
                 .build());
 
         ChangeRequestEntity expenseChangeRequest = changeRequestRepository.save(ChangeRequestEntity.builder()
-                .requestCode("CR-" + snowflakeIdGenerator.next())
+                .requestCode(nextRequestCode(
+                        RequestType.EXPENSE_APPROVAL,
+                        room == null ? roomCode : room.getRoomCode()
+                ))
                 .requestType(RequestType.EXPENSE_APPROVAL)
                 .requester(requester)
                 .requesterRole(toRequesterRole(requester.getRole()))
@@ -914,6 +918,15 @@ public class ExpenseRequestService {
                 "status", expense.getStatus() == null ? null : expense.getStatus().name()
         );
         notificationPublisher.publish(eventType, recipientUserId, "EXPENSE_REQUEST", expense.getId(), data);
+    }
+
+    private String nextRequestCode(RequestType requestType, String roomCode) {
+        return RequestCodeBuilder.nextAvailable(
+                requestType,
+                roomCode,
+                LocalDate.now(),
+                changeRequestRepository::existsByRequestCode
+        );
     }
 
     private OperatingExpenseEntity requireExpense(Long id) {

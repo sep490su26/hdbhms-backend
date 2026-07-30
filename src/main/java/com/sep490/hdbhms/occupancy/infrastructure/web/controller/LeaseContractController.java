@@ -6,6 +6,8 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
+import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
+import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
@@ -81,6 +83,7 @@ public class LeaseContractController {
     LeaseContractDocumentService leaseContractDocumentService;
     DownloadFileUseCase downloadFileUseCase;
     RoomCommitmentChecker roomCommitmentChecker;
+    PersonProfileRepository personProfileRepository;
     JdbcTemplate jdbcTemplate;
 
     @GetMapping("/{id}/draft-pdf")
@@ -283,7 +286,11 @@ public class LeaseContractController {
         ChangeRequest changeRequest = contractLifecycleChangeRequestService.submitLiquidationRequest(
                 leaseContractId,
                 request == null ? null : request.liquidationDate(),
-                request == null ? null : request.reason()
+                request == null ? null : request.reason(),
+                request == null ? null : request.liquidationMode(),
+                request == null ? null : request.leavingProfileIds(),
+                request == null ? null : request.stayingProfileIds(),
+                request == null ? null : request.replacementPrimaryTenantProfileId()
         );
         return ApiResponse.<ChangeRequestResponse>builder()
                 .data(toChangeRequestResponse(changeRequest))
@@ -890,6 +897,10 @@ public class LeaseContractController {
     public record LeaseContractLiquidationRequest(
             LocalDate liquidationDate,
             String reason,
+            String liquidationMode,
+            List<Long> leavingProfileIds,
+            List<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId,
             @Valid
             List<LeaseContractLiquidationChargeRequest> charges
     ) {
@@ -949,6 +960,9 @@ public class LeaseContractController {
     }
 
     private ChangeRequestResponse toChangeRequestResponse(ChangeRequest req) {
+        PersonProfile requesterProfile = req.getRequesterId() == null
+                ? null
+                : personProfileRepository.findByUserId(req.getRequesterId()).orElse(null);
         return new ChangeRequestResponse(
                 req.getId(),
                 req.getRequestCode(),
@@ -960,6 +974,8 @@ public class LeaseContractController {
                 req.getRequestPayload(),
                 req.getStatus(),
                 req.getRequesterId(),
+                requesterProfile == null ? null : requesterProfile.getFullName(),
+                requesterProfile == null ? null : requesterProfile.getPhone(),
                 req.getResolutionNote(),
                 req.getResolvedAt(),
                 req.getCreatedAt()

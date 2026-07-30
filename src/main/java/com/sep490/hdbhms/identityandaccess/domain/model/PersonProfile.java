@@ -33,6 +33,7 @@ public class PersonProfile {
             Long userId,
             String fullName,
             LocalDate dob,
+            Gender gender,
             String phone,
             String email,
             String permanentAddress,
@@ -42,6 +43,7 @@ public class PersonProfile {
                 .userId(userId)
                 .fullName(fullName)
                 .dob(dob)
+                .gender(gender == null ? Gender.UNKNOWN : gender)
                 .phone(phone)
                 .email(email)
                 .permanentAddress(permanentAddress)
@@ -80,6 +82,14 @@ public class PersonProfile {
 
     public void setPortraitFileId(Long portraitFileId) {
         this.portraitFileId = portraitFileId;
+        updatedAt = LocalDateTime.now();
+    }
+
+    public void setGender(Gender gender) {
+        if (gender == null) {
+            return;
+        }
+        this.gender = gender;
         updatedAt = LocalDateTime.now();
     }
 }

@@ -1149,6 +1149,8 @@ public class LeaseContractQueryService {
             String roleInContract,
             boolean isPrimary,
             String contractStatus,
+            String tenantIntention,
+            LocalDate expectedVacantDate,
             LocalDate startDate,
             LocalDate endDate,
             Long monthlyRent,
@@ -1223,6 +1225,8 @@ public class LeaseContractQueryService {
                     p.name  AS property_name,
                     CASE WHEN MIN(access.role_rank) = 0 THEN 'PRIMARY' ELSE 'CO_OCCUPANT' END AS role_in_contract,
                     lc.status AS contract_status,
+                    lc.tenant_intention,
+                    lc.expected_vacant_date,
                     lc.start_date,
                     lc.end_date,
                     lc.monthly_rent,
@@ -1259,8 +1263,8 @@ public class LeaseContractQueryService {
                   )
                 GROUP BY
                     lc.lease_contract_id, lc.contract_code, r.room_id, r.room_code, r.name,
-                    r.current_status, p.property_id, p.name, lc.status, lc.start_date,
-                    lc.end_date, lc.monthly_rent
+                    r.current_status, p.property_id, p.name, lc.status, lc.tenant_intention,
+                    lc.expected_vacant_date, lc.start_date, lc.end_date, lc.monthly_rent
                 ORDER BY
                     CASE lc.status
                         WHEN 'ACTIVE' THEN 0
@@ -1283,6 +1287,8 @@ public class LeaseContractQueryService {
                         rs.getString("role_in_contract"),
                         "PRIMARY".equals(rs.getString("role_in_contract")),
                         rs.getString("contract_status"),
+                        rs.getString("tenant_intention"),
+                        toLocalDate(rs, "expected_vacant_date"),
                         toLocalDate(rs, "start_date"),
                         toLocalDate(rs, "end_date"),
                         rs.getLong("monthly_rent"),

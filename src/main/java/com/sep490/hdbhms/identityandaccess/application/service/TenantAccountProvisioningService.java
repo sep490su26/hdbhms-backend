@@ -105,13 +105,6 @@ public class TenantAccountProvisioningService {
                     "NO_ACTIVE_TENANT_CONTEXT"
             );
         }
-        TenantAccountProvisioningResponse primary = findPrimary(eligibleOccupants);
-//        if (StringUtils.isEmpty(primary.getRecipientEmail())) {
-//            throw new ResponseStatusException(
-//                    HttpStatus.BAD_REQUEST,
-//                    "MISSING_EMAIL: Thiếu email người ký chính để nhận tài khoản."
-//            );
-//        }
         List<Long> claimedProfileIds = transactionTemplate().execute(status -> {
             List<Long> claimed = new ArrayList<>();
             for (TenantAccountProvisioningResponse occupant : eligibleOccupants) {
@@ -133,7 +126,7 @@ public class TenantAccountProvisioningService {
         }
         try {
             Integer sentCount = transactionTemplate().execute(status ->
-                    createAccountsAndSend(contractId, preparedProfileIds, primary));
+                    createAccountsAndSend(contractId, preparedProfileIds));
             log.info(
                     "Provisioned tenant accounts from lease contract. contractId={}, sentCount={}",
                     contractId,
@@ -150,7 +143,6 @@ public class TenantAccountProvisioningService {
             );
         }
 
-        log.info("test1");
         List<TenantAccountProvisioningResponse> current = findContractOccupants(contractId);
         return findPrimary(current).toBuilder()
                 .message(buildSendMessage(preparedProfileIds.size(), current))
@@ -183,7 +175,7 @@ public class TenantAccountProvisioningService {
 
         try {
             Integer sentCount = transactionTemplate().execute(status ->
-                    createAccountsAndSend(contractId, List.of(tenantProfileId), occupant, true));
+                    createAccountsAndSend(contractId, List.of(tenantProfileId)));
             TenantAccountProvisioningResponse current = findContractOccupant(contractId, tenantProfileId);
             return current.toBuilder()
                     .message(buildSendMessage(sentCount == null ? 0 : sentCount, List.of(current)))
@@ -349,19 +341,8 @@ public class TenantAccountProvisioningService {
 
     private int createAccountsAndSend(
             Long contractId,
-            List<Long> claimedProfileIds,
-            TenantAccountProvisioningResponse primary
+            List<Long> claimedProfileIds
     ) {
-        return createAccountsAndSend(contractId, claimedProfileIds, primary, false);
-    }
-
-    private int createAccountsAndSend(
-            Long contractId,
-            List<Long> claimedProfileIds,
-            TenantAccountProvisioningResponse recipient,
-            boolean directRecipient
-    ) {
-        log.info("test");
         List<TenantAccountProvisioningResponse> occupants = findContractOccupants(contractId).stream()
                 .filter(item -> claimedProfileIds.contains(item.getProfileId()))
                 .toList();
@@ -421,24 +402,23 @@ public class TenantAccountProvisioningService {
                     occupant.getRoomRole()
             ));
         }
-        log.info(credentials.toString());
         if (!credentials.isEmpty()) {
-            Long recipientUserId = provisionedAccounts.stream()
-                    .filter(account -> Objects.equals(account.profileId(), recipient.getProfileId()))
-                    .map(ProvisionedAccount::userId)
-                    .findFirst()
-                    .orElseGet(() -> {
-                        User existingPrimaryUser = resolveExistingUser(recipient, recipient.getProfileId());
-                        return existingPrimaryUser == null ? null : existingPrimaryUser.getId();
-                    });
-
             log.info(
-                    "Sending tenant account email. contractId={}, accountCount={}",
+                    "Sending tenant account notifications. contractId={}, accountCount={}",
                     contractId,
                     credentials.size()
             );
-            if (directRecipient && credentials.size() == 1) {
-                SendPreCreatedAccountPort.AccountCredential credential = credentials.getFirst();
+            for (SendPreCreatedAccountPort.AccountCredential credential : credentials) {
+                TenantAccountProvisioningResponse recipient = findRecipient(occupants, credential.tenantProfileId());
+                Long recipientUserId = provisionedAccounts.stream()
+                        .filter(account -> Objects.equals(account.profileId(), recipient.getProfileId()))
+                        .map(ProvisionedAccount::userId)
+                        .findFirst()
+                        .orElseGet(() -> {
+                            User existingUser = resolveExistingUser(recipient, recipient.getProfileId());
+                            return existingUser == null ? null : existingUser.getId();
+                        });
+
                 sendPreCreatedAccountPort.sendAccountInformation(
                         contractId,
                         recipient.getProfileId(),
@@ -448,19 +428,9 @@ public class TenantAccountProvisioningService {
                         recipient.getPhone(),
                         credential.randomPassword()
                 );
-            } else {
-                sendPreCreatedAccountPort.sendAccountInformationBatch(
-                        contractId,
-                        recipient.getProfileId(),
-                        recipientUserId,
-                        recipient.getRecipientEmail(),
-                        recipient.getFullName(),
-                        recipient.getPhone(),
-                        credentials
-                );
             }
             log.info(
-                    "Tenant account email accepted by mail sender. contractId={}, accountCount={}",
+                    "Tenant account notifications accepted by sender. contractId={}, accountCount={}",
                     contractId,
                     credentials.size()
             );
@@ -483,6 +453,16 @@ public class TenantAccountProvisioningService {
             provisioningRepository.save(provisioning);
         }
         return credentials.size();
+    }
+
+    private TenantAccountProvisioningResponse findRecipient(
+            List<TenantAccountProvisioningResponse> occupants,
+            Long profileId
+    ) {
+        return occupants.stream()
+                .filter(item -> Objects.equals(item.getProfileId(), profileId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "TENANT_CONTEXT_NOT_FOUND"));
     }
 
     private void claimProvisioningAttempt(

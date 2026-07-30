@@ -41,8 +41,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContra
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -62,6 +62,7 @@ import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.v2.paymentRequests.Transaction;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -89,7 +90,6 @@ public class TenantInvoiceController {
     JpaChangeRequestRepository jpaChangeRequestRepository;
     JpaUserRepository jpaUserRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
-    SnowflakeIdGenerator snowflakeIdGenerator;
     ObjectMapper objectMapper;
     PayOSProperties payOSProperties;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
@@ -164,7 +164,12 @@ public class TenantInvoiceController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tệp minh chứng."));
 
         ChangeRequestEntity created = jpaChangeRequestRepository.save(ChangeRequestEntity.builder()
-                .requestCode("MRR-" + snowflakeIdGenerator.next())
+                .requestCode(RequestCodeBuilder.nextAvailable(
+                        RequestType.METER_READING_CORRECTION,
+                        reading.getRoom() == null ? null : reading.getRoom().getRoomCode(),
+                        LocalDate.now(),
+                        jpaChangeRequestRepository::existsByRequestCode
+                ))
                 .requestType(RequestType.METER_READING_CORRECTION)
                 .requester(requester)
                 .requesterRole(RequesterRole.TENANT)
@@ -334,7 +339,8 @@ public class TenantInvoiceController {
                 .remainingAmount(invoice.getRemainingAmount())
                 .paymentIntentId(paymentInfo.paymentIntentId())
                 .checkoutUrl(paymentInfo.checkoutUrl())
-                .qrCode(paymentInfo.qrCode())
+                .qrCode(firstNonBlank(paymentInfo.qrCode(), paymentInfo.qrPayload()))
+                .qrPayload(paymentInfo.qrPayload())
                 .providerOrderCode(paymentInfo.providerOrderCode())
                 .paymentLinkId(paymentInfo.paymentLinkId())
                 .bankBin(paymentInfo.bankBin())
@@ -377,6 +383,7 @@ public class TenantInvoiceController {
                 paymentIntent.getId(),
                 text(payload, "checkoutUrl"),
                 text(payload, "qrCode"),
+                text(payload, "qrPayload"),
                 firstNonBlank(text(payload, "providerOrderCode"), paymentIntent.getProviderOrderCode()),
                 text(payload, "paymentLinkId"),
                 text(payload, "bankBin"),
@@ -552,6 +559,7 @@ public class TenantInvoiceController {
             Long paymentIntentId,
             String checkoutUrl,
             String qrCode,
+            String qrPayload,
             String providerOrderCode,
             String paymentLinkId,
             String bankBin,
@@ -561,7 +569,7 @@ public class TenantInvoiceController {
             String transferDescription
     ) {
         static PaymentInfo empty() {
-            return new PaymentInfo(null, null, null, null, null, null, null, null, null, null);
+            return new PaymentInfo(null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 }

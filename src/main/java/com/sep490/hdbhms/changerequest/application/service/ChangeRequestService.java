@@ -30,6 +30,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChangeRequestService implements ChangeRequestUseCase {
+    static final String LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS = "PRIMARY_LEAVES_CO_OCCUPANT_STAYS";
+
     ChangeRequestRepository repository;
     List<ChangeRequestDecisionHandler> decisionHandlers;
     BusinessNotificationPublisher notificationPublisher;
@@ -43,7 +45,7 @@ public class ChangeRequestService implements ChangeRequestUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (request.getRequestType() == RequestType.CONTRACT_LIQUIDATION) {
             request.startProcessing(command.managerId());
-            request.updateRequestPayload(withLiquidationStage(request.getRequestPayload(), "WAITING_HANDOVER"));
+            request.updateRequestPayload(withLiquidationStage(request.getRequestPayload()));
         } else {
             request.approve(command.managerId());
         }
@@ -158,17 +160,25 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         return data;
     }
 
-    private String withLiquidationStage(String payloadJson, String stage) {
+    private String withLiquidationStage(String payloadJson) {
         Map<String, Object> data = payloadMap(payloadJson);
+        Object liquidationMode = data.get("liquidationMode");
+        boolean holderReplacement = liquidationMode != null
+                && LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS
+                .equalsIgnoreCase(liquidationMode.toString().trim());
+        String stage = holderReplacement ? "WAITING_REPLACEMENT_CONTRACT" : "WAITING_HANDOVER";
         data.put("liquidationStage", stage);
-        data.put("depositRefundStatus", "PENDING");
-        data.put("liquidationChecklist", Map.of(
-                "handoverConfirmed", false,
-                "finalInvoicePaid", false,
-                "depositRefundConfirmed", false,
-                "signedDocumentUploaded", false,
-                "canConfirm", false
-        ));
+        data.put("depositRefundStatus", holderReplacement ? "NOT_REQUIRED" : "PENDING");
+        Map<String, Object> checklist = new LinkedHashMap<>();
+        checklist.put("handoverConfirmed", holderReplacement);
+        checklist.put("finalInvoicePaid", false);
+        checklist.put("depositRefundConfirmed", holderReplacement);
+        checklist.put("signedDocumentUploaded", false);
+        if (holderReplacement) {
+            checklist.put("replacementContractSigned", false);
+        }
+        checklist.put("canConfirm", false);
+        data.put("liquidationChecklist", checklist);
         return writePayload(data);
     }
 

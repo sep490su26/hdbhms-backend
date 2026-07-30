@@ -48,6 +48,7 @@ public class GetDashboardService implements GetDashboardUseCase {
     static final int REVENUE_MONTH_COUNT = 6;
     static final DateTimeFormatter REVENUE_PERIOD_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM");
     static final DateTimeFormatter METER_PERIOD_FORMAT = DateTimeFormatter.ofPattern("MM-uuuu");
+    static final List<RoomStatus> OCCUPIED_STATUSES = List.of(RoomStatus.OCCUPIED, RoomStatus.SOON_VACANT);
 
     JpaPropertyRepository propertyRepository;
     JpaFloorRepository floorRepository;
@@ -84,7 +85,7 @@ public class GetDashboardService implements GetDashboardUseCase {
 
         return DashboardResponse.builder()
                 .totalRoomCount((long) rooms.size())
-                .totalOccupiedRoomCount(countRooms(rooms, RoomStatus.OCCUPIED))
+                .totalOccupiedRoomCount(countOccupiedRooms(rooms))
                 .totalVacantRoomCount(countRooms(rooms, RoomStatus.VACANT))
                 .floorEfficiencies(floorEfficiencies)
                 .currentMonthRevenue(currentMonthRevenue)
@@ -136,6 +137,13 @@ public class GetDashboardService implements GetDashboardUseCase {
                 .build();
     }
 
+    private long countOccupiedRooms(List<RoomEntity> rooms) {
+        return rooms.stream()
+                .map(RoomEntity::getCurrentStatus)
+                .filter(OCCUPIED_STATUSES::contains)
+                .count();
+    }
+
     private long countRooms(List<RoomEntity> rooms, RoomStatus status) {
         return rooms.stream()
                 .map(RoomEntity::getCurrentStatus)
@@ -156,18 +164,16 @@ public class GetDashboardService implements GetDashboardUseCase {
         params.add(endExclusive.atDay(1).atStartOfDay());
 
         String sql = """
-                SELECT DATE_FORMAT(payment.transaction_time, '%%Y-%%m') AS period,
-                       COALESCE(SUM(allocation.amount), 0) AS amount
-                FROM payment_allocations allocation
-                JOIN payment_transactions payment
-                  ON payment.payment_transaction_id = allocation.payment_transaction_id
-                JOIN invoices invoice
-                  ON invoice.invoice_id = allocation.invoice_id
+                SELECT DATE_FORMAT(invoice.updated_at, '%%Y-%%m') AS period,
+                       COALESCE(SUM(invoice.paid_amount), 0) AS amount
+                FROM invoices invoice
                 WHERE %s
-                  AND payment.status IN ('MATCHED', 'PARTIALLY_ALLOCATED', 'ALLOCATED')
-                  AND payment.transaction_time >= ?
-                  AND payment.transaction_time < ?
-                GROUP BY DATE_FORMAT(payment.transaction_time, '%%Y-%%m')
+                  AND invoice.invoice_type <> 'DEPOSIT'
+                  AND invoice.status IN ('PAID', 'PARTIALLY_PAID')
+                  AND invoice.paid_amount > 0
+                  AND invoice.updated_at >= ?
+                  AND invoice.updated_at < ?
+                GROUP BY DATE_FORMAT(invoice.updated_at, '%%Y-%%m')
                 """.formatted(propertyClause);
 
         List<RevenueBucket> buckets = jdbcTemplate.query(sql, this::mapRevenueBucket, params.toArray());
@@ -392,17 +398,14 @@ public class GetDashboardService implements GetDashboardUseCase {
                 SELECT 'PAYMENT' AS type,
                        CONCAT('Thanh toán thành công: Phòng ', COALESCE(NULLIF(room.room_code, ''), room.name, invoice.invoice_code)) AS title,
                        'success' AS tone,
-                       payment.transaction_time AS occurred_at
-                FROM payment_allocations allocation
-                JOIN payment_transactions payment
-                  ON payment.payment_transaction_id = allocation.payment_transaction_id
-                JOIN invoices invoice
-                  ON invoice.invoice_id = allocation.invoice_id
+                       invoice.updated_at AS occurred_at
+                FROM invoices invoice
                 LEFT JOIN rooms room
                   ON room.room_id = invoice.room_id
                 WHERE %s
-                  AND payment.status IN ('MATCHED', 'PARTIALLY_ALLOCATED', 'ALLOCATED')
-                ORDER BY payment.transaction_time DESC
+                  AND invoice.status IN ('PAID', 'PARTIALLY_PAID')
+                  AND invoice.paid_amount > 0
+                ORDER BY invoice.updated_at DESC
                 LIMIT 5
                 """.formatted(inClause("invoice.property_id", propertyIds.size())), this::mapActivity, params.toArray());
         return rows == null ? List.of() : rows;

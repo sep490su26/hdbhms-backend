@@ -22,7 +22,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContra
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractOccupantRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -68,11 +68,18 @@ public class ContractLifecycleChangeRequestService {
     JpaChangeRequestRepository jpaChangeRequestRepository;
     ChangeRequestRepository changeRequestRepository;
     ObjectMapper objectMapper;
-    SnowflakeIdGenerator snowflakeIdGenerator;
     ChangeRequestNotificationService changeRequestNotificationService;
 
     @Transactional
-    public ChangeRequest submitLiquidationRequest(Long leaseContractId, LocalDate liquidationDate, String reason) {
+    public ChangeRequest submitLiquidationRequest(
+            Long leaseContractId,
+            LocalDate liquidationDate,
+            String reason,
+            String liquidationMode,
+            List<Long> leavingProfileIds,
+            List<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId
+    ) {
         UserPrincipal principal = currentPrincipal();
         LeaseContractEntity contract = getContract(leaseContractId);
         assertLifecycleAllowed(contract, RequestType.CONTRACT_LIQUIDATION);
@@ -82,7 +89,15 @@ public class ContractLifecycleChangeRequestService {
                 RequestType.CONTRACT_LIQUIDATION,
                 "Yêu cầu thanh lý hợp đồng " + contract.getRoom().getName(),
                 reason,
-                liquidationPayload(contract, liquidationDate, reason)
+                liquidationPayload(
+                        contract,
+                        liquidationDate,
+                        reason,
+                        liquidationMode,
+                        leavingProfileIds,
+                        stayingProfileIds,
+                        replacementPrimaryTenantProfileId
+                )
         );
     }
 
@@ -104,7 +119,7 @@ public class ContractLifecycleChangeRequestService {
                 principal,
                 contract,
                 RequestType.CONTRACT_RENEWAL,
-                "Yeu cau gia han hop dong " + contract.getContractCode(),
+                "Yêu cầu gia hạn hợp đồng " + contract.getContractCode(),
                 note,
                 renewalPayload(contract, newStartDate, newEndDate, renewalTermMonths, monthlyRent, paymentCycleMonths, depositAmount, note)
         );
@@ -136,13 +151,13 @@ public class ContractLifecycleChangeRequestService {
                 permanentAddress
         );
         assertCanRequestAddCoOccupant(contract, profile);
-        String occupantName = profile.getFullName() == null ? "nguoi o cung" : profile.getFullName();
+        String occupantName = profile.getFullName() == null ? "người ở cùng" : profile.getFullName();
         return createChangeRequest(
                 principal,
                 contract,
                 RequestType.ADD_CO_OCCUPANT,
-                "Yeu cau them nguoi o cung hop dong " + contract.getContractCode(),
-                (note == null || note.isBlank()) ? "Them nguoi o cung: " + occupantName : note,
+                "Yêu cầu thêm người ở cùng hợp đồng " + contract.getContractCode(),
+                (note == null || note.isBlank()) ? "Thêm người ở cùng: " + occupantName : note,
                 addCoOccupantPayload(contract, profile, moveInDate, note)
         );
     }
@@ -161,11 +176,11 @@ public class ContractLifecycleChangeRequestService {
                 contract.getId(),
                 OPEN_REQUEST_STATUSES
         )) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hop dong da co yeu cau dang cho duyet.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hợp đồng đã có yêu cầu đang cho duyệt.");
         }
 
         ChangeRequest changeRequest = ChangeRequest.builder()
-                .requestCode(nextChangeRequestCode())
+                .requestCode(nextChangeRequestCode(requestType, contract))
                 .requestType(requestType)
                 .requesterId(principal.getId())
                 .requesterRole(toRequesterRole(principal.getRole()))
@@ -194,10 +209,30 @@ public class ContractLifecycleChangeRequestService {
         return payload;
     }
 
-    private Map<String, Object> liquidationPayload(LeaseContractEntity contract, LocalDate liquidationDate, String reason) {
+    private Map<String, Object> liquidationPayload(
+            LeaseContractEntity contract,
+            LocalDate liquidationDate,
+            String reason,
+            String liquidationMode,
+            List<Long> leavingProfileIds,
+            List<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId
+    ) {
         Map<String, Object> payload = basePayload("CONTRACT_LIQUIDATION", contract);
         payload.put("liquidationDate", liquidationDate == null ? LocalDate.now() : liquidationDate);
         payload.put("reason", reason);
+        if (liquidationMode != null && !liquidationMode.isBlank()) {
+            payload.put("liquidationMode", liquidationMode.trim());
+        }
+        if (leavingProfileIds != null && !leavingProfileIds.isEmpty()) {
+            payload.put("leavingProfileIds", leavingProfileIds);
+        }
+        if (stayingProfileIds != null && !stayingProfileIds.isEmpty()) {
+            payload.put("stayingProfileIds", stayingProfileIds);
+        }
+        if (replacementPrimaryTenantProfileId != null) {
+            payload.put("replacementPrimaryTenantProfileId", replacementPrimaryTenantProfileId);
+        }
         return payload;
     }
 
@@ -244,16 +279,16 @@ public class ContractLifecycleChangeRequestService {
 
     private void assertLifecycleAllowed(LeaseContractEntity contract, RequestType requestType) {
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
         }
         if (requestType == RequestType.CONTRACT_LIQUIDATION && !LIQUIDATABLE_STATUSES.contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the thanh ly.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng không thể thanh lý.");
         }
         if (requestType == RequestType.CONTRACT_RENEWAL && !RENEWABLE_STATUSES.contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the gia han.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng không thể gia hạn.");
         }
         if (requestType == RequestType.ADD_CO_OCCUPANT && !ADD_CO_OCCUPANT_STATUSES.contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the them nguoi o cung.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng không thế thêm người ở cùng.");
         }
     }
 
@@ -268,9 +303,9 @@ public class ContractLifecycleChangeRequestService {
     ) {
         if (tenantProfileId != null) {
             PersonProfileEntity profile = personProfileRepository.findById(tenantProfileId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay ho so nguoi o cung."));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người o cùng."));
             if (profile.getDeletedAt() != null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay ho so nguoi o cung.");
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người ở cùng.");
             }
             return profile;
         }
@@ -286,7 +321,7 @@ public class ContractLifecycleChangeRequestService {
 
         String cleanedFullName = trimToNull(fullName);
         if (cleanedFullName == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ten nguoi o cung la bat buoc.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên người ở cùng là bắt buộc.");
         }
         return personProfileRepository.save(PersonProfileEntity.builder()
                 .fullName(cleanedFullName)
@@ -302,14 +337,14 @@ public class ContractLifecycleChangeRequestService {
         if (contract.getPrimaryTenantProfile() != null
                 && contract.getPrimaryTenantProfile().getId() != null
                 && contract.getPrimaryTenantProfile().getId().equals(profile.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Nguoi nay da la nguoi dung ten hop dong.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Người này đã là người đứng tên hợp đồng.");
         }
         if (contractOccupantRepository.findFirstByContract_IdAndTenantProfile_IdAndStatus(
                 contract.getId(),
                 profile.getId(),
                 OccupantStatus.ACTIVE
         ).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Nguoi nay da la nguoi o cung trong hop dong.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Người này đã là người ở cùng trong hợp đồng.");
         }
 
         RoomEntity room = contract.getRoom();
@@ -319,13 +354,13 @@ public class ContractLifecycleChangeRequestService {
                 OccupantStatus.ACTIVE
         ).size();
         if (activeOccupants >= maxOccupants) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong da dat so nguoi o toi da.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đã dạt số người ở tối đa.");
         }
     }
 
     private LeaseContractEntity getContract(Long leaseContractId) {
         return leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
     }
 
     private UserPrincipal currentPrincipal() {
@@ -339,12 +374,17 @@ public class ContractLifecycleChangeRequestService {
     private RequesterRole toRequesterRole(Role role) {
         if (role == Role.OWNER) return RequesterRole.OWNER;
         if (role == Role.MANAGER) return RequesterRole.MANAGER;
-        if (role == Role.ACCOUNTANT) return RequesterRole.ACCOUNTANT;
         return RequesterRole.TENANT;
     }
 
-    private String nextChangeRequestCode() {
-        return "CR-" + snowflakeIdGenerator.next();
+    private String nextChangeRequestCode(RequestType requestType, LeaseContractEntity contract) {
+        RoomEntity room = contract.getRoom();
+        return RequestCodeBuilder.nextAvailable(
+                requestType,
+                room == null ? null : room.getRoomCode(),
+                LocalDate.now(),
+                changeRequestRepository::existsByRequestCode
+        );
     }
 
     private String trimToNull(String value) {
@@ -358,7 +398,7 @@ public class ContractLifecycleChangeRequestService {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Khong tao duoc noi dung yeu cau.");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không tạo được nội dung yêu cầu.");
         }
     }
 }

@@ -9,6 +9,8 @@ import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.ApproveRequestRequest;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
+import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.RejectRequestRequest;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestResponse;
@@ -37,6 +39,7 @@ public class ChangeRequestController {
 
     ChangeRequestQueryUseCase queryUseCase;
     ChangeRequestUseCase useCase;
+    PersonProfileRepository personProfileRepository;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('OWNER','MANAGER','ACCOUNTANT')")
@@ -48,21 +51,7 @@ public class ChangeRequestController {
     ) {
         Page<ChangeRequest> requestPage = queryUseCase.getFilteredRequests(type, status, search, pageable);
 
-        Page<ChangeRequestResponse> responsePage = requestPage.map(req -> new ChangeRequestResponse(
-                req.getId(),
-                req.getRequestCode(),
-                req.getRequestType(),
-                req.getTargetType(),
-                req.getTargetId(),
-                req.getTitle(),
-                req.getDescription(),
-                req.getRequestPayload(),
-                req.getStatus(),
-                req.getRequesterId(),
-                req.getResolutionNote(),
-                req.getResolvedAt(),
-                req.getCreatedAt()
-        ));
+        Page<ChangeRequestResponse> responsePage = requestPage.map(this::toResponse);
 
         return ApiResponse.<PageResponse<ChangeRequestResponse>>builder()
                 .code(0)
@@ -80,21 +69,7 @@ public class ChangeRequestController {
         Page<ChangeRequest> requestPage = queryUseCase.getFilteredRequestsByRequester(
                 AuthUtils.getCurrentAuthenticationId(), type, status, search, pageable);
 
-        Page<ChangeRequestResponse> responsePage = requestPage.map(req -> new ChangeRequestResponse(
-                req.getId(),
-                req.getRequestCode(),
-                req.getRequestType(),
-                req.getTargetType(),
-                req.getTargetId(),
-                req.getTitle(),
-                req.getDescription(),
-                req.getRequestPayload(),
-                req.getStatus(),
-                req.getRequesterId(),
-                req.getResolutionNote(),
-                req.getResolvedAt(),
-                req.getCreatedAt()
-        ));
+        Page<ChangeRequestResponse> responsePage = requestPage.map(this::toResponse);
 
         return ApiResponse.<PageResponse<ChangeRequestResponse>>builder()
                 .code(0)
@@ -197,6 +172,9 @@ public class ChangeRequestController {
     }
 
     private ChangeRequestResponse toResponse(ChangeRequest req) {
+        PersonProfile requesterProfile = req.getRequesterId() == null
+                ? null
+                : personProfileRepository.findByUserId(req.getRequesterId()).orElse(null);
         return new ChangeRequestResponse(
                 req.getId(),
                 req.getRequestCode(),
@@ -208,6 +186,8 @@ public class ChangeRequestController {
                 req.getRequestPayload(),
                 req.getStatus(),
                 req.getRequesterId(),
+                requesterProfile == null ? null : requesterProfile.getFullName(),
+                requesterProfile == null ? null : requesterProfile.getPhone(),
                 req.getResolutionNote(),
                 req.getResolvedAt(),
                 req.getCreatedAt()

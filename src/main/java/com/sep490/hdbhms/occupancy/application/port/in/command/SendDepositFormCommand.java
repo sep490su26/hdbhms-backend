@@ -9,6 +9,7 @@ public record SendDepositFormCommand(
         Long roomId,
         String fullName,
         LocalDate dob,
+        String gender,
         String email,
         String phone,
         String permanentAddress,

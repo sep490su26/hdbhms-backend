@@ -20,8 +20,8 @@ import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
 import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
+import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
@@ -111,7 +111,6 @@ public class TenantProfileManagementController {
     ChangeRequestRepository changeRequestRepository;
     BusinessNotificationPublisher notificationPublisher;
     ObjectMapper objectMapper;
-    SnowflakeIdGenerator snowflakeIdGenerator;
     PermissionGrantService permissionGrantService;
     DownloadFileUseCase downloadFileUseCase;
 
@@ -405,7 +404,12 @@ public class TenantProfileManagementController {
         payload.put("reason", reason);
 
         ChangeRequest changeRequest = ChangeRequest.builder()
-                .requestCode("CR-" + snowflakeIdGenerator.next())
+                .requestCode(RequestCodeBuilder.nextAvailable(
+                        RequestType.TENANT_PROFILE_ACCESS,
+                        context.roomCode(),
+                        LocalDate.now(),
+                        changeRequestRepository::existsByRequestCode
+                ))
                 .requestType(RequestType.TENANT_PROFILE_ACCESS)
                 .requesterId(principal.getId())
                 .requesterRole(RequesterRole.MANAGER)

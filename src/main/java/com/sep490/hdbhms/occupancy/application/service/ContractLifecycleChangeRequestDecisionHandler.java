@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -38,7 +39,11 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
             leaseContractManagementService.startLiquidationProcessing(
                     request.getTargetId(),
                     localDate(payload.get("liquidationDate")),
-                    string(payload.get("reason"))
+                    string(payload.get("reason")),
+                    string(payload.get("liquidationMode")),
+                    longList(payload.get("leavingProfileIds")),
+                    longList(payload.get("stayingProfileIds")),
+                    longValue(payload.get("replacementPrimaryTenantProfileId"))
             );
             return;
         }
@@ -90,6 +95,15 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
     private Long longValue(Object value) {
         if (value instanceof Number number) return number.longValue();
         return value == null ? null : Long.parseLong(value.toString());
+    }
+
+    private List<Long> longList(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream()
+                .map(this::longValue)
+                .toList();
     }
 
     private Integer intValue(Object value) {

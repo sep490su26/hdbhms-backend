@@ -43,6 +43,7 @@ public abstract class RoomWebMapper {
                 request.getRoomId(),
                 request.getFullName(),
                 request.getDob(),
+                request.getGender(),
                 request.getEmail(),
                 request.getPhone(),
                 request.getPermanentAddress(),

@@ -13,9 +13,10 @@ import java.io.InputStream;
 public class FCMConfig {
     @PostConstruct
     public void initialize() {
-        try {
-            InputStream serviceAccount = getClass()
-                    .getResourceAsStream("/filebase-service-account.json");
+        if (!FirebaseApp.getApps().isEmpty()) {
+            return;
+        }
+        try (InputStream serviceAccount = getClass().getResourceAsStream("/firebase-service-account.json")) {
             if (serviceAccount != null) {
                 FirebaseOptions options = FirebaseOptions.builder()
                         .setCredentials(GoogleCredentials.fromStream(serviceAccount))

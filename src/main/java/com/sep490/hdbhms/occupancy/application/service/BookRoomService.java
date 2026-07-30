@@ -3,6 +3,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.occupancy.application.port.in.command.SendDepositFormCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.*;
@@ -59,6 +60,7 @@ public class BookRoomService implements BookRoomUseCase {
                     command.roomId(),
                     command.fullName(),
                     command.dob(),
+                    Gender.fromLabel(command.gender()),
                     command.email(),
                     command.phone(),
                     command.permanentAddress(),

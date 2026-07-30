@@ -26,6 +26,8 @@ public class DepositContractPreviewRequest {
     @PastOrPresent(message = "Ngày sinh không được lớn hơn ngày hiện tại")
     LocalDate dob;
 
+    String gender;
+
     @Email
     String email;
 

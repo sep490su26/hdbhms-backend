@@ -82,7 +82,7 @@ public class UploadIdentityVerificationService implements UploadIdentityVerifica
                 .idNumber(data.idNumber())
                 .fullName(data.fullName())
                 .dob(data.dob())
-                .gender(data.gender() == null ? null : data.gender().name())
+                .gender(data.gender() == null ? null : data.gender().toVietnameseLabel())
                 .address(data.address())
                 .issuedDate(data.issuedDate())
                 .issuedPlace(data.issuedPlace())

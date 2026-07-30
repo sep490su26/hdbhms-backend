@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -34,6 +35,9 @@ public class BatchDepositCheckoutRequest {
     @NotNull
     @PastOrPresent(message = "Ngày sinh không được lớn hơn ngày hiện tại")
     LocalDate dob;
+
+    @NotBlank
+    String gender;
 
     @NotBlank
     @Pattern(
@@ -126,6 +130,11 @@ public class BatchDepositCheckoutRequest {
     @AssertTrue(message = "Ngày cấp CCCD không được trước ngày sinh.")
     public boolean isIdentityIssueDateValid() {
         return dob == null || idIssueDate == null || !idIssueDate.isBefore(dob);
+    }
+
+    @AssertTrue(message = "Giới tính không hợp lệ.")
+    public boolean isGenderValid() {
+        return gender == null || Gender.fromLabel(gender) != Gender.UNKNOWN;
     }
 
     @AssertTrue(message = "Danh sách phòng có roomId trùng lặp.")

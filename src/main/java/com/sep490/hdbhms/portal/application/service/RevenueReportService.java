@@ -110,10 +110,10 @@ public class RevenueReportService {
 
         String sql = """
                 SELECT bucket.period,
-                       COALESCE(SUM(CASE WHEN bucket.category = 'room' THEN bucket.allocated_amount ELSE 0 END), 0) AS room,
-                       COALESCE(SUM(CASE WHEN bucket.category = 'utilities' THEN bucket.allocated_amount ELSE 0 END), 0) AS utilities,
-                       COALESCE(SUM(CASE WHEN bucket.category = 'service' THEN bucket.allocated_amount ELSE 0 END), 0) AS service,
-                       COALESCE(SUM(CASE WHEN bucket.category = 'extra' THEN bucket.allocated_amount ELSE 0 END), 0) AS extra
+                       COALESCE(SUM(CASE WHEN bucket.category = 'room' THEN bucket.paid_line_amount ELSE 0 END), 0) AS room,
+                       COALESCE(SUM(CASE WHEN bucket.category = 'utilities' THEN bucket.paid_line_amount ELSE 0 END), 0) AS utilities,
+                       COALESCE(SUM(CASE WHEN bucket.category = 'service' THEN bucket.paid_line_amount ELSE 0 END), 0) AS service,
+                       COALESCE(SUM(CASE WHEN bucket.category = 'extra' THEN bucket.paid_line_amount ELSE 0 END), 0) AS extra
                 FROM (
                     SELECT %s AS period,
                            CASE
@@ -125,20 +125,18 @@ public class RevenueReportService {
                                ELSE 'extra'
                            END AS category,
                            CASE
-                               WHEN line.invoice_line_id IS NULL OR invoice.total_amount <= 0 THEN allocation.amount
-                               ELSE allocation.amount * COALESCE(line.amount, line.unit_price * COALESCE(line.quantity, 1), 0) / invoice.total_amount
-                           END AS allocated_amount
-                    FROM payment_allocations allocation
-                    JOIN payment_transactions payment
-                      ON payment.payment_transaction_id = allocation.payment_transaction_id
-                    JOIN invoices invoice
-                      ON invoice.invoice_id = allocation.invoice_id
+                               WHEN line.invoice_line_id IS NULL OR COALESCE(invoice.subtotal_amount, 0) <= 0 THEN invoice.paid_amount
+                               ELSE invoice.paid_amount * COALESCE(line.amount, line.unit_price * COALESCE(line.quantity, 1), 0) / invoice.subtotal_amount
+                           END AS paid_line_amount
+                    FROM invoices invoice
                     LEFT JOIN invoice_lines line
                       ON line.invoice_id = invoice.invoice_id
                     WHERE %s
-                      AND payment.status IN ('MATCHED', 'PARTIALLY_ALLOCATED', 'ALLOCATED')
-                      AND payment.transaction_time >= ?
-                      AND payment.transaction_time < ?
+                      AND invoice.invoice_type <> 'DEPOSIT'
+                      AND invoice.status IN ('PAID', 'PARTIALLY_PAID')
+                      AND invoice.paid_amount > 0
+                      AND invoice.updated_at >= ?
+                      AND invoice.updated_at < ?
                 ) bucket
                 GROUP BY bucket.period
                 """.formatted(type.sqlPeriodExpression(), propertyClause);
@@ -261,7 +259,7 @@ public class RevenueReportService {
         MONTH("month") {
             @Override
             String sqlPeriodExpression() {
-                return "DATE_FORMAT(payment.transaction_time, '%Y-%m')";
+                return "DATE_FORMAT(invoice.updated_at, '%Y-%m')";
             }
 
             @Override
@@ -287,7 +285,7 @@ public class RevenueReportService {
         QUARTER("quarter") {
             @Override
             String sqlPeriodExpression() {
-                return "CONCAT(YEAR(payment.transaction_time), '-Q', QUARTER(payment.transaction_time))";
+                return "CONCAT(YEAR(invoice.updated_at), '-Q', QUARTER(invoice.updated_at))";
             }
 
             @Override
@@ -314,7 +312,7 @@ public class RevenueReportService {
         YEAR("year") {
             @Override
             String sqlPeriodExpression() {
-                return "CAST(YEAR(payment.transaction_time) AS CHAR)";
+                return "CAST(YEAR(invoice.updated_at) AS CHAR)";
             }
 
             @Override

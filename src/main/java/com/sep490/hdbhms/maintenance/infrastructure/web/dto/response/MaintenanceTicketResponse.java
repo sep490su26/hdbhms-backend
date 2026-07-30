@@ -69,6 +69,7 @@ public class MaintenanceTicketResponse {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class UserSummary {
         Long id;
+        String fullName;
         String email;
         String phone;
         String role;

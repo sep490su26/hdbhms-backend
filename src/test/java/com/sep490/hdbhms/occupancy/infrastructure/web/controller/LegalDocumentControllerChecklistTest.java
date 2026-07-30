@@ -6,6 +6,7 @@ import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
+import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetDepositAgreementDetailsQuery;
@@ -257,6 +258,7 @@ class LegalDocumentControllerChecklistTest {
                 documentService,
                 downloadUseCase,
                 mock(RoomCommitmentChecker.class),
+                mock(PersonProfileRepository.class),
                 jdbcTemplate
         );
     }

@@ -23,11 +23,13 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
+import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractLiquidationEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractOccupantEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
@@ -36,6 +38,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadin
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractOccupantRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
@@ -70,8 +73,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 @Slf4j
@@ -80,6 +86,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LeaseContractManagementService {
+    static final String LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS = "PRIMARY_LEAVES_CO_OCCUPANT_STAYS";
     static final List<LeaseStatus> BLOCKING_ACTIVE_CONTRACT_STATUSES = List.of(
             LeaseStatus.ACTIVE,
             LeaseStatus.EXPIRING_SOON,
@@ -97,6 +104,7 @@ public class LeaseContractManagementService {
     JpaRoomRepository roomRepository;
     JpaFileMetadataRepository fileMetadataRepository;
     JpaLeaseContractRepository leaseContractRepository;
+    JpaContractOccupantRepository contractOccupantRepository;
     JpaDepositAgreementRepository depositAgreementRepository;
     JpaContractLiquidationRepository contractLiquidationRepository;
     JpaContractHandoverRecordRepository handoverRecordRepository;
@@ -474,7 +482,6 @@ public class LeaseContractManagementService {
                 ? "Khách không tiếp tục thuê phòng."
                 : reason.trim();
         Long depositAmount = resolveLiquidationDepositAmount(contract);
-
         ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contract.getId())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
@@ -488,18 +495,30 @@ public class LeaseContractManagementService {
                 ? liquidation.getReason().trim()
                 : finalReason
                 : finalReason;
+        boolean holderReplacement = isHolderReplacementLiquidation(contract.getId());
         applyLiquidationDraftValues(
                 liquidation,
                 contract,
                 finalLiquidationDate,
                 finalReason,
-                depositAmount
+                depositAmount,
+                holderReplacement
         );
         liquidation = contractLiquidationRepository.saveAndFlush(liquidation);
 
+        LeaseContractEntity replacementContract = holderReplacement
+                ? latestReplacementContract(contract.getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Vui long lap hop dong thay the cho nguoi o lai truoc khi hoan tat thanh ly."
+                ))
+                : null;
+
         requireNoUnpaidInvoicesForLiquidation(contract.getId());
-        requireConfirmedMoveOutHandover(contract.getId());
-        requireLiquidationDepositRefundConfirmed(contract, liquidation);
+        if (!holderReplacement) {
+            requireConfirmedMoveOutHandover(contract.getId());
+            requireLiquidationDepositRefundConfirmed(contract, liquidation);
+        }
 
         contract.setStatus(LeaseStatus.LIQUIDATED);
         leaseContractRepository.saveAndFlush(contract);
@@ -511,18 +530,24 @@ public class LeaseContractManagementService {
                         WHERE contract_id = ?
                           AND status = 'ACTIVE'
                         """,
-                        finalLiquidationDate,
-                        contract.getId()
+                finalLiquidationDate,
+                contract.getId()
         );
+
+        if (holderReplacement) {
+            activateReplacementContract(replacementContract, finalLiquidationDate);
+        }
         deactivateTenantAccountsWithoutValidContract(contract.getId());
 
         liquidation.setStatus(LiquidationStatus.CONFIRMED);
         contractLiquidationRepository.save(liquidation);
 
-        RoomStatus fromStatus = room.getCurrentStatus();
-        room.setCurrentStatus(RoomStatus.VACANT);
-        roomRepository.saveAndFlush(room);
-        appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.VACANT, "Thanh ly hop dong thue " + contract.getContractCode());
+        if (!holderReplacement) {
+            RoomStatus fromStatus = room.getCurrentStatus();
+            room.setCurrentStatus(RoomStatus.VACANT);
+            roomRepository.saveAndFlush(room);
+            appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.VACANT, "Thanh ly hop dong thue " + contract.getContractCode());
+        }
         appendContractEvent(contract.getId(), "LIQUIDATED", finalReason);
         expenseRequestService.completeLiquidationRequest(contract.getId());
 
@@ -588,6 +613,18 @@ public class LeaseContractManagementService {
             LocalDate liquidationDate,
             String reason
     ) {
+        return startLiquidationProcessing(leaseContractId, liquidationDate, reason, null, List.of(), List.of(), null);
+    }
+
+    public LeaseContractManagementResponse startLiquidationProcessing(
+            Long leaseContractId,
+            LocalDate liquidationDate,
+            String reason,
+            String liquidationMode,
+            List<Long> leavingProfileIds,
+            List<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId
+    ) {
         lockContractAndRoom(leaseContractId);
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
@@ -617,6 +654,16 @@ public class LeaseContractManagementService {
                 : reason.trim();
         Long depositAmount = resolveLiquidationDepositAmount(contract);
 
+        boolean holderReplacement = isHolderReplacementMode(liquidationMode);
+        HolderReplacementPlan holderReplacementPlan = holderReplacement
+                ? validateHolderReplacementLiquidation(
+                contract,
+                leavingProfileIds,
+                stayingProfileIds,
+                replacementPrimaryTenantProfileId
+        )
+                : null;
+
         ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contract.getId())
                 .orElseGet(() -> ContractLiquidationEntity.builder()
                         .contract(contract)
@@ -634,17 +681,31 @@ public class LeaseContractManagementService {
                 contract,
                 finalLiquidationDate,
                 depositAmount,
-                0L
+                holderReplacement ? depositAmount : 0L
         ));
         liquidation.setStatus(LiquidationStatus.DRAFT);
         contractLiquidationRepository.save(liquidation);
 
         contract.setStatus(LeaseStatus.TERMINATION_PENDING);
         contract.setTenantIntention("MOVE_OUT");
-        contract.setExpectedVacantDate(finalLiquidationDate);
+        contract.setExpectedVacantDate(holderReplacement ? null : finalLiquidationDate);
         contract.setIntentionRecordedAt(LocalDateTime.now());
         leaseContractRepository.saveAndFlush(contract);
 
+        if (holderReplacement) {
+            ensureHolderReplacementContract(contract, holderReplacementPlan, finalLiquidationDate);
+            if (room.getCurrentStatus() != RoomStatus.OCCUPIED) {
+                RoomStatus holderFromStatus = room.getCurrentStatus();
+                room.setCurrentStatus(RoomStatus.OCCUPIED);
+                roomRepository.saveAndFlush(room);
+                appendRoomStatusHistory(
+                        room.getId(),
+                        holderFromStatus,
+                        RoomStatus.OCCUPIED,
+                        "Nguoi o cung tiep tuc thue sau thanh ly hop dong " + contract.getContractCode()
+                );
+            }
+        } else {
         RoomStatus fromStatus = room.getCurrentStatus();
         if (fromStatus != RoomStatus.SOON_VACANT) {
             room.setCurrentStatus(RoomStatus.SOON_VACANT);
@@ -656,9 +717,395 @@ public class LeaseContractManagementService {
                     "Bắt đầu quy trình thanh lý hợp đồng " + contract.getContractCode()
             );
         }
-        appendContractEvent(contract.getId(), "LIQUIDATION_PROCESSING_STARTED", finalReason);
         leaseExpiryReminderService.onTenantIntentionRecorded(contract, LocalDate.now());
+        }
+        appendContractEvent(contract.getId(), "LIQUIDATION_PROCESSING_STARTED", finalReason);
         return findOne(contract.getId());
+    }
+
+    HolderReplacementPlan validateHolderReplacementLiquidation(
+            LeaseContractEntity contract,
+            List<Long> leavingProfileIds,
+            List<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId
+    ) {
+        if (contract.getPrimaryTenantProfile() == null || contract.getPrimaryTenantProfile().getId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract primary tenant is required.");
+        }
+        if (replacementPrimaryTenantProfileId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Replacement primary tenant is required.");
+        }
+
+        List<ContractOccupantEntity> activeOccupants = contractOccupantRepository
+                .findAllByContract_IdAndStatus(contract.getId(), OccupantStatus.ACTIVE);
+        Set<Long> activeProfileIds = new LinkedHashSet<>();
+        for (ContractOccupantEntity occupant : activeOccupants) {
+            Long profileId = profileId(occupant);
+            if (profileId != null) {
+                activeProfileIds.add(profileId);
+            }
+        }
+        if (activeProfileIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Contract has no active occupants.");
+        }
+
+        HolderReplacementProfilePlan profilePlan = validateHolderReplacementProfileIds(
+                contract.getPrimaryTenantProfile().getId(),
+                activeProfileIds,
+                leavingProfileIds,
+                stayingProfileIds,
+                replacementPrimaryTenantProfileId
+        );
+        return new HolderReplacementPlan(
+                profilePlan.leavingProfileIds(),
+                profilePlan.stayingProfileIds(),
+                profilePlan.replacementPrimaryTenantProfileId(),
+                activeOccupants
+        );
+    }
+
+    private LeaseContractEntity ensureHolderReplacementContract(
+            LeaseContractEntity oldContract,
+            HolderReplacementPlan plan,
+            LocalDate effectiveDate
+    ) {
+        if (plan == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Holder replacement payload is required.");
+        }
+        RoomEntity room = oldContract.getRoom();
+        Optional<LeaseContractEntity> existingReplacement = latestReplacementContract(oldContract.getId());
+        Long allowedExistingContractId = existingReplacement.map(LeaseContractEntity::getId).orElse(null);
+        if (hasOtherActiveContract(room.getId(), oldContract.getId(), allowedExistingContractId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Room already has another active contract.");
+        }
+        Long carriedDepositAmount = resolveLiquidationDepositAmount(oldContract);
+        validateContractTerms(
+                effectiveDate,
+                oldContract.getEndDate(),
+                oldContract.getPaymentCycleMonths(),
+                oldContract.getMonthlyRent(),
+                carriedDepositAmount
+        );
+
+        LeaseContractEntity replacement = existingReplacement.orElse(null);
+        if (replacement != null) {
+            assertHolderReplacementContractMatches(oldContract, replacement, plan);
+            replacement.setStartDate(effectiveDate);
+            replacement.setRentStartDate(effectiveDate);
+            replacement.setEndDate(oldContract.getEndDate());
+            replacement.setMonthlyRent(oldContract.getMonthlyRent());
+            replacement.setPaymentCycleMonths(oldContract.getPaymentCycleMonths());
+            replacement.setDepositAmount(carriedDepositAmount);
+            if (replacement.getStatus() == LeaseStatus.DRAFT) {
+                replacement.setStatus(LeaseStatus.PENDING_SIGNATURE);
+            }
+            replacement = leaseContractRepository.saveAndFlush(replacement);
+            syncHolderReplacementOccupants(replacement, plan, effectiveDate);
+            return replacement;
+        }
+
+        ContractOccupantEntity replacementPrimary = occupantByProfile(plan, plan.replacementPrimaryTenantProfileId());
+        String contractCode = generateHolderReplacementContractCode(oldContract);
+        replacement = leaseContractRepository.saveAndFlush(LeaseContractEntity.builder()
+                .contractCode(contractCode)
+                .room(room)
+                .primaryTenantProfile(replacementPrimary.getTenantProfile())
+                .startDate(effectiveDate)
+                .endDate(oldContract.getEndDate())
+                .rentStartDate(effectiveDate)
+                .monthlyRent(oldContract.getMonthlyRent())
+                .paymentCycleMonths(oldContract.getPaymentCycleMonths())
+                .depositAmount(carriedDepositAmount)
+                .status(LeaseStatus.PENDING_SIGNATURE)
+                .previousContract(oldContract)
+                .build());
+        syncHolderReplacementOccupants(replacement, plan, effectiveDate);
+        appendContractEvent(
+                replacement.getId(),
+                "CREATED",
+                "Holder replacement liquidation from contract " + oldContract.getContractCode()
+        );
+        return replacement;
+    }
+
+    private void assertHolderReplacementContractMatches(
+            LeaseContractEntity oldContract,
+            LeaseContractEntity replacement,
+            HolderReplacementPlan plan
+    ) {
+        if (replacement.getStatus() == LeaseStatus.CANCELLED || replacement.getStatus() == LeaseStatus.LIQUIDATED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract is not usable.");
+        }
+        if (replacement.getRoom() == null || !Objects.equals(replacement.getRoom().getId(), oldContract.getRoom().getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract must stay in the same room.");
+        }
+        Long currentPrimaryId = replacement.getPrimaryTenantProfile() == null
+                ? null
+                : replacement.getPrimaryTenantProfile().getId();
+        if (!Objects.equals(currentPrimaryId, plan.replacementPrimaryTenantProfileId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract primary tenant does not match request.");
+        }
+    }
+
+    private void syncHolderReplacementOccupants(
+            LeaseContractEntity replacement,
+            HolderReplacementPlan plan,
+            LocalDate effectiveDate
+    ) {
+        for (Long stayingProfileId : plan.stayingProfileIds()) {
+            ContractOccupantEntity oldOccupant = occupantByProfile(plan, stayingProfileId);
+            OccupantRole role = Objects.equals(stayingProfileId, plan.replacementPrimaryTenantProfileId())
+                    ? OccupantRole.PRIMARY
+                    : OccupantRole.CO_OCCUPANT;
+            upsertHolderReplacementOccupant(
+                    replacement.getId(),
+                    oldOccupant.getTenant() == null ? null : oldOccupant.getTenant().getId(),
+                    stayingProfileId,
+                    role,
+                    effectiveDate
+            );
+        }
+
+        List<ContractOccupantEntity> replacementOccupants = contractOccupantRepository
+                .findAllByContract_IdAndStatus(replacement.getId(), OccupantStatus.ACTIVE);
+        for (ContractOccupantEntity occupant : replacementOccupants) {
+            Long profileId = profileId(occupant);
+            if (profileId != null && !plan.stayingProfileIds().contains(profileId)) {
+                occupant.setStatus(OccupantStatus.MOVED_OUT);
+                occupant.setMoveOutDate(effectiveDate);
+            }
+        }
+        contractOccupantRepository.saveAll(replacementOccupants);
+    }
+
+    private void upsertHolderReplacementOccupant(
+            Long contractId,
+            Long tenantId,
+            Long tenantProfileId,
+            OccupantRole role,
+            LocalDate moveInDate
+    ) {
+        jdbcTemplate.update("""
+                        INSERT INTO contract_occupants (
+                            contract_id,
+                            tenant_id,
+                            tenant_profile_id,
+                            occupant_role,
+                            move_in_date,
+                            status,
+                            created_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, 'ACTIVE', NOW(6))
+                        ON DUPLICATE KEY UPDATE
+                            tenant_id = VALUES(tenant_id),
+                            occupant_role = VALUES(occupant_role),
+                            move_in_date = VALUES(move_in_date),
+                            move_out_date = NULL,
+                            status = 'ACTIVE',
+                            disabled_reason = NULL,
+                            disabled_by = NULL,
+                            disabled_at = NULL
+                        """,
+                contractId,
+                tenantId,
+                tenantProfileId,
+                role.name(),
+                moveInDate
+        );
+    }
+
+    private void activateReplacementContract(LeaseContractEntity replacementContract, LocalDate effectiveDate) {
+        if (replacementContract.getSignedFile() == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract must be signed before liquidation.");
+        }
+        if (!List.of(
+                LeaseStatus.DRAFT,
+                LeaseStatus.PENDING_SIGNATURE,
+                LeaseStatus.CONFIRMED,
+                LeaseStatus.SIGNED,
+                LeaseStatus.ACTIVE
+        ).contains(replacementContract.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract status is not valid for activation.");
+        }
+        if (replacementContract.getStatus() != LeaseStatus.ACTIVE) {
+            replacementContract.setStartDate(effectiveDate);
+            replacementContract.setRentStartDate(effectiveDate);
+            replacementContract.setStatus(LeaseStatus.ACTIVE);
+            if (replacementContract.getSignedAt() == null) {
+                replacementContract.setSignedAt(LocalDateTime.now());
+            }
+            replacementContract = leaseContractRepository.saveAndFlush(replacementContract);
+            appendContractEvent(replacementContract.getId(), "SIGNED", "Activate holder replacement contract.");
+        }
+
+        RoomEntity room = replacementContract.getRoom();
+        if (room != null && room.getCurrentStatus() != RoomStatus.OCCUPIED) {
+            RoomStatus fromStatus = room.getCurrentStatus();
+            room.setCurrentStatus(RoomStatus.OCCUPIED);
+            roomRepository.saveAndFlush(room);
+            appendRoomStatusHistory(
+                    room.getId(),
+                    fromStatus,
+                    RoomStatus.OCCUPIED,
+                    "Kich hoat hop dong thay the " + replacementContract.getContractCode()
+            );
+        }
+        updateTenantProvisioningLatestContract(replacementContract.getId());
+    }
+
+    private void updateTenantProvisioningLatestContract(Long contractId) {
+        jdbcTemplate.update("""
+                        UPDATE tenant_account_provisionings tap
+                        JOIN contract_occupants co
+                          ON co.tenant_profile_id = tap.tenant_profile_id
+                         AND co.contract_id = ?
+                         AND co.status = 'ACTIVE'
+                        SET tap.latest_contract_id = ?,
+                            tap.updated_at = NOW(6)
+                        WHERE tap.status <> 'DISABLED'
+                        """,
+                contractId,
+                contractId
+        );
+    }
+
+    private boolean isHolderReplacementLiquidation(Long contractId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM change_requests
+                        WHERE request_type = 'CONTRACT_LIQUIDATION'
+                          AND target_type = 'CONTRACT'
+                          AND target_id = ?
+                          AND status IN ('PENDING', 'PROCESSING', 'APPROVED', 'COMPLETED')
+                          AND JSON_UNQUOTE(JSON_EXTRACT(request_payload, '$.liquidationMode')) = ?
+                        """,
+                Integer.class,
+                contractId,
+                LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS
+        );
+        if (count != null && count > 0) {
+            return true;
+        }
+        return leaseContractRepository.findById(contractId)
+                .flatMap(contract -> latestReplacementContract(contractId)
+                        .filter(replacement -> replacement.getRoom() != null
+                                && contract.getRoom() != null
+                                && Objects.equals(replacement.getRoom().getId(), contract.getRoom().getId()))
+                        .filter(replacement -> replacement.getPrimaryTenantProfile() != null
+                                && contract.getPrimaryTenantProfile() != null
+                                && !Objects.equals(
+                                replacement.getPrimaryTenantProfile().getId(),
+                                contract.getPrimaryTenantProfile().getId()
+                        )))
+                .isPresent();
+    }
+
+    private Optional<LeaseContractEntity> latestReplacementContract(Long oldContractId) {
+        return leaseContractRepository
+                .findFirstByPreviousContract_IdAndDeletedAtIsNullOrderByIdDesc(oldContractId)
+                .filter(contract -> contract.getStatus() != LeaseStatus.CANCELLED
+                        && contract.getStatus() != LeaseStatus.LIQUIDATED);
+    }
+
+    private String generateHolderReplacementContractCode(LeaseContractEntity oldContract) {
+        int revision = 1;
+        String contractCode;
+        do {
+            String suffix = "-LIQ-" + oldContract.getId() + (revision == 1 ? "" : "-" + revision);
+            String prefix = oldContract.getContractCode() == null
+                    ? "HD"
+                    : oldContract.getContractCode();
+            int maxPrefixLength = Math.max(1, 80 - suffix.length());
+            if (prefix.length() > maxPrefixLength) {
+                prefix = prefix.substring(0, maxPrefixLength);
+            }
+            contractCode = prefix + suffix;
+            revision++;
+        } while (leaseContractRepository.existsByContractCodeAndDeletedAtIsNull(contractCode));
+        return contractCode;
+    }
+
+    static boolean isHolderReplacementMode(String liquidationMode) {
+        return liquidationMode != null
+                && LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS.equalsIgnoreCase(liquidationMode.trim());
+    }
+
+    static HolderReplacementProfilePlan validateHolderReplacementProfileIds(
+            Long currentPrimaryTenantProfileId,
+            Set<Long> activeProfileIds,
+            List<Long> leavingProfileIds,
+            List<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId
+    ) {
+        Set<Long> leavingIds = normalizeProfileIds(leavingProfileIds);
+        Set<Long> stayingIds = normalizeProfileIds(stayingProfileIds);
+        if (leavingIds.isEmpty() || stayingIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Leaving and staying occupants are required.");
+        }
+        if (!leavingIds.contains(currentPrimaryTenantProfileId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current primary tenant must be in leavingProfileIds.");
+        }
+        if (!stayingIds.contains(replacementPrimaryTenantProfileId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Replacement primary tenant must be in stayingProfileIds.");
+        }
+
+        Set<Long> overlap = new HashSet<>(leavingIds);
+        overlap.retainAll(stayingIds);
+        if (!overlap.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Leaving and staying occupants must not overlap.");
+        }
+
+        Set<Long> classifiedIds = new LinkedHashSet<>(leavingIds);
+        classifiedIds.addAll(stayingIds);
+        if (activeProfileIds == null || !activeProfileIds.equals(classifiedIds)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "All active occupants must be classified as leaving or staying.");
+        }
+        if (!activeProfileIds.contains(replacementPrimaryTenantProfileId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Replacement primary tenant must be an active occupant.");
+        }
+
+        return new HolderReplacementProfilePlan(leavingIds, stayingIds, replacementPrimaryTenantProfileId);
+    }
+
+    static Set<Long> normalizeProfileIds(List<Long> profileIds) {
+        Set<Long> normalized = new LinkedHashSet<>();
+        if (profileIds == null) {
+            return normalized;
+        }
+        for (Long profileId : profileIds) {
+            if (profileId != null) {
+                normalized.add(profileId);
+            }
+        }
+        return normalized;
+    }
+
+    private ContractOccupantEntity occupantByProfile(HolderReplacementPlan plan, Long profileId) {
+        return plan.activeOccupants().stream()
+                .filter(occupant -> Objects.equals(profileId(occupant), profileId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Occupant is not active in contract."));
+    }
+
+    private Long profileId(ContractOccupantEntity occupant) {
+        return occupant == null || occupant.getTenantProfile() == null
+                ? null
+                : occupant.getTenantProfile().getId();
+    }
+
+    record HolderReplacementPlan(
+            Set<Long> leavingProfileIds,
+            Set<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId,
+            List<ContractOccupantEntity> activeOccupants
+    ) {
+    }
+
+    record HolderReplacementProfilePlan(
+            Set<Long> leavingProfileIds,
+            Set<Long> stayingProfileIds,
+            Long replacementPrimaryTenantProfileId
+    ) {
     }
 
     public LeaseContractManagementResponse updateLiquidationDraft(
@@ -701,23 +1148,27 @@ public class LeaseContractManagementService {
                 ? liquidation.getReason().trim()
                 : "KhÃ¡ch khÃ´ng tiáº¿p tá»¥c thuÃª phÃ²ng."
                 : reason.trim();
+        boolean holderReplacement = isHolderReplacementLiquidation(contract.getId());
         applyLiquidationDraftValues(
                 liquidation,
                 contract,
                 finalLiquidationDate,
                 finalReason,
-                depositAmount
+                depositAmount,
+                holderReplacement
         );
         liquidation.setStatus(LiquidationStatus.DRAFT);
         liquidation = contractLiquidationRepository.saveAndFlush(liquidation);
         InvoiceEntity finalInvoice = upsertFinalSettlementInvoice(contract, liquidation, charges, true);
         liquidation.setFinalInvoice(finalInvoice);
         contractLiquidationRepository.save(liquidation);
-        ensureLiquidationDepositRefundRequest(contract, liquidation);
+        if (!holderReplacement) {
+            ensureLiquidationDepositRefundRequest(contract, liquidation);
+        }
 
         contract.setStatus(LeaseStatus.TERMINATION_PENDING);
         contract.setTenantIntention("MOVE_OUT");
-        contract.setExpectedVacantDate(finalLiquidationDate);
+        contract.setExpectedVacantDate(holderReplacement ? null : finalLiquidationDate);
         if (contract.getIntentionRecordedAt() == null) {
             contract.setIntentionRecordedAt(LocalDateTime.now());
         }
@@ -731,7 +1182,8 @@ public class LeaseContractManagementService {
             LeaseContractEntity contract,
             LocalDate liquidationDate,
             String reason,
-            Long depositAmount
+            Long depositAmount,
+            boolean depositCarriedForward
     ) {
         liquidation.setLiquidationDate(liquidationDate);
         liquidation.setReason(reason);
@@ -742,7 +1194,7 @@ public class LeaseContractManagementService {
                 contract,
                 liquidationDate,
                 depositAmount,
-                0L
+                depositCarriedForward ? safe(depositAmount) : 0L
         ));
     }
 
@@ -1619,6 +2071,12 @@ public class LeaseContractManagementService {
 
         ensureContractOccupants(contract, contract.getDepositAgreement());
         LeaseContractEntity previousContract = contract.getPreviousContract();
+        if (previousContract != null && isHolderReplacementLiquidation(previousContract.getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Finish the liquidation flow to activate this replacement contract."
+            );
+        }
         if (previousContract != null) {
             copyContractOccupants(previousContract, contract);
             boolean legacyPrematureRenewal =

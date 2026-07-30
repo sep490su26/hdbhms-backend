@@ -10,13 +10,30 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Inv
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PendingBillingChargeEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPendingBillingChargeRepository;
+import com.sep490.hdbhms.accounting.domain.value_objects.ExpenseStatus;
+import com.sep490.hdbhms.accounting.domain.value_objects.ExpenseType;
+import com.sep490.hdbhms.accounting.infrastructure.persistence.entity.ExpenseApprovalRequestEntity;
+import com.sep490.hdbhms.accounting.infrastructure.persistence.entity.OperatingExpenseEntity;
+import com.sep490.hdbhms.accounting.infrastructure.persistence.jpa.JpaExpenseApprovalRequestRepository;
+import com.sep490.hdbhms.accounting.infrastructure.persistence.jpa.JpaOperatingExpenseRepository;
+import com.sep490.hdbhms.changerequest.domain.value_objects.AssignedRole;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.RequesterRole;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
+import com.sep490.hdbhms.changerequest.infrastructure.persistence.entity.ChangeRequestEntity;
+import com.sep490.hdbhms.changerequest.infrastructure.persistence.entity.ChangeRequestEventEntity;
+import com.sep490.hdbhms.changerequest.infrastructure.persistence.jpa.JpaChangeRequestEventRepository;
+import com.sep490.hdbhms.changerequest.infrastructure.persistence.jpa.JpaChangeRequestRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceCostRepository;
@@ -127,6 +144,7 @@ public class MaintenanceTicketController {
     JpaPropertyRepository jpaPropertyRepository;
     JpaLeaseContractRepository jpaLeaseContractRepository;
     JpaUserRepository jpaUserRepository;
+    JpaPersonProfileRepository jpaPersonProfileRepository;
     JpaInvoiceLineRepository jpaInvoiceLineRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
     JpaMaintenanceTicketRepository jpaMaintenanceTicketRepository;
@@ -135,6 +153,10 @@ public class MaintenanceTicketController {
     JpaMaintenanceTicketAttachmentRepository jpaMaintenanceTicketAttachmentRepository;
     JpaMaintenanceCostRepository jpaMaintenanceCostRepository;
     JpaPendingBillingChargeRepository jpaPendingBillingChargeRepository;
+    JpaOperatingExpenseRepository jpaOperatingExpenseRepository;
+    JpaExpenseApprovalRequestRepository jpaExpenseApprovalRequestRepository;
+    JpaChangeRequestRepository jpaChangeRequestRepository;
+    JpaChangeRequestEventRepository jpaChangeRequestEventRepository;
     MaintenanceTicketPersistenceMapper maintenanceTicketPersistenceMapper;
     LeaseContractQueryService leaseContractQueryService;
     IssuedInvoiceChargeService issuedInvoiceChargeService;
@@ -381,6 +403,9 @@ public class MaintenanceTicketController {
                 : fromStatus;
         MaintenanceTicket saved = saveRepairInformation(ticket, request, toStatus);
         saveCost(saved.getId(), request);
+        if (saved.getStatus() == MaintenanceTicketStatus.COMPLETED) {
+            syncOwnerMaintenanceExpense(saved);
+        }
         recordEvent(saved.getId(), fromStatus, saved.getStatus(), MaintenanceTicketAction.UPDATE_REPAIR_INFO,
                 firstNonBlank(request == null ? null : request.getCompletionNote(), "Cập nhật thông tin xử lý"));
         return response(saved);
@@ -429,6 +454,7 @@ public class MaintenanceTicketController {
                 .status(MaintenanceTicketStatus.COMPLETED)
                 .completedAt(ticket.getCompletedAt() == null ? LocalDateTime.now() : ticket.getCompletedAt())
                 .build());
+        syncOwnerMaintenanceExpense(saved);
         recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(), MaintenanceTicketAction.CONFIRM_COMPLETED,
                 "Xác nhận sự cố đã xử lý xong");
         return response(saved);
@@ -772,6 +798,216 @@ public class MaintenanceTicketController {
         cost.setCostResponsibility(responsibility);
         cost.setPaidBy(mapResponsibilityToPaidBy(responsibility));
         jpaMaintenanceCostRepository.save(cost);
+    }
+
+    private void syncOwnerMaintenanceExpense(MaintenanceTicket ticket) {
+        if (ticket == null || ticket.getId() == null) {
+            return;
+        }
+        MaintenanceCostEntity cost = latestMaintenanceCost(ticket.getId());
+        if (cost == null
+                || cost.getAmount() == null
+                || cost.getAmount() <= 0
+                || cost.getCostResponsibility() != CostResponsibility.OWNER) {
+            cancelUnpaidMaintenanceExpense(ticket, cost);
+            return;
+        }
+
+        OperatingExpenseEntity expense = jpaOperatingExpenseRepository
+                .findFirstByTicketIdOrderByIdAsc(ticket.getId())
+                .orElse(null);
+        if (expense != null && expense.getStatus() == ExpenseStatus.PAID) {
+            if (!Objects.equals(expense.getAmount(), cost.getAmount())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Khoan chi su co da thanh toan, khong the doi so tien.");
+            }
+            return;
+        }
+
+        UserEntity actor = resolveMaintenanceExpenseActor(ticket, cost);
+        LocalDateTime now = LocalDateTime.now();
+        if (expense == null) {
+            expense = OperatingExpenseEntity.builder()
+                    .expenseCode(nextMaintenanceExpenseCode(ticket.getId()))
+                    .createdBy(actor)
+                    .build();
+        } else if (expense.getCreatedBy() == null) {
+            expense.setCreatedBy(actor);
+        }
+
+        expense.setProperty(jpaPropertyRepository.getReferenceById(ticket.getPropertyId()));
+        expense.setRoom(ticket.getRoomId() == null ? null : jpaRoomRepository.getReferenceById(ticket.getRoomId()));
+        expense.setTicketId(ticket.getId());
+        expense.setExpenseType(maintenanceExpenseType(cost.getCostType()));
+        expense.setDescription(buildMaintenanceExpenseDescription(ticket, cost));
+        expense.setAmount(cost.getAmount());
+        expense.setExpenseDate(ticket.getCompletedAt() == null ? LocalDate.now() : ticket.getCompletedAt().toLocalDate());
+        expense.setStatus(ExpenseStatus.READY_FOR_PAYMENT);
+        expense.setApprovedBy(actor);
+        expense.setApprovedAt(now);
+
+        OperatingExpenseEntity savedExpense = jpaOperatingExpenseRepository.save(expense);
+        syncMaintenanceExpenseApproval(savedExpense, ticket, cost, actor, now);
+    }
+
+    private void cancelUnpaidMaintenanceExpense(MaintenanceTicket ticket, MaintenanceCostEntity cost) {
+        OperatingExpenseEntity expense = jpaOperatingExpenseRepository
+                .findFirstByTicketIdOrderByIdAsc(ticket.getId())
+                .orElse(null);
+        if (expense == null || expense.getStatus() == ExpenseStatus.CANCELLED) {
+            return;
+        }
+        if (expense.getStatus() == ExpenseStatus.PAID) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Khoan chi su co da thanh toan, khong the chuyen nguoi chiu phi.");
+        }
+        UserEntity actor = resolveMaintenanceExpenseActor(ticket, cost);
+        expense.setStatus(ExpenseStatus.CANCELLED);
+        jpaOperatingExpenseRepository.save(expense);
+        jpaExpenseApprovalRequestRepository.findByOperatingExpense_Id(expense.getId())
+                .map(ExpenseApprovalRequestEntity::getChangeRequest)
+                .ifPresent(changeRequest -> {
+                    if (changeRequest.getStatus() != RequestStatus.COMPLETED) {
+                        changeRequest.setStatus(RequestStatus.CANCELLED);
+                        changeRequest.setResolutionNote("Tu dong huy vi chi phi khong con do chu tro chiu.");
+                        changeRequest.setResolvedBy(actor);
+                        changeRequest.setResolvedAt(LocalDateTime.now());
+                        jpaChangeRequestRepository.save(changeRequest);
+                    }
+                });
+    }
+
+    private MaintenanceCostEntity latestMaintenanceCost(Long ticketId) {
+        if (ticketId == null) {
+            return null;
+        }
+        return jpaMaintenanceCostRepository.findAllByTicket_IdOrderByCreatedAtAsc(ticketId)
+                .stream()
+                .reduce((ignored, current) -> current)
+                .orElse(null);
+    }
+
+    private void syncMaintenanceExpenseApproval(
+            OperatingExpenseEntity expense,
+            MaintenanceTicket ticket,
+            MaintenanceCostEntity cost,
+            UserEntity actor,
+            LocalDateTime now
+    ) {
+        String reason = buildMaintenanceExpenseDescription(ticket, cost);
+        ExpenseApprovalRequestEntity approval = jpaExpenseApprovalRequestRepository
+                .findByOperatingExpense_Id(expense.getId())
+                .orElse(null);
+        if (approval == null) {
+            ChangeRequestEntity changeRequest = jpaChangeRequestRepository.save(ChangeRequestEntity.builder()
+                    .requestCode(nextMaintenanceExpenseRequestCode(ticket.getId()))
+                    .requestType(RequestType.EXPENSE_APPROVAL)
+                    .requester(actor)
+                    .requesterRole(toRequesterRole(actor.getRole()))
+                    .targetType(TargetType.OPERATING_EXPENSE)
+                    .targetId(expense.getId())
+                    .title("Khoan chi bao tri " + firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()))
+                    .description(reason)
+                    .assignedRole(AssignedRole.OWNER)
+                    .status(RequestStatus.APPROVED)
+                    .resolvedBy(actor)
+                    .resolvedAt(now)
+                    .build());
+            jpaExpenseApprovalRequestRepository.save(ExpenseApprovalRequestEntity.builder()
+                    .operatingExpense(expense)
+                    .changeRequest(changeRequest)
+                    .reason(reason)
+                    .expectedPaymentDate(expense.getExpenseDate())
+                    .build());
+            jpaChangeRequestEventRepository.save(ChangeRequestEventEntity.builder()
+                    .changeRequest(changeRequest)
+                    .toStatus(RequestStatus.APPROVED)
+                    .note("Tu dong ghi nhan khoan chi bao tri do chu tro chiu.")
+                    .actedBy(actor)
+                    .build());
+            return;
+        }
+
+        approval.setReason(reason);
+        approval.setExpectedPaymentDate(expense.getExpenseDate());
+        ChangeRequestEntity changeRequest = approval.getChangeRequest();
+        if (changeRequest != null) {
+            changeRequest.setTitle("Khoan chi bao tri " + firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()));
+            changeRequest.setDescription(reason);
+            changeRequest.setStatus(RequestStatus.APPROVED);
+            changeRequest.setResolvedBy(actor);
+            changeRequest.setResolvedAt(now);
+            jpaChangeRequestRepository.save(changeRequest);
+        }
+        jpaExpenseApprovalRequestRepository.save(approval);
+    }
+
+    private UserEntity resolveMaintenanceExpenseActor(MaintenanceTicket ticket, MaintenanceCostEntity cost) {
+        Long actorId = cost == null || cost.getCreatedBy() == null ? null : cost.getCreatedBy().getId();
+        if (actorId == null) {
+            actorId = firstNonNull(ticket.getAssignedToId(), ticket.getCreatedById(), currentUserId());
+        }
+        return jpaUserRepository.getReferenceById(actorId);
+    }
+
+    private String buildMaintenanceExpenseDescription(MaintenanceTicket ticket, MaintenanceCostEntity cost) {
+        String ticketLabel = firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId());
+        String detail = firstNonBlank(cost.getDescription(), ticket.getTitle(), ticket.getCategory(), "Chi phi bao tri");
+        return "Chi phi bao tri " + ticketLabel + ": " + detail;
+    }
+
+    private String nextMaintenanceExpenseCode(Long ticketId) {
+        for (int sequence = 1; sequence <= 999; sequence++) {
+            String candidate = maintenanceExpenseCode(ticketId, sequence);
+            if (!jpaOperatingExpenseRepository.existsByExpenseCode(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Could not allocate expense code for maintenance ticket " + ticketId);
+    }
+
+    private String nextMaintenanceExpenseRequestCode(Long ticketId) {
+        for (int sequence = 1; sequence <= 999; sequence++) {
+            String candidate = maintenanceExpenseRequestCode(ticketId, sequence);
+            if (!jpaChangeRequestRepository.existsByRequestCode(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Could not allocate expense request code for maintenance ticket " + ticketId);
+    }
+
+    static String maintenanceExpenseCode(Long ticketId, int sequence) {
+        String base = "EXP-MT-" + (ticketId == null ? "UNKNOWN" : ticketId);
+        return sequence <= 1 ? base : base + "-" + sequence;
+    }
+
+    static String maintenanceExpenseRequestCode(Long ticketId, int sequence) {
+        String base = "DYC-MT-" + (ticketId == null ? "UNKNOWN" : ticketId);
+        return sequence <= 1 ? base : base + "-" + sequence;
+    }
+
+    static ExpenseType maintenanceExpenseType(CostType costType) {
+        if (costType == null) {
+            return ExpenseType.OTHER;
+        }
+        return switch (costType) {
+            case LABOR, MATERIAL, TENANT_COMPENSATION -> ExpenseType.REPAIR;
+            case COMMON_OPERATING -> ExpenseType.COMMON_UTILITY;
+            case OTHER -> ExpenseType.OTHER;
+        };
+    }
+
+    private RequesterRole toRequesterRole(Role role) {
+        if (role == null) {
+            return RequesterRole.MANAGER;
+        }
+        return switch (role) {
+            case OWNER -> RequesterRole.OWNER;
+            case MANAGER -> RequesterRole.MANAGER;
+            case ACCOUNTANT -> RequesterRole.ACCOUNTANT;
+            case TENANT -> RequesterRole.TENANT;
+            case LEAD -> RequesterRole.LEAD;
+        };
     }
 
     private void saveInternalCost(Long ticketId, CreateMaintenanceTicketRequest request) {
@@ -1122,6 +1358,7 @@ public class MaintenanceTicketController {
         return jpaUserRepository.findById(userId)
                 .map(user -> MaintenanceTicketResponse.UserSummary.builder()
                         .id(user.getId())
+                        .fullName(userDisplayName(user))
                         .email(user.getEmail())
                         .phone(user.getPhone())
                         .role(user.getRole() == null ? null : user.getRole().name())
@@ -1136,11 +1373,22 @@ public class MaintenanceTicketController {
         return jpaUserRepository.findById(userId)
                 .map(user -> MaintenanceTicketDetailsResponse.UserSummary.builder()
                         .id(user.getId())
+                        .fullName(userDisplayName(user))
                         .email(user.getEmail())
                         .phone(user.getPhone())
                         .role(user.getRole() == null ? null : user.getRole().name())
                         .build())
                 .orElse(null);
+    }
+
+    private String userDisplayName(UserEntity user) {
+        if (user == null) {
+            return "";
+        }
+        String profileName = jpaPersonProfileRepository.findFirstByUser_IdAndDeletedAtIsNullOrderByIdDesc(user.getId())
+                .map(PersonProfileEntity::getFullName)
+                .orElse(null);
+        return firstNonBlank(profileName, user.getEmail(), user.getPhone());
     }
 
     private void assertCanRead(MaintenanceTicket ticket) {

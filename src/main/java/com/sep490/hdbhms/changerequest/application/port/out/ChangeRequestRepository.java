@@ -15,4 +15,5 @@ public interface ChangeRequestRepository {
     List<ChangeRequest> findAll();
     Page<ChangeRequest> findFiltered(RequestType type, RequestStatus status, String search, Pageable pageable);
     Page<ChangeRequest> findFilteredByRequester(Long requesterId, RequestType type, RequestStatus status, String search, Pageable pageable);
+    boolean existsByRequestCode(String requestCode);
 }

@@ -17,6 +17,8 @@ public record ChangeRequestResponse(
         String requestPayload,
         RequestStatus status,
         Long requesterId,
+        String requesterName,
+        String requesterPhone,
         String resolutionNote,
         LocalDateTime resolvedAt,
         LocalDateTime createdAt

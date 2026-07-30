@@ -35,6 +35,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUt
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -209,7 +210,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
 
         RoomTransferRequest transferRequest = RoomTransferRequest.builder()
-                .requestCode(nextTransferCode())
+                .requestCode(nextTransferCode(targetRoom.getRoomCode()))
                 .requesterId(requesterTenant.getId())
                 .oldContractId(sourceContract.getId())
                 .oldRoomId(sourceContract.getRoomId())
@@ -232,7 +233,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         transferRequest = roomTransferRepository.save(transferRequest);
 
         ChangeRequest changeRequest = ChangeRequest.builder()
-                .requestCode(nextChangeRequestCode())
+                .requestCode(nextChangeRequestCode(targetRoom.getRoomCode()))
                 .requesterId(command.requesterId())
                 .requesterRole(RequesterRole.TENANT)
                 .requestType(RequestType.ROOM_TRANSFER)
@@ -3159,12 +3160,22 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
     }
 
-    private String nextTransferCode() {
-        return "TR-" + snowflakeIdGenerator.next();
+    private String nextTransferCode(String roomCode) {
+        return RequestCodeBuilder.nextAvailable(
+                RequestType.ROOM_TRANSFER,
+                roomCode,
+                LocalDate.now(),
+                code -> roomTransferRepository.findByRequestCode(code).isPresent()
+        );
     }
 
-    private String nextChangeRequestCode() {
-        return "CR-" + snowflakeIdGenerator.next();
+    private String nextChangeRequestCode(String roomCode) {
+        return RequestCodeBuilder.nextAvailable(
+                RequestType.ROOM_TRANSFER,
+                roomCode,
+                LocalDate.now(),
+                changeRequestRepository::existsByRequestCode
+        );
     }
 
     @Override

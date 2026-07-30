@@ -25,8 +25,8 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.Permi
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +41,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,6 @@ public class PermissionRequestController {
     ChangeRequestQueryUseCase changeRequestQueryUseCase;
     ChangeRequestUseCase changeRequestUseCase;
     ObjectMapper objectMapper;
-    SnowflakeIdGenerator snowflakeIdGenerator;
     ChangeRequestNotificationService changeRequestNotificationService;
 
     @GetMapping
@@ -88,7 +88,12 @@ public class PermissionRequestController {
         payload.put("targetId", request.getTargetId());
 
         ChangeRequest changeRequest = ChangeRequest.builder()
-                .requestCode("PR-" + snowflakeIdGenerator.next())
+                .requestCode(RequestCodeBuilder.nextAvailable(
+                        RequestType.PERMISSION_ACCESS,
+                        null,
+                        LocalDate.now(),
+                        changeRequestRepository::existsByRequestCode
+                ))
                 .requestType(RequestType.PERMISSION_ACCESS)
                 .requesterId(requesterUserId)
                 .requesterRole(currentRequesterRole())
