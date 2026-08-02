@@ -1,9 +1,11 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.web.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
+import com.sep490.hdbhms.billingandpayment.application.port.out.ExternalPaymentPort;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
@@ -18,6 +20,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInv
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPaymentAllocationRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPaymentIntentRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.TenantMeterReadingReviewRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TenantInvoiceLineResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TenantInvoiceResponse;
@@ -92,10 +95,12 @@ public class TenantInvoiceController {
     JpaFileMetadataRepository jpaFileMetadataRepository;
     ObjectMapper objectMapper;
     PayOSProperties payOSProperties;
+    ExternalPaymentPort externalPaymentPort;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     ChangeRequestNotificationService changeRequestNotificationService;
 
     @GetMapping
+    @Transactional
     public ApiResponse<List<TenantInvoiceResponse>> getMyInvoices() {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         EnumSet<InvoiceStatus> visibleStatuses = EnumSet.of(
@@ -106,6 +111,9 @@ public class TenantInvoiceController {
         );
         List<InvoiceEntity> invoices = jpaInvoiceRepository.findTenantVisibleInvoices(userId, visibleStatuses);
         if (syncPayOSPayments(invoices)) {
+            invoices = jpaInvoiceRepository.findTenantVisibleInvoices(userId, visibleStatuses);
+        }
+        if (ensurePayOSCheckouts(invoices)) {
             invoices = jpaInvoiceRepository.findTenantVisibleInvoices(userId, visibleStatuses);
         }
         return ApiResponse.<List<TenantInvoiceResponse>>builder()
@@ -230,6 +238,129 @@ public class TenantInvoiceController {
             }
         }
         return synced;
+    }
+
+    private boolean ensurePayOSCheckouts(List<InvoiceEntity> invoices) {
+        boolean refreshed = false;
+        for (InvoiceEntity invoice : invoices) {
+            if (!isPayable(invoice)) {
+                continue;
+            }
+            PaymentIntentEntity paymentIntent = jpaPaymentIntentRepository
+                    .findFirstByInvoice_IdAndStatusOrderByIdDesc(invoice.getId(), PaymentIntentStatus.PENDING)
+                    .orElse(null);
+            if (paymentIntent == null
+                    || paymentIntent.getProvider() != PaymentIntentProvider.PAYOS
+                    || hasUsablePayOSPayload(paymentIntent)) {
+                continue;
+            }
+            try {
+                refreshPayOSCheckout(invoice, paymentIntent);
+                refreshed = true;
+            } catch (RuntimeException exception) {
+                log.warn("Could not create PayOS checkout for tenant invoice. invoiceId={}, paymentIntentId={}, message={}",
+                        invoice.getId(),
+                        paymentIntent.getId(),
+                        exception.getMessage());
+            }
+        }
+        return refreshed;
+    }
+
+    private boolean isPayable(InvoiceEntity invoice) {
+        if (invoice.getRemainingAmount() == null || invoice.getRemainingAmount() <= 0) {
+            return false;
+        }
+        return invoice.getStatus() == InvoiceStatus.ISSUED
+                || invoice.getStatus() == InvoiceStatus.PARTIALLY_PAID
+                || invoice.getStatus() == InvoiceStatus.OVERDUE;
+    }
+
+    private boolean hasUsablePayOSPayload(PaymentIntentEntity paymentIntent) {
+        JsonNode payload = parsePayload(paymentIntent.getQrPayload());
+        String qrCode = text(payload, "qrCode");
+        if (!StringUtils.hasText(qrCode) || looksLikeUrl(qrCode) || isSeedDemoPlaceholder(payload, qrCode)) {
+            return false;
+        }
+        String providerOrderCode = firstNonBlank(text(payload, "providerOrderCode"), paymentIntent.getProviderOrderCode());
+        String checkoutUrl = text(payload, "checkoutUrl");
+        String paymentLinkId = text(payload, "paymentLinkId");
+        return StringUtils.hasText(providerOrderCode)
+                && (StringUtils.hasText(checkoutUrl) || StringUtils.hasText(paymentLinkId));
+    }
+
+    private boolean isSeedDemoPlaceholder(JsonNode payload, String qrCode) {
+        String source = text(payload, "source");
+        return "seed-demo-v44".equals(source)
+                || (StringUtils.hasText(qrCode) && qrCode.contains("pay.payos.vn/web/seed-"));
+    }
+
+    private boolean looksLikeUrl(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase();
+        return normalized.startsWith("http://") || normalized.startsWith("https://");
+    }
+
+    private void refreshPayOSCheckout(InvoiceEntity invoice, PaymentIntentEntity paymentIntent) {
+        LocalDateTime expiresAt = usableExpiresAt(paymentIntent.getExpiresAt());
+        Long amount = paymentIntent.getAmount() != null && paymentIntent.getAmount() > 0
+                ? paymentIntent.getAmount()
+                : invoice.getRemainingAmount();
+        String description = payOSDescription(paymentIntent, invoice);
+        com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkout =
+                externalPaymentPort.createCheckoutRequest(new PaymentRequest(
+                        paymentIntent.getId(),
+                        amount,
+                        description,
+                        expiresAt
+                ));
+        paymentIntent.setProviderOrderCode(checkout.providerOrderCode());
+        paymentIntent.setPaymentContent(description);
+        paymentIntent.setAmount(amount);
+        paymentIntent.setExpiresAt(checkout.expiresAt() == null ? expiresAt : checkout.expiresAt());
+        paymentIntent.setQrPayload(toCheckoutPayload(checkout, paymentIntent));
+        jpaPaymentIntentRepository.save(paymentIntent);
+    }
+
+    private LocalDateTime usableExpiresAt(LocalDateTime currentExpiresAt) {
+        LocalDateTime minimum = LocalDateTime.now().plusMinutes(5);
+        if (currentExpiresAt == null || currentExpiresAt.isBefore(minimum)) {
+            return LocalDateTime.now().plusDays(7);
+        }
+        return currentExpiresAt;
+    }
+
+    private String payOSDescription(PaymentIntentEntity paymentIntent, InvoiceEntity invoice) {
+        String value = firstNonBlank(paymentIntent.getPaymentContent(), invoice.getInvoiceCode(), "INV " + invoice.getId());
+        value = value.replaceAll("[^A-Za-z0-9 ]", " ").replaceAll("\\s+", " ").trim();
+        if (!StringUtils.hasText(value)) {
+            value = "INV " + invoice.getId();
+        }
+        return value.length() <= 25 ? value : value.substring(0, 25).trim();
+    }
+
+    private String toCheckoutPayload(
+            com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkout,
+            PaymentIntentEntity paymentIntent
+    ) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("checkoutUrl", checkout.checkOutUrl());
+        payload.put("qrCode", checkout.qrCode());
+        payload.put("providerOrderCode", checkout.providerOrderCode());
+        payload.put("paymentLinkId", checkout.paymentLinkId());
+        payload.put("bankBin", checkout.bankBin());
+        payload.put("bankShortName", checkout.bankShortName());
+        payload.put("accountNumber", checkout.accountNumber());
+        payload.put("accountName", checkout.accountName());
+        payload.put("transferDescription", checkout.transferDescription());
+        payload.put("amount", paymentIntent.getAmount());
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Khong the luu du lieu checkout PayOS.", exception);
+        }
     }
 
     private boolean syncPayOSPayment(PaymentIntentEntity paymentIntent) {
