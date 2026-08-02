@@ -18,4 +18,8 @@ public interface JpaPropertyRuleRepository extends JpaRepository<PropertyRuleEnt
             Long propertyId,
             RuleStatus status
     );
+
+    Optional<PropertyRuleEntity> findFirstByProperty_IdAndRuleCode(Long propertyId, String ruleCode);
+
+    Optional<PropertyRuleEntity> findByIdAndProperty_Id(Long id, Long propertyId);
 }

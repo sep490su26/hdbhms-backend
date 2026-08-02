@@ -226,7 +226,6 @@ public class IssuedInvoiceChargeService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("checkoutUrl", checkout.checkOutUrl());
         payload.put("qrCode", checkout.qrCode());
-        payload.put("qrPayload", checkout.qrPayload());
         payload.put("providerOrderCode", checkout.providerOrderCode());
         payload.put("paymentLinkId", checkout.paymentLinkId());
         payload.put("bankBin", checkout.bankBin());

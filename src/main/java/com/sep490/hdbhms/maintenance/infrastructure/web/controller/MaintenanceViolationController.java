@@ -104,7 +104,7 @@ public class MaintenanceViolationController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ chủ trọ hoặc quản lý được ghi nhận vi phạm.");
         }
         validateRequest(request);
-        String violationType = normalizeViolationType(request.getViolationType());
+        String ruleCode = normalizeViolationType(request.getViolationType());
 
         RoomEntity room = jpaRoomRepository.findById(request.getRoomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
@@ -133,11 +133,11 @@ public class MaintenanceViolationController {
             );
         }
         PersonProfileEntity tenantProfile = resolveTenantProfile(request, contract);
-        PropertyRuleEntity rule = findRule(propertyId, violationType);
-        long fineAmount = resolveFineAmount(request.getAmount(), rule, violationType);
+        PropertyRuleEntity rule = findRule(propertyId, ruleCode);
+        long fineAmount = resolveFineAmount(request.getAmount(), rule, ruleCode);
         List<Long> attachmentIds = validateAttachmentIds(request.getAttachmentIds());
 
-        MaintenanceTicketEntity ticket = createViolationTicket(room, contract, violationType, request.getDescription(), fineAmount);
+        MaintenanceTicketEntity ticket = createViolationTicket(room, contract, rule, request.getDescription(), fineAmount);
         attachEvidenceFiles(ticket, attachmentIds);
         RuleViolationEntity violation = createRuleViolation(
                 room,
@@ -162,7 +162,7 @@ public class MaintenanceViolationController {
                     room,
                     contract,
                     InvoiceLineType.VIOLATION_FINE,
-                    "Phạt vi phạm nội quy: Tự ý reset mật khẩu modem/wifi",
+                    "Phạt vi phạm nội quy: " + ruleTitle(rule),
                     fineAmount,
                     ticket.getId(),
                     jpaUserRepository.getReferenceById(currentUserId())
@@ -176,7 +176,7 @@ public class MaintenanceViolationController {
                     room,
                     contract,
                     InvoiceLineType.VIOLATION_FINE,
-                    "Phat vi pham noi quy: Tu y reset mat khau modem/wifi",
+                    "Phạt vi phạm nội quy: " + ruleTitle(rule),
                     fineAmount,
                     IssuedInvoiceChargeService.SOURCE_MAINTENANCE_TICKET,
                     ticket.getId(),
@@ -190,21 +190,25 @@ public class MaintenanceViolationController {
                         .id(violation.getId())
                         .ticketId(ticket.getId())
                         .ticketCode(ticket.getTicketCode())
-                        .violationType(violationType)
+                        .violationType(rule.getRuleCode())
                         .lineType(billNow || monthlyScheduled ? InvoiceLineType.VIOLATION_FINE.name() : null)
                         .amount(fineAmount)
                         .status(ticket.getStatus().name())
                         .billingStatus(billNow ? "DRAFT" : monthlyScheduled ? "SCHEDULED" : "NO_CHARGE")
-                        .billingStatusLabel(createDraftInvoice ? "Chờ phát hành" : "Không thu khách")
+                        .billingStatusLabel(billNow
+                                ? "Chờ phát hành"
+                                : monthlyScheduled ? "Đã lên lịch gộp hóa đơn đầu tháng" : "Không thu khách")
                         .invoiceId(invoice == null ? null : invoice.getId())
                         .invoiceCode(invoice == null ? null : invoice.getInvoiceCode())
                         .invoiceStatus(invoice == null ? null : invoice.getStatus().name())
                         .invoiceLineId(invoiceLine == null ? null : invoiceLine.getId())
                         .checkoutUrl(null)
                         .providerOrderCode(null)
-                        .message(createDraftInvoice
-                                ? "Đã ghi nhận vi phạm reset wifi 200.000đ và tạo hóa đơn nháp. Khách thuê chỉ thấy sau khi phát hành."
-                                : "Đã ghi nhận vi phạm reset wifi 200.000đ, chưa thu khách.")
+                        .message(billNow
+                                ? "Đã ghi nhận vi phạm \"" + ruleTitle(rule) + "\" và tạo hóa đơn nháp. Khách thuê chỉ thấy sau khi phát hành."
+                                : monthlyScheduled
+                                ? "Đã ghi nhận vi phạm \"" + ruleTitle(rule) + "\" và lên lịch gộp hóa đơn đầu tháng."
+                                : "Đã ghi nhận vi phạm \"" + ruleTitle(rule) + "\", chưa thu khách.")
                         .build())
                 .build();
     }
@@ -254,8 +258,15 @@ public class MaintenanceViolationController {
 
     private String normalizeViolationType(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
-        if (!RESET_WIFI_PASSWORD.equals(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loại vi phạm chưa được hỗ trợ trong MVP.");
+        if (RESET_WIFI_PASSWORD.equals(normalized)) {
+            return WIFI_RESET_RULE_CODE;
+        }
+        normalized = normalized.replaceAll("[^A-Z0-9_\\-]", "_").replaceAll("_+", "_");
+        if (normalized.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn nội quy vi phạm.");
+        }
+        if (normalized.length() > 50) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã nội quy tối đa 50 ký tự.");
         }
         return normalized;
     }
@@ -272,25 +283,23 @@ public class MaintenanceViolationController {
         return jpaPersonProfileRepository.getReferenceById(request.getOccupantId());
     }
 
-    private PropertyRuleEntity findRule(Long propertyId, String violationType) {
-        String ruleCode = RESET_WIFI_PASSWORD.equals(violationType) ? WIFI_RESET_RULE_CODE : violationType;
+    private PropertyRuleEntity findRule(Long propertyId, String ruleCode) {
         return jpaPropertyRuleRepository
                 .findFirstByProperty_IdAndRuleCodeAndStatus(propertyId, ruleCode, RuleStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Chưa cấu hình nội quy reset wifi cho cơ sở này."
+                        "Chưa cấu hình nội quy vi phạm đã chọn cho cơ sở này."
                 ));
     }
 
-    private long resolveFineAmount(Long amount, PropertyRuleEntity rule, String violationType) {
-        long resolved = amount == null
-                ? (rule.getDefaultFineAmount() == null ? RESET_WIFI_DEFAULT_FINE : rule.getDefaultFineAmount())
-                : amount;
+    private long resolveFineAmount(Long amount, PropertyRuleEntity rule, String ruleCode) {
+        long defaultFine = rule.getDefaultFineAmount() == null ? 0 : rule.getDefaultFineAmount();
+        if (defaultFine <= 0 && WIFI_RESET_RULE_CODE.equals(ruleCode)) {
+            defaultFine = RESET_WIFI_DEFAULT_FINE;
+        }
+        long resolved = amount == null ? defaultFine : amount;
         if (resolved <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền phạt phải lớn hơn 0.");
-        }
-        if (RESET_WIFI_PASSWORD.equals(violationType) && resolved <= 0) {
-            return RESET_WIFI_DEFAULT_FINE;
         }
         return resolved;
     }
@@ -321,10 +330,11 @@ public class MaintenanceViolationController {
     private MaintenanceTicketEntity createViolationTicket(
             RoomEntity room,
             LeaseContractEntity contract,
-            String violationType,
+            PropertyRuleEntity rule,
             String description,
             long fineAmount
     ) {
+        String title = ruleTitle(rule);
         MaintenanceTicketEntity ticket = MaintenanceTicketEntity.builder()
                 .ticketCode(String.format("#SC-TMP-%d-%d", currentUserId(), System.nanoTime()))
                 .property(room.getProperty())
@@ -334,8 +344,8 @@ public class MaintenanceViolationController {
                 .ticketScope(TicketScope.TENANT_ROOM)
                 .priority(Priority.MEDIUM)
                 .category("RULE_VIOLATION")
-                .title("Vi phạm nội quy: Tự ý reset mật khẩu modem/wifi")
-                .description(description.trim() + "\nTiền phạt: " + fineAmount + " đ\nLoại vi phạm: " + violationType)
+                .title("Vi phạm nội quy: " + title)
+                .description(description.trim() + "\nTiền phạt: " + fineAmount + " đ\nNội quy vi phạm: " + title)
                 .status(MaintenanceTicketStatus.COMPLETED)
                 .assignedTo(jpaUserRepository.getReferenceById(currentUserId()))
                 .completedAt(LocalDateTime.now())
@@ -347,10 +357,18 @@ public class MaintenanceViolationController {
                 .ticket(ticket)
                 .action(MaintenanceTicketAction.CREATE.name())
                 .toStatus(ticket.getStatus().name())
-                .note("Ghi nhận vi phạm nội quy reset wifi")
+                .note("Ghi nhận vi phạm nội quy: " + title)
                 .createdBy(jpaUserRepository.getReferenceById(currentUserId()))
                 .build());
         return ticket;
+    }
+
+    private String ruleTitle(PropertyRuleEntity rule) {
+        String title = rule == null ? "" : rule.getTitle();
+        if (title == null || title.isBlank()) {
+            return rule == null ? "Nội quy" : rule.getRuleCode();
+        }
+        return title.trim();
     }
 
     private void attachEvidenceFiles(MaintenanceTicketEntity ticket, List<Long> attachmentIds) {

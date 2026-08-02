@@ -31,6 +31,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -39,7 +40,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -57,6 +60,7 @@ public class UserController {
     JpaUserRepository jpaUserRepository;
     JpaPropertyRepository jpaPropertyRepository;
     JpaRolePromotionRepository jpaRolePromotionRepository;
+    JdbcTemplate jdbcTemplate;
 
     @PostMapping("/staff")
     @PreAuthorize("hasRole('OWNER')")
@@ -289,18 +293,45 @@ public class UserController {
         if (response == null || response.getId() == null || response.getRole() != Role.MANAGER) {
             return response;
         }
-        List<UserResponse.AssignedPropertyResponse> assignedProperties = jpaRolePromotionRepository
+        Map<Long, UserResponse.AssignedPropertyResponse> assignedById = new LinkedHashMap<>();
+        jpaRolePromotionRepository
                 .findActiveAssignments(response.getId(), PromotionRole.MANAGER, RolePromotionStatus.ACTIVE)
                 .stream()
                 .map(RolePromotionEntity::getProperty)
-                .map(property -> UserResponse.AssignedPropertyResponse.builder()
-                        .id(property.getId())
-                        .name(property.getName())
-                        .code(property.getPropertyCode())
-                        .build())
-                .toList();
-        response.setAssignedProperties(assignedProperties);
+                .map(this::toAssignedPropertyResponse)
+                .forEach(property -> assignedById.putIfAbsent(property.getId(), property));
+        findActiveStaffAssignments(response.getId())
+                .forEach(property -> assignedById.putIfAbsent(property.getId(), property));
+        response.setAssignedProperties(List.copyOf(assignedById.values()));
         return response;
+    }
+
+    private UserResponse.AssignedPropertyResponse toAssignedPropertyResponse(PropertyEntity property) {
+        return UserResponse.AssignedPropertyResponse.builder()
+                .id(property.getId())
+                .name(property.getName())
+                .code(property.getPropertyCode())
+                .build();
+    }
+
+    private List<UserResponse.AssignedPropertyResponse> findActiveStaffAssignments(Long accountId) {
+        return jdbcTemplate.query("""
+                        SELECT p.property_id, p.name, p.property_code
+                        FROM property_staff_assignments psa
+                        JOIN properties p
+                          ON p.property_id = psa.property_id
+                         AND p.deleted_at IS NULL
+                        WHERE psa.staff_user_id = ?
+                          AND psa.assigned_role = 'MANAGER'
+                          AND psa.assignment_status = 'ACTIVE'
+                        ORDER BY psa.is_primary DESC, p.name ASC
+                        """,
+                (rs, rowNum) -> UserResponse.AssignedPropertyResponse.builder()
+                        .id(rs.getLong("property_id"))
+                        .name(rs.getString("name"))
+                        .code(rs.getString("property_code"))
+                        .build(),
+                accountId);
     }
 
     private void assignManagerProperty(Long accountId, Long propertyId) {
@@ -333,6 +364,70 @@ public class UserController {
         assignment.setStatus(RolePromotionStatus.ACTIVE);
         assignment.setApprovedAt(LocalDateTime.now());
         jpaRolePromotionRepository.save(assignment);
+        syncStaffPropertyAssignment(accountId, propertyId);
+    }
+
+    private void syncStaffPropertyAssignment(Long accountId, Long propertyId) {
+        Long currentUserId = AuthUtils.getCurrentAuthenticationId();
+
+        jdbcTemplate.update("""
+                        UPDATE property_staff_assignments
+                           SET assignment_status = 'REMOVED',
+                               is_primary = FALSE,
+                               ended_at = COALESCE(ended_at, NOW(6)),
+                               updated_at = NOW(6)
+                         WHERE staff_user_id = ?
+                           AND assigned_role = 'MANAGER'
+                           AND assignment_status = 'ACTIVE'
+                           AND property_id <> ?
+                        """,
+                accountId,
+                propertyId);
+
+        Integer activePrimaryCount = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                          FROM property_staff_assignments
+                         WHERE property_id = ?
+                           AND assigned_role = 'MANAGER'
+                           AND assignment_status = 'ACTIVE'
+                           AND is_primary = TRUE
+                           AND staff_user_id <> ?
+                        """,
+                Integer.class,
+                propertyId,
+                accountId);
+        boolean isPrimary = activePrimaryCount == null || activePrimaryCount == 0;
+
+        int updated = jdbcTemplate.update("""
+                        UPDATE property_staff_assignments
+                           SET assignment_status = 'ACTIVE',
+                               is_primary = ?,
+                               ended_at = NULL,
+                               updated_at = NOW(6),
+                               assigned_by_user_id = COALESCE(assigned_by_user_id, ?)
+                         WHERE property_id = ?
+                           AND staff_user_id = ?
+                           AND assigned_role = 'MANAGER'
+                         ORDER BY property_staff_assignment_id DESC
+                         LIMIT 1
+                        """,
+                isPrimary,
+                currentUserId,
+                propertyId,
+                accountId);
+
+        if (updated == 0) {
+            jdbcTemplate.update("""
+                            INSERT INTO property_staff_assignments
+                                (property_id, staff_user_id, assigned_role, assignment_status, is_primary, notes, assigned_by_user_id, started_at, ended_at, created_at, updated_at)
+                            VALUES
+                                (?, ?, 'MANAGER', 'ACTIVE', ?, 'Assigned from staff account management.', ?, NOW(6), NULL, NOW(6), NOW(6))
+                            """,
+                    propertyId,
+                    accountId,
+                    isPrimary,
+                    currentUserId);
+        }
     }
 
     @GetMapping("/{accountId:\\d+}/login-history")
