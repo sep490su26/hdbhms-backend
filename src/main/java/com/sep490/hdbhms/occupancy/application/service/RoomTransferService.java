@@ -568,7 +568,8 @@ public class RoomTransferService implements RoomTransferUseCase {
             );
         }
         requireStatus(request, TransferRequestStatus.WAITING_SIGNING, TransferRequestStatus.WAITING_CONTRACT_SIGNING);
-        LeaseContract contract = requiredSigningContracts(request).stream()
+        List<LeaseContract> contracts = requiredSigningContracts(request);
+        LeaseContract contract = contracts.stream()
                 .filter(item -> Objects.equals(item.getId(), leaseContractId))
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(
@@ -576,6 +577,25 @@ public class RoomTransferService implements RoomTransferUseCase {
                         "Hợp đồng này không thuộc bộ hợp đồng cần ký của yêu cầu chuyển phòng."
                 ));
         signUploadedContract(contract);
+        advanceTransferAfterAllSigned(request, contracts);
+    }
+
+    private void advanceTransferAfterAllSigned(RoomTransferRequest request, List<LeaseContract> contracts) {
+        boolean allSigned = contracts.stream()
+                .map(LeaseContract::getId)
+                .map(this::getContract)
+                .allMatch(this::isSignedTransferContract);
+        if (!allSigned) {
+            return;
+        }
+        request.setStatus(TransferRequestStatus.READY_FOR_HANDOVER);
+        request.setReservationExpiresAt(null);
+        roomTransferRepository.save(request);
+        publishManagerActionRequired(request, ACTION_READY_FOR_HANDOVER);
+    }
+
+    private boolean isSignedTransferContract(LeaseContract contract) {
+        return contract.getStatus() == LeaseStatus.SIGNED && contract.getSignedFileId() != null;
     }
 
     private boolean currentUserHasAnyRole(String... roles) {
@@ -3099,6 +3119,8 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private RoomTransferRequest syncPaidTransferDifferenceStatus(RoomTransferRequest request) {
+        request = syncSignedTransferContractStatus(request);
+
         if (request.getStatus() == TransferRequestStatus.WAITING_TENANT_CONFIRMATION
                 && request.getPositiveDifferenceSettlementType() == SettlementType.TENANT_PAY_MORE) {
             Optional<TransferSettlement> paidSettlement = findPaidTransferDifferenceSettlement(request);
@@ -3127,6 +3149,24 @@ public class RoomTransferService implements RoomTransferUseCase {
             return request;
         }
 
+        return request;
+    }
+
+    private RoomTransferRequest syncSignedTransferContractStatus(RoomTransferRequest request) {
+        if (request.getStatus() != TransferRequestStatus.WAITING_SIGNING
+                && request.getStatus() != TransferRequestStatus.WAITING_CONTRACT_SIGNING) {
+            return request;
+        }
+
+        List<LeaseContract> contracts = requiredSigningContracts(request);
+        if (contracts.isEmpty() || !contracts.stream().allMatch(this::isSignedTransferContract)) {
+            return request;
+        }
+
+        request.setStatus(TransferRequestStatus.READY_FOR_HANDOVER);
+        request.setReservationExpiresAt(null);
+        request = roomTransferRepository.save(request);
+        publishManagerActionRequired(request, ACTION_READY_FOR_HANDOVER);
         return request;
     }
 

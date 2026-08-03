@@ -285,6 +285,19 @@ public class DepositController {
             );
         }
 
+        if (expectedMoveInDate != null
+                && expectedLeaseSignDate != null
+                && expectedMoveInDate.isBefore(expectedLeaseSignDate)) {
+            return new DepositRoomHoldStatusResponse(
+                    false,
+                    room.getCurrentStatus().name(),
+                    null,
+                    null,
+                    0,
+                    "EXPECTED_MOVE_IN_BEFORE_SIGN_DATE: Ngày dự kiến vào ở không được trước ngày hẹn ký hợp đồng."
+            );
+        }
+
         if (room.getCurrentStatus() == RoomStatus.RESERVED) {
             return new DepositRoomHoldStatusResponse(
                     false,

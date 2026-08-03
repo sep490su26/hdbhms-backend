@@ -135,6 +135,11 @@ public class BookRoomService implements BookRoomUseCase {
             return buildActiveHoldMessage(activeHold, now);
         }
 
+        String expectedDateOrderViolation = validateExpectedDateOrder(expectedMoveInDate, expectedLeaseSignDate);
+        if (expectedDateOrderViolation != null) {
+            return expectedDateOrderViolation;
+        }
+
         if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
             return validateSoonVacantBooking(roomId, expectedMoveInDate, expectedLeaseSignDate);
         }
@@ -146,6 +151,15 @@ public class BookRoomService implements BookRoomUseCase {
             return "Phòng hiện không thể đặt cọc. Vui lòng chọn phòng khác.";
         }
         return validateRegularVacantBooking(expectedMoveInDate, expectedLeaseSignDate);
+    }
+
+    private String validateExpectedDateOrder(LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
+        if (expectedMoveInDate != null
+                && expectedLeaseSignDate != null
+                && expectedMoveInDate.isBefore(expectedLeaseSignDate)) {
+            return "EXPECTED_MOVE_IN_BEFORE_SIGN_DATE: Ngày dự kiến vào ở không được trước ngày hẹn ký hợp đồng.";
+        }
+        return null;
     }
 
     private String validateRegularVacantBooking(LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {
