@@ -5,8 +5,8 @@ import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatu
 import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

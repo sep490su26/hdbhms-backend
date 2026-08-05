@@ -2,8 +2,8 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositBatchEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositBatchEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

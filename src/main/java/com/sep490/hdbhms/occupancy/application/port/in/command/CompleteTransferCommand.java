@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.port.in.command;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.property.domain.value_objects.AssetCondition;
 import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
 
 import java.math.BigDecimal;

@@ -1,9 +1,9 @@
-package com.sep490.hdbhms.occupancy.application.service;
+package com.sep490.hdbhms.property.application.service;
 
-import com.sep490.hdbhms.occupancy.domain.model.MeterReadingBatch;
-import com.sep490.hdbhms.occupancy.domain.value_objects.BatchStatus;
+import com.sep490.hdbhms.property.domain.model.MeterReadingBatch;
+import com.sep490.hdbhms.property.domain.value_objects.BatchStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingBatchEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingBatchEntity;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -6,9 +6,9 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.ConfirmLeaseContr
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ConfirmLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.PromoteToTenantPort;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

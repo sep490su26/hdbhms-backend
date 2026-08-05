@@ -4,8 +4,11 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInv
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomAssetEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomAssetEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomAssetRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.Test;

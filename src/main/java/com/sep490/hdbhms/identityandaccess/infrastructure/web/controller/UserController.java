@@ -19,8 +19,8 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.Login
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.TenantAccountProvisioningResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;

@@ -71,12 +71,12 @@ import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.Maintenance
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.InternalMaintenanceCostResponse;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;

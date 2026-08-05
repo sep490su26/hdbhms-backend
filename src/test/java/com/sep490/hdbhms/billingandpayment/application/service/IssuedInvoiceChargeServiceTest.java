@@ -14,8 +14,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.Paymen
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;

@@ -149,7 +149,7 @@ public class NotificationTemplateDefaults {
                     "Đã được duyệt xem hồ sơ",
                     "Gửi cho quản lý khi chủ trọ duyệt quyền xem hồ sơ khách thuê.",
                     "TENANT_PROFILE",
-                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    List.of(NotificationChannel.WEB),
                     variables(
                             "requestId",
                             "profileId",
@@ -174,7 +174,7 @@ public class NotificationTemplateDefaults {
                     "Yêu cầu xem hồ sơ bị từ chối",
                     "Gửi cho quản lý khi chủ trọ từ chối quyền xem hồ sơ khách thuê.",
                     "TENANT_PROFILE",
-                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    List.of(NotificationChannel.WEB),
                     variables(
                             "requestId",
                             "profileId",
@@ -236,7 +236,7 @@ public class NotificationTemplateDefaults {
                     "Có đặt cọc mới",
                     "Gửi cho chủ trọ và quản lý cơ sở khi khách đã thanh toán đặt cọc phòng.",
                     "DEPOSIT_AGREEMENT",
-                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    List.of(NotificationChannel.WEB),
                     variables(
                             "depositAgreementId",
                             "depositCode",

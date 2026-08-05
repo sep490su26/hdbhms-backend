@@ -1,6 +1,7 @@
-package com.sep490.hdbhms.occupancy.infrastructure.web.dto.request;
+package com.sep490.hdbhms.property.infrastructure.web.dto.request;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.property.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandoverRequest;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;

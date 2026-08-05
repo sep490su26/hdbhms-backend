@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
+import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

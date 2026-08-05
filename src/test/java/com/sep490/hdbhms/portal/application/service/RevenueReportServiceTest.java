@@ -2,10 +2,10 @@ package com.sep490.hdbhms.portal.application.service;
 
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
+import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
+import com.sep490.hdbhms.property.domain.value_objects.PropertyType;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;

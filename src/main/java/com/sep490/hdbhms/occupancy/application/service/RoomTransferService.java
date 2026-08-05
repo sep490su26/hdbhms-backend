@@ -1,5 +1,9 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
+
+import com.sep490.hdbhms.booking.application.port.out.DepositTransferRecordRepository;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceLineRepository;
@@ -12,6 +16,8 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.booking.domain.model.DepositTransferRecord;
+import com.sep490.hdbhms.booking.domain.value_objects.DepositTransferStatus;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.*;
@@ -32,6 +38,9 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandover
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.ContractHandoverDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUtilityEstimateResponse;
+import com.sep490.hdbhms.property.domain.model.Room;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;

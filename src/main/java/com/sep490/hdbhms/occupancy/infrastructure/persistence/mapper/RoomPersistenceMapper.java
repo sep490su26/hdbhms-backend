@@ -1,9 +1,9 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
-import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaFloorRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
+import com.sep490.hdbhms.property.domain.model.Room;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;

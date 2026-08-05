@@ -1,7 +1,7 @@
-package com.sep490.hdbhms.occupancy.application.service;
+package com.sep490.hdbhms.booking.application.service;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.DepositContactOutcome;
+import com.sep490.hdbhms.booking.domain.value_objects.DepositContactOutcome;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;

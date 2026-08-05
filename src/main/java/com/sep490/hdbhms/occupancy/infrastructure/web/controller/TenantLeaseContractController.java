@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
+import com.sep490.hdbhms.occupancy.application.port.in.command.RecordTenantIntentionCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -19,7 +20,7 @@ import java.time.LocalDate;
 @RequestMapping("/api/v1/tenant/contracts")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TenantLeaseContractController {
-    LeaseContractManagementService leaseContractManagementService;
+    RecordTenantIntentionUseCase recordTenantIntentionUseCase;
 
     @PostMapping("/{leaseContractId}/intention")
     @PreAuthorize("hasRole('TENANT')")
@@ -28,12 +29,12 @@ public class TenantLeaseContractController {
             @Valid @RequestBody TenantIntentionRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.recordTenantIntentionForCurrentTenant(
+                .data(recordTenantIntentionUseCase.executeForCurrentTenant(new RecordTenantIntentionCommand(
                         leaseContractId,
                         request.intention(),
                         request.expectedMoveOutDate(),
                         request.note()
-                ))
+                )))
                 .build();
     }
 

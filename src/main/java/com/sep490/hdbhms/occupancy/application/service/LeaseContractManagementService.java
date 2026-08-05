@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
+
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
@@ -20,30 +22,30 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
+import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.domain.value_objects.ReadingPurpose;
+import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractLiquidationEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractOccupantEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractOccupantRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
+import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractRenewalResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
@@ -781,7 +783,6 @@ public class LeaseContractManagementService {
         Long carriedDepositAmount = resolveLiquidationDepositAmount(oldContract);
         validateContractTerms(
                 effectiveDate,
-                oldContract.getEndDate(),
                 oldContract.getPaymentCycleMonths(),
                 oldContract.getMonthlyRent(),
                 carriedDepositAmount
@@ -1594,7 +1595,7 @@ public class LeaseContractManagementService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Hop dong nay da co hop dong tai ky.");
         }
 
-        validateContractTerms(newStartDate, newEndDate, paymentCycleMonths, monthlyRent, depositAmount);
+        validateContractTerms(newStartDate, paymentCycleMonths, monthlyRent, depositAmount);
         RoomEntity room = oldContract.getRoom();
         if (room == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
@@ -2125,7 +2126,6 @@ public class LeaseContractManagementService {
     public LeaseContractManagementResponse updateTerms(
             Long leaseContractId,
             LocalDate startDate,
-            LocalDate endDate,
             Integer paymentCycleMonths,
             Long monthlyRent,
             Long depositAmount
@@ -2146,43 +2146,41 @@ public class LeaseContractManagementService {
             );
         }
 
-        validateContractTerms(startDate, endDate, paymentCycleMonths, monthlyRent, depositAmount);
+        validateContractTerms(startDate, paymentCycleMonths, monthlyRent, depositAmount);
         RoomEntity room = contract.getRoom();
         LocalDate currentEndDate = contract.getEndDate();
-        boolean extendsEndDate = currentEndDate != null && endDate.isAfter(currentEndDate);
-        if (extendsEndDate && room != null) {
-            if (hasOtherActiveContract(room.getId(), contract.getId())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong dang co hop dong hieu luc khac.");
-            }
-            RoomCommitmentChecker.Blocker blocker =
-                    roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
-            if (blocker != RoomCommitmentChecker.Blocker.NONE) {
-                throwRenewBlocked(blocker);
-            }
-            if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
-                RoomStatus fromStatus = room.getCurrentStatus();
-                room.setCurrentStatus(RoomStatus.OCCUPIED);
-                roomRepository.saveAndFlush(room);
-                contract.setTenantIntention("RENEW");
-                contract.setExpectedVacantDate(null);
-                contract.setIntentionRecordedAt(LocalDateTime.now());
-                appendRoomStatusHistory(
-                        room.getId(),
-                        fromStatus,
-                        RoomStatus.OCCUPIED,
-                        "Gia han hop dong thue " + contract.getContractCode()
-                );
-                appendContractEvent(
-                        contract.getId(),
-                        "RENEWAL_AFTER_MOVE_OUT_INTENT",
-                        "Gia han hop dong sau khi khach da bao chuyen di"
-                );
-            }
-        }
+//        if (extendsEndDate && room != null) {
+//            if (hasOtherActiveContract(room.getId(), contract.getId())) {
+//                throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong dang co hop dong hieu luc khac.");
+//            }
+//            RoomCommitmentChecker.Blocker blocker =
+//                    roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
+//            if (blocker != RoomCommitmentChecker.Blocker.NONE) {
+//                throwRenewBlocked(blocker);
+//            }
+//            if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
+//                RoomStatus fromStatus = room.getCurrentStatus();
+//                room.setCurrentStatus(RoomStatus.OCCUPIED);
+//                roomRepository.saveAndFlush(room);
+//                contract.setTenantIntention("RENEW");
+//                contract.setExpectedVacantDate(null);
+//                contract.setIntentionRecordedAt(LocalDateTime.now());
+//                appendRoomStatusHistory(
+//                        room.getId(),
+//                        fromStatus,
+//                        RoomStatus.OCCUPIED,
+//                        "Gia han hop dong thue " + contract.getContractCode()
+//                );
+//                appendContractEvent(
+//                        contract.getId(),
+//                        "RENEWAL_AFTER_MOVE_OUT_INTENT",
+//                        "Gia han hop dong sau khi khach da bao chuyen di"
+//                );
+//            }
+//        }
         boolean rentChanged = !Objects.equals(contract.getMonthlyRent(), monthlyRent);
 
         contract.setStartDate(startDate);
-        contract.setEndDate(endDate);
         contract.setRentStartDate(resolveRentStartDate(startDate));
         contract.setPaymentCycleMonths(paymentCycleMonths);
         contract.setMonthlyRent(monthlyRent);
@@ -2533,22 +2531,12 @@ public class LeaseContractManagementService {
 
     private void validateContractTerms(
             LocalDate startDate,
-            LocalDate endDate,
             Integer paymentCycleMonths,
             Long monthlyRent,
             Long depositAmount
     ) {
         if (startDate == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngay bat dau hop dong la bat buoc.");
-        }
-        if (endDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngay ket thuc hop dong la bat buoc.");
-        }
-        if (!endDate.isAfter(startDate)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Ngay ket thuc phai sau ngay bat dau hop dong."
-            );
         }
         if (!Objects.equals(paymentCycleMonths, 1) && !Objects.equals(paymentCycleMonths, 3)) {
             throw new ResponseStatusException(

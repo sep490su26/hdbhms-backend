@@ -1,10 +1,11 @@
-package com.sep490.hdbhms.occupancy.application.service;
+package com.sep490.hdbhms.property.application.service;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.property.domain.value_objects.MeterType;
+import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.property.application.service.GetLatestMeterReadingsService;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

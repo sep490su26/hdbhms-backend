@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.occupancy.application.service;
+package com.sep490.hdbhms.property.application.service;
 
 import org.junit.jupiter.api.Test;
 

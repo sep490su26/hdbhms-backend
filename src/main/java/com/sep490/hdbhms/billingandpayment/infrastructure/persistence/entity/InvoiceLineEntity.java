@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

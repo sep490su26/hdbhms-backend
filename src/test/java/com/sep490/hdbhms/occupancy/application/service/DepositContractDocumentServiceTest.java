@@ -1,18 +1,17 @@
-package com.sep490.hdbhms.occupancy.application.service;
+package com.sep490.hdbhms.booking.application.service;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
-import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
-import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
-import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
-import com.sep490.hdbhms.occupancy.domain.model.Property;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
+import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
+import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
+import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
+import com.sep490.hdbhms.booking.domain.model.DepositForm;
+import com.sep490.hdbhms.property.domain.model.Property;
+import com.sep490.hdbhms.property.domain.model.Room;
+import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
@@ -62,7 +61,7 @@ class DepositContractDocumentServiceTest {
         );
 
         var response = assertDoesNotThrow(() -> service.preview(
-                com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.DepositContractPreviewRequest.builder()
+                com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositContractPreviewRequest.builder()
                         .roomId(101L)
                         .fullName("Nguyen Van A")
                         .dob(LocalDate.of(2000, 1, 1))

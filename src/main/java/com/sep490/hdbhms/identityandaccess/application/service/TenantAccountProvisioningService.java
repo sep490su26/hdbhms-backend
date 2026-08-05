@@ -15,7 +15,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;

@@ -8,9 +8,9 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPr
 import com.sep490.hdbhms.occupancy.application.service.ManageContractHandoverService;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ConfirmHandoverRequest;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.HandoverMeterReadingsRequest;
+import com.sep490.hdbhms.property.infrastructure.web.dto.request.HandoverMeterReadingsRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandoverRequest;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.HandoverMeterReadingsResponse;
+import com.sep490.hdbhms.property.infrastructure.web.dto.response.HandoverMeterReadingsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;

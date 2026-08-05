@@ -44,7 +44,7 @@
 [INFO] MapStruct: Using builder provider: org.mapstruct.ap.spi.DefaultBuilderProvider
 [INFO] MapStruct: Using enum naming strategy: org.mapstruct.ap.spi.DefaultEnumMappingStrategy
 [INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.DepositAgreementWebMapper.
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.DepositAgreement depositAgreement, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementResponse toResponse(com.sep490.hdbhms.booking.domain.model.DepositAgreement depositAgreement, com.sep490.hdbhms.property.domain.model.Room room).
 [INFO] -- MapStruct: mapping property: depositAgreement.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: depositAgreement.getId().
 [INFO] -- MapStruct: mapping property: depositAgreement.getCreatedAt() to: createdAt(java.time.LocalDateTime).
@@ -62,7 +62,7 @@
 [INFO] -- MapStruct: mapping property: depositAgreement.getContractFileId() to: contractFileId(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: depositAgreement.getContractFileId().
 [WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/DepositAgreementWebMapper.java:[14,30] Unmapped target properties: "propertyName, depositorFullName, depositorPhone, depositorEmail, contractDownloadUrl".
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementDetailsResponse toDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.DepositAgreement depositAgreement, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.DepositAgreementDetailsResponse toDetailsResponse(com.sep490.hdbhms.booking.domain.model.DepositAgreement depositAgreement, com.sep490.hdbhms.property.domain.model.Room room).
 [INFO] -- MapStruct: mapping property: depositAgreement.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: depositAgreement.getId().
 [INFO] -- MapStruct: mapping property: depositAgreement.getCreatedAt() to: createdAt(java.time.LocalDateTime).
@@ -135,7 +135,7 @@
 [INFO] -- MapStruct: selecting property mapping: idBackFile.
 [INFO] -- MapStruct: mapping property: portraitFile to: portraitFile.
 [INFO] -- MapStruct: selecting property mapping: portraitFile.
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse toRoomDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.Room room, com.sep490.hdbhms.occupancy.domain.model.Floor floor, com.sep490.hdbhms.occupancy.domain.model.Property property, java.util.List<com.sep490.hdbhms.occupancy.domain.model.RoomImage> images).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomDetailsResponse toRoomDetailsResponse(com.sep490.hdbhms.property.domain.model.Room room, com.sep490.hdbhms.property.domain.model.Floor floor, com.sep490.hdbhms.property.domain.model.Property property, java.util.List<com.sep490.hdbhms.property.domain.model.RoomImage> images).
 [INFO] -- MapStruct: mapping property: room.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: room.getId().
 [INFO] -- MapStruct: mapping property: room.getName() to: name(java.lang.String).
@@ -162,7 +162,7 @@
 [INFO] -- MapStruct: selecting property mapping: room.getPositionX().
 [INFO] -- MapStruct: mapping property: room.getPositionY() to: positionY(java.lang.Integer).
 [INFO] -- MapStruct: selecting property mapping: room.getPositionY().
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse toResponse(com.sep490.hdbhms.property.domain.model.Room room).
 [INFO] -- MapStruct: mapping property: room.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: room.getId().
 [INFO] -- MapStruct: mapping property: room.getRoomCode() to: roomCode(java.lang.String).
@@ -175,7 +175,7 @@
 [INFO] -- MapStruct: selecting property mapping: room.getAreaM2().
 [INFO] -- MapStruct: mapping property: room.getMaxOccupants() to: maxOccupants(java.lang.Integer).
 [INFO] -- MapStruct: selecting property mapping: room.getMaxOccupants().
-[INFO] -- MapStruct: mapping property: room.getCurrentStatus() to: currentStatus(com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus).
+[INFO] -- MapStruct: mapping property: room.getCurrentStatus() to: currentStatus(com.sep490.hdbhms.property.domain.value_objects.RoomStatus).
 [INFO] -- MapStruct: selecting property mapping: room.getCurrentStatus().
 [WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/RoomWebMapper.java:[41,34] Unmapped target properties: "floorName, propertyName, firstImageUrl".
 [INFO]  MapStruct: processing: com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AuthenticationWebMapper.
@@ -323,14 +323,14 @@
 [INFO] -- MapStruct: selecting property mapping: request.getPreferredStart().
 [INFO] -- MapStruct: mapping property: request.getNotes() to: notes.
 [INFO] -- MapStruct: selecting property mapping: request.getNotes().
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestDetailsResponse toDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.VisitRequest visitRequest, com.sep490.hdbhms.occupancy.domain.model.Property property, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestDetailsResponse toDetailsResponse(com.sep490.hdbhms.property.domain.model.VisitRequest visitRequest, com.sep490.hdbhms.property.domain.model.Property property, com.sep490.hdbhms.property.domain.model.Room room).
 [INFO] -- MapStruct: mapping property: visitRequest.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getId().
 [INFO] -- MapStruct: mapping property: visitRequest.getCreatedAt() to: createdAt(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getCreatedAt().
 [INFO] -- MapStruct: mapping property: visitRequest.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getDeletedAt().
-[INFO] -- MapStruct: mapping property: visitRequest.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus).
+[INFO] -- MapStruct: mapping property: visitRequest.getStatus() to: status(com.sep490.hdbhms.property.domain.value_objects.VisitRequestStatus).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getStatus().
 [INFO] -- MapStruct: mapping property: visitRequest.getVisitorName() to: visitorName(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorName().
@@ -357,12 +357,12 @@
 [INFO] -- MapStruct: selecting property mapping: room.getAreaM2().
 [INFO] -- MapStruct: mapping property: room.getMaxOccupants() to: maxOccupants(java.lang.Integer).
 [INFO] -- MapStruct: selecting property mapping: room.getMaxOccupants().
-[INFO] -- MapStruct: mapping property: room.getCurrentStatus() to: currentStatus(com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus).
+[INFO] -- MapStruct: mapping property: room.getCurrentStatus() to: currentStatus(com.sep490.hdbhms.property.domain.value_objects.RoomStatus).
 [INFO] -- MapStruct: selecting property mapping: room.getCurrentStatus().
-[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/VisitRequestWebMapper.java:[21,33] Unmapped target properties: "floorName, propertyName, firstImageUrl". Mapping from property "com.sep490.hdbhms.occupancy.domain.model.Room room" to "com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse room".
+[WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/VisitRequestWebMapper.java:[21,33] Unmapped target properties: "floorName, propertyName, firstImageUrl". Mapping from property "com.sep490.hdbhms.property.domain.model.Room room" to "com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse room".
 [INFO] -- MapStruct: creating property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse #roomToRoomResponse(room).
 [INFO] -- MapStruct: selecting property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse #roomToRoomResponse(room).
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.VisitRequest visitRequest).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.VisitRequestResponse toResponse(com.sep490.hdbhms.property.domain.model.VisitRequest visitRequest).
 [INFO] -- MapStruct: mapping property: visitRequest.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getId().
 [INFO] -- MapStruct: mapping property: visitRequest.getPropertyId() to: propertyId(java.lang.Long).
@@ -377,7 +377,7 @@
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getVisitorEmail().
 [INFO] -- MapStruct: mapping property: visitRequest.getPreferredStart() to: preferredStart(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getPreferredStart().
-[INFO] -- MapStruct: mapping property: visitRequest.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.VisitRequestStatus).
+[INFO] -- MapStruct: mapping property: visitRequest.getStatus() to: status(com.sep490.hdbhms.property.domain.value_objects.VisitRequestStatus).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getStatus().
 [INFO] -- MapStruct: mapping property: visitRequest.getNotes() to: notes(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: visitRequest.getNotes().
@@ -388,20 +388,20 @@
 [WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/VisitRequestWebMapper.java:[23,26] Unmapped target properties: "propertyName, roomName".
 [INFO]  MapStruct: processing: com.sep490.hdbhms.file.infrastructure.web.mapper.FileMetadataWebMapper.
 [INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.PropertyWebMapper.
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.Property property).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.PropertyResponse toResponse(com.sep490.hdbhms.property.domain.model.Property property).
 [INFO] -- MapStruct: mapping property: property.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: property.getId().
 [INFO] -- MapStruct: mapping property: property.getPropertyCode() to: propertyCode(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: property.getPropertyCode().
 [INFO] -- MapStruct: mapping property: property.getName() to: name(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: property.getName().
-[INFO] -- MapStruct: mapping property: property.getPropertyType() to: propertyType(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType).
+[INFO] -- MapStruct: mapping property: property.getPropertyType() to: propertyType(com.sep490.hdbhms.property.domain.value_objects.PropertyType).
 [INFO] -- MapStruct: selecting property mapping: property.getPropertyType().
 [INFO] -- MapStruct: mapping property: property.getAddressLine() to: addressLine(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: property.getAddressLine().
 [INFO] -- MapStruct: mapping property: property.getDescription() to: description(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: property.getDescription().
-[INFO] -- MapStruct: mapping property: property.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus).
+[INFO] -- MapStruct: mapping property: property.getStatus() to: status(com.sep490.hdbhms.property.domain.value_objects.PropertyStatus).
 [INFO] -- MapStruct: selecting property mapping: property.getStatus().
 [INFO] -- MapStruct: mapping property: property.getCreatedAt() to: createdAt(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: property.getCreatedAt().
@@ -410,7 +410,7 @@
 [INFO] -- MapStruct: mapping property: property.getDeletedAt() to: deletedAt(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: property.getDeletedAt().
 [INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.LeaseContractWebMapper.
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.LeaseContract leaseContract, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.LeaseContract leaseContract, com.sep490.hdbhms.property.domain.model.Room room).
 [INFO] -- MapStruct: mapping property: leaseContract.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: leaseContract.getId().
 [INFO] -- MapStruct: mapping property: leaseContract.getContractCode() to: contractCode(java.lang.String).
@@ -421,7 +421,7 @@
 [INFO] -- MapStruct: selecting property mapping: leaseContract.getStatus().
 [INFO] -- MapStruct: mapping property: leaseContract.getSignedAt() to: signedAt(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: leaseContract.getSignedAt().
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractDetailsResponse toDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.LeaseContract leaseContract, com.sep490.hdbhms.occupancy.domain.model.Room room).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractDetailsResponse toDetailsResponse(com.sep490.hdbhms.occupancy.domain.model.LeaseContract leaseContract, com.sep490.hdbhms.property.domain.model.Room room).
 [INFO] -- MapStruct: mapping property: leaseContract.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: leaseContract.getId().
 [INFO] -- MapStruct: mapping property: leaseContract.getCreatedAt() to: createdAt(java.time.LocalDateTime).
@@ -450,7 +450,7 @@
 [INFO] -- MapStruct: selecting property mapping: com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomResponse RoomWebMapper#toResponse(room).
 [INFO]  MapStruct: processing: com.sep490.hdbhms.billingandpayment.infrastructure.web.mapper.BalanceWebMapper.
 [INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomImageWebMapper.
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomImageResponse toResponse(com.sep490.hdbhms.occupancy.domain.model.RoomImage roomImage).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomImageResponse toResponse(com.sep490.hdbhms.property.domain.model.RoomImage roomImage).
 [INFO] -- MapStruct: mapping property: roomImage.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: roomImage.getId().
 [INFO] -- MapStruct: mapping property: roomImage.getFileId() to: fileId(java.lang.Long).
@@ -529,12 +529,12 @@
 [WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/identityandaccess/infrastructure/web/mapper/UserWebMapper.java:[19,26] Unmapped target property: "accountId".
 [INFO]  MapStruct: processing: com.sep490.hdbhms.occupancy.infrastructure.web.mapper.FloorWebMapper.
 [WARNING] /D:/Web_Source/hdbhms-backend/src/main/java/com/sep490/hdbhms/occupancy/infrastructure/web/mapper/FloorWebMapper.java:[9,1] The mapper com.sep490.hdbhms.occupancy.infrastructure.web.mapper.FloorWebMapper is referenced itself in Mapper#uses.
-[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.FloorResponse toFloorResponse(com.sep490.hdbhms.occupancy.domain.model.Floor floor, com.sep490.hdbhms.occupancy.domain.model.Property property).
+[INFO] - MapStruct: creating bean mapping method implementation for com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.FloorResponse toFloorResponse(com.sep490.hdbhms.property.domain.model.Floor floor, com.sep490.hdbhms.property.domain.model.Property property).
 [INFO] -- MapStruct: mapping property: floor.getId() to: id(java.lang.Long).
 [INFO] -- MapStruct: selecting property mapping: floor.getId().
 [INFO] -- MapStruct: mapping property: floor.getName() to: name(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: floor.getName().
-[INFO] -- MapStruct: mapping property: floor.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.FloorStatus).
+[INFO] -- MapStruct: mapping property: floor.getStatus() to: status(com.sep490.hdbhms.property.domain.value_objects.FloorStatus).
 [INFO] -- MapStruct: selecting property mapping: floor.getStatus().
 [INFO] -- MapStruct: mapping property: floor.getCreatedAt() to: createdAt(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: floor.getCreatedAt().
@@ -549,13 +549,13 @@
 [INFO] -- MapStruct: selecting property mapping: property.getPropertyCode().
 [INFO] -- MapStruct: mapping property: property.getName() to: name(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: property.getName().
-[INFO] -- MapStruct: mapping property: property.getPropertyType() to: propertyType(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyType).
+[INFO] -- MapStruct: mapping property: property.getPropertyType() to: propertyType(com.sep490.hdbhms.property.domain.value_objects.PropertyType).
 [INFO] -- MapStruct: selecting property mapping: property.getPropertyType().
 [INFO] -- MapStruct: mapping property: property.getAddressLine() to: addressLine(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: property.getAddressLine().
 [INFO] -- MapStruct: mapping property: property.getDescription() to: description(java.lang.String).
 [INFO] -- MapStruct: selecting property mapping: property.getDescription().
-[INFO] -- MapStruct: mapping property: property.getStatus() to: status(com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus).
+[INFO] -- MapStruct: mapping property: property.getStatus() to: status(com.sep490.hdbhms.property.domain.value_objects.PropertyStatus).
 [INFO] -- MapStruct: selecting property mapping: property.getStatus().
 [INFO] -- MapStruct: mapping property: property.getCreatedAt() to: createdAt(java.time.LocalDateTime).
 [INFO] -- MapStruct: selecting property mapping: property.getCreatedAt().

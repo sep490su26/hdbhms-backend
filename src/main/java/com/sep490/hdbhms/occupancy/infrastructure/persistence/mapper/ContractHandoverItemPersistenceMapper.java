@@ -3,7 +3,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 import com.sep490.hdbhms.occupancy.domain.model.ContractHandoverItem;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverItemEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomAssetRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomAssetRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;

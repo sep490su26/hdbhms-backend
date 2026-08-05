@@ -2,8 +2,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;

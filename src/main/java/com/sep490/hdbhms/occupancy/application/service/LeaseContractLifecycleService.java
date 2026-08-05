@@ -1,11 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

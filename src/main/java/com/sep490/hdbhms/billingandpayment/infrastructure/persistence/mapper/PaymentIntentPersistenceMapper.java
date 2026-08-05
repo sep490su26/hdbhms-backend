@@ -5,8 +5,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Pay
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaCollectionAccountRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoicePaymentGroupRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaDepositBatchRepository;
+import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
+import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositBatchRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

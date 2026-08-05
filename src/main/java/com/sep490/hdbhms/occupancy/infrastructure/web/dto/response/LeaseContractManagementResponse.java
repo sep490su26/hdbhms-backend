@@ -5,7 +5,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.Billi
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

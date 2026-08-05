@@ -1,7 +1,9 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.mapper;
 
+import com.sep490.hdbhms.property.infrastructure.web.mapper.RoomWebMapper;
+
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractResponse;
 import org.mapstruct.Mapper;

@@ -2,9 +2,9 @@ package com.sep490.hdbhms.maintenance.infrastructure.adapter;
 
 import com.sep490.hdbhms.maintenance.application.port.out.GetRoomFromLeaseContractPort;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.property.domain.model.Room;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

@@ -8,9 +8,10 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.ConfirmTenantTran
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferRequestCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ExecuteTransferCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.NominateHolderCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.command.RecordTenantIntentionCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
 import com.sep490.hdbhms.notification.infrastructure.dispatcher.NotificationOutboxDispatcher;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractLifecycleService;
-import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
 import com.sep490.hdbhms.occupancy.application.service.RoomTransferCreateBypassRegistry;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
@@ -79,7 +80,7 @@ public class MockOccupancyFlowController {
     );
 
     LeaseContractLifecycleService leaseContractLifecycleService;
-    LeaseContractManagementService leaseContractManagementService;
+    RecordTenantIntentionUseCase recordTenantIntentionUseCase;
     JpaLeaseContractRepository leaseContractRepository;
     RoomTransferUseCase roomTransferUseCase;
     RoomTransferCreateBypassRegistry roomTransferCreateBypassRegistry;
@@ -153,12 +154,12 @@ public class MockOccupancyFlowController {
             @RequestParam(required = false) LocalDate expectedMoveOutDate,
             @RequestParam(required = false) String note
     ) {
-        leaseContractManagementService.recordTenantIntention(
+        recordTenantIntentionUseCase.executeForManagement(new RecordTenantIntentionCommand(
                 contractId,
                 intention,
                 expectedMoveOutDate,
                 note == null || note.isBlank() ? "Mock renewal intention" : note
-        );
+        ));
         return ApiResponse.<MockLeaseRenewalStateResponse>builder()
                 .data(buildLeaseRenewalState(contractId))
                 .build();

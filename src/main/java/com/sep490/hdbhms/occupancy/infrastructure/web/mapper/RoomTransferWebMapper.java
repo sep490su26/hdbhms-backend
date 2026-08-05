@@ -2,14 +2,14 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.mapper;
 
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferRequestCommand;
 import com.sep490.hdbhms.occupancy.application.port.out.ContractOccupantRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.DepositTransferRecordRepository;
+import com.sep490.hdbhms.booking.application.port.out.DepositTransferRecordRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.TransferSettlementRepository;
 import com.sep490.hdbhms.occupancy.domain.model.ContractOccupant;
-import com.sep490.hdbhms.occupancy.domain.model.DepositTransferRecord;
+import com.sep490.hdbhms.booking.domain.model.DepositTransferRecord;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.domain.model.TransferSettlement;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;

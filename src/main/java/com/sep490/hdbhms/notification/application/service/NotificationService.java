@@ -132,8 +132,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     }
 
     private boolean isLegacyRoomTransferTemplate(NotificationTemplate template) {
-        return "ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED".equals(template.getTemplateKey())
-                && "Xac nhan holder moi".equals(template.getTitleTemplate());
+        return "ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED".equals(template.getTemplateKey());
     }
 
     private String toPayload(NotificationEvent event) {

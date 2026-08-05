@@ -12,7 +12,7 @@ import com.sep490.hdbhms.notification.application.service.BusinessNotificationPu
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReminderTrackerStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ReminderTrackerEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaReminderTrackerRepository;
 import lombok.AccessLevel;
@@ -48,7 +48,7 @@ public class LeaseExpiryReminderService {
     private static final String HANDOVER_TASK = "LEASE_HANDOVER_CONFIRMATION";
     private static final String MANAGER_VISIT_TASK = "LEASE_EXPIRY_MANAGER_VISIT";
 
-    private static final int REMINDER_SPACING_DAYS = 14;
+    private static final int REMINDER_SPACING_DAYS = 30;
     private static final int HANDOVER_WINDOW_DAYS = 14;
 
     JpaReminderTrackerRepository reminderTrackerRepository;
@@ -114,7 +114,6 @@ public class LeaseExpiryReminderService {
 
         ReminderTrackerEntity tracker = findActiveTracker(
                 LEASE_EXPIRY_INTENTION,
-                CONTRACT_TARGET,
                 contract.getId(),
                 PRIMARY_TENANT_AUDIENCE,
                 recipientUserId
@@ -173,6 +172,9 @@ public class LeaseExpiryReminderService {
                     "Khách chưa phản hồi sau 3 lần nhắc.",
                     today
             );
+
+            //TODO: Add release room logic when reached final reminder
+//            contract.getRoom().setCurrentStatus(RoomStatus.SOON_VACANT);
         } else {
             tracker.setNextDueAt(today.plusDays(REMINDER_SPACING_DAYS).atStartOfDay());
         }
@@ -208,7 +210,6 @@ public class LeaseExpiryReminderService {
 
         ReminderTrackerEntity tracker = findActiveTracker(
                 LEASE_HANDOVER_CONFIRMATION,
-                CONTRACT_TARGET,
                 contract.getId(),
                 PROPERTY_MANAGER_AUDIENCE,
                 null
@@ -295,7 +296,7 @@ public class LeaseExpiryReminderService {
                             WHERE property_id = ?
                               AND assignment_status = 'ACTIVE'
                               AND assigned_role = 'MANAGER'
-                            ORDER BY is_primary DESC, property_staff_assignment_id ASC
+                            ORDER BY is_primary DESC, property_staff_assignment_id
                             """,
                     Long.class,
                     propertyId
@@ -314,19 +315,18 @@ public class LeaseExpiryReminderService {
         if (recipientIds.isEmpty()) {
             return null;
         }
-        return userRepository.findById(recipientIds.get(0)).orElse(null);
+        return userRepository.findById(recipientIds.getFirst()).orElse(null);
     }
 
     private ReminderTrackerEntity findActiveTracker(
             String reminderKey,
-            String targetType,
             Long targetId,
             String audience,
             Long recipientUserId
     ) {
         return reminderTrackerRepository.findActiveTrackers(
                         reminderKey,
-                        targetType,
+                        LeaseExpiryReminderService.CONTRACT_TARGET,
                         targetId,
                         audience,
                         recipientUserId,

@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
+
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;

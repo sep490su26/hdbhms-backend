@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.shared.specifications;
 
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;

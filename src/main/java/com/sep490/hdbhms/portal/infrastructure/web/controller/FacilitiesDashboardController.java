@@ -1,9 +1,9 @@
 package com.sep490.hdbhms.portal.infrastructure.web.controller;
 
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.occupancy.application.service.GetFacilitiesDashboardService;
-import com.sep490.hdbhms.occupancy.domain.value_objects.PropertyStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.FacilitiesDashboardResponse;
+import com.sep490.hdbhms.property.application.service.GetFacilitiesDashboardService;
+import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
+import com.sep490.hdbhms.property.infrastructure.web.dto.response.FacilitiesDashboardResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

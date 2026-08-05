@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.shared.specifications;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;

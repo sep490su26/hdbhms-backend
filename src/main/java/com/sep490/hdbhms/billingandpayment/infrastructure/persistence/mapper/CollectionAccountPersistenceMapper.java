@@ -2,7 +2,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.billingandpayment.domain.model.CollectionAccount;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.CollectionAccountEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

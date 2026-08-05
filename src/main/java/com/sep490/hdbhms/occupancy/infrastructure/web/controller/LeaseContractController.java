@@ -12,20 +12,33 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
+import com.sep490.hdbhms.occupancy.application.port.in.command.LeaseContractLiquidationCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.command.LiquidationChargeInput;
+import com.sep490.hdbhms.occupancy.application.port.in.command.RecordTenantIntentionCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.command.RenewLeaseContractCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
-import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
+import com.sep490.hdbhms.property.application.port.in.query.GetRoomDetailsQuery;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseContractUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.CompleteLeaseLiquidationUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.CreateDraftLeaseContractForDepositUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
+import com.sep490.hdbhms.property.application.port.in.usecase.GetRoomDetailsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.RenewLeaseContractUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseLiquidationDraftUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractFileUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractForDepositUseCase;
 import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
-import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
-import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService.LiquidationChargeInput;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
-import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantRole;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
@@ -77,7 +90,16 @@ public class LeaseContractController {
     LeaseContractWebMapper leaseContractWebMapper;
     GetMyListLeaseContractsUseCase getMyListLeaseContractsUseCase;
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
-    LeaseContractManagementService leaseContractManagementService;
+    GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
+    CreateDraftLeaseContractForDepositUseCase createDraftLeaseContractForDepositUseCase;
+    UploadSignedLeaseContractForDepositUseCase uploadSignedLeaseContractForDepositUseCase;
+    UploadSignedLeaseContractFileUseCase uploadSignedLeaseContractFileUseCase;
+    ActivateLeaseContractUseCase activateLeaseContractUseCase;
+    UpdateLeaseContractTermsUseCase updateLeaseContractTermsUseCase;
+    CompleteLeaseLiquidationUseCase completeLeaseLiquidationUseCase;
+    UpdateLeaseLiquidationDraftUseCase updateLeaseLiquidationDraftUseCase;
+    RenewLeaseContractUseCase renewLeaseContractUseCase;
+    RecordTenantIntentionUseCase recordTenantIntentionUseCase;
     ContractLifecycleChangeRequestService contractLifecycleChangeRequestService;
     LeaseContractQueryService leaseContractQueryService;
     LeaseContractDocumentService leaseContractDocumentService;
@@ -90,7 +112,7 @@ public class LeaseContractController {
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getDraftPdf(@PathVariable Long id) {
         assertOwnerOrAssignedManagerCanAccessContract(id);
-        LeaseContractManagementResponse contract = leaseContractManagementService.findOne(id);
+        LeaseContractManagementResponse contract = getLeaseContractManagementUseCase.findOne(id);
         byte[] pdfBytes = leaseContractDocumentService.generateDraftPdf(id);
         org.springframework.core.io.Resource resource = new org.springframework.core.io.ByteArrayResource(pdfBytes);
         String filename = leaseContractFilename(contract);
@@ -106,7 +128,7 @@ public class LeaseContractController {
             @PageableDefault(size = 10) Pageable pageable
     ) {
         return ApiResponse.<PageResponse<LeaseContractManagementResponse>>builder()
-                .data(leaseContractManagementService.findAllForManagement(pageable))
+                .data(getLeaseContractManagementUseCase.findAll(pageable))
                 .build();
     }
 
@@ -139,7 +161,7 @@ public class LeaseContractController {
     ) {
         assertOwnerOrAssignedManagerCanAccessDeposit(depositAgreementId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.uploadSignedFileForDeposit(depositAgreementId, file))
+                .data(uploadSignedLeaseContractForDepositUseCase.execute(depositAgreementId, file))
                 .build();
     }
 
@@ -150,7 +172,7 @@ public class LeaseContractController {
     ) {
         assertOwnerOrAssignedManagerCanAccessDeposit(depositAgreementId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.createDraftLeaseContractForDeposit(depositAgreementId))
+                .data(createDraftLeaseContractForDepositUseCase.execute(depositAgreementId))
                 .build();
     }
 
@@ -164,7 +186,7 @@ public class LeaseContractController {
     ) {
         assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.uploadSignedFile(leaseContractId, file, replace))
+                .data(uploadSignedLeaseContractFileUseCase.execute(leaseContractId, file, replace))
                 .build();
     }
 
@@ -174,7 +196,7 @@ public class LeaseContractController {
             @PathVariable Long leaseContractId
     ) {
         assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
-        LeaseContractManagementResponse contract = leaseContractManagementService.findOne(leaseContractId);
+        LeaseContractManagementResponse contract = getLeaseContractManagementUseCase.findOne(leaseContractId);
         if (contract.getSignedFileId() == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chua co ban hop dong thue da ky.");
         }
@@ -200,7 +222,7 @@ public class LeaseContractController {
     ) {
         assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.activate(leaseContractId))
+                .data(activateLeaseContractUseCase.execute(leaseContractId))
                 .build();
     }
 
@@ -211,14 +233,13 @@ public class LeaseContractController {
             @Valid @RequestBody LeaseContractTermsUpdateRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.updateTerms(
+                .data(updateLeaseContractTermsUseCase.execute(new UpdateLeaseContractTermsCommand(
                         leaseContractId,
                         request.startDate(),
-                        request.endDate(),
                         request.paymentCycleMonths(),
                         request.monthlyRent(),
                         request.depositAmount()
-                ))
+                )))
                 .build();
     }
 
@@ -229,12 +250,12 @@ public class LeaseContractController {
             @Valid @RequestBody(required = false) LeaseContractLiquidationRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.liquidate(
+                .data(completeLeaseLiquidationUseCase.execute(new LeaseContractLiquidationCommand(
                         leaseContractId,
                         request != null ? request.liquidationDate() : null,
                         request != null ? request.reason() : null,
                         liquidationCharges(request)
-                ))
+                )))
                 .build();
     }
 
@@ -245,12 +266,12 @@ public class LeaseContractController {
             @Valid @RequestBody(required = false) LeaseContractLiquidationRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.updateLiquidationDraft(
+                .data(updateLeaseLiquidationDraftUseCase.execute(new LeaseContractLiquidationCommand(
                         leaseContractId,
                         request != null ? request.liquidationDate() : null,
                         request != null ? request.reason() : null,
                         liquidationCharges(request)
-                ))
+                )))
                 .build();
     }
 
@@ -262,7 +283,7 @@ public class LeaseContractController {
             @Valid @RequestBody LeaseContractRenewalRequest request
     ) {
         return ApiResponse.<LeaseContractRenewalResponse>builder()
-                .data(leaseContractManagementService.renew(
+                .data(renewLeaseContractUseCase.execute(new RenewLeaseContractCommand(
                         leaseContractId,
                         request.newStartDate(),
                         request.newEndDate(),
@@ -271,7 +292,7 @@ public class LeaseContractController {
                         request.depositAmount(),
                         request.newContractCode(),
                         request.note()
-                ))
+                )))
                 .build();
     }
 
@@ -352,12 +373,12 @@ public class LeaseContractController {
             @Valid @RequestBody TenantIntentionRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(leaseContractManagementService.recordTenantIntentionForCurrentUser(
+                .data(recordTenantIntentionUseCase.executeForCurrentUser(new RecordTenantIntentionCommand(
                         leaseContractId,
                         request.intention(),
                         request.expectedMoveOutDate(),
                         request.note()
-                ))
+                )))
                 .build();
     }
 
@@ -985,8 +1006,6 @@ public class LeaseContractController {
     public record LeaseContractTermsUpdateRequest(
             @NotNull(message = "Ngày bắt đầu hợp đồng là bắt buộc.")
             LocalDate startDate,
-            @NotNull(message = "Ngày kết thúc hợp đồng là bắt buộc.")
-            LocalDate endDate,
             @NotNull(message = "Chu kỳ thanh toán là bắt buộc.")
             Integer paymentCycleMonths,
             @NotNull(message = "Giá thuê mỗi tháng là bắt buộc.")

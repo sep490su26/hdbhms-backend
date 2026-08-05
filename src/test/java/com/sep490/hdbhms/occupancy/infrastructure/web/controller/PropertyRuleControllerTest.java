@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
+package com.sep490.hdbhms.property.infrastructure.web.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;

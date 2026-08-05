@@ -9,31 +9,41 @@ import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.occupancy.application.port.in.query.GetDepositAgreementDetailsQuery;
-import com.sep490.hdbhms.occupancy.application.port.in.query.GetRoomDetailsQuery;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetDepositAgreementDetailsUseCase;
+import com.sep490.hdbhms.booking.application.port.in.query.GetDepositAgreementDetailsQuery;
+import com.sep490.hdbhms.property.application.port.in.query.GetRoomDetailsQuery;
+import com.sep490.hdbhms.booking.application.port.in.usecase.GetDepositAgreementDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListDepositAgreementsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
+import com.sep490.hdbhms.booking.application.port.in.usecase.GetMyListDepositAgreementsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetRoomDetailsUseCase;
-import com.sep490.hdbhms.occupancy.application.port.out.DepositAgreementRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.DepositFormRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.FloorRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
-import com.sep490.hdbhms.occupancy.application.service.DepositContractDocumentService;
-import com.sep490.hdbhms.occupancy.application.service.DepositAgreementDashboardService;
-import com.sep490.hdbhms.occupancy.application.service.DepositAgreementLifecycleService;
+import com.sep490.hdbhms.property.application.port.in.usecase.GetRoomDetailsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseContractUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.CompleteLeaseLiquidationUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.CreateDraftLeaseContractForDepositUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.RenewLeaseContractUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseLiquidationDraftUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractFileUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractForDepositUseCase;
+import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
+import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
+import com.sep490.hdbhms.property.application.port.out.FloorRepository;
+import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
+import com.sep490.hdbhms.booking.infrastructure.web.controller.DepositAgreementController;
+import com.sep490.hdbhms.booking.application.service.DepositContractDocumentService;
+import com.sep490.hdbhms.booking.application.service.DepositAgreementDashboardService;
+import com.sep490.hdbhms.booking.application.service.DepositAgreementLifecycleService;
 import com.sep490.hdbhms.occupancy.application.service.HandoverDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
-import com.sep490.hdbhms.occupancy.application.service.LeaseContractManagementService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.application.service.ManageContractHandoverService;
-import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
-import com.sep490.hdbhms.occupancy.domain.model.DepositAgreement;
-import com.sep490.hdbhms.occupancy.domain.model.DepositForm;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
+import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
+import com.sep490.hdbhms.booking.domain.model.DepositForm;
+import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.LeaseContractWebMapper;
@@ -115,11 +125,11 @@ class LegalDocumentControllerChecklistTest {
     @Test
     void downloadDraftLeaseUsesRoomCodeHdtDateFilename() {
         setUser(1L, Role.OWNER);
-        var managementService = mock(LeaseContractManagementService.class);
+        var managementUseCase = mock(GetLeaseContractManagementUseCase.class);
         var documentService = mock(LeaseContractDocumentService.class);
-        var controller = leaseController(managementService, documentService, mock(DownloadFileUseCase.class), mock(JdbcTemplate.class));
+        var controller = leaseController(managementUseCase, documentService, mock(DownloadFileUseCase.class), mock(JdbcTemplate.class));
 
-        when(managementService.findOne(9L)).thenReturn(leaseResponse().signedFileId(null).build());
+        when(managementUseCase.findOne(9L)).thenReturn(leaseResponse().signedFileId(null).build());
         when(documentService.generateDraftPdf(9L)).thenReturn(new byte[]{1, 2, 3});
 
         var response = controller.getDraftPdf(9L);
@@ -130,11 +140,11 @@ class LegalDocumentControllerChecklistTest {
     @Test
     void downloadSignedLeaseUsesRoomCodeHdtDateFilename() {
         setUser(1L, Role.OWNER);
-        var managementService = mock(LeaseContractManagementService.class);
+        var managementUseCase = mock(GetLeaseContractManagementUseCase.class);
         var downloadUseCase = mock(DownloadFileUseCase.class);
-        var controller = leaseController(managementService, mock(LeaseContractDocumentService.class), downloadUseCase, mock(JdbcTemplate.class));
+        var controller = leaseController(managementUseCase, mock(LeaseContractDocumentService.class), downloadUseCase, mock(JdbcTemplate.class));
 
-        when(managementService.findOne(9L)).thenReturn(leaseResponse().signedFileId(901L).build());
+        when(managementUseCase.findOne(9L)).thenReturn(leaseResponse().signedFileId(901L).build());
         when(downloadUseCase.execute(new DownloadFileQuery(901L))).thenReturn(pdfData());
 
         var response = controller.downloadSignedLeaseContractFile(9L);
@@ -178,7 +188,7 @@ class LegalDocumentControllerChecklistTest {
         setUser(77L, Role.MANAGER);
         var jdbcTemplate = mock(JdbcTemplate.class);
         var documentService = mock(LeaseContractDocumentService.class);
-        var controller = leaseController(mock(LeaseContractManagementService.class), documentService, mock(DownloadFileUseCase.class), jdbcTemplate);
+        var controller = leaseController(mock(GetLeaseContractManagementUseCase.class), documentService, mock(DownloadFileUseCase.class), jdbcTemplate);
 
         when(jdbcTemplate.query(anyString(), org.mockito.ArgumentMatchers.<ResultSetExtractor<Long>>any(), eq(9L)))
                 .thenReturn(700L);
@@ -197,7 +207,7 @@ class LegalDocumentControllerChecklistTest {
 
         var leaseUploadException = assertThrows(
                 ResponseStatusException.class,
-                () -> leaseController(mock(LeaseContractManagementService.class), mock(LeaseContractDocumentService.class), mock(DownloadFileUseCase.class), mock(JdbcTemplate.class))
+                () -> leaseController(mock(GetLeaseContractManagementUseCase.class), mock(LeaseContractDocumentService.class), mock(DownloadFileUseCase.class), mock(JdbcTemplate.class))
                         .uploadSignedFile(9L, file, false)
         );
         var handoverUploadException = assertThrows(
@@ -242,7 +252,7 @@ class LegalDocumentControllerChecklistTest {
     }
 
     private static LeaseContractController leaseController(
-            LeaseContractManagementService managementService,
+            GetLeaseContractManagementUseCase managementUseCase,
             LeaseContractDocumentService documentService,
             DownloadFileUseCase downloadUseCase,
             JdbcTemplate jdbcTemplate
@@ -252,7 +262,16 @@ class LegalDocumentControllerChecklistTest {
                 mock(LeaseContractWebMapper.class),
                 mock(GetMyListLeaseContractsUseCase.class),
                 mock(GetLeaseContractDetailsUseCase.class),
-                managementService,
+                managementUseCase,
+                mock(CreateDraftLeaseContractForDepositUseCase.class),
+                mock(UploadSignedLeaseContractForDepositUseCase.class),
+                mock(UploadSignedLeaseContractFileUseCase.class),
+                mock(ActivateLeaseContractUseCase.class),
+                mock(UpdateLeaseContractTermsUseCase.class),
+                mock(CompleteLeaseLiquidationUseCase.class),
+                mock(UpdateLeaseLiquidationDraftUseCase.class),
+                mock(RenewLeaseContractUseCase.class),
+                mock(RecordTenantIntentionUseCase.class),
                 mock(ContractLifecycleChangeRequestService.class),
                 mock(LeaseContractQueryService.class),
                 documentService,

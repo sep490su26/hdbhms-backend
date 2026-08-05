@@ -12,5 +12,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.advisor")
 public class AdvisorProperties {
     String baseUrl = "http://localhost:8000/api/v1/advisor";
-    int timeoutMs = 120000;
+    int timeoutMs = 240000;
 }

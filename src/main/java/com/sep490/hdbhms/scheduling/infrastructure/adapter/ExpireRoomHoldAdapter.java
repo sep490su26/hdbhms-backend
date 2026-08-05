@@ -1,13 +1,13 @@
 package com.sep490.hdbhms.scheduling.infrastructure.adapter;
 
-import com.sep490.hdbhms.occupancy.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.occupancy.application.service.RoomDepositLockService;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomHoldRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
-import com.sep490.hdbhms.occupancy.domain.model.RoomHold;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomDepositFailureReason;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomHoldStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.booking.application.service.RoomDepositLockService;
+import com.sep490.hdbhms.booking.application.port.out.RoomHoldRepository;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
+import com.sep490.hdbhms.booking.domain.model.RoomHold;
+import com.sep490.hdbhms.booking.domain.value_objects.RoomDepositFailureReason;
+import com.sep490.hdbhms.booking.domain.value_objects.RoomHoldStatus;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.scheduling.application.port.out.ExpireRoomHoldPort;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

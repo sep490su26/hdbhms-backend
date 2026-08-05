@@ -38,11 +38,11 @@ import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEnti
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
-import com.sep490.hdbhms.occupancy.domain.value_objects.MeterReadingReviewStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
+import com.sep490.hdbhms.property.domain.value_objects.MeterReadingReviewStatus;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.PropertyEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;

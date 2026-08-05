@@ -11,30 +11,32 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInv
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
-import com.sep490.hdbhms.occupancy.domain.value_objects.AssetCondition;
+import com.sep490.hdbhms.property.domain.value_objects.AssetCondition;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
-import com.sep490.hdbhms.occupancy.domain.value_objects.MeterType;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingPurpose;
-import com.sep490.hdbhms.occupancy.domain.value_objects.ReadingStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterType;
+import com.sep490.hdbhms.property.domain.value_objects.ReadingPurpose;
+import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
+import com.sep490.hdbhms.property.application.service.MeterReadingPeriod;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverItemEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.MeterReadingEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomAssetEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomAssetEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverItemRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterReadingRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaMeterRepository;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaRoomAssetRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomAssetRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ConfirmHandoverRequest;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.HandoverMeterReadingsRequest;
+import com.sep490.hdbhms.property.infrastructure.web.dto.request.HandoverMeterReadingsRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandoverRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.ContractHandoverDetailsResponse;
-import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.HandoverMeterReadingsResponse;
+import com.sep490.hdbhms.property.infrastructure.web.dto.response.HandoverMeterReadingsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -112,11 +114,11 @@ public class ManageContractHandoverService {
     private MeterReadingEntity createOrUpdateReading(RoomEntity room, MeterType meterType, HandoverMeterReadingsRequest.ReadingInput input, MeterReadingEntity existingReading) {
         Long roomId = room.getId();
 
-        var activeMeter = meterRepository.findFirstByRoom_IdAndMeterTypeAndStatus(roomId, meterType, com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus.ACTIVE)
+        var activeMeter = meterRepository.findFirstByRoom_IdAndMeterTypeAndStatus(roomId, meterType, MeterStatus.ACTIVE)
                 .orElseGet(() -> meterRepository.save(MeterEntity.builder()
                         .room(room)
                         .meterType(meterType)
-                        .status(com.sep490.hdbhms.occupancy.domain.value_objects.MeterStatus.ACTIVE)
+                        .status(MeterStatus.ACTIVE)
                         .installedAt(LocalDate.now())
                         .build()));
         LocalDate readingDate = input.getReadingDate() != null ? input.getReadingDate() : LocalDate.now();

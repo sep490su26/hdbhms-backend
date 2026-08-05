@@ -12,7 +12,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInv
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPendingBillingChargeRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

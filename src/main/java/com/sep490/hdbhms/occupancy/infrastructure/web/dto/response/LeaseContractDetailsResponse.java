@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
+import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomResponse;
+
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

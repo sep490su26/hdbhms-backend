@@ -1,5 +1,9 @@
 package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
+
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
+
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;

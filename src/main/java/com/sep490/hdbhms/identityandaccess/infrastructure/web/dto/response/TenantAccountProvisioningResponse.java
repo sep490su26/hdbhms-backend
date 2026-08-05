@@ -6,7 +6,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
-import com.sep490.hdbhms.occupancy.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

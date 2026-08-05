@@ -3,7 +3,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.ManagerTaskStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

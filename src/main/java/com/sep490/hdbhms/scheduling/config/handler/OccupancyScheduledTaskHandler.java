@@ -2,7 +2,7 @@ package com.sep490.hdbhms.scheduling.config.handler;
 
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractLifecycleService;
-import com.sep490.hdbhms.occupancy.infrastructure.scheduling.VisitRequestTrashCleanupJob;
+import com.sep490.hdbhms.property.infrastructure.scheduling.VisitRequestTrashCleanupJob;
 import com.sep490.hdbhms.scheduling.application.handler.ScheduledTaskHandler;
 import com.sep490.hdbhms.scheduling.application.handler.ScheduledTaskPolicy;
 import com.sep490.hdbhms.scheduling.application.port.out.ExpireRoomHoldPort;

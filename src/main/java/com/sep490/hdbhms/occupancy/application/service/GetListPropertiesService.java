@@ -2,8 +2,8 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListPropertiesQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListPropertiesUseCase;
-import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
-import com.sep490.hdbhms.occupancy.domain.model.Property;
+import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
+import com.sep490.hdbhms.property.domain.model.Property;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

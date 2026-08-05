@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.TenantEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaPropertyRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;

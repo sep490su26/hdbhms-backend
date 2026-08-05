@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.occupancy.application.service;
+package com.sep490.hdbhms.property.application.service;
 
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
@@ -7,13 +7,13 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionSta
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
-import com.sep490.hdbhms.occupancy.application.port.in.command.CreateVisitRequestCommand;
-import com.sep490.hdbhms.occupancy.application.port.out.PropertyRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.RoomRepository;
-import com.sep490.hdbhms.occupancy.application.port.out.VisitRequestRepository;
-import com.sep490.hdbhms.occupancy.domain.model.Property;
-import com.sep490.hdbhms.occupancy.domain.model.Room;
-import com.sep490.hdbhms.occupancy.domain.model.VisitRequest;
+import com.sep490.hdbhms.property.application.port.in.command.CreateVisitRequestCommand;
+import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
+import com.sep490.hdbhms.property.application.port.out.VisitRequestRepository;
+import com.sep490.hdbhms.property.domain.model.Property;
+import com.sep490.hdbhms.property.domain.model.Room;
+import com.sep490.hdbhms.property.domain.model.VisitRequest;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

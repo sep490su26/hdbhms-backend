@@ -6,6 +6,12 @@ import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisio
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
+import com.sep490.hdbhms.occupancy.application.port.in.command.AddCoOccupantToContractCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.command.StartLeaseLiquidationProcessingCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.AddCoOccupantToContractUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.StartLeaseLiquidationProcessingUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -21,7 +27,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequestDecisionHandler {
-    LeaseContractManagementService leaseContractManagementService;
+    StartLeaseLiquidationProcessingUseCase startLeaseLiquidationProcessingUseCase;
+    AddCoOccupantToContractUseCase addCoOccupantToContractUseCase;
+    UpdateLeaseContractTermsUseCase updateLeaseContractTermsUseCase;
     TenantAccountProvisioningService tenantAccountProvisioningService;
     ObjectMapper objectMapper;
 
@@ -36,7 +44,7 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
     public void onApproved(ChangeRequest request, Long managerId) {
         Map<String, Object> payload = payload(request);
         if (request.getRequestType() == RequestType.CONTRACT_LIQUIDATION) {
-            leaseContractManagementService.startLiquidationProcessing(
+            startLeaseLiquidationProcessingUseCase.execute(new StartLeaseLiquidationProcessingCommand(
                     request.getTargetId(),
                     localDate(payload.get("liquidationDate")),
                     string(payload.get("reason")),
@@ -44,28 +52,27 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
                     longList(payload.get("leavingProfileIds")),
                     longList(payload.get("stayingProfileIds")),
                     longValue(payload.get("replacementPrimaryTenantProfileId"))
-            );
+            ));
             return;
         }
         if (request.getRequestType() == RequestType.ADD_CO_OCCUPANT) {
             Long tenantProfileId = longValue(payload.get("tenantProfileId"));
-            leaseContractManagementService.addCoOccupantFromChangeRequest(
+            addCoOccupantToContractUseCase.execute(new AddCoOccupantToContractCommand(
                     request.getTargetId(),
                     tenantProfileId,
                     localDate(payload.get("moveInDate")),
                     managerId
-            );
+            ));
             tenantAccountProvisioningService.provisionTenantAccount(request.getTargetId(), tenantProfileId, false);
             return;
         }
-        leaseContractManagementService.updateTerms(
+        updateLeaseContractTermsUseCase.execute(new UpdateLeaseContractTermsCommand(
                 request.getTargetId(),
                 localDate(payload.get("startDate")),
-                localDate(payload.get("newEndDate")),
                 intValue(payload.get("paymentCycleMonths")),
                 longValue(payload.get("monthlyRent")),
                 longValue(payload.get("depositAmount"))
-        );
+        ));
     }
 
     @Override
