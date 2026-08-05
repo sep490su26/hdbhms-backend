@@ -5,6 +5,7 @@ TODO.md
 HELP.md
 target/
 identity/
+local/
 .debug/
 *.jks
 *.p12
