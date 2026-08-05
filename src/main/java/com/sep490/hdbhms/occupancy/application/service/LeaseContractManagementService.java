@@ -719,7 +719,7 @@ public class LeaseContractManagementService {
                     "Bắt đầu quy trình thanh lý hợp đồng " + contract.getContractCode()
             );
         }
-        leaseExpiryReminderService.onTenantIntentionRecorded(contract, LocalDate.now());
+        leaseExpiryReminderService.onTenantIntentionRecorded(contract.getId(), LocalDate.now());
         }
         appendContractEvent(contract.getId(), "LIQUIDATION_PROCESSING_STARTED", finalReason);
         return findOne(contract.getId());
@@ -1907,7 +1907,7 @@ public class LeaseContractManagementService {
                 + "; source=" + (source == null ? "" : source)
                 + "; note=" + (note == null ? "" : note.trim());
         appendContractEvent(contract.getId(), "INTENTION_RECORDED", eventData);
-        leaseExpiryReminderService.onTenantIntentionRecorded(contract, LocalDate.now());
+        leaseExpiryReminderService.onTenantIntentionRecorded(contract.getId(), LocalDate.now());
         return findOne(contract.getId());
     }
 

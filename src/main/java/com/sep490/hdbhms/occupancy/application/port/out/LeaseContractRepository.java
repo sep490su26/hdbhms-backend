@@ -27,6 +27,12 @@ public interface LeaseContractRepository {
 
     Optional<LeaseContract> findFirstActiveContract(Long roomId, List<LeaseStatus> statuses);
 
+    boolean existsByPreviousContractIdAndStatus(Long previousContractId, LeaseStatus status);
+
+    List<LeaseContract> findLifecycleCandidates(List<LeaseStatus> statuses);
+
+    Optional<LeaseContract> findLifecycleCandidateById(Long contractId, List<LeaseStatus> statuses);
+
     long countMeterReadingRoomsByPeriod(
             Long propertyId,
             List<LeaseStatus> statuses,

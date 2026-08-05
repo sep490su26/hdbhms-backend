@@ -679,10 +679,6 @@ public class DepositAgreementController {
             room.occupyRoom();
             return;
         }
-        if (nextStatus == DepositAgreementStatus.REFUNDED || nextStatus == DepositAgreementStatus.FORFEITED) {
-            room.releaseRoom();
-            return;
-        }
         room.reserveRoom();
     }
 

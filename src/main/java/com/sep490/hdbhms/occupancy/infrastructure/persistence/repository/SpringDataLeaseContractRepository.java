@@ -91,6 +91,24 @@ public class SpringDataLeaseContractRepository implements LeaseContractRepositor
     }
 
     @Override
+    public boolean existsByPreviousContractIdAndStatus(Long previousContractId, LeaseStatus status) {
+        return jpaLeaseContractRepository.existsByPreviousContract_IdAndStatusAndDeletedAtIsNull(previousContractId, status);
+    }
+
+    @Override
+    public List<LeaseContract> findLifecycleCandidates(List<LeaseStatus> statuses) {
+        return jpaLeaseContractRepository.findLifecycleCandidates(statuses).stream()
+                .map(leaseContractPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<LeaseContract> findLifecycleCandidateById(Long contractId, List<LeaseStatus> statuses) {
+        return jpaLeaseContractRepository.findLifecycleCandidateById(contractId, statuses)
+                .map(leaseContractPersistenceMapper::toDomain);
+    }
+
+    @Override
     public long countMeterReadingRoomsByPeriod(
             Long propertyId,
             List<LeaseStatus> statuses,

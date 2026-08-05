@@ -1,11 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.occupancy.application.port.out.ReleaseRoomPort;
+import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
+import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
-import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -28,10 +28,11 @@ public class LeaseContractLifecycleService {
             LeaseStatus.EXPIRING_SOON
     );
 
-    JpaLeaseContractRepository leaseContractRepository;
-    JpaRoomRepository roomRepository;
+    LeaseContractRepository leaseContractRepository;
+    RoomRepository roomRepository;
     JdbcTemplate jdbcTemplate;
     LeaseExpiryReminderService leaseExpiryReminderService;
+    ReleaseRoomPort releaseRoomPort;
 
     @Transactional
     public void processAll(LocalDate today) {
@@ -45,12 +46,12 @@ public class LeaseContractLifecycleService {
                 .ifPresent(contract -> processContract(contract, today));
     }
 
-    private void processContract(LeaseContractEntity contract, LocalDate today) {
+    private void processContract(LeaseContract contract, LocalDate today) {
         if (contract.getEndDate() == null) {
             return;
         }
         boolean hasActivatedRenewal =
-                leaseContractRepository.existsByPreviousContract_IdAndStatusAndDeletedAtIsNull(
+                leaseContractRepository.existsByPreviousContractIdAndStatus(
                         contract.getId(),
                         LeaseStatus.ACTIVE
                 );
@@ -62,11 +63,11 @@ public class LeaseContractLifecycleService {
         );
         if (today.isAfter(contract.getEndDate()) && hasActivatedRenewal) {
             leaseExpiryReminderService.processContract(contract, today, true);
-                log.info(
-                        "Skip contract expiry because active renewed contract exists. contractId={}, status={}",
-                        contract.getId(),
-                        contract.getStatus()
-                );
+            log.info(
+                    "Skip contract expiry because active renewed contract exists. contractId={}, status={}",
+                    contract.getId(),
+                    contract.getStatus()
+            );
             return;
         }
         if (targetStatus == LeaseStatus.EXPIRED) {
@@ -77,9 +78,10 @@ public class LeaseContractLifecycleService {
             transitionContractStatus(
                     contract,
                     LeaseStatus.EXPIRING_SOON,
-                    "Contract has three months or less remaining"
+                    "Thời hạn hợp đồng sắp hết hạn do còn hoặc dưới 3 tháng"
             );
         }
+        resolveToReleaseRoom(contract, today);
         leaseExpiryReminderService.processContract(contract, today, hasActivatedRenewal);
     }
 
@@ -101,14 +103,15 @@ public class LeaseContractLifecycleService {
         return currentStatus;
     }
 
-    private void transitionToExpired(LeaseContractEntity contract) {
+    private void transitionToExpired(LeaseContract contract) {
         transitionContractStatus(contract, LeaseStatus.EXPIRED, "Contract end date has passed");
-        RoomEntity room = contract.getRoom();
-        if (room == null || room.getCurrentStatus() != RoomStatus.OCCUPIED) {
+        if (contract.getRoomId() == null) {
             return;
         }
-        room.setCurrentStatus(RoomStatus.EXPIRED);
-        roomRepository.save(room);
+        int changed = roomRepository.updateRoomStatusIfCurrent(contract.getRoomId(), RoomStatus.OCCUPIED, RoomStatus.EXPIRED);
+        if (changed == 0) {
+            return;
+        }
         jdbcTemplate.update("""
                         INSERT INTO room_status_history (
                             room_id,
@@ -120,13 +123,13 @@ public class LeaseContractLifecycleService {
                         )
                         VALUES (?, 'OCCUPIED', 'EXPIRED', ?, NULL, NOW(6))
                         """,
-                room.getId(),
+                contract.getRoomId(),
                 "Hop dong " + contract.getContractCode() + " da het han"
         );
     }
 
     private void transitionContractStatus(
-            LeaseContractEntity contract,
+            LeaseContract contract,
             LeaseStatus newStatus,
             String reason
     ) {
@@ -157,5 +160,13 @@ public class LeaseContractLifecycleService {
                 newStatus,
                 reason
         );
+    }
+
+    private void resolveToReleaseRoom(LeaseContract contract, LocalDate today) {
+        boolean is1MonthLeft = !today.isBefore(contract.getEndDate().minusMonths(1));
+        //TODO: Nếu còn 1 tháng cuối thì thực hiện chuyển phòng về sắp trống để tranh giữ phòng giữa guest và tenant
+        if (is1MonthLeft) {
+            releaseRoomPort.execute(contract.getRoomId());
+        }
     }
 }

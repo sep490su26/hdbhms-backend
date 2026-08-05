@@ -239,7 +239,7 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
                 + "; source=" + (source == null ? "" : source)
                 + "; note=" + (note == null ? "" : note.trim());
         workflowSupport.appendContractEvent(contract.getId(), "INTENTION_RECORDED", eventData);
-        leaseExpiryReminderService.onTenantIntentionRecorded(contract, LocalDate.now());
+        leaseExpiryReminderService.onTenantIntentionRecorded(contract.getId(), LocalDate.now());
         return getLeaseContractManagementUseCase.findOne(contract.getId());
     }
 

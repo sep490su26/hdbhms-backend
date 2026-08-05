@@ -83,8 +83,8 @@ public class Room {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void releaseRoom() {
-        this.currentStatus = RoomStatus.VACANT;
+    public void releaseRoom(boolean willBeVacant) {
+        this.currentStatus = willBeVacant ? RoomStatus.VACANT : RoomStatus.SOON_VACANT;
         this.updatedAt = LocalDateTime.now();
     }
 

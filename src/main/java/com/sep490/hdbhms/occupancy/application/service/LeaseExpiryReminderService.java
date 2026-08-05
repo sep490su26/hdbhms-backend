@@ -9,11 +9,12 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
+import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
+import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReminderTrackerStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ReminderTrackerEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
-import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaReminderTrackerRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +53,7 @@ public class LeaseExpiryReminderService {
     private static final int HANDOVER_WINDOW_DAYS = 14;
 
     JpaReminderTrackerRepository reminderTrackerRepository;
-    JpaLeaseContractRepository leaseContractRepository;
+    LeaseContractRepository leaseContractRepository;
     JpaManagerTaskRepository managerTaskRepository;
     JpaUserRepository userRepository;
     BusinessNotificationPublisher notificationPublisher;
@@ -60,7 +61,7 @@ public class LeaseExpiryReminderService {
     ObjectMapper objectMapper;
 
     @Transactional
-    public void processContract(LeaseContractEntity contract, LocalDate today, boolean hasActivatedRenewal) {
+    public void processContract(LeaseContract contract, LocalDate today, boolean hasActivatedRenewal) {
         if (contract == null || contract.getId() == null || contract.getEndDate() == null) {
             return;
         }
@@ -86,11 +87,14 @@ public class LeaseExpiryReminderService {
     }
 
     @Transactional
-    public void onTenantIntentionRecorded(LeaseContractEntity contract, LocalDate today) {
-        if (contract == null || contract.getId() == null) {
+    public void onTenantIntentionRecorded(Long contractId, LocalDate today) {
+        if (contractId == null) {
             return;
         }
-        contract = loadReminderContract(contract);
+        LeaseContract contract = leaseContractRepository.findById(contractId).orElse(null);
+        if (contract == null) {
+            return;
+        }
         completeLeaseExpiryIntention(contract.getId());
         String intention = normalize(contract.getTenantIntention());
         if ("RENEW".equals(intention)) {
@@ -100,7 +104,7 @@ public class LeaseExpiryReminderService {
         }
     }
 
-    private void processIntentionReminder(LeaseContractEntity contract, LocalDate today) {
+    private void processIntentionReminder(LeaseContract contract, LocalDate today) {
         LocalDate firstReminderDate = contract.getEndDate().minusMonths(3);
         if (today.isBefore(firstReminderDate)) {
             return;
@@ -181,7 +185,7 @@ public class LeaseExpiryReminderService {
         reminderTrackerRepository.save(tracker);
     }
 
-    private void ensureRenewalTermsTask(LeaseContractEntity contract, LocalDate today) {
+    private void ensureRenewalTermsTask(LeaseContract contract, LocalDate today) {
         TaskCreation taskCreation = ensureManagerTask(
                 RENEWAL_TERMS_TASK,
                 "Chốt điều khoản gia hạn hợp đồng",
@@ -200,7 +204,7 @@ public class LeaseExpiryReminderService {
         }
     }
 
-    private void ensureHandoverTaskIfDue(LeaseContractEntity contract, LocalDate today, String reason) {
+    private void ensureHandoverTaskIfDue(LeaseContract contract, LocalDate today, String reason) {
         LocalDate handoverDate = contract.getExpectedVacantDate() != null
                 ? contract.getExpectedVacantDate()
                 : contract.getEndDate();
@@ -249,7 +253,7 @@ public class LeaseExpiryReminderService {
             String taskType,
             String title,
             String description,
-            LeaseContractEntity contract,
+            LeaseContract contract,
             LocalDate dueDate
     ) {
         String idempotencyKey = taskType + ":CONTRACT:" + contract.getId();
@@ -261,8 +265,8 @@ public class LeaseExpiryReminderService {
                                 .taskType(taskType)
                                 .idempotencyKey(idempotencyKey)
                                 .assignee(resolveTaskAssignee(contract))
-                                .room(contract.getRoom())
-                                .leaseContract(contract)
+                                .room(contract.getRoomId() == null ? null : RoomEntity.builder().id(contract.getRoomId()).build())
+                                .leaseContract(LeaseContractEntity.builder().id(contract.getId()).build())
                                 .status(ManagerTaskStatus.PENDING)
                                 .dueDate(dueDate)
                                 .build()),
@@ -272,7 +276,7 @@ public class LeaseExpiryReminderService {
     private void publishManagerNotification(
             String eventType,
             ManagerTaskEntity task,
-            LeaseContractEntity contract,
+            LeaseContract contract,
             String reason,
             LocalDate today
     ) {
@@ -287,7 +291,7 @@ public class LeaseExpiryReminderService {
         }
     }
 
-    private List<Long> managerRecipientIds(LeaseContractEntity contract) {
+    private List<Long> managerRecipientIds(LeaseContract contract) {
         Long propertyId = propertyId(contract);
         if (propertyId != null) {
             List<Long> managerIds = jdbcTemplate.queryForList("""
@@ -310,7 +314,7 @@ public class LeaseExpiryReminderService {
                 .orElseGet(List::of);
     }
 
-    private UserEntity resolveTaskAssignee(LeaseContractEntity contract) {
+    private UserEntity resolveTaskAssignee(LeaseContract contract) {
         List<Long> recipientIds = managerRecipientIds(contract);
         if (recipientIds.isEmpty()) {
             return null;
@@ -345,8 +349,8 @@ public class LeaseExpiryReminderService {
         return !today.isBefore(tracker.getNextDueAt().toLocalDate());
     }
 
-    private LeaseContractEntity loadReminderContract(LeaseContractEntity contract) {
-        return leaseContractRepository.findByIdForLeaseExpiryReminder(contract.getId()).orElse(contract);
+    private LeaseContract loadReminderContract(LeaseContract contract) {
+        return leaseContractRepository.findById(contract.getId()).orElse(contract);
     }
 
     private void completeLeaseExpiryIntention(Long contractId) {
@@ -360,22 +364,15 @@ public class LeaseExpiryReminderService {
         );
     }
 
-    private Long primaryTenantUserId(LeaseContractEntity contract) {
-        if (contract.getPrimaryTenantProfile() == null || contract.getPrimaryTenantProfile().getUser() == null) {
-            return null;
-        }
-        return contract.getPrimaryTenantProfile().getUser().getId();
+    private Long primaryTenantUserId(LeaseContract contract) {
+        return reminderContext(contract).primaryTenantUserId();
     }
 
-    private Long propertyId(LeaseContractEntity contract) {
-        RoomEntity room = contract.getRoom();
-        if (room == null || room.getProperty() == null) {
-            return null;
-        }
-        return room.getProperty().getId();
+    private Long propertyId(LeaseContract contract) {
+        return reminderContext(contract).propertyId();
     }
 
-    private Map<String, Object> notificationData(LeaseContractEntity contract, String stage, LocalDate today) {
+    private Map<String, Object> notificationData(LeaseContract contract, String stage, LocalDate today) {
         Map<String, Object> data = baseNotificationData(contract, today);
         data.put("stage", stage);
         data.put("targetRoute", "/contract");
@@ -383,7 +380,7 @@ public class LeaseExpiryReminderService {
     }
 
     private Map<String, Object> managerNotificationData(
-            LeaseContractEntity contract,
+            LeaseContract contract,
             ManagerTaskEntity task,
             String reason,
             LocalDate today
@@ -396,21 +393,21 @@ public class LeaseExpiryReminderService {
         return data;
     }
 
-    private Map<String, Object> baseNotificationData(LeaseContractEntity contract, LocalDate today) {
-        RoomEntity room = contract.getRoom();
+    private Map<String, Object> baseNotificationData(LeaseContract contract, LocalDate today) {
+        LeaseReminderContext context = reminderContext(contract);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("contractId", contract.getId());
         data.put("contractCode", contract.getContractCode());
-        data.put("roomId", room == null ? null : room.getId());
-        data.put("roomName", room == null ? "" : room.getName());
-        data.put("roomCode", room == null ? "" : room.getRoomCode());
-        data.put("propertyName", room == null || room.getProperty() == null ? "" : room.getProperty().getName());
+        data.put("roomId", context.roomId());
+        data.put("roomName", context.roomName());
+        data.put("roomCode", context.roomCode());
+        data.put("propertyName", context.propertyName());
         data.put("endDate", String.valueOf(contract.getEndDate()));
         data.put("daysRemaining", ChronoUnit.DAYS.between(today, contract.getEndDate()));
         return data;
     }
 
-    private String metadata(LeaseContractEntity contract, String stage) {
+    private String metadata(LeaseContract contract, String stage) {
         try {
             return objectMapper.writeValueAsString(Map.of(
                     "endDate", String.valueOf(contract.getEndDate()),
@@ -436,6 +433,56 @@ public class LeaseExpiryReminderService {
             case "MOVE_OUT" -> "chuyển đi";
             default -> intention;
         };
+    }
+
+    private LeaseReminderContext reminderContext(LeaseContract contract) {
+        if (contract == null || contract.getId() == null) {
+            return LeaseReminderContext.empty();
+        }
+        return jdbcTemplate.query("""
+                        SELECT
+                            lc.room_id,
+                            room.room_code,
+                            room.name AS room_name,
+                            property.property_id,
+                            property.name AS property_name,
+                            user_account.user_id AS primary_tenant_user_id
+                        FROM lease_contracts lc
+                        LEFT JOIN rooms room ON room.room_id = lc.room_id
+                        LEFT JOIN properties property ON property.property_id = room.property_id
+                        LEFT JOIN person_profiles profile ON profile.person_profile_id = lc.primary_tenant_profile_id
+                        LEFT JOIN user_accounts user_account ON user_account.user_id = profile.user_id
+                        WHERE lc.lease_contract_id = ?
+                        LIMIT 1
+                        """,
+                rs -> {
+                    if (!rs.next()) {
+                        return LeaseReminderContext.empty();
+                    }
+                    return new LeaseReminderContext(
+                            rs.getObject("room_id", Long.class),
+                            rs.getString("room_code"),
+                            rs.getString("room_name"),
+                            rs.getObject("property_id", Long.class),
+                            rs.getString("property_name"),
+                            rs.getObject("primary_tenant_user_id", Long.class)
+                    );
+                },
+                contract.getId()
+        );
+    }
+
+    private record LeaseReminderContext(
+            Long roomId,
+            String roomCode,
+            String roomName,
+            Long propertyId,
+            String propertyName,
+            Long primaryTenantUserId
+    ) {
+        private static LeaseReminderContext empty() {
+            return new LeaseReminderContext(null, "", "", null, "", null);
+        }
     }
 
     private enum ReminderStage {

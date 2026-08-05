@@ -178,10 +178,10 @@ public class RoomTransferService implements RoomTransferUseCase {
         TargetTransferType targetTransferType = bypassCreateValidation
                 ? resolveBypassTargetTransferType(targetRoom, targetActiveLeaseContractResult)
                 : resolveTargetTransferType(
-                        requesterProfile.getId(),
-                        targetRoom,
-                        targetActiveLeaseContractResult
-                );
+                requesterProfile.getId(),
+                targetRoom,
+                targetActiveLeaseContractResult
+        );
 
         if (!bypassCreateValidation) {
             validateRequestedTransferDate(requestedTransferDate);
@@ -958,8 +958,10 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
 
         switch (transferType) {
-            case NEW_CONTRACT -> executeIntoNewContract(request, executeCommand, oldContract, oldRoom, targetRoom, oldOccupants, remainingProfileIds);
-            case OTHER_CONTRACT -> executeIntoExistingContract(request, executeCommand, oldContract, oldRoom, targetRoom, oldOccupants, remainingProfileIds);
+            case NEW_CONTRACT ->
+                    executeIntoNewContract(request, executeCommand, oldContract, oldRoom, targetRoom, oldOccupants, remainingProfileIds);
+            case OTHER_CONTRACT ->
+                    executeIntoExistingContract(request, executeCommand, oldContract, oldRoom, targetRoom, oldOccupants, remainingProfileIds);
             default -> throw new IllegalStateException("Unsupported transfer type.");
         }
 
@@ -1082,21 +1084,21 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
 
         jdbcTemplate.update("""
-                INSERT INTO debt_snapshots (
-                    room_id,
-                    contract_id,
-                    snapshot_date,
-                    rent_debt_amount,
-                    utility_debt_amount,
-                    other_debt_amount,
-                    rent_debt_months,
-                    utility_debt_months,
-                    mixed_debt_amount,
-                    debt_limit_amount,
-                    is_over_limit
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                        INSERT INTO debt_snapshots (
+                            room_id,
+                            contract_id,
+                            snapshot_date,
+                            rent_debt_amount,
+                            utility_debt_amount,
+                            other_debt_amount,
+                            rent_debt_months,
+                            utility_debt_months,
+                            mixed_debt_amount,
+                            debt_limit_amount,
+                            is_over_limit
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
                 sourceContract.getRoomId(),
                 sourceContract.getId(),
                 snapshotDate,
@@ -1471,7 +1473,8 @@ public class RoomTransferService implements RoomTransferUseCase {
         return switch (actionType) {
             case ACTION_REVIEW_REQUEST -> "Duyệt yêu cầu chuyển phòng mới";
             case ACTION_SOURCE_HOLDER_REJECTED -> "Holder mới đã từ chối đề cử, cần chọn lại người đại diện phòng cũ";
-            case ACTION_SOURCE_HOLDER_NOMINATION_EXPIRED -> "Đề cử holder mới đã hết hạn, cần chọn lại người đại diện phòng cũ";
+            case ACTION_SOURCE_HOLDER_NOMINATION_EXPIRED ->
+                    "Đề cử holder mới đã hết hạn, cần chọn lại người đại diện phòng cũ";
             case ACTION_UPLOAD_SIGNED_CONTRACTS -> "Tải bản hợp đồng đã ký trực tiếp";
             case ACTION_READY_FOR_HANDOVER -> "Bắt đầu phiên chuyển phòng";
             default -> "Xử lý yêu cầu chuyển phòng";
@@ -1741,7 +1744,7 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         if (remainingProfileIds.isEmpty()) {
             oldContract.markTransferred();
-            oldRoom.releaseRoom();
+            oldRoom.releaseRoom(true);
             closeSupersededRenewals(oldContract, executionDate);
             leaseContractRepository.save(oldContract);
             roomRepository.save(oldRoom);
@@ -1883,7 +1886,7 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         if (remainingProfileIds.isEmpty()) {
             oldContract.markTransferred();
-            oldRoom.releaseRoom();
+            oldRoom.releaseRoom(true);
             closeSupersededRenewals(oldContract, executionDate);
             leaseContractRepository.save(oldContract);
             roomRepository.save(oldRoom);
@@ -2041,7 +2044,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
         long currentOccupants = contractOccupantRepository.countActiveOccupantsByRoomId(targetRoom.getId());
         if (activeReservedSlots == 0 && currentOccupants == 0) {
-            targetRoom.releaseRoom();
+            targetRoom.releaseRoom(true);
             return roomRepository.save(targetRoom);
         }
         return targetRoom;
@@ -2108,7 +2111,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (targetRoom.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER
                 && otherReservedSlots == 0
                 && currentOccupants == 0) {
-            targetRoom.releaseRoom();
+            targetRoom.releaseRoom(true);
             roomRepository.save(targetRoom);
         }
         request.setReservedSlots(0);
@@ -2251,7 +2254,8 @@ public class RoomTransferService implements RoomTransferUseCase {
             long newRoomRequiredValue,
             long differenceAmount,
             int chargeableRemainingMonths
-    ) {}
+    ) {
+    }
 
     private record DebtSnapshotDetails(
             long rentDebtAmount,
@@ -2262,7 +2266,8 @@ public class RoomTransferService implements RoomTransferUseCase {
             long totalDebtAmount,
             Long debtLimitAmount,
             boolean overLimit
-    ) {}
+    ) {
+    }
 
     private TransferRentDifference calculateTransferRentDifference(
             LeaseContract oldContract,
@@ -2715,7 +2720,8 @@ public class RoomTransferService implements RoomTransferUseCase {
         return description.length() <= 1000 ? description : description.substring(0, 1000);
     }
 
-    private record UtilityTariffSnapshot(long unitPrice, long freeAllowance, Long serviceFeeWaiveElectricityThreshold) {}
+    private record UtilityTariffSnapshot(long unitPrice, long freeAllowance, Long serviceFeeWaiveElectricityThreshold) {
+    }
 
     private record ServiceFeeCharge(long unitPrice, long amount, String description, boolean lineRequired) {
         static ServiceFeeCharge empty() {
