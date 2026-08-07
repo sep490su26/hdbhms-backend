@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,11 +34,29 @@ public class DownloadFileService implements DownloadFileUseCase {
             return null;
         }
         try {
-            var data = Files.readAllBytes(Path.of(file.getStorageKey()));
+            var data = readFileBytes(file.getStorageKey());
             var resource = new ByteArrayResource(data);
             return new FileDataResponse(file.getMimeType(), resource, file.isSensitive(), file.getOwnerUserId());
         } catch (IOException e) {
             throw new AppException(ApiErrorCode.UNDEFINED);
         }
+    }
+
+    private byte[] readFileBytes(String storageKey) throws IOException {
+        Path storagePath = Path.of(storageKey);
+        if (Files.exists(storagePath)) {
+            return Files.readAllBytes(storagePath);
+        }
+
+        if (storageKey.startsWith("room-samples/")) {
+            var classpathResource = new ClassPathResource("static/" + storageKey);
+            if (classpathResource.exists()) {
+                try (var inputStream = classpathResource.getInputStream()) {
+                    return inputStream.readAllBytes();
+                }
+            }
+        }
+
+        throw new IOException("Stored file does not exist: " + storageKey);
     }
 }

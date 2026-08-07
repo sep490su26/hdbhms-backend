@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface JpaRoomImageRepository extends JpaRepository<RoomImageEntity, Long> {
     List<RoomImageEntity> findAllByRoom_IdOrderBySortOrderAscCreatedAtAscIdAsc(Long roomId);
+
+    List<RoomImageEntity> findAllByRoom_IdInOrderByRoom_IdAscSortOrderAscCreatedAtAscIdAsc(List<Long> roomIds);
 }
