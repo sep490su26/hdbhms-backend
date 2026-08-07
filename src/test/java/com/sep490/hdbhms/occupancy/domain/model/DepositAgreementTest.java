@@ -10,13 +10,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DepositAgreementTest {
 
     @Test
-    void buildDepositCodeUsesDepositContractFilenameWithoutExtension() {
+    void buildDepositCodeUsesDepositPrefix() {
         assertEquals(
-                "HDC_P101_20_07_2026",
+                "COC_101_2026-07-20",
                 DepositAgreement.buildDepositCode("101", LocalDate.of(2026, 7, 20))
         );
         assertEquals(
-                "HDC_P101_20_07_2026",
+                "COC_P101_2026-07-20",
                 DepositAgreement.buildDepositCode("P101", LocalDate.of(2026, 7, 20))
         );
     }

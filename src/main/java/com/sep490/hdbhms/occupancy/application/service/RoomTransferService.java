@@ -2,7 +2,6 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 
-import com.sep490.hdbhms.booking.application.port.out.DepositTransferRecordRepository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,8 +15,6 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
-import com.sep490.hdbhms.booking.domain.model.DepositTransferRecord;
-import com.sep490.hdbhms.booking.domain.value_objects.DepositTransferStatus;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.*;
@@ -126,7 +123,6 @@ public class RoomTransferService implements RoomTransferUseCase {
     ContractOccupantRepository contractOccupantRepository;
     RoomTransferRequestRepository roomTransferRequestRepository;
     TransferSettlementRepository transferSettlementRepository;
-    DepositTransferRecordRepository depositTransferRecordRepository;
     InvoiceRepository invoiceRepository;
     InvoiceLineRepository invoiceLineRepository;
     IssuedInvoiceChargeService issuedInvoiceChargeService;
@@ -1588,7 +1584,6 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private void cancelGeneratedTransferContracts(RoomTransferRequest request) {
-        cancelDepositTransferRecord(request);
         if (request.getNewContractId() != null) {
             LeaseContract newContract = getContract(request.getNewContractId());
             newContract.cancelContract();
@@ -1639,7 +1634,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         LeaseContract newContract = LeaseContract.builder()
                 .contractCode(oldContract.getContractCode() + "-TR-" + request.getId())
                 .roomId(targetRoom.getId())
-                .depositAgreementId(null)
                 .primaryTenantProfileId(newHolderProfileId)
                 .startDate(request.getRequestedTransferDate())
                 .endDate(oldContract.getEndDate())
@@ -1654,7 +1648,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         newContract = leaseContractRepository.save(newContract);
 
         request.setNewContractId(newContract.getId());
-        ensureDepositTransferRecordDraft(request, oldContract, newContract, targetRoom);
         ensureReplacementOldContractDraft(request, completedById);
         request.setStatus(nextStatus);
         roomTransferRepository.save(request);
@@ -1668,7 +1661,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         LeaseContract agreement = LeaseContract.builder()
                 .contractCode(targetContract.getContractCode() + "-JOIN-" + request.getId())
                 .roomId(targetContract.getRoomId())
-                .depositAgreementId(null)
                 .primaryTenantProfileId(targetContract.getPrimaryTenantProfileId())
                 .startDate(request.getRequestedTransferDate())
                 .endDate(targetContract.getEndDate())
@@ -1708,7 +1700,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         LeaseContract replacementContract = LeaseContract.builder()
                 .contractCode(oldContract.getContractCode() + "-RE-" + request.getId())
                 .roomId(oldContract.getRoomId())
-                .depositAgreementId(null)
                 .primaryTenantProfileId(replacementHolderProfileId)
                 .startDate(request.getRequestedTransferDate())
                 .endDate(oldContract.getEndDate())
@@ -1756,7 +1747,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         alignTransferContractStart(newContract, executionDate);
         newContract.activateContract();
         targetRoom.occupyRoom();
-        markDepositTransferRecordEffective(request, oldContract, newContract, targetRoom, executionDate);
         leaseContractRepository.save(newContract);
         roomRepository.save(targetRoom);
         SettlementType settlementType = Optional.ofNullable(command.positiveDifferenceSettlementType())
@@ -1772,89 +1762,6 @@ public class RoomTransferService implements RoomTransferUseCase {
             );
         }
         releaseTargetCapacity(request);
-    }
-
-    private void ensureDepositTransferRecordDraft(
-            RoomTransferRequest request,
-            LeaseContract oldContract,
-            LeaseContract newContract,
-            Room targetRoom
-    ) {
-        if (request == null || oldContract == null || newContract == null || targetRoom == null) {
-            return;
-        }
-        TargetTransferType transferType = Optional.ofNullable(request.getTargetTransferType())
-                .orElse(TargetTransferType.NEW_CONTRACT);
-        if (transferType != TargetTransferType.NEW_CONTRACT) {
-            return;
-        }
-
-        DepositTransferRecord existing = depositTransferRecordRepository
-                .findByTransferRequestId(request.getId())
-                .orElse(null);
-        if (existing != null) {
-            if (existing.getStatus() == DepositTransferStatus.CANCELLED) {
-                return;
-            }
-            existing.setOldContractId(oldContract.getId());
-            existing.setNewContractId(newContract.getId());
-            existing.setOldDepositAgreementId(oldContract.getDepositAgreementId());
-            existing.setFromRoomId(oldContract.getRoomId());
-            existing.setToRoomId(targetRoom.getId());
-            existing.setAmount(safe(oldContract.getDepositAmount()));
-            existing.setEffectiveDate(request.getRequestedTransferDate());
-            existing.setNote(buildDepositTransferNote(oldContract, newContract));
-            depositTransferRecordRepository.save(existing);
-            return;
-        }
-
-        depositTransferRecordRepository.save(DepositTransferRecord.builder()
-                .transferRequestId(request.getId())
-                .oldContractId(oldContract.getId())
-                .newContractId(newContract.getId())
-                .oldDepositAgreementId(oldContract.getDepositAgreementId())
-                .fromRoomId(oldContract.getRoomId())
-                .toRoomId(targetRoom.getId())
-                .amount(safe(oldContract.getDepositAmount()))
-                .status(DepositTransferStatus.DRAFT)
-                .effectiveDate(request.getRequestedTransferDate())
-                .note(buildDepositTransferNote(oldContract, newContract))
-                .build());
-    }
-
-    private void markDepositTransferRecordEffective(
-            RoomTransferRequest request,
-            LeaseContract oldContract,
-            LeaseContract newContract,
-            Room targetRoom,
-            LocalDate executionDate
-    ) {
-        ensureDepositTransferRecordDraft(request, oldContract, newContract, targetRoom);
-        DepositTransferRecord record = depositTransferRecordRepository
-                .findByTransferRequestId(request.getId())
-                .orElseThrow(() -> new IllegalStateException("Deposit transfer record is required before executing room transfer."));
-        record.markEffective(executionDate);
-        depositTransferRecordRepository.save(record);
-    }
-
-    private void cancelDepositTransferRecord(RoomTransferRequest request) {
-        if (request == null || request.getId() == null) {
-            return;
-        }
-        depositTransferRecordRepository.findByTransferRequestId(request.getId())
-                .filter(record -> record.getStatus() == DepositTransferStatus.DRAFT)
-                .ifPresent(record -> {
-                    record.cancel();
-                    depositTransferRecordRepository.save(record);
-                });
-    }
-
-    private String buildDepositTransferNote(LeaseContract oldContract, LeaseContract newContract) {
-        return "Carry over deposit from contract "
-                + valueOrBlank(oldContract.getContractCode())
-                + " to transfer contract "
-                + valueOrBlank(newContract.getContractCode())
-                + ".";
     }
 
     private void executeIntoExistingContract(
@@ -3109,10 +3016,6 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private int safeInteger(Object value) {
         return value instanceof Number number ? number.intValue() : 0;
-    }
-
-    private String valueOrBlank(String value) {
-        return value == null ? "" : value;
     }
 
     private RoomTransferRequest getTransfer(Long requestId) {

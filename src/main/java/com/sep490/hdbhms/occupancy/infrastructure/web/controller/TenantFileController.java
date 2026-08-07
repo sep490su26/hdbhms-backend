@@ -40,7 +40,6 @@ public class TenantFileController {
         // - portrait image from person_profiles
         // - front/back ID card from identity_documents
         // - vehicle image from vehicles
-        // - deposit agreement contract from deposit_agreements
         // - lease contract from lease_contracts (not needed if done elsewhere, but we can allow it)
         Boolean isOwner = jdbcTemplate.queryForObject("""
                 SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END
@@ -58,7 +57,7 @@ public class TenantFileController {
                 """, Boolean.class, userId, fileId, fileId, fileId, fileId);
 
         if (Boolean.FALSE.equals(isOwner)) {
-            // Check if it belongs to their lease contract or deposit agreement
+            // Check if it belongs to one of their lease contracts.
             Boolean hasContract = jdbcTemplate.queryForObject("""
                 SELECT CASE WHEN count(*) > 0 THEN 1 ELSE 0 END
                 FROM users u
@@ -92,17 +91,12 @@ public class TenantFileController {
                           AND co.status = 'ACTIVE'
                     )
                  )
-                LEFT JOIN deposit_agreements da
-                  ON da.depositor_person_profile_id = pp.person_profile_id
-                  OR da.tenant_id = t.tenant_id
-                  OR da.deposit_agreement_id = lc.deposit_agreement_id
                 WHERE u.user_id = ? AND u.deleted_at IS NULL
                   AND (
                       lc.contract_file_id = ?
-                      OR da.contract_file_id = ?
-                      OR da.signed_file_id = ?
+                      OR lc.signed_file_id = ?
                   )
-                """, Boolean.class, userId, fileId, fileId, fileId);
+                """, Boolean.class, userId, fileId, fileId);
 
             if (Boolean.FALSE.equals(hasContract)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");

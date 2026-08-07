@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(
         name = "deposit_contact_events",
-        indexes = @Index(name = "idx_deposit_contact_latest", columnList = "deposit_agreement_id, contacted_at")
+        indexes = @Index(name = "idx_deposit_contact_latest", columnList = "deposit_form_id, contacted_at")
 )
 public class DepositContactEventEntity {
     @Id
@@ -25,8 +25,8 @@ public class DepositContactEventEntity {
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "deposit_agreement_id", nullable = false)
-    DepositAgreementEntity depositAgreement;
+    @JoinColumn(name = "deposit_form_id", nullable = false)
+    DepositFormEntity depositAgreement;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)

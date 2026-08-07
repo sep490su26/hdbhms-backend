@@ -18,7 +18,6 @@ public class LeaseContract {
     Long id;
     String contractCode;
     Long roomId;
-    Long depositAgreementId;
     Long primaryTenantProfileId;
     LocalDate startDate;
     LocalDate endDate;
@@ -46,7 +45,6 @@ public class LeaseContract {
 
     public static LeaseContract newLeaseContract(
             Long roomId,
-            Long depositAgreementId,
             Long primaryTenantProfileId,
             LocalDate startDate,
             LocalDate endDate,
@@ -57,7 +55,6 @@ public class LeaseContract {
     ) {
         return LeaseContract.builder()
                 .roomId(roomId)
-                .depositAgreementId(depositAgreementId)
                 .primaryTenantProfileId(primaryTenantProfileId)
                 .startDate(startDate)
                 .endDate(endDate)

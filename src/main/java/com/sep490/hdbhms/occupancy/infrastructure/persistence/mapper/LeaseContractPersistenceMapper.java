@@ -3,7 +3,6 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
@@ -21,7 +20,6 @@ import org.springframework.stereotype.Component;
 public class LeaseContractPersistenceMapper {
 
     JpaRoomRepository jpaRoomRepository;
-    JpaDepositAgreementRepository jpaDepositAgreementRepository;
     JpaPersonProfileRepository jpaPersonProfileRepository;
     JpaLeaseContractRepository jpaLeaseContractRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
@@ -33,7 +31,6 @@ public class LeaseContractPersistenceMapper {
                 .id(entity.getId())
                 .contractCode(entity.getContractCode())
                 .roomId(entity.getRoom() != null ? entity.getRoom().getId() : null)
-                .depositAgreementId(entity.getDepositAgreement() != null ? entity.getDepositAgreement().getId() : null)
                 .primaryTenantProfileId(entity.getPrimaryTenantProfile() != null ? entity.getPrimaryTenantProfile().getId() : null)
                 .startDate(entity.getStartDate())
                 .endDate(entity.getEndDate())
@@ -65,10 +62,6 @@ public class LeaseContractPersistenceMapper {
                 .contractCode(domain.getContractCode())
                 .room(domain.getRoomId() != null
                         ? jpaRoomRepository.findById(domain.getRoomId())
-                                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
-                        : null)
-                .depositAgreement(domain.getDepositAgreementId() != null
-                        ? jpaDepositAgreementRepository.findById(domain.getDepositAgreementId())
                                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND))
                         : null)
                 .primaryTenantProfile(domain.getPrimaryTenantProfileId() != null

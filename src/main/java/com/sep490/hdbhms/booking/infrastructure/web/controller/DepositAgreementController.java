@@ -1,28 +1,17 @@
 package com.sep490.hdbhms.booking.infrastructure.web.controller;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
-import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
-import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
-import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
-import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
-import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
-import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.booking.application.port.in.query.GetDepositAgreementDetailsQuery;
-import com.sep490.hdbhms.booking.application.port.in.query.GetListDepositAgreementsQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetRoomDetailsQuery;
 import com.sep490.hdbhms.booking.application.port.in.usecase.GetDepositAgreementDetailsUseCase;
-import com.sep490.hdbhms.booking.application.port.in.usecase.GetMyListDepositAgreementsUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetRoomDetailsUseCase;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
 import com.sep490.hdbhms.property.application.port.out.FloorRepository;
 import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
-import com.sep490.hdbhms.booking.application.service.DepositContractDocumentService;
-import com.sep490.hdbhms.booking.application.service.DepositAgreementDashboardService;
 import com.sep490.hdbhms.booking.application.service.DepositAgreementLifecycleService;
 import com.sep490.hdbhms.booking.application.service.DepositLifecyclePolicy;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
@@ -36,39 +25,20 @@ import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositContactRe
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositExtensionRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositForfeitureRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositAgreementDetailsResponse;
-import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositAgreementResponse;
-import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositAgreementSignedFileResponse;
-import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositContractPreviewResponse;
-import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositDashboardSummaryResponse;
-import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositFilterOptionsResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
-import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.core.io.Resource;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -90,18 +60,6 @@ public class DepositAgreementController {
             DepositAgreementStatus.CONFIRMED,
             DepositAgreementStatus.EXTENDED
     );
-    private static final Set<DepositAgreementStatus> SIGNED_FILE_UPLOADABLE_STATUSES = EnumSet.of(
-            DepositAgreementStatus.PAID,
-            DepositAgreementStatus.CONFIRMED,
-            DepositAgreementStatus.CONVERTED_TO_LEASE,
-            DepositAgreementStatus.EXTENDED
-    );
-    private static final Set<String> SIGNED_FILE_CONTENT_TYPES = Set.of(
-            MediaType.APPLICATION_PDF_VALUE,
-            MediaType.IMAGE_JPEG_VALUE,
-            MediaType.IMAGE_PNG_VALUE,
-            "image/webp"
-    );
 
     GetRoomDetailsUseCase getRoomDetailsUseCase;
     PropertyRepository propertyRepository;
@@ -109,90 +67,8 @@ public class DepositAgreementController {
     FloorRepository floorRepository;
     DepositAgreementRepository depositAgreementRepository;
     RoomRepository roomRepository;
-    GetMyListDepositAgreementsUseCase getMyListDepositAgreementsUseCase;
     GetDepositAgreementDetailsUseCase getDepositAgreementDetailsUseCase;
-    DepositContractDocumentService depositContractDocumentService;
     DepositAgreementLifecycleService depositAgreementLifecycleService;
-    DepositAgreementDashboardService depositAgreementDashboardService;
-    UploadFileUseCase uploadFileUseCase;
-    DownloadFileUseCase downloadFileUseCase;
-    JpaFileMetadataRepository fileMetadataRepository;
-
-    @GetMapping
-    public ApiResponse<PageResponse<DepositAgreementResponse>> getDepositAgreements(
-            @RequestParam(required = false) DepositAgreementStatus status,
-            @RequestParam(required = false) List<DepositAgreementStatus> statuses,
-            @RequestParam(required = false, name = "q") String search,
-            @RequestParam(required = false) Long floorId,
-            @RequestParam(required = false) LocalDateTime signedFrom,
-            @RequestParam(required = false) LocalDateTime signedTo,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        return listDepositAgreements(status, statuses, search, floorId, signedFrom, signedTo, pageable);
-    }
-
-    @GetMapping("/me")
-    public ApiResponse<PageResponse<DepositAgreementResponse>> getMyDepositAgreements(
-            @RequestParam(required = false) DepositAgreementStatus status,
-            @RequestParam(required = false) List<DepositAgreementStatus> statuses,
-            @RequestParam(required = false, name = "q") String search,
-            @RequestParam(required = false) Long floorId,
-            @RequestParam(required = false) LocalDateTime signedFrom,
-            @RequestParam(required = false) LocalDateTime signedTo,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        return listDepositAgreements(status, statuses, search, floorId, signedFrom, signedTo, pageable);
-    }
-
-    private ApiResponse<PageResponse<DepositAgreementResponse>> listDepositAgreements(
-            DepositAgreementStatus status,
-            List<DepositAgreementStatus> statuses,
-            String search,
-            Long floorId,
-            LocalDateTime signedFrom,
-            LocalDateTime signedTo,
-            Pageable pageable
-    ) {
-        Long userId = AuthUtils.getCurrentAuthenticationId();
-        return ApiResponse.<PageResponse<DepositAgreementResponse>>builder()
-                .data(
-                        PageResponse.fromPageToPageResponse(
-                                getMyListDepositAgreementsUseCase.execute(
-                                        new GetListDepositAgreementsQuery(
-                                                userId,
-                                                status,
-                                                statuses,
-                                                search,
-                                                floorId,
-                                                signedFrom,
-                                                signedTo,
-                                                pageable
-                                        )
-                                ).map(this::toListResponse)
-                        )
-                )
-                .build();
-    }
-
-    @GetMapping("/summary")
-    public ApiResponse<DepositDashboardSummaryResponse> getDashboardSummary() {
-        var summary = depositAgreementDashboardService.getSummary(AuthUtils.getCurrentAuthenticationId());
-        return ApiResponse.<DepositDashboardSummaryResponse>builder()
-                .data(new DepositDashboardSummaryResponse(
-                        summary.totalHeldAmount(), summary.heldCount(), summary.convertedCount()
-                ))
-                .build();
-    }
-
-    @GetMapping("/filter-options")
-    public ApiResponse<DepositFilterOptionsResponse> getFilterOptions() {
-        var floors = depositAgreementDashboardService.getFloorOptions(AuthUtils.getCurrentAuthenticationId()).stream()
-                .map(floor -> new DepositFilterOptionsResponse.FloorOption(floor.id(), floor.name()))
-                .toList();
-        return ApiResponse.<DepositFilterOptionsResponse>builder()
-                .data(new DepositFilterOptionsResponse(floors))
-                .build();
-    }
 
     @GetMapping("/{depositAgreementId}")
     public ApiResponse<DepositAgreementDetailsResponse> getDepositAgreementDetails(
@@ -201,7 +77,7 @@ public class DepositAgreementController {
         DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
                 new GetDepositAgreementDetailsQuery(depositAgreementId)
         );
-        assertCanAccessContract(depositAgreement);
+        assertCanAccessDeposit(depositAgreement);
         Room room = getRoomDetailsUseCase.execute(
                 new GetRoomDetailsQuery(depositAgreement.getRoomId())
         );
@@ -290,8 +166,6 @@ public class DepositAgreementController {
         DepositAgreement savedDepositAgreement = depositAgreementRepository.save(depositAgreement);
         Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(savedDepositAgreement.getRoomId()));
 
-        depositContractDocumentService.regenerateOfficialContractAfterCommit(savedDepositAgreement.getId());
-
         return ApiResponse.<DepositAgreementDetailsResponse>builder()
                 .data(toDetailsResponse(savedDepositAgreement, room))
                 .build();
@@ -337,170 +211,6 @@ public class DepositAgreementController {
         return currentDetailsResponse(depositAgreementId);
     }
 
-    @GetMapping("/{depositAgreementId}/contract")
-    public ResponseEntity<Resource> downloadDepositContract(
-            @PathVariable("depositAgreementId") Long depositAgreementId
-    ) {
-        return downloadDepositDraftPdf(depositAgreementId);
-    }
-
-    @GetMapping("/{depositAgreementId}/draft-preview")
-    public ApiResponse<DepositContractPreviewResponse> previewDepositDraftContract(
-            @PathVariable("depositAgreementId") Long depositAgreementId
-    ) {
-        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
-                new GetDepositAgreementDetailsQuery(depositAgreementId)
-        );
-        assertCanAccessContract(depositAgreement);
-        return ApiResponse.<DepositContractPreviewResponse>builder()
-                .data(depositContractDocumentService.previewDraft(depositAgreementId))
-                .build();
-    }
-
-    @GetMapping("/{depositAgreementId}/draft-pdf")
-    public ResponseEntity<Resource> downloadDepositDraftPdf(
-            @PathVariable("depositAgreementId") Long depositAgreementId
-    ) {
-        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
-                new GetDepositAgreementDetailsQuery(depositAgreementId)
-        );
-        assertCanAccessContract(depositAgreement);
-
-        FileDataResponse fileData = depositContractDocumentService.getOfficialContractFile(depositAgreementId);
-        String contentType = fileData.contentType() == null
-                ? MediaType.APPLICATION_PDF_VALUE
-                : fileData.contentType();
-        String filename = depositDocumentFilename(depositAgreement);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CONTENT_DISPOSITION, attachmentContentDispositionWithFallback(filename))
-                .body(fileData.resource());
-    }
-
-    @PostMapping(value = "/{depositAgreementId}/signed-file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<DepositAgreementSignedFileResponse> uploadSignedDepositFile(
-            @PathVariable("depositAgreementId") Long depositAgreementId,
-            @RequestPart("file") MultipartFile file,
-            @RequestParam(value = "signedAt", required = false) LocalDateTime signedAt,
-            @RequestParam(value = "note", required = false) String note
-    ) {
-        assertOwnerOrManager();
-        if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn file hợp đồng đặt cọc đã ký.");
-        }
-        String contentType = file.getContentType();
-        if (contentType == null || !SIGNED_FILE_CONTENT_TYPES.contains(contentType)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ hỗ trợ PDF hoặc ảnh JPG/PNG/WEBP.");
-        }
-
-        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
-                new GetDepositAgreementDetailsQuery(depositAgreementId)
-        );
-        if (!SIGNED_FILE_UPLOADABLE_STATUSES.contains(depositAgreement.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ upload bản đã ký sau khi tiền cọc đã được thanh toán/xác nhận.");
-        }
-
-        Long currentUserId = AuthUtils.getCurrentAuthenticationId();
-        com.sep490.hdbhms.file.domain.model.FileMetadata uploaded;
-        try {
-            uploaded = uploadFileUseCase.execute(
-                    new UploadFileCommand(currentUserId, file, FileCategory.DEPOSIT_CONTRACT, true)
-            );
-        } catch (IOException ex) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu file hợp đồng đặt cọc đã ký.");
-        }
-
-        depositAgreement.attachSignedFile(uploaded.getId(), currentUserId, signedAt);
-        DepositAgreement saved = depositAgreementRepository.save(depositAgreement);
-
-        return ApiResponse.<DepositAgreementSignedFileResponse>builder()
-                .data(DepositAgreementSignedFileResponse.builder()
-                        .depositAgreementId(saved.getId())
-                        .depositCode(saved.getDepositCode())
-                        .signatureStatus(signatureStatus(saved))
-                        .signedFileId(saved.getSignedFileId())
-                        .signedFileName(signedFileName(saved.getSignedFileId()))
-                        .signedAt(saved.getSignedAt())
-                        .message("Tải lên bản hợp đồng đặt cọc đã ký thành công.")
-                        .build())
-                .build();
-    }
-
-    @GetMapping("/{depositAgreementId}/signed-file")
-    public ResponseEntity<Resource> downloadSignedDepositFile(
-            @PathVariable("depositAgreementId") Long depositAgreementId
-    ) {
-        DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
-                new GetDepositAgreementDetailsQuery(depositAgreementId)
-        );
-        assertCanAccessContract(depositAgreement);
-        if (depositAgreement.getSignedFileId() == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chưa có bản hợp đồng đặt cọc đã ký.");
-        }
-
-        FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(depositAgreement.getSignedFileId()));
-        if (fileData == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy file hợp đồng đặt cọc đã ký.");
-        }
-        String contentType = fileData.contentType() == null
-                ? MediaType.APPLICATION_OCTET_STREAM_VALUE
-                : fileData.contentType();
-        String filename = depositDocumentFilename(depositAgreement);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
-                .body(fileData.resource());
-    }
-
-    private DepositAgreementResponse toListResponse(DepositAgreement depositAgreement) {
-        Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(depositAgreement.getRoomId()));
-        Property property = propertyRepository.findById(room.getPropertyId()).orElse(null);
-        Floor floor = floorRepository.findById(room.getFloorId()).orElse(null);
-        DepositForm depositForm = getDepositForm(depositAgreement);
-        var lifecycle = depositAgreementLifecycleService.snapshot(depositAgreement.getId());
-        return DepositAgreementResponse.builder()
-                .id(depositAgreement.getId())
-                .depositCode(depositAgreement.getDepositCode())
-                .roomCode(room.getRoomCode())
-                .propertyName(property != null ? property.getName() : null)
-                .floorId(room.getFloorId())
-                .floorName(floor != null ? floor.getName() : null)
-                .depositorFullName(depositForm != null ? depositForm.getFullName() : null)
-                .depositorPhone(depositForm != null ? depositForm.getPhone() : null)
-                .depositorEmail(depositForm != null ? depositForm.getEmail() : null)
-                .amount(depositAgreement.getAmount())
-                .expectedMoveInDate(resolveExpectedMoveInDate(depositAgreement, depositForm))
-                .expectedLeaseSignDate(resolveExpectedLeaseSignDate(depositAgreement, depositForm))
-                .createdAt(depositAgreement.getCreatedAt())
-                .status(depositAgreement.getStatus())
-                .confirmedAt(depositAgreement.getConfirmedAt())
-                .contractFileId(depositAgreement.getContractFileId())
-                .contractDownloadUrl("/api/v1/deposit-agreements/" + depositAgreement.getId() + "/draft-pdf")
-                .signatureStatus(signatureStatus(depositAgreement))
-                .signatureStatusLabel(signatureStatusLabel(depositAgreement))
-                .signedFileId(depositAgreement.getSignedFileId())
-                .signedFileName(signedFileName(depositAgreement.getSignedFileId()))
-                .signedAt(depositAgreement.getSignedAt())
-                .signedUploadedById(depositAgreement.getSignedUploadedById())
-                .signedFileDownloadUrl(signedFileDownloadUrl(depositAgreement))
-                .canPreviewDraft(true)
-                .canDownloadDraft(true)
-                .canUploadSignedFile(canUploadSignedFile(depositAgreement))
-                .canViewSignedFile(depositAgreement.getSignedFileId() != null)
-                .extensionCount(lifecycle.extensionCount())
-                .maxExtensions(lifecycle.maxExtensions())
-                .depositExpiresAt(lifecycle.depositExpiresAt())
-                .forfeitureDecisionDate(lifecycle.forfeitureDecisionDate())
-                .overdueDays(lifecycle.overdueDays())
-                .latestContactOutcome(lifecycle.latestContactOutcome())
-                .lastContactedAt(lifecycle.lastContactedAt())
-                .lastContactNote(lifecycle.lastContactNote())
-                .contactRequired(lifecycle.contactRequired())
-                .canExtend(lifecycle.canExtend())
-                .canForfeit(lifecycle.forfeitureEligible() && currentRole() == Role.OWNER)
-                .build();
-    }
-
     private DepositAgreementDetailsResponse toDetailsResponse(DepositAgreement depositAgreement, Room room) {
         Property property = propertyRepository.findById(room.getPropertyId()).orElse(null);
         Floor floor = floorRepository.findById(room.getFloorId()).orElse(null);
@@ -524,19 +234,6 @@ public class DepositAgreementController {
                 .depositExpiresAt(depositAgreement.getDepositExpiresAt())
                 .status(depositAgreement.getStatus())
                 .confirmedAt(depositAgreement.getConfirmedAt())
-                .contractFileId(depositAgreement.getContractFileId())
-                .contractDownloadUrl("/api/v1/deposit-agreements/" + depositAgreement.getId() + "/draft-pdf")
-                .signatureStatus(signatureStatus(depositAgreement))
-                .signatureStatusLabel(signatureStatusLabel(depositAgreement))
-                .signedFileId(depositAgreement.getSignedFileId())
-                .signedFileName(signedFileName(depositAgreement.getSignedFileId()))
-                .signedAt(depositAgreement.getSignedAt())
-                .signedUploadedById(depositAgreement.getSignedUploadedById())
-                .signedFileDownloadUrl(signedFileDownloadUrl(depositAgreement))
-                .canPreviewDraft(true)
-                .canDownloadDraft(true)
-                .canUploadSignedFile(canUploadSignedFile(depositAgreement))
-                .canViewSignedFile(depositAgreement.getSignedFileId() != null)
                 .idFrontFileId(depositForm != null ? depositForm.getIdFrontFileId() : null)
                 .idFrontFileUrl(fileDownloadUrl(depositForm != null ? depositForm.getIdFrontFileId() : null))
                 .idBackFileId(depositForm != null ? depositForm.getIdBackFileId() : null)
@@ -568,68 +265,6 @@ public class DepositAgreementController {
 
     private String fileDownloadUrl(Long fileId) {
         return fileId == null ? null : "/api/v1/files/private/" + fileId;
-    }
-
-    private String signedFileDownloadUrl(DepositAgreement depositAgreement) {
-        return depositAgreement.getSignedFileId() == null
-                ? null
-                : "/api/v1/deposit-agreements/" + depositAgreement.getId() + "/signed-file";
-    }
-
-    private String attachmentContentDispositionWithFallback(String filename) {
-        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
-        String fallbackFilename = filename.replace("\\", "").replace("\"", "");
-        return "attachment; filename=\"" + fallbackFilename + "\"; filename*=UTF-8''" + encodedFilename;
-    }
-
-    private String depositDocumentFilename(DepositAgreement depositAgreement) {
-        Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(depositAgreement.getRoomId()));
-        DepositForm depositForm = getDepositForm(depositAgreement);
-        java.time.LocalDate expectedMoveInDate = resolveExpectedMoveInDate(depositAgreement, depositForm);
-        String roomCode = withRoomPrefix(sanitizeFilenamePart(room != null ? room.getRoomCode() : null, "Phong-X"));
-        String date = expectedMoveInDate == null
-                ? "Chua-Ro-Ngay"
-                : DOCUMENT_FILENAME_DATE_FORMATTER.format(expectedMoveInDate);
-        return "HDC_" + roomCode + "_" + date + ".pdf";
-    }
-
-    private String sanitizeFilenamePart(String value, String fallback) {
-        if (value == null || value.isBlank()) {
-            return fallback;
-        }
-        String sanitized = value.trim().replaceAll("[^a-zA-Z0-9_-]", "");
-        return sanitized.isBlank() ? fallback : sanitized;
-    }
-
-    private String withRoomPrefix(String roomCode) {
-        if (roomCode.startsWith("Phong")) {
-            return roomCode;
-        }
-        if (roomCode.regionMatches(true, 0, "P", 0, 1)) {
-            return "P" + roomCode.substring(1);
-        }
-        return "P" + roomCode;
-    }
-
-    private String signatureStatus(DepositAgreement depositAgreement) {
-        return depositAgreement.getSignedFileId() == null ? "PENDING_SIGNATURE" : "SIGNED";
-    }
-
-    private String signatureStatusLabel(DepositAgreement depositAgreement) {
-        return depositAgreement.getSignedFileId() == null ? "Chờ ký" : "Đã ký";
-    }
-
-    private boolean canUploadSignedFile(DepositAgreement depositAgreement) {
-        return SIGNED_FILE_UPLOADABLE_STATUSES.contains(depositAgreement.getStatus());
-    }
-
-    private String signedFileName(Long fileId) {
-        if (fileId == null) {
-            return null;
-        }
-        return fileMetadataRepository.findById(fileId)
-                .map(file -> file.getOriginalName() != null ? file.getOriginalName() : "HDC_Phong-X_Chua-Ro-Ngay.pdf")
-                .orElse(null);
     }
 
     private java.time.LocalDate resolveExpectedMoveInDate(DepositAgreement depositAgreement, DepositForm depositForm) {
@@ -721,7 +356,7 @@ public class DepositAgreementController {
                 .build();
     }
 
-    private void assertCanAccessContract(DepositAgreement depositAgreement) {
+    private void assertCanAccessDeposit(DepositAgreement depositAgreement) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để xem hợp đồng đặt cọc.");
@@ -743,4 +378,3 @@ public class DepositAgreementController {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem hợp đồng đặt cọc này.");
     }
 }
-

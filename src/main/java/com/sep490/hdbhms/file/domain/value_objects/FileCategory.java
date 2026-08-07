@@ -6,7 +6,6 @@ public enum FileCategory {
     PORTRAIT_PHOTO,
     ID_CARD,
     CONTRACT,
-    DEPOSIT_CONTRACT,
     METER_PHOTO,
     VEHICLE_PHOTO,
     MAINTENANCE,

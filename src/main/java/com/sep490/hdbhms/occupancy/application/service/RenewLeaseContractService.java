@@ -212,7 +212,7 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
     }
 
     private void throwRenewBlocked(RoomCommitmentChecker.Blocker blocker) {
-        if (blocker == RoomCommitmentChecker.Blocker.ROOM_HOLD_IN_PROGRESS) {
+        if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đang được giữ chỗ cho khách khác.");
         }
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể tái ký.");

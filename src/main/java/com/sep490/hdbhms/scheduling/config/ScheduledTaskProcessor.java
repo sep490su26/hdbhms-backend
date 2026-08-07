@@ -217,9 +217,13 @@ public class ScheduledTaskProcessor {
 
     private void completeTask(ScheduledTask scheduledTask) {
         if (Boolean.TRUE.equals(scheduledTask.getRecurring())) {
-            scheduledTask.reschedule(
-                    RecurringSystemJobSchedule.nextDueAt(scheduledTask.getTaskType(), LocalDateTime.now())
-            );
+            LocalDateTime nextDueAt = nextRecurringDueAt(scheduledTask);
+            if (nextDueAt == null) {
+                // Prevent a stale recurring row from being retried forever.
+                scheduledTask.execute();
+                return;
+            }
+            scheduledTask.reschedule(nextDueAt);
             return;
         }
         scheduledTask.execute();
@@ -239,16 +243,18 @@ public class ScheduledTaskProcessor {
         }
 
         if (Boolean.TRUE.equals(scheduledTask.getRecurring())) {
+            LocalDateTime nextScheduledRun = nextRecurringDueAt(scheduledTask);
+            if (nextScheduledRun == null) {
+                scheduledTask.failed(errorMessage);
+                return;
+            }
             if (!retryable) {
-                scheduledTask.retryLater(
-                        RecurringSystemJobSchedule.nextDueAt(scheduledTask.getTaskType(), LocalDateTime.now()),
-                        errorMessage
-                );
+                scheduledTask.retryLater(nextScheduledRun, errorMessage);
                 return;
             }
             int retryCount = scheduledTask.getRetryCount() == null ? 0 : scheduledTask.getRetryCount();
             LocalDateTime nextRun = retryCount >= policy.maxAttempts() - 1
-                    ? RecurringSystemJobSchedule.nextDueAt(scheduledTask.getTaskType(), LocalDateTime.now())
+                    ? nextScheduledRun
                     : LocalDateTime.now().plus(policy.retryDelay());
             scheduledTask.retryLater(nextRun, errorMessage);
             return;
@@ -270,6 +276,18 @@ public class ScheduledTaskProcessor {
             throw new IllegalStateException("No scheduled task handler registered for task type: " + scheduledTask.getTaskType());
         }
         taskHandler.handle(scheduledTask);
+    }
+
+    private LocalDateTime nextRecurringDueAt(ScheduledTask scheduledTask) {
+        try {
+            return RecurringSystemJobSchedule.nextDueAt(scheduledTask.getTaskType(), LocalDateTime.now());
+        } catch (IllegalArgumentException exception) {
+            log.error("Recurring scheduled task has no configured schedule. taskId={}, taskType={}",
+                    scheduledTask.getId(),
+                    scheduledTask.getTaskType(),
+                    exception);
+            return null;
+        }
     }
 
     private ScheduledTaskPolicy policyFor(TaskType taskType) {

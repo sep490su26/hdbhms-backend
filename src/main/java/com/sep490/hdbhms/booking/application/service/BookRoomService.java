@@ -73,6 +73,7 @@ public class BookRoomService implements BookRoomUseCase {
                     command.idIssueDate(),
                     command.idIssuePlace(),
                     command.depositMonths(),
+                    command.contractTermMonths(),
                     command.paymentCycleMonths(),
                     command.occupantCount(),
                     toCoOccupants(command.coOccupants()),

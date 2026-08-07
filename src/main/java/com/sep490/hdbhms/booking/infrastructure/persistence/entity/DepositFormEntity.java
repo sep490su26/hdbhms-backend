@@ -5,10 +5,15 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositFormStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.LeadEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -76,6 +81,9 @@ public class DepositFormEntity {
     @Column(name = "deposit_months", columnDefinition = "INT UNSIGNED")
     Integer depositMonths;
 
+    @Column(name = "contract_term_months", columnDefinition = "INT UNSIGNED")
+    Integer contractTermMonths;
+
     @Column(name = "payment_cycle_months", columnDefinition = "TINYINT UNSIGNED")
     Integer paymentCycleMonths;
 
@@ -102,6 +110,41 @@ public class DepositFormEntity {
     @Column(name = "deposit_expires_at")
     LocalDate depositExpiresAt;
 
+    @Column(name = "deposit_code", length = 80, unique = true)
+    String depositCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "room_hold_id")
+    RoomHoldEntity roomHold;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    TenantEntity tenant;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lead_id")
+    LeadEntity lead;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "depositor_person_profile_id")
+    PersonProfileEntity depositorPersonProfile;
+
+    @Column(name = "amount")
+    Long amount;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "deposit_status", nullable = false, length = 50)
+    DepositAgreementStatus depositStatus = DepositAgreementStatus.PENDING_PAYMENT;
+
+    @Column(name = "extension_count", nullable = false, columnDefinition = "TINYINT UNSIGNED")
+    @Builder.Default
+    Integer extensionCount = 0;
+
+    @Column(name = "max_extensions", nullable = false, columnDefinition = "TINYINT UNSIGNED")
+    @Builder.Default
+    Integer maxExtensions = 1;
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
@@ -113,7 +156,20 @@ public class DepositFormEntity {
     @Column(name = "reject_reason", columnDefinition = "TEXT")
     String rejectReason;
 
+    @Column(name = "note", columnDefinition = "TEXT")
+    String note;
+
+    @Column(name = "forfeiture_reason", columnDefinition = "TEXT")
+    String forfeitureReason;
+
+    @Column(name = "refunded_amount")
+    Long refundedAmount;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    LocalDateTime updatedAt;
 }

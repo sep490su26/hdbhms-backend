@@ -95,12 +95,6 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                         WHERE co.tenant_id = ?
                           AND lc.deleted_at IS NULL
                     )
-                    OR pp.person_profile_id IN (
-                        SELECT da.depositor_person_profile_id
-                        FROM deposit_agreements da
-                        WHERE da.tenant_id = ?
-                          AND da.depositor_person_profile_id IS NOT NULL
-                    )
                   )
                 ORDER BY
                   CASE
@@ -117,7 +111,7 @@ public class GetMyTenantProfileService implements GetMyTenantProfileUseCase {
                 rs.getString("email"),
                 rs.getString("permanent_address"),
                 nullableLong(rs, "portrait_file_id")
-        ), userId, tenantId, tenantId);
+        ), userId, tenantId);
     }
 
     private TenantProfileResponse.IdentityDocumentDto getIdentityDocument(Long personProfileId, Long tenantId) {

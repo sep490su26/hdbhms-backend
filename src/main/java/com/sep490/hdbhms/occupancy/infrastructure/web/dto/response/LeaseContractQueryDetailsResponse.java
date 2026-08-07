@@ -14,8 +14,6 @@ import java.util.List;
 public record LeaseContractQueryDetailsResponse(
         Long contractId,
         String contractCode,
-        Long depositAgreementId,
-        Long depositSignedFileId,
         RoomInfo room,
         PropertyInfo property,
         LocalDate startDate,

@@ -11,9 +11,9 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentSta
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
-import com.sep490.hdbhms.booking.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.booking.application.service.DepositPaymentExpiryService;
 import com.sep490.hdbhms.booking.application.service.RoomDepositLockService;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.booking.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
@@ -26,35 +26,26 @@ import com.sep490.hdbhms.booking.domain.model.RoomHold;
 import com.sep490.hdbhms.booking.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.booking.domain.value_objects.RoomDepositFailureReason;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
-import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositContractPreviewRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.SendDepositFormRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositCheckoutResponse;
-import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositContractPreviewResponse;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositPaymentStatusResponse;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositRoomHoldStatusResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.RoomWebMapper;
-import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
-import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder.DocumentType;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -64,6 +55,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 import vn.payos.model.v2.paymentRequests.PaymentLink;
 import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
@@ -84,10 +76,10 @@ public class DepositController {
     PaymentIntentRepository paymentIntentRepository;
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
-    DepositContractDocumentService depositContractDocumentService;
     DepositPaymentExpiryService depositPaymentExpiryService;
     RoomDepositLockService roomDepositLockService;
     RoomCommitmentChecker roomCommitmentChecker;
+    LeaseContractDocumentService leaseContractDocumentService;
     ReconcilePaymentUseCase reconcilePaymentUseCase;
     PayOSProperties payOSProperties;
     ObjectMapper objectMapper;
@@ -108,12 +100,10 @@ public class DepositController {
                 .build();
     }
 
-    @PostMapping("/contracts/preview")
-    public ApiResponse<DepositContractPreviewResponse> previewDepositContract(
-            @Valid @RequestBody DepositContractPreviewRequest request
-    ) {
-        return ApiResponse.<DepositContractPreviewResponse>builder()
-                .data(depositContractDocumentService.preview(request))
+    @PostMapping("/contract-preview")
+    public ApiResponse<Map<String, String>> previewLeaseContract(@RequestBody Map<String, Object> metadata) {
+        return ApiResponse.<Map<String, String>>builder()
+                .data(Map.of("html", leaseContractDocumentService.previewDepositContract(metadata)))
                 .build();
     }
 
@@ -177,43 +167,6 @@ public class DepositController {
                         .message(buildPaymentStatusMessage(paymentIntent, depositAgreement, room))
                         .build())
                 .build();
-    }
-
-    @GetMapping("/payments/{paymentIntentId}/contract")
-    public ResponseEntity<Resource> downloadPaidDepositContract(
-            @PathVariable Long paymentIntentId,
-            @RequestParam String paymentContent
-    ) {
-        PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
-        if (paymentIntent.getDepositAgreementId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phiên thanh toán không thuộc đặt cọc phòng.");
-        }
-        if (paymentIntent.getStatus() != PaymentIntentStatus.SUCCEEDED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phiên thanh toán chưa hoàn tất.");
-        }
-        if (paymentIntent.getPaymentContent() == null || !paymentIntent.getPaymentContent().equals(paymentContent)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Thông tin phiên thanh toán không hợp lệ.");
-        }
-
-        DepositAgreement depositAgreement = depositAgreementRepository.findById(paymentIntent.getDepositAgreementId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin đặt cọc."));
-        FileDataResponse fileData = depositContractDocumentService.getOfficialContractFile(depositAgreement.getId());
-        String contentType = fileData.contentType() == null
-                ? MediaType.APPLICATION_PDF_VALUE
-                : fileData.contentType();
-        Room room = roomRepository.findById(depositAgreement.getRoomId()).orElse(null);
-        String filename = DocumentFilenameBuilder.build(
-                room == null ? null : room.getRoomCode(),
-                null,
-                DocumentType.HDC,
-                depositAgreement.getExpectedMoveInDate()
-        );
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_TYPE, contentType)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                .body(fileData.resource());
     }
 
     @Transactional

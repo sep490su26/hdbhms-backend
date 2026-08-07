@@ -1068,28 +1068,6 @@ public class MockOccupancyFlowController {
                         requestId
                 ),
                 safeQueryRows("""
-                                SELECT
-                                    d.deposit_transfer_record_id AS id,
-                                    d.transfer_request_id AS transferRequestId,
-                                    d.old_contract_id AS oldContractId,
-                                    d.new_contract_id AS newContractId,
-                                    d.old_deposit_agreement_id AS oldDepositAgreementId,
-                                    d.from_room_id AS fromRoomId,
-                                    d.to_room_id AS toRoomId,
-                                    d.amount,
-                                    d.status,
-                                    d.effective_date AS effectiveDate,
-                                    d.cancelled_at AS cancelledAt,
-                                    d.note,
-                                    d.created_at AS createdAt,
-                                    d.updated_at AS updatedAt
-                                FROM deposit_transfer_records d
-                                WHERE d.transfer_request_id = ?
-                                ORDER BY d.deposit_transfer_record_id DESC
-                                """,
-                        requestId
-                ),
-                safeQueryRows("""
                                 SELECT DISTINCT
                                     i.invoice_id AS id,
                                     i.invoice_code AS invoiceCode,
@@ -1377,7 +1355,6 @@ public class MockOccupancyFlowController {
             Map<String, Object> transfer,
             List<Map<String, Object>> changeRequests,
             List<Map<String, Object>> settlements,
-            List<Map<String, Object>> depositTransfers,
             List<Map<String, Object>> invoices,
             List<Map<String, Object>> notifications
     ) {

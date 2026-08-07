@@ -1,8 +1,6 @@
 package com.sep490.hdbhms.booking.domain.model;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
-import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
-import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder.DocumentType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -35,10 +33,6 @@ public class DepositAgreement {
     @Builder.Default
     DepositAgreementStatus status = DepositAgreementStatus.PENDING_PAYMENT;
     LocalDateTime confirmedAt;
-    Long contractFileId;
-    Long signedFileId;
-    LocalDateTime signedAt;
-    Long signedUploadedById;
     String note;
     String forfeitureReason;
     Long refundedAmount;
@@ -46,8 +40,8 @@ public class DepositAgreement {
     LocalDateTime updatedAt;
 
     public static String buildDepositCode(String roomCode, LocalDate referenceDate) {
-        String filename = DocumentFilenameBuilder.build(roomCode, null, DocumentType.HDC, referenceDate);
-        return filename.endsWith(".pdf") ? filename.substring(0, filename.length() - 4) : filename;
+        return "COC_" + (roomCode == null ? "ROOM" : roomCode) + "_"
+                + (referenceDate == null ? "DATE" : referenceDate);
     }
 
     public static DepositAgreement newDepositAgreementForLeadUser(
@@ -88,18 +82,6 @@ public class DepositAgreement {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void attachContractFile(Long contractFileId) {
-        this.contractFileId = contractFileId;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void attachSignedFile(Long signedFileId, Long signedUploadedById, LocalDateTime signedAt) {
-        this.signedFileId = signedFileId;
-        this.signedUploadedById = signedUploadedById;
-        this.signedAt = signedAt != null ? signedAt : LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
     public void changeStatus(DepositAgreementStatus nextStatus) {
         if (nextStatus == null) {
             throw new IllegalArgumentException("Deposit agreement status is required");
@@ -118,11 +100,6 @@ public class DepositAgreement {
         }
         this.status = DepositAgreementStatus.PAID;
         this.confirmedAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void setContractFileId(Long contractFileId) {
-        this.contractFileId = contractFileId;
         this.updatedAt = LocalDateTime.now();
     }
 

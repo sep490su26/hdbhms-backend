@@ -2,7 +2,6 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
-import com.sep490.hdbhms.booking.domain.value_objects.DepositTransferStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 
 import java.time.LocalDate;
@@ -61,7 +60,6 @@ public record RoomTransferResponse(
     SettlementType priceDifferenceSettlementType,
     Long transferDifferenceInvoiceId,
     Long oldRoomFinalInvoiceId,
-    DepositTransferSummary depositTransferSummary,
     DebtSummary debtSummary,
     ViolationSummary violationSummary,
     Integer transferCountThisYear,
@@ -94,16 +92,4 @@ public record RoomTransferResponse(
             List<String> latestDescriptions
     ) {}
 
-    public record DepositTransferSummary(
-            Long id,
-            Long oldContractId,
-            Long newContractId,
-            Long oldDepositAgreementId,
-            Long amount,
-            Long fromRoomId,
-            Long toRoomId,
-            DepositTransferStatus status,
-            LocalDate effectiveDate,
-            String note
-    ) {}
 }

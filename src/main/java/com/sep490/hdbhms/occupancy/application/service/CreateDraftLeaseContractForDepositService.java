@@ -1,13 +1,17 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositFormRepository;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.CreateDraftLeaseContractForDepositUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
-import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -23,48 +27,50 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CreateDraftLeaseContractForDepositService implements CreateDraftLeaseContractForDepositUseCase {
+    JpaDepositFormRepository depositFormRepository;
     JpaLeaseContractRepository leaseContractRepository;
+    JpaRoomRepository roomRepository;
     LeaseContractWorkflowSupport workflowSupport;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
 
     @Override
-    public LeaseContractManagementResponse execute(Long depositAgreementId) {
-        DepositAgreementEntity deposit = workflowSupport.getReadyDeposit(depositAgreementId);
-        LeaseContractEntity existing = workflowSupport.findLatestContractByDeposit(depositAgreementId);
+    public LeaseContractManagementResponse execute(Long depositFormId) {
+        DepositFormEntity deposit = depositFormRepository.findById(depositFormId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy form đặt cọc."));
+        LeaseContractEntity existing = leaseContractRepository
+                .findFirstByDepositForm_IdAndDeletedAtIsNull(depositFormId)
+                .orElse(null);
         if (existing != null) {
             return getLeaseContractManagementUseCase.findOne(existing.getId());
         }
-        LeaseContractEntity created = createDraftLeaseContract(deposit);
-        return getLeaseContractManagementUseCase.findOne(created.getId());
-    }
-
-    private LeaseContractEntity createDraftLeaseContract(DepositAgreementEntity deposit) {
-        RoomEntity room = deposit.getRoom();
-        LocalDate startDate = deposit.getExpectedMoveInDate();
-        if (startDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng cọc chưa có ngày vào ở dự kiến.");
+        if (deposit.getDepositStatus() != DepositAgreementStatus.PAID
+                && deposit.getDepositStatus() != DepositAgreementStatus.CONFIRMED
+                && deposit.getDepositStatus() != DepositAgreementStatus.CONVERTED_TO_LEASE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Form đặt cọc chưa được thanh toán.");
         }
-        LocalDate endDate = startDate.plusYears(1).minusDays(1);
-        Integer paymentCycleMonths = workflowSupport.resolvePaymentCycleMonths(deposit);
-        Long monthlyRent = room.getListedPrice();
-        Long depositAmount = deposit.getAmount() != null ? deposit.getAmount() : 0L;
-        workflowSupport.validateDraftInput(
-                room,
-                deposit.getDepositorPersonProfile() != null ? deposit.getDepositorPersonProfile().getId() : null,
-                startDate,
-                endDate,
-                paymentCycleMonths,
-                monthlyRent,
-                depositAmount,
-                workflowSupport.countRequestedOccupants(deposit)
-        );
 
-        String contractCode = "HD-" + startDate.getYear() + "-H" + room.getRoomCode() + "-" + deposit.getId();
+        RoomEntity room = deposit.getRoom();
+        PersonProfileEntity tenant = deposit.getDepositorPersonProfile();
+        LocalDate startDate = deposit.getExpectedMoveInDate();
+        if (room == null || tenant == null || startDate == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Form đặt cọc chưa đủ dữ liệu để tạo hợp đồng thuê.");
+        }
+        int termMonths = deposit.getContractTermMonths() == null ? 12 : deposit.getContractTermMonths();
+        if (termMonths < 6) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời hạn hợp đồng tối thiểu là 6 tháng.");
+        }
+        LocalDate endDate = startDate.plusMonths(termMonths).minusDays(1);
+        int paymentCycleMonths = deposit.getPaymentCycleMonths() == null ? 1 : deposit.getPaymentCycleMonths();
+        long monthlyRent = room.getListedPrice() == null ? 0L : room.getListedPrice();
+        long depositAmount = deposit.getAmount() == null ? 0L : deposit.getAmount();
+        workflowSupport.validateContractTerms(startDate, paymentCycleMonths, monthlyRent, depositAmount);
+
+        String contractCode = "HD-" + startDate.getYear() + "-H" + room.getRoomCode() + "-" + depositFormId;
         LeaseContractEntity contract = LeaseContractEntity.builder()
                 .contractCode(contractCode)
                 .room(room)
-                .depositAgreement(deposit)
-                .primaryTenantProfile(deposit.getDepositorPersonProfile())
+                .depositForm(deposit)
+                .primaryTenantProfile(tenant)
                 .startDate(startDate)
                 .endDate(endDate)
                 .rentStartDate(workflowSupport.resolveRentStartDate(startDate))
@@ -74,8 +80,8 @@ public class CreateDraftLeaseContractForDepositService implements CreateDraftLea
                 .status(LeaseStatus.PENDING_SIGNATURE)
                 .build();
         LeaseContractEntity saved = leaseContractRepository.save(contract);
-        workflowSupport.ensureContractOccupants(saved, deposit);
-        workflowSupport.appendContractEvent(saved.getId(), "CREATED", "Tạo hợp đồng thuê từ hợp đồng cọc " + deposit.getId());
-        return saved;
+        workflowSupport.ensureContractOccupants(saved);
+        workflowSupport.appendContractEvent(saved.getId(), "CREATED", "Tạo hợp đồng thuê hợp nhất từ form đặt cọc " + depositFormId);
+        return getLeaseContractManagementUseCase.findOne(saved.getId());
     }
 }

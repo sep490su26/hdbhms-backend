@@ -28,7 +28,6 @@ import com.sep490.hdbhms.booking.application.port.out.EarlyCancelRoomHoldTaskPor
 import com.sep490.hdbhms.occupancy.application.port.out.UploadIdentityFilePort;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
 import com.sep490.hdbhms.booking.domain.model.RoomHold;
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositBatchEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositBatchItemEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
@@ -152,6 +151,7 @@ public class DepositBatchCheckoutService {
             }
 
             DepositFormEntity depositForm = DepositFormEntity.builder()
+                    .depositCode(resolveDepositCode(room, request.getExpectedMoveInDate()))
                     .room(room)
                     .idNumber(request.getIdNumber().trim())
                     .permanentAddress(trimToNull(request.getPermanentAddress()))
@@ -172,31 +172,20 @@ public class DepositBatchCheckoutService {
                     .expectedLeaseSignDate(request.getExpectedLeaseSignDate())
                     .depositExpiresAt(request.getExpectedMoveInDate().plusDays(DepositLifecyclePolicy.FORFEITURE_WAIT_DAYS))
                     .paymentDueAt(holdExpiresAt)
+                    .roomHold(roomHold)
+                    .amount(DEPOSIT_AMOUNT_PER_ROOM)
+                    .depositStatus(DepositAgreementStatus.PENDING_PAYMENT)
                     .status(DepositFormStatus.APPROVED)
                     .confirmedAt(LocalDateTime.now())
                     .build();
             depositForm.setCoOccupants(buildCoOccupants(roomRequest, depositForm));
             depositForm = depositFormRepository.save(depositForm);
 
-            DepositAgreementEntity agreement = depositAgreementRepository.save(DepositAgreementEntity.builder()
-                    .depositCode(resolveDepositCode(room, request.getExpectedMoveInDate()))
-                    .room(room)
-                    .depositForm(depositForm)
-                    .roomHold(roomHold)
-                    .amount(DEPOSIT_AMOUNT_PER_ROOM)
-                    .expectedMoveInDate(request.getExpectedMoveInDate())
-                    .expectedLeaseSignDate(request.getExpectedLeaseSignDate())
-                    .depositExpiresAt(request.getExpectedMoveInDate().plusDays(DepositLifecyclePolicy.FORFEITURE_WAIT_DAYS))
-                    .paymentDueAt(holdExpiresAt)
-                    .status(DepositAgreementStatus.PENDING_PAYMENT)
-                    .build());
-
             depositBatchItemRepository.save(DepositBatchItemEntity.builder()
                     .batch(batch)
                     .room(room)
                     .roomHold(roomHold)
                     .depositForm(depositForm)
-                    .depositAgreement(agreement)
                     .depositAmount(DEPOSIT_AMOUNT_PER_ROOM)
                     .occupantCount(roomRequest.getOccupantCount())
                     .status(DepositBatchItemStatus.PENDING_PAYMENT)
@@ -355,10 +344,10 @@ public class DepositBatchCheckoutService {
                 earlyCancelRoomHoldTaskPort.execute(hold.getId());
             }
 
-            DepositAgreementEntity agreement = item.getDepositAgreement();
-            if (agreement != null && agreement.getStatus() == DepositAgreementStatus.PENDING_PAYMENT) {
-                agreement.setStatus(DepositAgreementStatus.CANCELLED);
-                depositAgreementRepository.save(agreement);
+            DepositFormEntity depositForm = item.getDepositForm();
+            if (depositForm != null && depositForm.getDepositStatus() == DepositAgreementStatus.PENDING_PAYMENT) {
+                depositForm.setDepositStatus(DepositAgreementStatus.CANCELLED);
+                depositFormRepository.save(depositForm);
             }
 
             RoomEntity room = item.getRoom();
@@ -632,12 +621,12 @@ public class DepositBatchCheckoutService {
         }
         Integer activeDeposit = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
-                FROM deposit_agreements da
+                FROM deposit_forms da
                 LEFT JOIN room_holds rh ON rh.room_hold_id = da.room_hold_id
                 WHERE da.room_id = ?
-                  AND da.status IN ('PENDING_PAYMENT','PAID','CONFIRMED','EXTENDED')
+                  AND da.deposit_status IN ('PENDING_PAYMENT','PAID','CONFIRMED','EXTENDED')
                   AND (
-                      da.status <> 'PENDING_PAYMENT'
+                      da.deposit_status <> 'PENDING_PAYMENT'
                       OR rh.room_hold_id IS NULL
                       OR rh.status NOT IN ('CANCELLED','EXPIRED')
                   )

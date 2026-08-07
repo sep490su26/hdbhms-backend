@@ -11,9 +11,11 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEnti
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyImageRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.FacilitiesDashboardResponse;
+import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyImageResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +42,7 @@ public class GetFacilitiesDashboardService {
     JpaFloorRepository floorRepository;
     JpaFloorPlanItemRepository floorPlanItemRepository;
     JpaRoomRepository roomRepository;
+    JpaPropertyImageRepository propertyImageRepository;
     JpaRolePromotionRepository rolePromotionRepository;
 
     @Transactional(readOnly = true)
@@ -156,8 +159,21 @@ public class GetFacilitiesDashboardService {
                 .occupiedRoomCount(countRooms(rooms, RoomStatus.OCCUPIED))
                 .vacantRoomCount(countRooms(rooms, RoomStatus.VACANT))
                 .hasFloorPlan(floorPlanItemRepository.existsByProperty_Id(property.getId()))
+                .images(toPropertyImages(property.getId()))
                 .floors(floorResponses)
                 .build();
+    }
+
+    private List<PropertyImageResponse> toPropertyImages(Long propertyId) {
+        return propertyImageRepository.findAllByProperty_IdOrderBySortOrderAscCreatedAtAscIdAsc(propertyId).stream()
+                .map(image -> PropertyImageResponse.builder()
+                        .id(image.getId())
+                        .fileId(image.getFile() == null ? null : image.getFile().getId())
+                        .url(image.getFile() == null ? null : "/api/v1/files/download/" + image.getFile().getId())
+                        .sortOrder(image.getSortOrder())
+                        .createdAt(image.getCreatedAt())
+                        .build())
+                .toList();
     }
 
     private FacilitiesDashboardResponse.Floor toFloor(FloorEntity floor, List<RoomEntity> rooms) {

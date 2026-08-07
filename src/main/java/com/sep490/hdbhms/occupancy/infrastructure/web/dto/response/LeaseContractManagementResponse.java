@@ -2,7 +2,6 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.BillingInvoiceLineResponse;
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
@@ -23,10 +22,10 @@ import java.util.List;
 public class LeaseContractManagementResponse {
     String sourceType;
     Long leaseContractId;
-    Long depositAgreementId;
+    Long depositFormId;
     String code;
-    String depositCode;
     String contractCode;
+    String depositCode;
 
     Long propertyId;
     String propertyName;
@@ -50,6 +49,7 @@ public class LeaseContractManagementResponse {
     Long monthlyRent;
     Integer paymentCycleMonths;
     Long depositAmount;
+    Integer contractTermMonths;
     Integer occupantsCount;
     Long previousContractId;
     String previousContractCode;
@@ -68,8 +68,8 @@ public class LeaseContractManagementResponse {
     Boolean transferActivationLocked;
 
     LeaseStatus contractStatus;
-    DepositAgreementStatus depositStatus;
     String workflowStatus;
+    String depositStatus;
 
     Long contractFileId;
     String contractFileName;

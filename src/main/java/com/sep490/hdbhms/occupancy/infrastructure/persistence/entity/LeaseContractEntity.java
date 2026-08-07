@@ -2,9 +2,9 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
 
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
@@ -48,13 +48,13 @@ public class LeaseContractEntity {
     @JoinColumn(name = "room_id", nullable = false)
     RoomEntity room;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "deposit_agreement_id", nullable = true)
-    DepositAgreementEntity depositAgreement;
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "primary_tenant_profile_id", nullable = false)
     PersonProfileEntity primaryTenantProfile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deposit_form_id")
+    DepositFormEntity depositForm;
 
     @Column(name = "start_date", nullable = false)
     LocalDate startDate;

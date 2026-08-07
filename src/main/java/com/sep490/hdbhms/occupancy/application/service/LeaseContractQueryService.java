@@ -54,19 +54,11 @@ public class LeaseContractQueryService {
                     p.property_id AS property_id,
                     p.name AS property_name,
                     pp.full_name AS primary_tenant_name,
-                    GREATEST(
-                        (
-                            SELECT COUNT(*)
-                            FROM contract_occupants co_count
-                            WHERE co_count.contract_id = lc.lease_contract_id
-                              AND co_count.status = 'ACTIVE'
-                        ),
-                        COALESCE(df.occupant_count, 1),
-                        1 + COALESCE((
-                            SELECT COUNT(*)
-                            FROM deposit_form_co_occupants dco_count
-                            WHERE dco_count.deposit_form_id = df.deposit_form_id
-                        ), 0)
+                    (
+                        SELECT COUNT(*)
+                        FROM contract_occupants co_count
+                        WHERE co_count.contract_id = lc.lease_contract_id
+                          AND co_count.status = 'ACTIVE'
                     ) AS occupants_count,
                     lc.start_date,
                     lc.end_date,
@@ -81,8 +73,6 @@ public class LeaseContractQueryService {
                 JOIN rooms r ON r.room_id = lc.room_id
                 JOIN properties p ON p.property_id = r.property_id
                 JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
-                LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
-                LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                 LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                 WHERE lc.deleted_at IS NULL
                   AND p.property_id = ?
@@ -153,8 +143,6 @@ public class LeaseContractQueryService {
                         SELECT
                             lc.lease_contract_id AS contract_id,
                             lc.contract_code,
-                            lc.deposit_agreement_id,
-                            da.signed_file_id AS deposit_signed_file_id,
                             lc.start_date,
                             lc.end_date,
                             lc.rent_start_date,
@@ -243,8 +231,7 @@ public class LeaseContractQueryService {
                                       AND idoc.status = 'ACTIVE'
                                     ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
                                     LIMIT 1
-                                ),
-                                df.id_number
+                                )
                             ) AS primary_citizen_id,
                             COALESCE(
                                 (
@@ -254,8 +241,7 @@ public class LeaseContractQueryService {
                                       AND idoc.status = 'ACTIVE'
                                     ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
                                     LIMIT 1
-                                ),
-                                df.id_issue_date
+                                )
                             ) AS primary_identity_issued_date,
                             COALESCE(
                                 (
@@ -265,16 +251,13 @@ public class LeaseContractQueryService {
                                       AND idoc.status = 'ACTIVE'
                                     ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
                                     LIMIT 1
-                                ),
-                                df.id_issue_place
+                                )
                             ) AS primary_identity_issued_place
                         FROM lease_contracts lc
                         JOIN rooms r ON r.room_id = lc.room_id
                         JOIN properties p ON p.property_id = r.property_id
                         JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
-                        LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
-                        LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                         LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                         LEFT JOIN room_transfer_requests tr
@@ -429,8 +412,6 @@ public class LeaseContractQueryService {
                         SELECT
                             lc.lease_contract_id AS contract_id,
                             lc.contract_code,
-                            lc.deposit_agreement_id,
-                            da.signed_file_id AS deposit_signed_file_id,
                             lc.start_date,
                             lc.end_date,
                             lc.rent_start_date,
@@ -519,8 +500,7 @@ public class LeaseContractQueryService {
                                       AND idoc.status = 'ACTIVE'
                                     ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
                                     LIMIT 1
-                                ),
-                                df.id_number
+                                )
                             ) AS primary_citizen_id,
                             COALESCE(
                                 (
@@ -530,8 +510,7 @@ public class LeaseContractQueryService {
                                       AND idoc.status = 'ACTIVE'
                                     ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
                                     LIMIT 1
-                                ),
-                                df.id_issue_date
+                                )
                             ) AS primary_identity_issued_date,
                             COALESCE(
                                 (
@@ -541,16 +520,13 @@ public class LeaseContractQueryService {
                                       AND idoc.status = 'ACTIVE'
                                     ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
                                     LIMIT 1
-                                ),
-                                df.id_issue_place
+                                )
                             ) AS primary_identity_issued_place
                         FROM lease_contracts lc
                         JOIN rooms r ON r.room_id = lc.room_id
                         JOIN properties p ON p.property_id = r.property_id
                         JOIN person_profiles pp ON pp.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN lease_contracts previous_contract ON previous_contract.lease_contract_id = lc.previous_contract_id
-                        LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
-                        LEFT JOIN deposit_forms df ON df.deposit_form_id = da.deposit_form_id
                         LEFT JOIN file_metadata fm ON fm.file_metadata_id = lc.contract_file_id
                         LEFT JOIN file_metadata sfm ON sfm.file_metadata_id = lc.signed_file_id
                         LEFT JOIN room_transfer_requests tr
@@ -757,8 +733,6 @@ public class LeaseContractQueryService {
         return new LeaseContractQueryDetailsResponse(
                 rs.getLong("contract_id"),
                 rs.getString("contract_code"),
-                getLongOrNull(rs, "deposit_agreement_id"),
-                getLongOrNull(rs, "deposit_signed_file_id"),
                 new LeaseContractQueryDetailsResponse.RoomInfo(
                         rs.getLong("room_id"),
                         rs.getString("room_code"),
@@ -833,8 +807,6 @@ public class LeaseContractQueryService {
         return new LeaseContractQueryDetailsResponse(
                 details.contractId(),
                 details.contractCode(),
-                details.depositAgreementId(),
-                details.depositSignedFileId(),
                 details.room(),
                 details.property(),
                 details.startDate(),
@@ -881,38 +853,29 @@ public class LeaseContractQueryService {
                     COALESCE(pp.email, u.email) AS email,
                     pp.dob,
                     pp.permanent_address,
-                    COALESCE(
-                        (
-                            SELECT idoc.doc_number
-                            FROM identity_documents idoc
-                            WHERE idoc.profile_id = pp.person_profile_id
-                              AND idoc.status = 'ACTIVE'
-                            ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
-                            LIMIT 1
-                        ),
-                        CASE WHEN co.occupant_role = 'PRIMARY' THEN df.id_number END
+                    (
+                        SELECT idoc.doc_number
+                        FROM identity_documents idoc
+                        WHERE idoc.profile_id = pp.person_profile_id
+                          AND idoc.status = 'ACTIVE'
+                        ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
+                        LIMIT 1
                     ) AS citizen_id,
-                    COALESCE(
-                        (
-                            SELECT idoc.issued_date
-                            FROM identity_documents idoc
-                            WHERE idoc.profile_id = pp.person_profile_id
-                              AND idoc.status = 'ACTIVE'
-                            ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
-                            LIMIT 1
-                        ),
-                        CASE WHEN co.occupant_role = 'PRIMARY' THEN df.id_issue_date END
+                    (
+                        SELECT idoc.issued_date
+                        FROM identity_documents idoc
+                        WHERE idoc.profile_id = pp.person_profile_id
+                          AND idoc.status = 'ACTIVE'
+                        ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
+                        LIMIT 1
                     ) AS identity_issued_date,
-                    COALESCE(
-                        (
-                            SELECT idoc.issued_place
-                            FROM identity_documents idoc
-                            WHERE idoc.profile_id = pp.person_profile_id
-                              AND idoc.status = 'ACTIVE'
-                            ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
-                            LIMIT 1
-                        ),
-                        CASE WHEN co.occupant_role = 'PRIMARY' THEN df.id_issue_place END
+                    (
+                        SELECT idoc.issued_place
+                        FROM identity_documents idoc
+                        WHERE idoc.profile_id = pp.person_profile_id
+                          AND idoc.status = 'ACTIVE'
+                        ORDER BY idoc.updated_at DESC, idoc.identity_document_id DESC
+                        LIMIT 1
                     ) AS identity_issued_place,
                     co.occupant_role,
                     co.move_in_date,
@@ -981,10 +944,6 @@ public class LeaseContractQueryService {
                 LEFT JOIN contract_occupant_intentions coi
                     ON coi.contract_id = co.contract_id
                     AND coi.contract_occupant_id = co.id
-                LEFT JOIN deposit_agreements da
-                    ON da.deposit_agreement_id = lc.deposit_agreement_id
-                LEFT JOIN deposit_forms df
-                    ON df.deposit_form_id = da.deposit_form_id
                 LEFT JOIN users u
                     ON u.user_id = pp.user_id
                     AND u.deleted_at IS NULL

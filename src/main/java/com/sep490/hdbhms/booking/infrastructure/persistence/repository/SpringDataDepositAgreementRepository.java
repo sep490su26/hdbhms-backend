@@ -1,22 +1,15 @@
 package com.sep490.hdbhms.booking.infrastructure.persistence.repository;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.mapper.DepositAgreementPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.DepositAgreementSpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,54 +39,6 @@ public class SpringDataDepositAgreementRepository implements DepositAgreementRep
     }
 
     @Override
-    public List<DepositAgreement> findAll() {
-        return jpaDepositAgreementRepository.findAll().stream()
-                .map(depositAgreementPersistenceMapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    public Page<DepositAgreement> findAll(
-            List<Long> ids,
-            DepositAgreementStatus status,
-            List<DepositAgreementStatus> statuses,
-            String search,
-            Long floorId,
-            LocalDateTime signedFrom,
-            LocalDateTime signedTo,
-            Pageable pageable
-    ) {
-        Specification<DepositAgreementEntity> specification = Specification
-                .where(DepositAgreementSpecifications.idIn(ids))
-                .and(DepositAgreementSpecifications.statusIn(status))
-                .and(DepositAgreementSpecifications.statusesIn(statuses))
-                .and(DepositAgreementSpecifications.matchesSearch(search))
-                .and(DepositAgreementSpecifications.onFloor(floorId))
-                .and(DepositAgreementSpecifications.signingDateBetween(signedFrom, signedTo));
-        return jpaDepositAgreementRepository.findAll(specification, pageable)
-                .map(depositAgreementPersistenceMapper::toDomain);
-    }
-
-    @Override
-    public long countByStatuses(List<Long> ids, List<DepositAgreementStatus> statuses) {
-        if (ids == null || ids.isEmpty()) return 0;
-        return jpaDepositAgreementRepository.countByIdsAndStatuses(ids, statuses);
-    }
-
-    @Override
-    public long sumAmountByStatuses(List<Long> ids, List<DepositAgreementStatus> statuses) {
-        if (ids == null || ids.isEmpty()) return 0;
-        Long total = jpaDepositAgreementRepository.sumAmountByIdsAndStatuses(ids, statuses);
-        return total == null ? 0 : total;
-    }
-
-    @Override
-    public List<Long> findDistinctFloorIds(List<Long> ids, List<DepositAgreementStatus> statuses) {
-        if (ids == null || ids.isEmpty()) return List.of();
-        return jpaDepositAgreementRepository.findDistinctFloorIds(ids, statuses);
-    }
-
-    @Override
     public boolean existsByDepositCode(String depositCode) {
         return jpaDepositAgreementRepository.existsByDepositCode(depositCode);
     }
@@ -108,13 +53,14 @@ public class SpringDataDepositAgreementRepository implements DepositAgreementRep
     @Override
     public List<DepositAgreement> findAllAccessibleByUserId(Long userId) {
         List<Long> ids = jdbcTemplate.query("""
-                        SELECT DISTINCT da.deposit_agreement_id AS id
-                        FROM deposit_agreements da
+                        SELECT DISTINCT da.deposit_form_id AS id
+                        FROM deposit_forms da
                         JOIN users u ON u.user_id = ?
                         LEFT JOIN tenants t ON t.tenant_id = da.tenant_id
                         LEFT JOIN person_profiles depositor_pp ON depositor_pp.person_profile_id = da.depositor_person_profile_id
                         LEFT JOIN lease_contracts lc
-                          ON lc.deposit_agreement_id = da.deposit_agreement_id
+                          ON lc.room_id = da.room_id
+                         AND lc.primary_tenant_profile_id = da.depositor_person_profile_id
                          AND lc.deleted_at IS NULL
                         LEFT JOIN person_profiles primary_pp ON primary_pp.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN contract_occupants co

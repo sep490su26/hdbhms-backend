@@ -42,4 +42,9 @@ public class SpringDataRoomImageRepository implements RoomImageRepository {
                 .map(roomImagePersistenceMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    public void deleteById(Long id) {
+        jpaRoomImageRepository.deleteById(id);
+    }
 }

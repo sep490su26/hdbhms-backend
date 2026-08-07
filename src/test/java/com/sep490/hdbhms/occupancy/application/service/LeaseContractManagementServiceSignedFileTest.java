@@ -14,7 +14,6 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPr
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
@@ -39,79 +38,66 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomReposito
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.ArgumentMatchers.any;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.ArgumentMatchers.anyString;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.ArgumentMatchers.eq;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.Mockito.doReturn;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.Mockito.mock;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.Mockito.spy;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.Mockito.times;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.Mockito.verify;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import static org.mockito.Mockito.when;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 
 class LeaseContractManagementServiceSignedFileTest {
 
@@ -213,32 +199,6 @@ class LeaseContractManagementServiceSignedFileTest {
     }
 
     @Test
-    void activateRejectsUnsignedDepositDocument() {
-        var leaseContractRepository = mock(JpaLeaseContractRepository.class);
-        var contract = LeaseContractEntity.builder()
-                .id(99L)
-                .status(LeaseStatus.PENDING_SIGNATURE)
-                .signedFile(FileMetadataEntity.builder().id(22L).build())
-                .depositAgreement(DepositAgreementEntity.builder().id(33L).build())
-                .build();
-        when(leaseContractRepository.findById(99L)).thenReturn(Optional.of(contract));
-
-        var service = newService(
-                mock(UploadFileService.class),
-                mock(JpaFileMetadataRepository.class),
-                leaseContractRepository
-        );
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.activate(99L)
-        );
-
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        assertTrue(exception.getReason().contains("hop dong dat coc da ky"));
-    }
-
-    @Test
     void activateHandoverCheckRequiresSignedDocument() {
         var jdbcTemplate = mock(JdbcTemplate.class);
         var leaseContractRepository = mock(JpaLeaseContractRepository.class);
@@ -315,7 +275,6 @@ class LeaseContractManagementServiceSignedFileTest {
                 fileMetadataRepository,
                 leaseContractRepository,
                 mock(JpaContractOccupantRepository.class),
-                mock(JpaDepositAgreementRepository.class),
                 mock(JpaContractLiquidationRepository.class),
                 mock(JpaContractHandoverRecordRepository.class),
                 mock(JpaInvoiceRepository.class),

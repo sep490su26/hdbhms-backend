@@ -43,6 +43,7 @@ public class FacilitiesDashboardResponse {
         int occupiedRoomCount;
         int vacantRoomCount;
         boolean hasFloorPlan;
+        List<PropertyImageResponse> images;
         List<Floor> floors;
     }
 

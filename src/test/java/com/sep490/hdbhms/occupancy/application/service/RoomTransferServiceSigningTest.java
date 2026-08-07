@@ -11,7 +11,6 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.port.out.ContractOccupantRepository;
-import com.sep490.hdbhms.booking.application.port.out.DepositTransferRecordRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomTransferRepository;
@@ -129,7 +128,6 @@ class RoomTransferServiceSigningTest {
                 mock(ContractOccupantRepository.class),
                 mock(RoomTransferRequestRepository.class),
                 mock(TransferSettlementRepository.class),
-                mock(DepositTransferRecordRepository.class),
                 mock(InvoiceRepository.class),
                 mock(InvoiceLineRepository.class),
                 mock(IssuedInvoiceChargeService.class),

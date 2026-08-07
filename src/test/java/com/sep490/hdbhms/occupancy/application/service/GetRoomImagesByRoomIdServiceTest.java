@@ -88,6 +88,11 @@ class GetRoomImagesByRoomIdServiceTest {
         public List<RoomImage> findAllByRoomId(Long roomId) {
             return byRoomId.getOrDefault(roomId, List.of());
         }
+
+        @Override
+        public void deleteById(Long id) {
+            throw new UnsupportedOperationException();
+        }
     }
 
     // ---------- fake ResourcePatternResolver (no static samples) ----------

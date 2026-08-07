@@ -11,4 +11,6 @@ public interface RoomImageRepository {
     Optional<RoomImage> findById(Long id);
 
     List<RoomImage> findAllByRoomId(Long roomId);
+
+    void deleteById(Long id);
 }

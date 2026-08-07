@@ -12,7 +12,6 @@ import com.sep490.hdbhms.booking.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.booking.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.application.port.out.EarlyCancelRoomHoldTaskPort;
-import com.sep490.hdbhms.booking.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositBatchEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositBatchItemEntity;
@@ -47,7 +46,6 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     CreateLeadOrAssignTenantPort createLeadOrAssignTenantPort;
-    DepositContractDocumentService depositContractDocumentService;
 
     @Override
     public void execute(Invoice invoice) {
@@ -121,17 +119,16 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
                 throw new IllegalStateException("Room status changed during batch payment");
             }
 
-            item.getDepositAgreement().setStatus(DepositAgreementStatus.PAID);
-            item.getDepositAgreement().setConfirmedAt(now);
+            item.getDepositForm().setDepositStatus(DepositAgreementStatus.PAID);
+            item.getDepositForm().setConfirmedAt(now);
             item.setStatus(DepositBatchItemStatus.CONFIRMED);
             itemRepository.save(item);
 
             DepositAgreement agreement = depositAgreementRepository.findById(
-                            item.getDepositAgreement().getId()
+                            item.getDepositForm().getId()
                     )
                     .orElseThrow(() -> new IllegalStateException("Deposit agreement not found"));
             createLeadOrAssignTenantPort.execute(agreement);
-            depositContractDocumentService.generateOfficialContractAfterCommit(agreement.getId());
         }
 
         batch.setStatus(DepositBatchStatus.CONFIRMED);

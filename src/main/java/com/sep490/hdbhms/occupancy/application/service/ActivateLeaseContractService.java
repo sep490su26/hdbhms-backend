@@ -1,13 +1,11 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
@@ -30,7 +28,6 @@ import java.util.List;
 public class ActivateLeaseContractService implements ActivateLeaseContractUseCase {
     JpaLeaseContractRepository leaseContractRepository;
     JpaRoomRepository roomRepository;
-    JpaDepositAgreementRepository depositAgreementRepository;
     JdbcTemplate jdbcTemplate;
     LeaseContractWorkflowSupport workflowSupport;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
@@ -38,36 +35,30 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
     @Override
     public LeaseContractManagementResponse execute(Long leaseContractId) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease contract not found."));
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
             return getLeaseContractManagementUseCase.findOne(leaseContractId);
         }
         workflowSupport.ensureNotRoomTransferManagedContract(leaseContractId);
         if (contract.getStatus() != LeaseStatus.DRAFT && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được kích hoạt hợp đồng đang chờ ký.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only pending lease contracts can be activated.");
         }
         if (contract.getSignedFile() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cần upload file hợp đồng đã ký trước khi kích hoạt.");
-        }
-        if (contract.getDepositAgreement() != null && contract.getDepositAgreement().getSignedFile() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cần upload file hợp đồng đặt cọc đã ký trước khi kích hoạt.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload the signed lease contract before activation.");
         }
         if (contract.getPrimaryTenantProfile() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa có người ký chính.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lease contract has no primary tenant.");
         }
         if (contract.getStartDate() == null || contract.getEndDate() == null || contract.getEndDate().isBefore(contract.getStartDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày bắt đầu/kết thúc hợp đồng không hợp lệ.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lease contract dates are invalid.");
         }
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa gắn phòng.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lease contract has no room.");
         }
 
         if (contract.getPreviousContract() == null && !hasCompletedMoveInHandover(leaseContractId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Cần hoàn thành bàn giao phòng, nhập số điện/nước và upload biên bản bàn giao đã ký trước khi kích hoạt hợp đồng."
-            );
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Complete move-in handover before activating the lease contract.");
         }
 
         boolean renewalActivation = contract.getPreviousContract() != null
@@ -77,36 +68,28 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
                 && room.getCurrentStatus() != RoomStatus.RESERVED
                 && room.getCurrentStatus() != RoomStatus.VACANT
                 && room.getCurrentStatus() != RoomStatus.ON_HOLD) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng phải ở trạng thái trống hoặc đã đặt cọc trước khi kích hoạt hợp đồng.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room must be vacant or reserved before activation.");
         }
         Long previousContractId = contract.getPreviousContract() != null
                 ? contract.getPreviousContract().getId()
                 : null;
         if (workflowSupport.hasOtherActiveContract(room.getId(), contract.getId(), previousContractId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng đã có hợp đồng đang hiệu lực.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room already has an active contract.");
         }
 
-        workflowSupport.ensureContractOccupants(contract, contract.getDepositAgreement());
+        workflowSupport.ensureContractOccupants(contract);
         LeaseContractEntity previousContract = contract.getPreviousContract();
         if (previousContract != null && workflowSupport.isHolderReplacementLiquidation(previousContract.getId())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Hoàn tất luồng thanh lý để kích hoạt hợp đồng thay thế."
-            );
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Complete the liquidation flow before activating the replacement contract.");
         }
         if (previousContract != null) {
             workflowSupport.copyContractOccupants(previousContract, contract);
-            boolean legacyPrematureRenewal =
-                    previousContract.getStatus() == LeaseStatus.RENEWED
-                            && List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE)
-                            .contains(contract.getStatus());
+            boolean legacyPrematureRenewal = previousContract.getStatus() == LeaseStatus.RENEWED
+                    && List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE).contains(contract.getStatus());
             if (!legacyPrematureRenewal
                     && !List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
                     .contains(previousContract.getStatus())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Hợp đồng trước không còn ở trạng thái cho phép kích hoạt gia hạn."
-                );
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Previous contract cannot be renewed from its current state.");
             }
             previousContract.setStatus(LeaseStatus.RENEWED);
             leaseContractRepository.saveAndFlush(previousContract);
@@ -121,20 +104,10 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         RoomStatus fromStatus = room.getCurrentStatus();
         room.setCurrentStatus(RoomStatus.OCCUPIED);
         roomRepository.save(room);
-        workflowSupport.appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.OCCUPIED, "Kích hoạt hợp đồng thuê " + contract.getContractCode());
-
-        if (contract.getDepositAgreement() != null
-                && contract.getDepositAgreement().getStatus() != DepositAgreementStatus.CONVERTED_TO_LEASE) {
-            contract.getDepositAgreement().setStatus(DepositAgreementStatus.CONVERTED_TO_LEASE);
-            depositAgreementRepository.save(contract.getDepositAgreement());
-        }
-        workflowSupport.appendContractEvent(contract.getId(), "SIGNED", "Kích hoạt hợp đồng thuê");
+        workflowSupport.appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.OCCUPIED, "Lease contract activated: " + contract.getContractCode());
+        workflowSupport.appendContractEvent(contract.getId(), "SIGNED", "Lease contract activated");
         if (previousContract != null) {
-            workflowSupport.appendContractEvent(
-                    previousContract.getId(),
-                    "RENEWED",
-                    "Kích hoạt hợp đồng tái ký; newContractId=" + contract.getId()
-            );
+            workflowSupport.appendContractEvent(previousContract.getId(), "RENEWED", "Lease contract renewed; newContractId=" + contract.getId());
         }
         return getLeaseContractManagementUseCase.findOne(contract.getId());
     }

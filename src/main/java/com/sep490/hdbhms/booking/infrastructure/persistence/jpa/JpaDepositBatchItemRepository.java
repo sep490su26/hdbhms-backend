@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface JpaDepositBatchItemRepository extends JpaRepository<DepositBatchItemEntity, Long> {
-    @EntityGraph(attributePaths = {"room", "roomHold", "depositForm", "depositAgreement"})
+    @EntityGraph(attributePaths = {"room", "roomHold", "depositForm"})
     List<DepositBatchItemEntity> findAllByBatch_IdOrderByRoom_RoomCodeAsc(Long batchId);
 }

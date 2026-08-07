@@ -5,6 +5,10 @@ import com.sep490.hdbhms.booking.domain.model.DepositForm;
 import com.sep490.hdbhms.booking.domain.model.DepositFormCoOccupant;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaLeadRepository;
+import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaRoomHoldRepository;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPersonProfileRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaTenantRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -22,6 +26,10 @@ import java.util.List;
 public class DepositFormPersistenceMapper {
     JpaRoomRepository jpaRoomRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
+    JpaRoomHoldRepository jpaRoomHoldRepository;
+    JpaTenantRepository jpaTenantRepository;
+    JpaLeadRepository jpaLeadRepository;
+    JpaPersonProfileRepository jpaPersonProfileRepository;
 
     public DepositForm toDomain(DepositFormEntity entity) {
         if (entity == null) return null;
@@ -44,13 +52,26 @@ public class DepositFormPersistenceMapper {
                 .expectedLeaseSignDate(entity.getExpectedLeaseSignDate())
                 .paymentDueAt(entity.getPaymentDueAt())
                 .depositExpiresAt(entity.getDepositExpiresAt())
+                .depositCode(entity.getDepositCode())
+                .roomHoldId(entity.getRoomHold() != null ? entity.getRoomHold().getId() : null)
+                .tenantId(entity.getTenant() != null ? entity.getTenant().getId() : null)
+                .leadId(entity.getLead() != null ? entity.getLead().getId() : null)
+                .depositorPersonProfileId(entity.getDepositorPersonProfile() != null ? entity.getDepositorPersonProfile().getId() : null)
+                .amount(entity.getAmount())
+                .depositStatus(entity.getDepositStatus())
+                .extensionCount(entity.getExtensionCount())
+                .maxExtensions(entity.getMaxExtensions())
                 .depositMonths(entity.getDepositMonths())
+                .contractTermMonths(entity.getContractTermMonths())
                 .paymentCycleMonths(entity.getPaymentCycleMonths())
                 .occupantCount(entity.getOccupantCount())
                 .coOccupants(toCoOccupants(entity.getCoOccupants()))
                 .status(entity.getStatus())
                 .confirmedAt(entity.getConfirmedAt())
                 .rejectReason(entity.getRejectReason())
+                .note(entity.getNote())
+                .forfeitureReason(entity.getForfeitureReason())
+                .refundedAmount(entity.getRefundedAmount())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
@@ -85,12 +106,33 @@ public class DepositFormPersistenceMapper {
                 .expectedLeaseSignDate(domain.getExpectedLeaseSignDate())
                 .paymentDueAt(domain.getPaymentDueAt())
                 .depositMonths(domain.getDepositMonths())
+                .contractTermMonths(domain.getContractTermMonths())
                 .paymentCycleMonths(domain.getPaymentCycleMonths())
                 .occupantCount(domain.getOccupantCount())
                 .depositExpiresAt(domain.getDepositExpiresAt())
+                .depositCode(domain.getDepositCode())
+                .roomHold(domain.getRoomHoldId() != null
+                        ? jpaRoomHoldRepository.findById(domain.getRoomHoldId()).orElse(null)
+                        : null)
+                .tenant(domain.getTenantId() != null
+                        ? jpaTenantRepository.findById(domain.getTenantId()).orElse(null)
+                        : null)
+                .lead(domain.getLeadId() != null
+                        ? jpaLeadRepository.findById(domain.getLeadId()).orElse(null)
+                        : null)
+                .depositorPersonProfile(domain.getDepositorPersonProfileId() != null
+                        ? jpaPersonProfileRepository.findById(domain.getDepositorPersonProfileId()).orElse(null)
+                        : null)
+                .amount(domain.getAmount())
+                .depositStatus(domain.getDepositStatus())
+                .extensionCount(domain.getExtensionCount())
+                .maxExtensions(domain.getMaxExtensions())
                 .status(domain.getStatus())
                 .confirmedAt(domain.getConfirmedAt())
                 .rejectReason(domain.getRejectReason())
+                .note(domain.getNote())
+                .forfeitureReason(domain.getForfeitureReason())
+                .refundedAmount(domain.getRefundedAmount())
                 .createdAt(domain.getCreatedAt())
                 .build();
         entity.setCoOccupants(toCoOccupantEntities(domain.getCoOccupants(), entity));

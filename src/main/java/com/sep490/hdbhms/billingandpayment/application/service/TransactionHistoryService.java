@@ -65,8 +65,8 @@ public class TransactionHistoryService {
               ON invoice.invoice_id = allocation.invoice_id
             LEFT JOIN rooms invoice_room
               ON invoice_room.room_id = invoice.room_id
-            LEFT JOIN deposit_agreements deposit
-              ON deposit.deposit_agreement_id = invoice.deposit_agreement_id
+            LEFT JOIN deposit_forms deposit
+              ON deposit.deposit_form_id = invoice.deposit_form_id
             LEFT JOIN rooms deposit_room
               ON deposit_room.room_id = deposit.room_id
             LEFT JOIN properties property
@@ -106,8 +106,8 @@ public class TransactionHistoryService {
             FROM invoices invoice
             LEFT JOIN rooms invoice_room
               ON invoice_room.room_id = invoice.room_id
-            LEFT JOIN deposit_agreements deposit
-              ON deposit.deposit_agreement_id = invoice.deposit_agreement_id
+            LEFT JOIN deposit_forms deposit
+              ON deposit.deposit_form_id = invoice.deposit_form_id
             LEFT JOIN rooms deposit_room
               ON deposit_room.room_id = deposit.room_id
             LEFT JOIN properties property

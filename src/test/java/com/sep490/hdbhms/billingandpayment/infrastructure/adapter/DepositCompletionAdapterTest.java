@@ -13,7 +13,6 @@ import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository
 import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.booking.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
-import com.sep490.hdbhms.booking.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
 import com.sep490.hdbhms.property.domain.model.Property;
 import com.sep490.hdbhms.property.domain.model.Room;
@@ -40,7 +39,7 @@ import static org.mockito.Mockito.when;
 class DepositCompletionAdapterTest {
 
     @Test
-    void executeMarksDepositPaidAndSchedulesOfficialContractGeneration() {
+    void executeMarksDepositPaidAndPublishesDepositNotification() {
         DepositAgreement agreement = DepositAgreement.builder()
                 .id(7L)
                 .depositCode("DC-TEST-007")
@@ -65,7 +64,6 @@ class DepositCompletionAdapterTest {
                 .build();
         AtomicLong cancelledHoldId = new AtomicLong();
         AtomicReference<DepositAgreement> assignedAgreement = new AtomicReference<>();
-        RecordingContractDocumentService contractDocumentService = new RecordingContractDocumentService();
         JpaUserRepository userRepository = mock(JpaUserRepository.class);
         JpaRolePromotionRepository rolePromotionRepository = mock(JpaRolePromotionRepository.class);
         List<NotificationEvent> notifications = new ArrayList<>();
@@ -87,7 +85,6 @@ class DepositCompletionAdapterTest {
                 new FakeDepositAgreementRepository(agreement),
                 cancelledHoldId::set,
                 assignedAgreement::set,
-                contractDocumentService,
                 userRepository,
                 rolePromotionRepository,
                 notificationPublisher
@@ -99,26 +96,12 @@ class DepositCompletionAdapterTest {
         assertEquals(55L, cancelledHoldId.get());
         assertSame(agreement, assignedAgreement.get());
         assertEquals(DepositAgreementStatus.PAID, agreement.getStatus());
-        assertEquals(7L, contractDocumentService.depositAgreementId);
         assertEquals(2, notifications.size());
         assertEquals(List.of(1L, 2L), notifications.stream().map(NotificationEvent::getUserId).toList());
         assertEquals("DEPOSIT_CREATED", notifications.get(0).getEventType());
         assertEquals("DEPOSIT_AGREEMENT", notifications.get(0).getTargetType());
         assertEquals(7L, notifications.get(0).getTargetId());
-        assertEquals("/dashboard/deposit-contracts", notifications.get(0).getData().get("targetRoute"));
-    }
-
-    private static final class RecordingContractDocumentService extends DepositContractDocumentService {
-        private Long depositAgreementId;
-
-        private RecordingContractDocumentService() {
-            super(null, null, null, null, null, null, null, null, null, null);
-        }
-
-        @Override
-        public void generateOfficialContractAfterCommit(Long depositAgreementId) {
-            this.depositAgreementId = depositAgreementId;
-        }
+        assertEquals("/dashboard/rooms", notifications.get(0).getData().get("targetRoute"));
     }
 
     private static final class FakeDepositAgreementRepository implements DepositAgreementRepository {
@@ -136,16 +119,6 @@ class DepositCompletionAdapterTest {
         @Override
         public Optional<DepositAgreement> findById(Long id) {
             return Optional.of(agreement);
-        }
-
-        @Override
-        public List<DepositAgreement> findAll() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public Page<DepositAgreement> findAll(List<Long> ids, DepositAgreementStatus status, List<DepositAgreementStatus> statuses, String search, Long floorId, java.time.LocalDateTime signedFrom, java.time.LocalDateTime signedTo, Pageable pageable) {
-            throw new UnsupportedOperationException();
         }
 
         @Override

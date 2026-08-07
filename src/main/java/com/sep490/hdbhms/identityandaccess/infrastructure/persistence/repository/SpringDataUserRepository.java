@@ -132,7 +132,7 @@ public class SpringDataUserRepository implements UserRepository {
 
     @Override
     public Optional<User> findOwner() {
-        return jpaUserRepository.findByRole(Role.OWNER)
+        return jpaUserRepository.findFirstByRoleAndDeletedAtIsNullOrderByIdAsc(Role.OWNER)
                 .map(userPersistenceMapper::toDomain);
     }
 }

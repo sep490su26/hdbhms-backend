@@ -4,7 +4,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreement
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositContactOutcome;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositContactEventEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositExtensionEventEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
@@ -33,18 +33,17 @@ public class DepositAgreementLifecycleService {
     JpaDepositExtensionEventRepository extensionEventRepository;
     JpaUserRepository userRepository;
     JpaRoomRepository roomRepository;
-    DepositContractDocumentService depositContractDocumentService;
 
     @Transactional(readOnly = true)
     public LifecycleSnapshot snapshot(Long depositAgreementId) {
-        DepositAgreementEntity agreement = getAgreement(depositAgreementId);
+        DepositFormEntity agreement = getAgreement(depositAgreementId);
         return snapshot(agreement);
     }
 
     @Transactional
     public void recordContact(Long depositAgreementId, Long actorId, DepositContactOutcome outcome, String note) {
-        DepositAgreementEntity agreement = getAgreement(depositAgreementId);
-        if (!DepositLifecyclePolicy.isActive(agreement.getStatus())) {
+        DepositFormEntity agreement = getAgreement(depositAgreementId);
+        if (!DepositLifecyclePolicy.isActive(agreement.getDepositStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ ghi nhận liên hệ cho khoản cọc đang giữ chỗ.");
         }
         LocalDate today = LocalDate.now();
@@ -56,7 +55,7 @@ public class DepositAgreementLifecycleService {
 
     @Transactional
     public void extend(Long depositAgreementId, Long actorId, int additionalDays, String reason) {
-        DepositAgreementEntity agreement = getAgreement(depositAgreementId);
+        DepositFormEntity agreement = getAgreement(depositAgreementId);
         LocalDate oldExpectedMoveInDate = agreement.getExpectedMoveInDate();
         LocalDate oldExpiresAt = effectiveExpiresAt(agreement);
         int extensionCount = valueOrZero(agreement.getExtensionCount());
@@ -65,7 +64,7 @@ public class DepositAgreementLifecycleService {
         LocalDate newExpectedMoveInDate;
         try {
             newExpectedMoveInDate = DepositLifecyclePolicy.calculateExtensionDate(
-                    agreement.getStatus(),
+                    agreement.getDepositStatus(),
                     oldExpectedMoveInDate,
                     extensionCount,
                     maxExtensions,
@@ -80,15 +79,9 @@ public class DepositAgreementLifecycleService {
         agreement.setExpectedMoveInDate(newExpectedMoveInDate);
         agreement.setDepositExpiresAt(newExpiresAt);
         agreement.setExtensionCount(extensionCount + 1);
-        agreement.setStatus(DepositAgreementStatus.EXTENDED);
+        agreement.setDepositStatus(DepositAgreementStatus.EXTENDED);
 
-        if (agreement.getDepositForm() != null) {
-            agreement.getDepositForm().setExpectedMoveInDate(newExpectedMoveInDate);
-            agreement.getDepositForm().setDepositExpiresAt(newExpiresAt);
-            depositFormRepository.save(agreement.getDepositForm());
-        }
-
-        DepositAgreementEntity saved = depositAgreementRepository.save(agreement);
+        DepositFormEntity saved = depositAgreementRepository.save(agreement);
         var actor = userRepository.getReferenceById(actorId);
         extensionEventRepository.save(DepositExtensionEventEntity.builder()
                 .depositAgreement(saved)
@@ -101,12 +94,11 @@ public class DepositAgreementLifecycleService {
                 .approvedAt(LocalDateTime.now())
                 .build());
         saveContactEvent(saved, actorId, DepositContactOutcome.REACHED, "Khách xin gia hạn: " + reason.trim());
-        depositContractDocumentService.regenerateOfficialContractAfterCommit(saved.getId());
     }
 
     @Transactional
     public void forfeit(Long depositAgreementId, String reason) {
-        DepositAgreementEntity agreement = getAgreement(depositAgreementId);
+        DepositFormEntity agreement = getAgreement(depositAgreementId);
         LifecycleSnapshot lifecycle = snapshot(agreement);
         if (!lifecycle.forfeitureEligible()) {
             throw new ResponseStatusException(
@@ -115,7 +107,7 @@ public class DepositAgreementLifecycleService {
             );
         }
 
-        agreement.setStatus(DepositAgreementStatus.FORFEITED);
+        agreement.setDepositStatus(DepositAgreementStatus.FORFEITED);
         agreement.setForfeitureReason(reason.trim());
         depositAgreementRepository.save(agreement);
 
@@ -125,7 +117,7 @@ public class DepositAgreementLifecycleService {
         }
     }
 
-    private LifecycleSnapshot snapshot(DepositAgreementEntity agreement) {
+    private LifecycleSnapshot snapshot(DepositFormEntity agreement) {
         DepositContactEventEntity latestContact = contactEventRepository
                 .findFirstByDepositAgreement_IdOrderByContactedAtDescIdDesc(agreement.getId())
                 .orElse(null);
@@ -136,9 +128,9 @@ public class DepositAgreementLifecycleService {
         int extensionCount = valueOrZero(agreement.getExtensionCount());
         int maxExtensions = agreement.getMaxExtensions() == null ? 1 : agreement.getMaxExtensions();
         long overdueDays = DepositLifecyclePolicy.overdueDays(
-                agreement.getStatus(), expectedMoveInDate, today
+                agreement.getDepositStatus(), expectedMoveInDate, today
         );
-        boolean canExtend = DepositLifecyclePolicy.isActive(agreement.getStatus())
+        boolean canExtend = DepositLifecyclePolicy.isActive(agreement.getDepositStatus())
                 && extensionCount < maxExtensions
                 && !expectedMoveInDate.plusDays(DepositLifecyclePolicy.MAX_EXTENSION_DAYS).isBefore(today);
 
@@ -152,17 +144,17 @@ public class DepositAgreementLifecycleService {
                 lastContactedAt,
                 latestContact == null ? null : latestContact.getNote(),
                 DepositLifecyclePolicy.isContactRequired(
-                        agreement.getStatus(), expectedMoveInDate, today, lastContactedAt
+                        agreement.getDepositStatus(), expectedMoveInDate, today, lastContactedAt
                 ),
                 canExtend,
                 DepositLifecyclePolicy.isForfeitureEligible(
-                        agreement.getStatus(), expectedMoveInDate, today, contactOutcome, lastContactedAt
+                    agreement.getDepositStatus(), expectedMoveInDate, today, contactOutcome, lastContactedAt
                 )
         );
     }
 
     private void saveContactEvent(
-            DepositAgreementEntity agreement,
+            DepositFormEntity agreement,
             Long actorId,
             DepositContactOutcome outcome,
             String note
@@ -176,12 +168,12 @@ public class DepositAgreementLifecycleService {
                 .build());
     }
 
-    private DepositAgreementEntity getAgreement(Long depositAgreementId) {
+    private DepositFormEntity getAgreement(Long depositAgreementId) {
         return depositAgreementRepository.findById(depositAgreementId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng đặt cọc."));
     }
 
-    private LocalDate effectiveExpiresAt(DepositAgreementEntity agreement) {
+    private LocalDate effectiveExpiresAt(DepositFormEntity agreement) {
         return agreement.getDepositExpiresAt() != null
                 ? agreement.getDepositExpiresAt()
                 : DepositLifecyclePolicy.forfeitureDecisionDate(agreement.getExpectedMoveInDate());

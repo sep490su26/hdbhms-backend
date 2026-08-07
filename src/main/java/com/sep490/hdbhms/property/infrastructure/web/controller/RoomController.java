@@ -1,11 +1,14 @@
 package com.sep490.hdbhms.property.infrastructure.web.controller;
 
+import com.sep490.hdbhms.property.application.port.in.command.AttachRoomImageCommand;
+import com.sep490.hdbhms.property.application.port.in.command.DeleteRoomImageCommand;
 import com.sep490.hdbhms.property.application.port.in.query.GetFloorDetailsQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetPropertyDetailsQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetRoomDetailsQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetRoomImagesByRoomIdQuery;
-import com.sep490.hdbhms.booking.application.port.in.usecase.BookRoomUseCase;
+import com.sep490.hdbhms.property.application.port.in.usecase.AttachRoomImageUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.CreateRoomUseCase;
+import com.sep490.hdbhms.property.application.port.in.usecase.DeleteRoomImageUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetFloorDetailsUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetPropertyDetailsUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetRoomByCodeUseCase;
@@ -20,8 +23,11 @@ import com.sep490.hdbhms.property.application.service.GetLatestMeterReadingsServ
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.LatestMeterReadingsResponse;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.CreateRoomRequest;
+import com.sep490.hdbhms.property.infrastructure.web.dto.request.AttachImageRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.UpdateRoomRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomDetailsResponse;
+import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomImageResponse;
+import com.sep490.hdbhms.property.infrastructure.web.mapper.RoomImageWebMapper;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.RoomWebMapper;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.FloorEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
@@ -50,8 +56,10 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RoomController {
     RoomWebMapper roomWebMapper;
-    BookRoomUseCase bookRoomUseCase;
+    RoomImageWebMapper roomImageWebMapper;
     CreateRoomUseCase createRoomUseCase;
+    AttachRoomImageUseCase attachRoomImageUseCase;
+    DeleteRoomImageUseCase deleteRoomImageUseCase;
     GetLatestMeterReadingsService getLatestMeterReadingsService;
     GetRoomByCodeUseCase getRoomByCodeUseCase;
     GetRoomDetailsUseCase getRoomDetailsUseCase;
@@ -166,6 +174,39 @@ public class RoomController {
         RoomEntity room = roomRepository.findById(roomId).orElseThrow();
         floorPlanItemRepository.deleteByProperty_IdAndRoom_Id(room.getProperty().getId(), roomId);
         room.setDeletedAt(LocalDateTime.now());
+        return ApiResponse.<Void>builder().build();
+    }
+
+    @GetMapping("/{roomId}/images")
+    public ApiResponse<List<RoomImageResponse>> getRoomImages(@PathVariable Long roomId) {
+        return ApiResponse.<List<RoomImageResponse>>builder()
+                .data(getRoomImagesByRoomIdUseCase.execute(new GetRoomImagesByRoomIdQuery(roomId)).stream()
+                        .map(roomImageWebMapper::toResponse)
+                        .toList())
+                .build();
+    }
+
+    @PostMapping("/{roomId}/images")
+    public ApiResponse<RoomImageResponse> attachRoomImage(
+            @PathVariable Long roomId,
+            @Valid @RequestBody AttachImageRequest request
+    ) {
+        RoomImage image = attachRoomImageUseCase.execute(new AttachRoomImageCommand(
+                roomId,
+                request.getFileId(),
+                request.getSortOrder()
+        ));
+        return ApiResponse.<RoomImageResponse>builder()
+                .data(roomImageWebMapper.toResponse(image))
+                .build();
+    }
+
+    @DeleteMapping("/{roomId}/images/{imageId}")
+    public ApiResponse<Void> deleteRoomImage(
+            @PathVariable Long roomId,
+            @PathVariable Long imageId
+    ) {
+        deleteRoomImageUseCase.execute(new DeleteRoomImageCommand(roomId, imageId));
         return ApiResponse.<Void>builder().build();
     }
 

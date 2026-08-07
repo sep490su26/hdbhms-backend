@@ -2,6 +2,7 @@ package com.sep490.hdbhms.booking.domain.model;
 
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositFormStatus;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -33,6 +34,7 @@ public class DepositForm {
     Long idBackFileId;
     Long portraitFileId;
     Integer depositMonths;
+    Integer contractTermMonths;
     Integer paymentCycleMonths;
     Integer occupantCount;
     @Builder.Default
@@ -41,11 +43,26 @@ public class DepositForm {
     LocalDate expectedLeaseSignDate;
     LocalDateTime paymentDueAt;
     LocalDate depositExpiresAt;
+    String depositCode;
+    Long roomHoldId;
+    Long tenantId;
+    Long leadId;
+    Long depositorPersonProfileId;
+    Long amount;
+    @Builder.Default
+    DepositAgreementStatus depositStatus = DepositAgreementStatus.PENDING_PAYMENT;
+    @Builder.Default
+    Integer extensionCount = 0;
+    @Builder.Default
+    Integer maxExtensions = 1;
 
     @Builder.Default
     DepositFormStatus status = DepositFormStatus.APPROVAL_PENDING;
     LocalDateTime confirmedAt;
     String rejectReason;
+    String note;
+    String forfeitureReason;
+    Long refundedAmount;
 
     LocalDateTime createdAt;
 
@@ -61,6 +78,7 @@ public class DepositForm {
             LocalDate idIssueDate,
             String idIssuePlace,
             Integer depositMonths,
+            Integer contractTermMonths,
             Integer paymentCycleMonths,
             Integer occupantCount,
             List<DepositFormCoOccupant> coOccupants,
@@ -78,6 +96,7 @@ public class DepositForm {
                 .fullName(fullName)
                 .email(email)
                 .depositMonths(depositMonths)
+                .contractTermMonths(contractTermMonths)
                 .paymentCycleMonths(paymentCycleMonths)
                 .occupantCount(occupantCount)
                 .coOccupants(coOccupants == null ? List.of() : coOccupants)

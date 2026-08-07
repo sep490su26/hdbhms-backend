@@ -53,8 +53,8 @@ public class DepositTransferRecordEntity {
     LeaseContractEntity newContract;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "old_deposit_agreement_id")
-    DepositAgreementEntity oldDepositAgreement;
+    @JoinColumn(name = "old_deposit_form_id")
+    DepositFormEntity oldDepositAgreement;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "from_room_id", nullable = false)

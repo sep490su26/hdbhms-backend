@@ -1,48 +1,31 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
-import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.booking.application.port.in.query.GetDepositAgreementDetailsQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetRoomDetailsQuery;
-import com.sep490.hdbhms.booking.application.port.in.usecase.GetDepositAgreementDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
-import com.sep490.hdbhms.booking.application.port.in.usecase.GetMyListDepositAgreementsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetRoomDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseContractUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.CompleteLeaseLiquidationUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.CreateDraftLeaseContractForDepositUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.CompleteLeaseLiquidationUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RenewLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseLiquidationDraftUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractFileUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractForDepositUseCase;
-import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
-import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
-import com.sep490.hdbhms.property.application.port.out.FloorRepository;
-import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
-import com.sep490.hdbhms.property.application.port.out.RoomRepository;
-import com.sep490.hdbhms.booking.infrastructure.web.controller.DepositAgreementController;
-import com.sep490.hdbhms.booking.application.service.DepositContractDocumentService;
-import com.sep490.hdbhms.booking.application.service.DepositAgreementDashboardService;
-import com.sep490.hdbhms.booking.application.service.DepositAgreementLifecycleService;
 import com.sep490.hdbhms.occupancy.application.service.HandoverDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.application.service.ManageContractHandoverService;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
-import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
-import com.sep490.hdbhms.booking.domain.model.DepositForm;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
@@ -61,7 +44,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,45 +63,6 @@ class LegalDocumentControllerChecklistTest {
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
-    }
-
-    @Test
-    void downloadDraftDepositUsesRoomCodeHdcDateFilename() {
-        setUser(1L, Role.OWNER);
-        var getDetails = mock(GetDepositAgreementDetailsUseCase.class);
-        var getRoom = mock(GetRoomDetailsUseCase.class);
-        var depositFormRepository = mock(DepositFormRepository.class);
-        var documentService = mock(DepositContractDocumentService.class);
-        var controller = depositController(getRoom, depositFormRepository, getDetails, documentService, mock(DownloadFileUseCase.class));
-        var agreement = depositAgreement(42L);
-
-        when(getDetails.execute(any(GetDepositAgreementDetailsQuery.class))).thenReturn(agreement);
-        when(getRoom.execute(any(GetRoomDetailsQuery.class))).thenReturn(room());
-        when(depositFormRepository.findById(301L)).thenReturn(Optional.of(depositForm()));
-        when(documentService.getOfficialContractFile(42L)).thenReturn(pdfData());
-
-        var response = controller.downloadDepositDraftPdf(42L);
-
-        assertAttachmentFilenameWithFallback(response.getHeaders(), "HDC_P101_29_06_2026.pdf");
-    }
-
-    @Test
-    void downloadSignedDepositUsesRoomCodeHdcDateFilename() {
-        setUser(1L, Role.OWNER);
-        var getDetails = mock(GetDepositAgreementDetailsUseCase.class);
-        var getRoom = mock(GetRoomDetailsUseCase.class);
-        var depositFormRepository = mock(DepositFormRepository.class);
-        var downloadUseCase = mock(DownloadFileUseCase.class);
-        var controller = depositController(getRoom, depositFormRepository, getDetails, mock(DepositContractDocumentService.class), downloadUseCase);
-
-        when(getDetails.execute(any(GetDepositAgreementDetailsQuery.class))).thenReturn(depositAgreement(42L));
-        when(getRoom.execute(any(GetRoomDetailsQuery.class))).thenReturn(room());
-        when(depositFormRepository.findById(301L)).thenReturn(Optional.of(depositForm()));
-        when(downloadUseCase.execute(new DownloadFileQuery(900L))).thenReturn(pdfData());
-
-        var response = controller.downloadSignedDepositFile(42L);
-
-        assertAttachmentFilename(response.getHeaders(), "HDC_P101_29_06_2026.pdf");
     }
 
     @Test
@@ -215,40 +158,10 @@ class LegalDocumentControllerChecklistTest {
                 () -> handoverController(mock(HandoverDocumentService.class), mock(DownloadFileUseCase.class), mock(JdbcTemplate.class))
                         .uploadHandoverDocument(9L, HandoverType.MOVE_IN, file)
         );
-        var depositUploadException = assertThrows(
-                ResponseStatusException.class,
-                () -> depositController(mock(GetRoomDetailsUseCase.class), mock(DepositFormRepository.class), mock(GetDepositAgreementDetailsUseCase.class), mock(DepositContractDocumentService.class), mock(DownloadFileUseCase.class))
-                        .uploadSignedDepositFile(42L, file, null, null)
-        );
+
 
         assertEquals(HttpStatus.FORBIDDEN, leaseUploadException.getStatusCode());
         assertEquals(HttpStatus.FORBIDDEN, handoverUploadException.getStatusCode());
-        assertEquals(HttpStatus.FORBIDDEN, depositUploadException.getStatusCode());
-    }
-
-    private static DepositAgreementController depositController(
-            GetRoomDetailsUseCase getRoom,
-            DepositFormRepository depositFormRepository,
-            GetDepositAgreementDetailsUseCase getDetails,
-            DepositContractDocumentService documentService,
-            DownloadFileUseCase downloadUseCase
-    ) {
-        return new DepositAgreementController(
-                getRoom,
-                mock(PropertyRepository.class),
-                depositFormRepository,
-                mock(FloorRepository.class),
-                mock(DepositAgreementRepository.class),
-                mock(RoomRepository.class),
-                mock(GetMyListDepositAgreementsUseCase.class),
-                getDetails,
-                documentService,
-                mock(DepositAgreementLifecycleService.class),
-                mock(DepositAgreementDashboardService.class),
-                mock(UploadFileUseCase.class),
-                downloadUseCase,
-                mock(JpaFileMetadataRepository.class)
-        );
     }
 
     private static LeaseContractController leaseController(
@@ -263,10 +176,9 @@ class LegalDocumentControllerChecklistTest {
                 mock(GetMyListLeaseContractsUseCase.class),
                 mock(GetLeaseContractDetailsUseCase.class),
                 managementUseCase,
-                mock(CreateDraftLeaseContractForDepositUseCase.class),
-                mock(UploadSignedLeaseContractForDepositUseCase.class),
                 mock(UploadSignedLeaseContractFileUseCase.class),
                 mock(ActivateLeaseContractUseCase.class),
+                mock(CreateDraftLeaseContractForDepositUseCase.class),
                 mock(UpdateLeaseContractTermsUseCase.class),
                 mock(CompleteLeaseLiquidationUseCase.class),
                 mock(UpdateLeaseLiquidationDraftUseCase.class),
@@ -293,35 +205,6 @@ class LegalDocumentControllerChecklistTest {
                 downloadUseCase,
                 jdbcTemplate
         );
-    }
-
-    private static DepositAgreement depositAgreement(Long id) {
-        return DepositAgreement.builder()
-                .id(id)
-                .depositCode("DC-2026-H101-9")
-                .roomId(101L)
-                .depositFormId(301L)
-                .expectedMoveInDate(DOC_DATE)
-                .status(DepositAgreementStatus.PAID)
-                .signedFileId(900L)
-                .build();
-    }
-
-    private static DepositForm depositForm() {
-        return DepositForm.builder()
-                .id(301L)
-                .fullName("Nguyễn Văn A")
-                .expectedMoveInDate(DOC_DATE)
-                .build();
-    }
-
-    private static Room room() {
-        return Room.builder()
-                .id(101L)
-                .propertyId(7L)
-                .roomCode("101")
-                .name("Phòng 101")
-                .build();
     }
 
     private static LeaseContractManagementResponse.LeaseContractManagementResponseBuilder leaseResponse() {

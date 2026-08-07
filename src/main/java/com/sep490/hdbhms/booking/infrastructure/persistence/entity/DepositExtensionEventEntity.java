@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @Table(
         name = "deposit_extension_events",
         indexes = {
-                @Index(name = "idx_deposit_extension", columnList = "deposit_agreement_id, approved_at")
+        @Index(name = "idx_deposit_extension", columnList = "deposit_form_id, approved_at")
         }
 )
 public class DepositExtensionEventEntity {
@@ -29,8 +29,8 @@ public class DepositExtensionEventEntity {
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "deposit_agreement_id", nullable = false)
-    DepositAgreementEntity depositAgreement;
+    @JoinColumn(name = "deposit_form_id", nullable = false)
+    DepositFormEntity depositAgreement;
 
     @Column(name = "old_expected_move_in_date", nullable = false)
     LocalDate oldExpectedMoveInDate;

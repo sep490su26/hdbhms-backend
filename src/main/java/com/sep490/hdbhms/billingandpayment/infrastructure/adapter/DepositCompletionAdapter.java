@@ -10,7 +10,6 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionSta
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
-import com.sep490.hdbhms.booking.application.service.DepositContractDocumentService;
 import com.sep490.hdbhms.booking.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.application.port.out.EarlyCancelRoomHoldTaskPort;
@@ -52,7 +51,6 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     CreateLeadOrAssignTenantPort createLeadOrAssignTenantPort;
-    DepositContractDocumentService depositContractDocumentService;
     JpaUserRepository userRepository;
     JpaRolePromotionRepository rolePromotionRepository;
     BusinessNotificationPublisher notificationPublisher;
@@ -90,7 +88,6 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
         depositAgreement.markPaid();
         depositAgreement = depositAgreementRepository.save(depositAgreement);
         publishDepositCreated(depositAgreement);
-        depositContractDocumentService.generateOfficialContractAfterCommit(depositAgreement.getId());
     }
 
     private void publishDepositCreated(DepositAgreement depositAgreement) {
@@ -150,7 +147,7 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
         data.put("expectedLeaseSignDate", depositAgreement.getExpectedLeaseSignDate() == null
                 ? ""
                 : depositAgreement.getExpectedLeaseSignDate().toString());
-        data.put("targetRoute", "/dashboard/deposit-contracts");
+        data.put("targetRoute", "/dashboard/rooms");
         return data;
     }
 

@@ -2,12 +2,10 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.mapper;
 
 import com.sep490.hdbhms.occupancy.application.port.in.command.CreateTransferRequestCommand;
 import com.sep490.hdbhms.occupancy.application.port.out.ContractOccupantRepository;
-import com.sep490.hdbhms.booking.application.port.out.DepositTransferRecordRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.TransferSettlementRepository;
 import com.sep490.hdbhms.occupancy.domain.model.ContractOccupant;
-import com.sep490.hdbhms.booking.domain.model.DepositTransferRecord;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
@@ -46,9 +44,6 @@ public abstract class RoomTransferWebMapper {
 
     @Autowired
     protected TransferSettlementRepository transferSettlementRepository;
-
-    @Autowired
-    protected DepositTransferRecordRepository depositTransferRecordRepository;
 
     @Autowired
     protected JdbcTemplate jdbcTemplate;
@@ -157,7 +152,6 @@ public abstract class RoomTransferWebMapper {
             priceDifferenceSettlementType,
             transferDifferenceInvoiceId,
             oldRoomFinalInvoiceId,
-            resolveDepositTransferSummary(request),
             debtSummary,
             violationSummary,
             transferCountThisYear,
@@ -173,30 +167,6 @@ public abstract class RoomTransferWebMapper {
             isRoomHandoverRequired(request, sourceRoomWillBeEmptyAfterTransfer),
             resolveAllowedActions(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomCheckoutInvoicesPaid),
             resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid, unpaidOldRoomCompensationInvoiceIds)
-        );
-    }
-
-    private RoomTransferResponse.DepositTransferSummary resolveDepositTransferSummary(RoomTransferRequest request) {
-        if (request == null || request.getId() == null) {
-            return null;
-        }
-        DepositTransferRecord record = depositTransferRecordRepository
-                .findByTransferRequestId(request.getId())
-                .orElse(null);
-        if (record == null) {
-            return null;
-        }
-        return new RoomTransferResponse.DepositTransferSummary(
-                record.getId(),
-                record.getOldContractId(),
-                record.getNewContractId(),
-                record.getOldDepositAgreementId(),
-                record.getAmount(),
-                record.getFromRoomId(),
-                record.getToRoomId(),
-                record.getStatus(),
-                record.getEffectiveDate(),
-                record.getNote()
         );
     }
 

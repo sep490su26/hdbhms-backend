@@ -51,6 +51,7 @@ public abstract class RoomWebMapper {
                 LocalDate.parse(request.getIdIssueDate()),
                 request.getIdIssuePlace(),
                 request.getDepositMonths(),
+                request.getContractTermMonths(),
                 request.getPaymentCycleMonths(),
                 request.getOccupantCount(),
                 request.getCoOccupants() == null

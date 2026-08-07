@@ -5,13 +5,20 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
+import com.sep490.hdbhms.property.application.port.in.command.AttachPropertyImageCommand;
 import com.sep490.hdbhms.property.application.port.in.command.CreatePropertyCommand;
+import com.sep490.hdbhms.property.application.port.in.command.DeletePropertyImageCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListPropertiesQuery;
+import com.sep490.hdbhms.property.application.port.in.query.GetPropertyImagesByPropertyIdQuery;
+import com.sep490.hdbhms.property.application.port.in.usecase.AttachPropertyImageUseCase;
 import com.sep490.hdbhms.property.application.port.in.query.GetPropertyDetailsQuery;
 import com.sep490.hdbhms.property.application.port.in.usecase.CreatePropertyUseCase;
+import com.sep490.hdbhms.property.application.port.in.usecase.DeletePropertyImageUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListPropertiesUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetPropertyDetailsUseCase;
+import com.sep490.hdbhms.property.application.port.in.usecase.GetPropertyImagesByPropertyIdUseCase;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.property.domain.model.PropertyImage;
 import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
@@ -21,14 +28,17 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorPlanIte
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaUtilityTariffRepository;
+import com.sep490.hdbhms.property.infrastructure.web.dto.request.AttachImageRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.CreatePropertyRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.PropertyUtilitySettingsRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.UpdatePropertyRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.UpdatePropertyStatusRequest;
+import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyImageResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyUtilitySettingsResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertySimpleResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomSimpleResponse;
+import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyImageWebMapper;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
@@ -61,9 +71,13 @@ public class PropertyController {
     );
 
     PropertyWebMapper propertyWebMapper;
+    PropertyImageWebMapper propertyImageWebMapper;
     CreatePropertyUseCase createPropertyUseCase;
+    AttachPropertyImageUseCase attachPropertyImageUseCase;
+    DeletePropertyImageUseCase deletePropertyImageUseCase;
     GetListPropertiesUseCase getListPropertiesUseCase;
     GetPropertyDetailsUseCase getPropertyDetailsUseCase;
+    GetPropertyImagesByPropertyIdUseCase getPropertyImagesByPropertyIdUseCase;
     JpaPropertyRepository jpaPropertyRepository;
     JpaRoomRepository jpaRoomRepository;
     JpaFloorPlanItemRepository jpaFloorPlanItemRepository;
@@ -107,15 +121,7 @@ public class PropertyController {
     public ApiResponse<PropertyResponse> getProperty(@PathVariable Long propertyId) {
         assertManagerCanAccessProperty(propertyId);
         return ApiResponse.<PropertyResponse>builder()
-                .data(
-                        propertyWebMapper.toResponse(
-                                getPropertyDetailsUseCase.execute(
-                                        new GetPropertyDetailsQuery(
-                                                propertyId
-                                        )
-                                )
-                        )
-                )
+                .data(toPropertyResponse(findProperty(propertyId)))
                 .build();
     }
 
@@ -243,6 +249,44 @@ public class PropertyController {
                 .build();
     }
 
+    @GetMapping("/{propertyId}/images")
+    public ApiResponse<List<PropertyImageResponse>> getPropertyImages(@PathVariable Long propertyId) {
+        assertManagerCanAccessProperty(propertyId);
+        return ApiResponse.<List<PropertyImageResponse>>builder()
+                .data(getPropertyImagesByPropertyIdUseCase.execute(new GetPropertyImagesByPropertyIdQuery(propertyId)).stream()
+                        .map(propertyImageWebMapper::toResponse)
+                        .toList())
+                .build();
+    }
+
+    @PostMapping("/{propertyId}/images")
+    @PreAuthorize("hasRole('OWNER')")
+    public ApiResponse<PropertyImageResponse> attachPropertyImage(
+            @PathVariable Long propertyId,
+            @Valid @RequestBody AttachImageRequest request
+    ) {
+        assertManagerCanAccessProperty(propertyId);
+        PropertyImage image = attachPropertyImageUseCase.execute(new AttachPropertyImageCommand(
+                propertyId,
+                request.getFileId(),
+                request.getSortOrder()
+        ));
+        return ApiResponse.<PropertyImageResponse>builder()
+                .data(propertyImageWebMapper.toResponse(image))
+                .build();
+    }
+
+    @DeleteMapping("/{propertyId}/images/{imageId}")
+    @PreAuthorize("hasRole('OWNER')")
+    public ApiResponse<Void> deletePropertyImage(
+            @PathVariable Long propertyId,
+            @PathVariable Long imageId
+    ) {
+        assertManagerCanAccessProperty(propertyId);
+        deletePropertyImageUseCase.execute(new DeletePropertyImageCommand(propertyId, imageId));
+        return ApiResponse.<Void>builder().build();
+    }
+
     private PropertySimpleResponse toSimpleResponse(PropertyEntity property) {
         return PropertySimpleResponse.builder()
                 .id(property.getId())
@@ -260,10 +304,17 @@ public class PropertyController {
                 .addressLine(property.getAddressLine())
                 .description(property.getDescription())
                 .status(property.getStatus())
+                .images(propertyImageResponses(property.getId()))
                 .createdAt(property.getCreatedAt())
                 .updatedAt(property.getUpdatedAt())
                 .deletedAt(property.getDeletedAt())
                 .build();
+    }
+
+    private List<PropertyImageResponse> propertyImageResponses(Long propertyId) {
+        return getPropertyImagesByPropertyIdUseCase.execute(new GetPropertyImagesByPropertyIdQuery(propertyId)).stream()
+                .map(propertyImageWebMapper::toResponse)
+                .toList();
     }
 
     private PropertyEntity findProperty(Long propertyId) {

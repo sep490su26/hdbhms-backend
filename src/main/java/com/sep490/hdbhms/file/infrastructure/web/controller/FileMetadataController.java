@@ -120,7 +120,7 @@ public class FileMetadataController {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
             }
             assertCanDownloadTenantProfileFile(principal, fileId);
-        } else if (!canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
+        } else if (!isPublicCatalogImage(fileId) && !canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
         }
         return ResponseEntity.ok()
@@ -171,6 +171,20 @@ public class FileMetadataController {
                 || principal != null
                 && principal.getRole() == Role.TENANT
                 && canDownloadTenantLinkedFile(fileId);
+    }
+
+    private boolean isPublicCatalogImage(Long fileId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM file_metadata
+                        WHERE file_metadata_id = ?
+                          AND category IN ('ROOM_IMAGE', 'PROPERTY_IMAGE')
+                          AND deleted_at IS NULL
+                        """,
+                Integer.class,
+                fileId
+        );
+        return count != null && count > 0;
     }
 
     private UserPrincipal currentPrincipal() {

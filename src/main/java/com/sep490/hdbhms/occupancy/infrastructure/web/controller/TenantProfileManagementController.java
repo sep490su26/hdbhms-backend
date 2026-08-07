@@ -717,15 +717,6 @@ public class TenantProfileManagementController {
         addPoliceReportFile(
                 zip,
                 usedEntries,
-                roomFolder + contractPrefix + "_hop_dong_coc.pdf",
-                room.depositSignedFileId() != null ? room.depositSignedFileId() : room.depositContractFileId(),
-                "application/pdf",
-                missingFiles,
-                roomLabel + " - hợp đồng cọc"
-        );
-        addPoliceReportFile(
-                zip,
-                usedEntries,
                 roomFolder + contractPrefix + "_hop_dong_tro.pdf",
                 room.leaseSignedFileId() != null ? room.leaseSignedFileId() : room.leaseContractFileId(),
                 "application/pdf",
@@ -852,9 +843,7 @@ public class TenantProfileManagementController {
                                id_doc.front_file_id,
                                id_doc.back_file_id,
                                lc.contract_file_id AS lease_contract_file_id,
-                               lc.signed_file_id AS lease_signed_file_id,
-                               da.contract_file_id AS deposit_contract_file_id,
-                               da.signed_file_id AS deposit_signed_file_id
+                                lc.signed_file_id AS lease_signed_file_id
                         FROM (
                             SELECT lc.lease_contract_id AS contract_id,
                                    lc.contract_code,
@@ -909,8 +898,7 @@ public class TenantProfileManagementController {
                               )
                         ) resident_profiles
                         JOIN lease_contracts lc ON lc.lease_contract_id = resident_profiles.contract_id
-                        LEFT JOIN deposit_agreements da ON da.deposit_agreement_id = lc.deposit_agreement_id
-                        LEFT JOIN identity_documents id_doc
+                         LEFT JOIN identity_documents id_doc
                           ON id_doc.identity_document_id = (
                               SELECT latest.identity_document_id
                               FROM identity_documents latest
@@ -936,9 +924,7 @@ public class TenantProfileManagementController {
                         nullableLong(rs, "front_file_id"),
                         nullableLong(rs, "back_file_id"),
                         nullableLong(rs, "lease_contract_file_id"),
-                        nullableLong(rs, "lease_signed_file_id"),
-                        nullableLong(rs, "deposit_contract_file_id"),
-                        nullableLong(rs, "deposit_signed_file_id")
+                         nullableLong(rs, "lease_signed_file_id")
                 )
         );
 
@@ -960,8 +946,6 @@ public class TenantProfileManagementController {
                     first.propertyName(),
                     first.leaseContractFileId(),
                     first.leaseSignedFileId(),
-                    first.depositContractFileId(),
-                    first.depositSignedFileId(),
                     roomRows
             ));
         }
@@ -1609,9 +1593,7 @@ public class TenantProfileManagementController {
             Long frontFileId,
             Long backFileId,
             Long leaseContractFileId,
-            Long leaseSignedFileId,
-            Long depositContractFileId,
-            Long depositSignedFileId
+            Long leaseSignedFileId
     ) {
     }
 
@@ -1622,8 +1604,6 @@ public class TenantProfileManagementController {
             String propertyName,
             Long leaseContractFileId,
             Long leaseSignedFileId,
-            Long depositContractFileId,
-            Long depositSignedFileId,
             List<PoliceReportPackageRow> residents
     ) {
     }

@@ -309,7 +309,7 @@ public class LeaseExpiryReminderService {
                 return managerIds;
             }
         }
-        return userRepository.findByRole(Role.OWNER)
+        return userRepository.findFirstByRoleAndDeletedAtIsNullOrderByIdAsc(Role.OWNER)
                 .map(user -> List.of(user.getId()))
                 .orElseGet(List::of);
     }
@@ -451,7 +451,7 @@ public class LeaseExpiryReminderService {
                         LEFT JOIN rooms room ON room.room_id = lc.room_id
                         LEFT JOIN properties property ON property.property_id = room.property_id
                         LEFT JOIN person_profiles profile ON profile.person_profile_id = lc.primary_tenant_profile_id
-                        LEFT JOIN user_accounts user_account ON user_account.user_id = profile.user_id
+                        LEFT JOIN users user_account ON user_account.user_id = profile.user_id
                         WHERE lc.lease_contract_id = ?
                         LIMIT 1
                         """,

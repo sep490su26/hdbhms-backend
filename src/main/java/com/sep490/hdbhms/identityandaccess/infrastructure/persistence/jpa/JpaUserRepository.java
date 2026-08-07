@@ -43,5 +43,5 @@ public interface JpaUserRepository extends JpaRepository<UserEntity, Long>, JpaS
 
     boolean existsByRole(Role role);
 
-    Optional<UserEntity> findByRole(Role role);
+    Optional<UserEntity> findFirstByRoleAndDeletedAtIsNullOrderByIdAsc(Role role);
 }

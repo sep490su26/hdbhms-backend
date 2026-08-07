@@ -2,7 +2,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositAgreementEntity;
+import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositBatchEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -38,8 +38,8 @@ public class PaymentIntentEntity {
     InvoiceEntity invoice;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "deposit_agreement_id", nullable = true)
-    DepositAgreementEntity depositAgreement;
+    @JoinColumn(name = "deposit_form_id", nullable = true)
+    DepositFormEntity depositAgreement;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "deposit_batch_id")

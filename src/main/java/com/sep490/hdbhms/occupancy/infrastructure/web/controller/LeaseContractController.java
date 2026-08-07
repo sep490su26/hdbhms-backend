@@ -21,8 +21,8 @@ import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDet
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetRoomDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseContractUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.CompleteLeaseLiquidationUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.CreateDraftLeaseContractForDepositUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.CompleteLeaseLiquidationUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetMyListLeaseContractsUseCase;
@@ -32,7 +32,6 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.RenewLeaseContrac
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseLiquidationDraftUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractFileUseCase;
-import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractForDepositUseCase;
 import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
@@ -91,10 +90,9 @@ public class LeaseContractController {
     GetMyListLeaseContractsUseCase getMyListLeaseContractsUseCase;
     GetLeaseContractDetailsUseCase getLeaseContractDetailsUseCase;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
-    CreateDraftLeaseContractForDepositUseCase createDraftLeaseContractForDepositUseCase;
-    UploadSignedLeaseContractForDepositUseCase uploadSignedLeaseContractForDepositUseCase;
     UploadSignedLeaseContractFileUseCase uploadSignedLeaseContractFileUseCase;
     ActivateLeaseContractUseCase activateLeaseContractUseCase;
+    CreateDraftLeaseContractForDepositUseCase createDraftLeaseContractForDepositUseCase;
     UpdateLeaseContractTermsUseCase updateLeaseContractTermsUseCase;
     CompleteLeaseLiquidationUseCase completeLeaseLiquidationUseCase;
     UpdateLeaseLiquidationDraftUseCase updateLeaseLiquidationDraftUseCase;
@@ -120,6 +118,16 @@ public class LeaseContractController {
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
                 .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
                 .body(resource);
+    }
+
+    @PostMapping("/management/deposits/{depositFormId}/draft")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public ApiResponse<LeaseContractManagementResponse> createDraftFromDeposit(
+            @PathVariable Long depositFormId
+    ) {
+        return ApiResponse.<LeaseContractManagementResponse>builder()
+                .data(createDraftLeaseContractForDepositUseCase.execute(depositFormId))
+                .build();
     }
 
     @GetMapping("/management")
@@ -149,30 +157,6 @@ public class LeaseContractController {
     ) {
         return ApiResponse.<RoomRentalHistoryResponse>builder()
                 .data(leaseContractQueryService.getManagementRoomRentalHistory(roomId))
-                .build();
-    }
-
-    @PostMapping("/management/deposits/{depositAgreementId}/signed-file")
-    @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
-    public ApiResponse<LeaseContractManagementResponse> uploadSignedFileForDeposit(
-            @PathVariable Long depositAgreementId,
-            @RequestPart("file") MultipartFile file
-    ) {
-        assertOwnerOrAssignedManagerCanAccessDeposit(depositAgreementId);
-        return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(uploadSignedLeaseContractForDepositUseCase.execute(depositAgreementId, file))
-                .build();
-    }
-
-    @PostMapping("/management/deposits/{depositAgreementId}/draft")
-    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
-    public ApiResponse<LeaseContractManagementResponse> createDraftLeaseContractForDeposit(
-            @PathVariable Long depositAgreementId
-    ) {
-        assertOwnerOrAssignedManagerCanAccessDeposit(depositAgreementId);
-        return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(createDraftLeaseContractForDepositUseCase.execute(depositAgreementId))
                 .build();
     }
 
@@ -668,7 +652,7 @@ public class LeaseContractController {
     }
 
     private String renewBlockedMessage(RoomCommitmentChecker.Blocker blocker) {
-        if (blocker == RoomCommitmentChecker.Blocker.ROOM_HOLD_IN_PROGRESS) {
+        if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
             return "Phòng đang được giữ chỗ cho khách khác. Vui lòng liên hệ quản lý.";
         }
         return "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể gia hạn. Vui lòng liên hệ quản lý.";
@@ -867,51 +851,6 @@ public class LeaseContractController {
         );
         if (count == null || count == 0) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong nay.");
-        }
-    }
-
-    private void assertOwnerOrAssignedManagerCanAccessDeposit(Long depositAgreementId) {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
-        }
-        if (principal.getRole() == Role.OWNER) {
-            return;
-        }
-        if (principal.getRole() != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong coc nay.");
-        }
-
-        Long propertyId = jdbcTemplate.query("""
-                        SELECT r.property_id
-                        FROM deposit_agreements da
-                        JOIN rooms r ON r.room_id = da.room_id
-                        WHERE da.deposit_agreement_id = ?
-                          AND r.deleted_at IS NULL
-                        LIMIT 1
-                        """,
-                rs -> rs.next() ? rs.getLong("property_id") : null,
-                depositAgreementId
-        );
-        if (propertyId == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong dat coc.");
-        }
-
-        Integer count = jdbcTemplate.queryForObject("""
-                        SELECT COUNT(*)
-                        FROM role_promotions
-                        WHERE user_id = ?
-                          AND property_id = ?
-                          AND role = 'MANAGER'
-                          AND status = 'ACTIVE'
-                          AND deleted_at IS NULL
-                        """,
-                Integer.class,
-                principal.getId(),
-                propertyId
-        );
-        if (count == null || count == 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong coc nay.");
         }
     }
 

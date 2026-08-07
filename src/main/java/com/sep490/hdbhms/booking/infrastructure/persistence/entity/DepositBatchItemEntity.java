@@ -22,8 +22,7 @@ import java.time.LocalDateTime;
         uniqueConstraints = {
                 @UniqueConstraint(name = "uq_deposit_batch_item_room", columnNames = {"batch_id", "room_id"}),
                 @UniqueConstraint(name = "uq_deposit_batch_item_hold", columnNames = "room_hold_id"),
-                @UniqueConstraint(name = "uq_deposit_batch_item_form", columnNames = "deposit_form_id"),
-                @UniqueConstraint(name = "uq_deposit_batch_item_agreement", columnNames = "deposit_agreement_id")
+                @UniqueConstraint(name = "uq_deposit_batch_item_form", columnNames = "deposit_form_id")
         },
         indexes = {
                 @Index(name = "idx_deposit_batch_item_batch_status", columnList = "batch_id, status"),
@@ -51,10 +50,6 @@ public class DepositBatchItemEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "deposit_form_id")
     DepositFormEntity depositForm;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "deposit_agreement_id")
-    DepositAgreementEntity depositAgreement;
 
     @Column(name = "deposit_amount", nullable = false)
     Long depositAmount;

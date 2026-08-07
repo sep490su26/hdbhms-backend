@@ -163,4 +163,6 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
     boolean existsByPrimaryTenantProfile_Id(Long tenantProfileId);
 
     Optional<LeaseContractEntity> findByIdAndDeletedAtIsNull(Long id);
+
+    Optional<LeaseContractEntity> findFirstByDepositForm_IdAndDeletedAtIsNull(Long depositFormId);
 }

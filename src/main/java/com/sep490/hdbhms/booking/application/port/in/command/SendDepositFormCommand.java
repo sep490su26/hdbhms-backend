@@ -17,6 +17,7 @@ public record SendDepositFormCommand(
         LocalDate idIssueDate,
         String idIssuePlace,
         Integer depositMonths,
+        Integer contractTermMonths,
         Integer paymentCycleMonths,
         Integer occupantCount,
         List<CoOccupant> coOccupants,

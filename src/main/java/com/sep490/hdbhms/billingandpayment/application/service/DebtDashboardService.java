@@ -132,8 +132,8 @@ public class DebtDashboardService {
     }
 
     private Optional<UserEntity> resolveTaskAssignee() {
-        return userRepository.findByRole(Role.OWNER)
-                .or(() -> userRepository.findByRole(Role.MANAGER));
+        return userRepository.findFirstByRoleAndDeletedAtIsNullOrderByIdAsc(Role.OWNER)
+                .or(() -> userRepository.findFirstByRoleAndDeletedAtIsNullOrderByIdAsc(Role.MANAGER));
     }
 
     private List<DebtSummaryResponse> buildDebtSummaries(Long propertyId) {

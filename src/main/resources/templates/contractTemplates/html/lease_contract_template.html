@@ -3,317 +3,199 @@
 <head>
     <meta charset="UTF-8"/>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: "Times New Roman", Times, serif;
-            font-size: 13pt;
-            line-height: 1.65;
-            color: #000;
-            background: #fff;
-        }
-
-        .page {
-            width: 210mm;
-            min-height: 297mm;
-            margin: 0;
-            padding: 20mm;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .header .country {
-            font-weight: bold;
-            font-size: 14pt;
-            text-transform: uppercase;
-        }
-
-        .header .motto {
-            font-weight: bold;
-            font-size: 13pt;
-        }
-
-        .header .divider {
-            margin: 6px 0;
-        }
-
-        .contract-title {
-            text-align: center;
-            font-weight: bold;
-            font-size: 15pt;
-            text-transform: uppercase;
-            margin: 14px 0 6px;
-        }
-
-        .intro-line {
-            font-style: italic;
-            margin-bottom: 16px;
-        }
-
-        .party-title {
-            font-weight: bold;
-            margin: 14px 0 6px;
-        }
-
-        .info-line {
-            margin: 4px 0;
-        }
-
-        .info-line.indent {
-            margin-left: 20px;
-        }
-
-        .section-title {
-            font-weight: bold;
-            text-transform: uppercase;
-            margin: 20px 0 8px;
-            text-decoration: underline;
-        }
-
-        ul.responsibilities {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 0 10px;
-        }
-
-        ul.responsibilities li {
-            margin: 5px 0;
-        }
-
-        ul.responsibilities li::before {
-            content: "- ";
-        }
-
-        .bold-penalty {
-            font-weight: bold;
-        }
-
-        .common-terms {
-            margin: 0 0 0 10px;
-        }
-
-        .common-terms p {
-            margin: 5px 0;
-        }
-
-        .common-terms p::before {
-            content: "- ";
-        }
-
-        .signature-section {
-            margin-top: 36px;
-        }
-
-        .issued-date {
-            text-align: right;
-            font-style: italic;
-            margin-bottom: 8px;
-        }
-
-        .sig-table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-
-        .sig-table td {
-            width: 50%;
-            text-align: center;
-            vertical-align: top;
-            padding: 0 10px;
-        }
-
-        .sig-title {
-            font-weight: bold;
-        }
-
-        .sig-instruction {
-            font-style: italic;
-            margin: 4px 0 60px;
-        }
-
-        .sig-name {
-            font-weight: bold;
-        }
+        @page { size: A4; margin: 20mm 18mm 18mm 22mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; color: #000; background: #fff; font-family: "Times New Roman", serif; font-size: 12.5pt; line-height: 1.42; }
+        .page { width: 100%; }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .bold { font-weight: 700; }
+        .header p { margin: 0; }
+        .title { margin: 16px 0 14px; font-size: 16pt; text-align: center; font-weight: 700; text-transform: uppercase; }
+        .lead { margin: 8px 0; }
+        .section-title { margin: 14px 0 5px; font-weight: 700; }
+        .clause-title { margin: 16px 0 4px; font-weight: 700; }
+        .clause { margin: 4px 0; text-align: justify; }
+        .indent { margin-left: 18px; }
+        p { margin: 4px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+        th, td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; }
+        th { text-align: center; font-weight: 700; }
+        .occupants th, .occupants td { font-size: 10pt; }
+        .inventory th, .inventory td { font-size: 10.5pt; }
+        .inventory th:nth-child(1) { width: 9%; }
+        .inventory th:nth-child(2) { width: 31%; }
+        .inventory th:nth-child(3) { width: 25%; }
+        .inventory th:nth-child(4) { width: 12%; }
+        .inventory th:nth-child(5) { width: 23%; }
+        .appendix { page-break-before: always; }
+        .appendix-title { margin: 0 0 12px; text-align: center; font-size: 15pt; font-weight: 700; }
+        .signature { margin-top: 28px; }
+        .signature td { height: 115px; border: 0; text-align: center; vertical-align: top; }
+        .signature-name { margin-top: 58px; font-weight: 700; }
+        .rules { text-align: justify; }
+        .rules p { margin: 5px 0; }
+        .handover-note { margin-top: 20px; }
     </style>
 </head>
 <body>
-<div class="page">
+<main class="page">
+    <header class="header center">
+        <p class="bold">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+        <p class="bold">Độc lập – Tự do – Hạnh phúc</p>
+        <p>—o0o—</p>
+        <h1 class="title">HỢP ĐỒNG THUÊ CĂN HỘ</h1>
+    </header>
 
-    <!-- Quốc hiệu -->
-    <div class="header">
-        <div class="country">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-        <div class="motto">Độc Lập – Tự Do – Hạnh Phúc</div>
-        <div class="divider">--------o0o--------</div>
-    </div>
+    <p class="lead">Hôm nay, ngày <span th:text="${issuedAtDateString}"></span>, tại <span th:text="${issuedAtPlace}"></span>, theo hợp đồng số <span th:text="${contractCode}"></span>, chúng tôi gồm:</p>
 
-    <!-- Tiêu đề -->
-    <div class="contract-title">HỢP ĐỒNG THUÊ PHÒNG TRỌ</div>
+    <p class="section-title">Bên Cho Thuê</p>
+    <p>(Sau đây gọi tắt là <strong>Bên A</strong>)</p>
+    <p>- Ông: <strong th:text="${ownerFullNameUppercase}"></strong> &nbsp; Số CCCD: <span th:text="${ownerIdNumber}"></span> &nbsp; Cấp ngày: <span th:text="${ownerIdIssuedDate}"></span> tại: <span th:text="${ownerIdIssuedPlace}"></span>.</p>
+    <p>- HKTT: <span th:text="${ownerPermanentAddress}"></span></p>
+    <p>- Quê quán: <span th:text="${ownerHometown}"></span></p>
+    <p>- Là người cho thuê hợp pháp căn phòng tại địa chỉ: <span th:text="${propertyAddress}"></span>.</p>
 
-    <p class="intro-line">
-        Hôm nay, <span th:text="${issuedAtDateString ?: '............'}"></span>;
-        tại địa chỉ: <span th:text="${issuedAtPlace ?: '............'}"></span>
-        chúng tôi gồm:
-    </p>
+    <p class="section-title">Bên Thuê</p>
+    <p>(Sau đây gọi tắt là <strong>Bên B</strong>)</p>
+    <p>- Ông/Bà: <span th:text="${signerFullName}"></span> &nbsp; Số CMND/CCCD: <span th:text="${signerIdNumber}"></span> &nbsp; Cấp ngày: <span th:text="${signerIdIssuedDate}"></span> tại: <span th:text="${signerIdIssuedPlace}"></span></p>
+    <p>- HKTT: <span th:text="${signerPermanentAddress}"></span></p>
+    <p>- Số lượng người ở: <span th:text="${signerNumberOfOccupants}"></span> người (Ở tối đa 03 người). Thông tin các thành viên:</p>
+    <table class="occupants">
+        <thead>
+        <tr><th>STT</th><th>Họ tên</th><th>SĐT</th><th>CMND/CCCD</th><th>Ngày cấp</th><th>Nơi cấp</th><th>Quê quán</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="occupant,stat : ${occupants}">
+            <td th:text="${stat.count}"></td>
+            <td th:text="${occupant.fullName}"></td>
+            <td th:text="${occupant.phone}"></td>
+            <td th:text="${occupant.idNumber}"></td>
+            <td th:text="${occupant.idIssuedDate}"></td>
+            <td th:text="${occupant.idIssuedPlace}"></td>
+            <td th:text="${occupant.hometown}"></td>
+        </tr>
+        </tbody>
+    </table>
 
-    <!-- Bên A -->
-    <div class="party-title">1. Đại diện bên cho thuê phòng trọ (Bên A):</div>
-    <div class="info-line">Ông: <strong th:text="${ownerFullNameUppercase ?: '............'}"></strong></div>
-    <div class="info-line">Ngày sinh: <span th:text="${ownerDob ?: '............'}"></span></div>
-    <div class="info-line">CMTND/CCCD Số: <span th:text="${ownerIdNumber ?: '............'}"></span></div>
-    <div class="info-line">Cấp ngày: <span th:text="${ownerIdIssuedDate ?: '............'}"></span></div>
-    <div class="info-line">Nơi cấp: <span th:text="${ownerIdIssuedPlace ?: '............'}"></span></div>
-    <div class="info-line">Điện thoại: <span th:text="${ownerContactPhoneListString ?: '............'}"></span></div>
-    <div class="info-line">
-        Số tài khoản: <span th:text="${ownerBankAccountNumber ?: '............'}"></span>
-        – Ngân hàng <span th:text="${ownerBankAccountProviderName ?: '............'}"></span>
-        Chủ tài khoản: <strong th:text="${ownerFullNameUppercase ?: '............'}"></strong>
-    </div>
+    <p class="lead">Sau khi bàn bạc hai bên thống nhất đi đến ký hợp đồng thuê căn hộ này với nội dung sau:</p>
 
-    <!-- Bên B -->
-    <div class="party-title">2. Bên thuê phòng trọ (Bên B):</div>
-    <div class="info-line indent">
-        Ông/bà: <span th:text="${signerFullName ?: '............'}"></span>
-        &nbsp;&nbsp; Sinh ngày: <span th:text="${signerDob ?: '............'}"></span>
-    </div>
-    <div class="info-line indent">
-        Nơi đăng ký HK thường trú: <span th:text="${signerPermanentAddress ?: '............'}"></span>
-    </div>
-    <div class="info-line indent">
-        Số CMND: <span th:text="${signerIdNumber ?: '............'}"></span>
-        cấp ngày <span th:text="${signerIdIssuedDate ?: '............'}"></span>
-        tại: <span th:text="${signerIdIssuedPlace ?: '............'}"></span>
-    </div>
-    <div class="info-line indent">Số điện thoại: <span th:text="${signerPhoneNumber ?: '............'}"></span></div>
-    <div class="info-line indent">
-        Họ và tên người thân (bố/mẹ/anh/chị):
-        <span th:text="${signerEmergencyContactFullName ?: '............'}"></span>
-    </div>
-    <div class="info-line indent">
-        Số điện thoại người thân (bố/mẹ/anh/chị):
-        <span th:text="${signerEmergencyContactPhoneNumber ?: '............'}"></span>
-    </div>
-    <div class="info-line indent">
-        Số lượng người ở: <span th:text="${signerNumberOfOccupants ?: '............'}"></span>
-    </div>
-    <div class="info-line indent">
-        Số lượng xe đăng kí để ở trọ: <span th:text="${signerNumberOfVehicles ?: '............'}"></span>
-    </div>
-    <div class="info-line indent" style="margin-left: 56px;">
-        + Loại xe: <span th:text="${signerTypesOfVehicles ?: '............'}"></span>
-    </div>
-    <div class="info-line indent" style="margin-left: 56px;">
-        + Biển số: <span th:text="${signerPlateNumbersOfVehicles ?: '............'}"></span>
-    </div>
+    <p class="clause-title">Điều 1: Thông tin chung</p>
+    <p class="clause">1.1. Địa điểm thuê: Bên A đồng ý cho thuê và bên B đồng ý thuê phòng <span th:text="${roomCode}"></span> tại <span th:text="${propertyAddress}"></span>.</p>
+    <p class="clause">1.2. Mục đích thuê: Để ở.</p>
+    <p class="clause">1.3. Ngày giao nhận phòng: <span th:text="${handoverDateString}"></span>. Số điện tại thời điểm giao nhận: <span th:text="${handoverElectricityMeter}"></span> số.</p>
+    <p class="clause">1.4. Thời hạn thuê: <span th:text="${leaseTermMonths}"></span> tháng kể từ ngày <span th:text="${leaseContractStartDateString}"></span>. Sau khi Hợp đồng này hết hạn, nếu các thông tin trong Hợp đồng không có gì thay đổi và hai bên không có ý kiến gì về việc chấm dứt Hợp đồng, Hợp đồng này sẽ tự động gia hạn thêm <span th:text="${renewalTermMonths}"></span> tháng.</p>
 
-    <!-- Nội dung thỏa thuận -->
-    <p style="margin-top: 14px;">
-        Sau khi bàn bạc trên tinh thần dân chủ, hai bên cùng có lợi, cùng thống nhất như sau:
-    </p>
+    <p class="clause-title">Điều 2: Giá thuê căn hộ, ngày bắt đầu tính tiền và các chi phí khác</p>
+    <p class="clause">2.1. Tiền thuê phòng mỗi tháng là: <span th:text="${monthlyRent}"></span> VNĐ/tháng (<span th:text="${monthlyRentString}"></span> đồng). Ngày bắt đầu tính tiền: <span th:text="${rentStartDateString}"></span></p>
+    <p class="clause">2.2. Các chi phí sinh hoạt khác:</p>
+    <p class="clause indent">- Tiền điện: <span th:text="${propertyElectricityPrice}"></span>/số</p>
+    <p class="clause indent">- Tiền phí dịch vụ: <span th:text="${propertyUtilityPrice}"></span>/người/tháng (Gồm: Internet, Điện nước sử dụng chung cho tòa nhà, Quét dọn vệ sinh, Phí vệ sinh, Máy giặt …)</p>
+    <p class="clause indent">- Các chi phí khác: <span th:text="${otherFees}"></span></p>
 
-    <div style="margin-top: 10px; margin-left: 20px;">
-        <p>Bên <strong>A</strong> đồng ý cho bên <strong>B</strong> thuê 01 phòng ở tại địa chỉ:
-            <span th:text="${issuedAtPlace ?: '............'}"></span>.</p>
-        <p>Giá thuê: <strong th:text="${roomListedPrice ?: '............'}"></strong> đ/tháng</p>
-        <p>Hình thức thanh toán: bằng tiền mặt hoặc chuyển khoản.</p>
-        <p>+ Tiền điện: <span th:text="${propertyElectricityPrice ?: '............'}"></span>đ/kwh tính theo chỉ số công tơ.</p>
-        <p>+ Tiền nước sinh hoạt: <span th:text="${propertyWaterPrice ?: '............'}"></span>đ/1m³ (không tính 6m³/1 tháng).</p>
-        <p>+ Tiền (đổ rác, máy giặt, nước uống, wifi, ….):
-            <span th:text="${propertyUtilityPrice ?: '............'}"></span> đ/1 phòng</p>
-        <p style="margin-top: 8px;">
-            Tiền dịch vụ (điện, nước, mạng, ….), tiền điện, tiền nước sinh hoạt sẽ thanh toán vào
-            đầu tháng mới, muộn nhất là vào mùng
-            <strong th:text="${leasePaymentDayTo ?: '............'}"></strong> đầu tháng
-            (Nếu như nợ quá 3 tháng tiền dịch vụ, tiền điện, tiền nước sinh hoạt thì phòng đấy
-            sẽ không được hoàn lại tiền cọc.)
-        </p>
-        <p style="margin-top: 8px;">
-            Hợp đồng có giá trị kể từ <strong th:text="${leaseContractStartDateString ?: '............'}"></strong>
-            đến ngày <strong th:text="${leaseContractEndDateString ?: '............'}"></strong>
-        </p>
-        <p style="margin-top: 8px;">
-            Bên B thanh toán cho bên A số tiền
-            <strong th:text="${paymentCycleMonths ?: '............'}"></strong> tháng/01 lần tương đương
-            <strong th:text="${leaseAmount ?: '............'}"></strong> VND
-            (<span th:text="${leaseAmountString ?: '............'}"></span> đồng)
-            trong khoảng từ ngày <strong th:text="${leasePaymentDayFrom ?: '............'}"></strong>
-            đến ngày <strong th:text="${leasePaymentDayTo ?: '............'}"></strong>
-            tháng đầu tiên của kỳ thanh toán tiền nhà.
-            (Nếu như bên B không thanh toán đúng thời hạn thì bên A có thể kết thúc hợp đồng
-            và bên B sẽ không được nhận lại cọc)
-        </p>
-    </div>
+    <p class="clause-title">Điều 3: Đặt cọc và thời gian thanh toán</p>
+    <p class="clause">3.1. Đặt cọc: Bên B đặt cọc cho bên A một khoản tiền là: <span th:text="${depositAmount}"></span> VNĐ (<span th:text="${depositAmountString}"></span> đồng) ngay khi ký kết Hợp đồng này.</p>
+    <p class="clause">3.2. Thời gian thanh toán: <span th:text="${paymentCycleMonths}"></span> tháng/lần vào ngày 01 – 05 hàng tháng của kỳ thanh toán.</p>
 
-    <!-- Trách nhiệm -->
-    <div class="section-title">TRÁCH NHIỆM CỦA CÁC BÊN</div>
+    <p class="clause-title">Điều 4: Quyền và nghĩa vụ của Bên A</p>
+    <p class="section-title">Quyền của bên A</p>
+    <p class="clause">4.1. Nhận đầy đủ tiền đặt cọc và tiền thuê căn hộ từ bên B đúng thời hạn. Sau 10 ngày kể từ ngày đến kỳ thanh toán mà bên B chưa thanh toán và không được sự đồng ý của bên A thì bên A có quyền đơn phương chấm dứt hợp đồng và không hoàn trả tiền đặt cọc cho bên B. Bên A có quyền thu giữ các tài sản cá nhân của bên B trong trường hợp bên B nợ tiền nhà, tiền dịch vụ nhưng không thanh toán cho bên A. Các tài sản cá nhân của bên B sẽ được lưu giữ trong 60 ngày. Quá 60 ngày kể từ ngày thu giữ, bên B vẫn không thanh toán tiền nợ cho bên A, bên A được quyền thanh lý để thu hồi tiền nợ.</p>
+    <p class="clause">4.2. Yêu cầu bên B phải sửa chữa, bồi thường những thiệt hại do lỗi của bên B gây ra đối với căn hộ cho thuê (nếu có).</p>
+    <p class="clause">4.3. Kiểm tra căn hộ trong thời hạn hợp đồng, nhưng phải báo cho bên B biết thời gian kiểm tra căn hộ.</p>
+    <p class="section-title">Nghĩa vụ của bên A</p>
+    <p class="clause">4.4. Bàn giao căn hộ và thiết bị cho thuê, công tơ điện, nước của căn hộ cho thuê đúng ngày theo thỏa thuận.</p>
+    <p class="clause">4.5. Cam kết rằng bên A có quyền sở hữu và quyền cho thuê hợp pháp đối với căn hộ cho thuê.</p>
+    <p class="clause">4.6. Hướng dẫn khai báo tạm trú tạm vắng tại cơ quan công an phường khi bên B chính thức vào ở.</p>
+    <p class="clause">4.7. Thông báo cho bên B trước 05 ngày (tính từ ngày đầu tiên của kỳ thanh toán kế tiếp) số tiền thanh toán của kỳ thanh toán kế tiếp.</p>
+    <p class="clause">4.8. Thông báo cho bên B ít nhất 30 ngày nếu bên A muốn đơn phương chấm dứt hợp đồng. Bên A phải bồi thường cho bên B số tiền bằng đúng số tiền đặt cọc nếu vi phạm điều khoản này.</p>
+    <p class="clause">4.9. Hoàn trả lại tiền đặt cọc cho bên B khi bên B chấm dứt hợp đồng và không vi phạm điều khoản nào theo hợp đồng này. Bên B được nhận số tiền này sau khi đã thanh toán đủ các khoản nợ tiền nhà, nợ chi phí sử dụng dịch vụ của bên B và chi phí bồi thường các hư hỏng, mất mát đối với căn hộ và trang thiết bị do mình gây ra (nếu có) trong suốt thời hạn thuê. Thời hạn hoàn trả tiền đặt cọc là 07 ngày kể từ ngày bên B hoàn tất bàn giao căn hộ cho Bên A.</p>
 
-    <p style="margin-bottom: 6px;">* Trách nhiệm của bên A:</p>
-    <ul class="responsibilities">
-        <li>Tạo mọi điều kiện thuận lợi để bên B thực hiện theo hợp đồng.</li>
-        <li>Cung cấp nguồn điện, nước, wifi, dịch vụ sinh hoạt cho bên B sử dụng.</li>
-    </ul>
+    <p class="clause-title">Điều 5: Quyền và nghĩa vụ của Bên B</p>
+    <p class="section-title">Quyền của bên B</p>
+    <p class="clause">5.1. Được toàn quyền sử dụng căn hộ nêu trên theo đúng thông tin nêu tại Điều 1.</p>
+    <p class="clause">5.2. Được nhận lại số tiền đặt cọc khi bên B chấm dứt hợp đồng và không vi phạm điều khoản nào theo hợp đồng này. Bên B được nhận số tiền này sau khi đã thanh toán đủ các khoản nợ tiền nhà, nợ chi phí sử dụng dịch vụ của bên B và chi phí bồi thường các hư hỏng, mất mát đối với căn hộ và trang thiết bị do mình gây ra (nếu có) trong suốt thời hạn thuê.</p>
+    <p class="section-title">Nghĩa vụ của bên B</p>
+    <p class="clause">5.3. Sử dụng căn hộ đúng mục đích.</p>
+    <p class="clause">5.4. Đảm bảo có quyền công dân, không bị truy nã hay đang thụ án.</p>
+    <p class="clause">5.5. Làm tạm trú tạm vắng đầy đủ theo quy định của pháp luật.</p>
+    <p class="clause">5.6. <strong>KHÔNG</strong> vẽ bậy, dây bẩn lên tường và các trang thiết bị, tự ý <strong>ĐỤC KHOÉT TƯỜNG, SỬA CHỮA, DÁN TRANH ẢNH</strong> khi chưa có ý kiến đồng ý của bên A. Nếu vi phạm, bên B phải chịu trách nhiệm sơn, sửa trả lại hiện trạng hoặc bồi thường cho bên A.</p>
+    <p class="clause">5.7. Chịu trách nhiệm về đồ đạc cá nhân của mình, nếu mất mát hỏng hóc bên A không chịu trách nhiệm.</p>
+    <p class="clause">5.8. Chịu trách nhiệm về các trang thiết bị được bàn giao trong căn hộ. Các hư hỏng nhỏ như: cháy bóng điện, tắc vệ sinh, vỡ kính,… bên B có trách nhiệm kịp thời thông báo cho bên A để thuê người sửa chữa, thay thế (chi phí sửa chữa, thay thế tùy từng trường hợp sẽ quyết định bên A hay bên B là người thanh toán). Bên B cũng có trách nhiệm bồi thường các hỏng hóc mất mát đối với các thiết bị được bàn giao (theo điều 1) do bên B gây ra (nếu có) trong suốt thời hạn thuê.</p>
+    <p class="clause">5.9. Thực hiện nghiêm chỉnh các quy định về giữ gìn vệ sinh môi trường, trật tự an ninh chung và an toàn phòng cháy, chữa cháy trong tòa nhà. Không được sử dụng bếp gas, đốt hương, nhang, sử dụng các chất, vật liệu dễ cháy, nổ hoặc có các nguy cơ khác ảnh hưởng tới khu vực xung quanh nơi cư trú. Các hậu quả phát sinh về người và tài sản do cháy nổ và được xác định nguyên nhân là do bên B, bên B hoàn toàn chịu trách nhiệm trước pháp luật và bồi thường thiệt hại.</p>
+    <p class="clause">5.10. Không được chuyển nhượng hợp đồng thuê căn nhà, hay từng phần của căn nhà cho người khác thuê lại.</p>
+    <p class="clause">5.11. Ở đúng số người theo thỏa thuận. Khi có thành viên mới đến ở phải được sự đồng ý của bên A. Nếu có khách đến chơi, bên B phải đảm bảo trật tự an ninh chung và giữ gìn vệ sinh chung, tôn trọng quy tắc cộng đồng, tự bảo quản xe và tài sản cá nhân của khách. Nếu khách đến ở lâu dài (trên 7 ngày) phải thông báo trước cho bên A.</p>
+    <p class="clause">5.12. Thực hiện đúng các Nội quy cộng đồng theo Phụ lục đính kèm Hợp đồng này.</p>
+    <p class="clause">5.13. Trực tiếp thanh toán tiền thuê nhà và các chi phí khác cho bên A đúng số tiền và đúng thời hạn quy định.</p>
+    <p class="clause">5.14. Có trách nhiệm thông báo cho Bên A ít nhất 30 ngày nếu bên B muốn chấm dứt hợp đồng trước thời hạn. Bên B sẽ không được hoàn trả tiền đặt cọc nếu vi phạm điều khoản này.</p>
+    <p class="clause">5.15. Khi hợp đồng kết thúc, phải giao lại nguyên trạng căn nhà cho bên A trong tình trạng tương xứng với thời gian sử dụng (chấp nhận những hao mòn thông thường do thời gian sử dụng và hao mòn do điều kiện tự nhiên). Nếu bên B gây ra những hư hỏng đối với căn hộ, thì bên B phải bồi thường kinh phí tương ứng cho bên A.</p>
+    <p class="clause">5.16. Dọn dẹp vệ sinh sạch sẽ căn hộ trước khi bàn giao lại cho bên A. Nếu không, các chi phí dọn dẹp vệ sinh bên B sẽ phải chi trả.</p>
 
-    <p style="margin: 10px 0 6px;">* Trách nhiệm của bên B:</p>
-    <ul class="responsibilities">
-        <li>Thanh toán đầy đủ các khoản tiền theo đúng thỏa thuận.</li>
-        <li>Bảo quản các trang thiết bị và cơ sở vật chất của bên A trang bị cho ban đầu (làm hỏng phải sửa, mất phải đền).</li>
-        <li>Không được tự ý sửa chữa, cải tạo cơ sở vật chất khi chưa được sự đồng ý của bên A.</li>
-        <li class="bold-penalty">
-            Không được tự ý reset lại mật khẩu modem Wifi của phòng mình và của hệ thống.
-            Nếu tự ý reset sẽ bị phạt <strong>200.000đ/lần (Hai trăm ngàn đồng/lần)</strong>.
-        </li>
-        <li>Giữ gìn vệ sinh trong và ngoài khuôn viên của phòng trọ.</li>
-        <li>Bên B phải chấp hành mọi quy định của pháp luật Nhà nước và quy định của địa phương.</li>
-        <li>Nếu bên B cho khách ở qua đêm thì phải báo và được sự đồng ý của chủ nhà đồng thời
-            phải tự chịu trách nhiệm về các hành vi vi phạm pháp luật (nếu có) của khách trong thời gian ở lại.</li>
-    </ul>
+    <p class="clause-title">Điều 6: Chấm dứt hợp đồng</p>
+    <p class="clause">6.1. Việc chấm dứt hợp đồng thuê căn hộ mà không phải bồi thường được thực hiện trong các trường hợp sau:</p>
+    <p class="clause indent">- Do các trường hợp bất khả kháng bao gồm các trường hợp thiên tai, hỏa hoạn, chiến tranh,… dẫn đến bên B không thể tiếp tục ở tại căn hộ nêu trên.</p>
+    <p class="clause indent">- Hai bên đồng ý chấm dứt hợp đồng này trước thời hạn và không vi phạm điều khoản nào.</p>
+    <p class="clause">6.2. Một (01) tháng trước khi hợp đồng hết hạn, bên B thông báo cho bên A về việc chấm dứt hợp đồng. Nếu bên B muốn tiếp tục thuê thì hai bên sẽ cùng bàn bạc về việc gia hạn hợp đồng và giá thuê nhà. Bên B sẽ được ưu tiên gia hạn.</p>
+    <p class="clause">6.3. Trước khi kết thúc hợp đồng, bên B có trách nhiệm thanh toán hết các chi phí phát sinh và các khoản nợ chưa thanh toán.</p>
+    <p class="clause">6.4. Bên A hoặc Bên B có quyền đơn phương chấm dứt hợp đồng, và không phải bồi thường cho bên còn lại, trong trường hợp bên kia vi phạm các điều khoản hợp đồng.</p>
 
-    <!-- Trách nhiệm chung -->
-    <div class="section-title">TRÁCH NHIỆM CHUNG</div>
+    <p class="clause-title">Điều 7: Điều khoản chung</p>
+    <p class="clause">7.1. Tuân thủ đầy đủ các điều khoản nêu trên.</p>
+    <p class="clause">7.2. Trường hợp có tranh chấp thì cả hai bên phải bàn bạc tìm biện pháp giải quyết. Nếu không tìm ra được sự thống nhất thì sẽ kiện lên tòa án dân sự.</p>
+    <p class="clause">7.3. Nội dung của hợp đồng này đã được hai bên hiểu rõ. Hai bên đồng ý với tất cả các điều khoản ghi trong Hợp đồng này và tự nguyện ký kết.</p>
+    <p class="clause">Hợp đồng được lập thành 02 (hai) bản có cùng nội dung và giá trị pháp lý, mỗi bên giữ 01 (một) bản. Hợp đồng có hiệu lực kể từ ngày hai bên ký.</p>
 
-    <div class="common-terms">
-        <p>Hai bên phải tạo điều kiện cho nhau thực hiện hợp đồng.</p>
-        <p>Trong thời gian hợp đồng còn hiệu lực nếu bên nào vi phạm các điều khoản đã thỏa thuận
-            thì bên còn lại có quyền đơn phương chấm dứt hợp đồng; nếu sự vi phạm hợp đồng đó
-            gây tổn thất cho bên bị vi phạm thì bên vi phạm phải bồi thường thiệt hại.</p>
-        <p>Một trong hai bên muốn chấm dứt hợp đồng trước thời hạn thì phải báo trước cho bên kia
-            ít nhất 30 ngày và hai bên phải có sự thống nhất.</p>
-        <p>Bên A phải trả lại tiền đặt cọc cho bên B.</p>
-        <p>Bên nào vi phạm điều khoản chung thì phải chịu trách nhiệm trước pháp luật.</p>
-    </div>
+    <p class="right"><em><span th:text="${issuedAtPlace}"></span>, <span th:text="${issuedAtDateString}"></span></em></p>
+    <table class="signature">
+        <tr>
+            <td><strong>ĐẠI DIỆN BÊN A</strong><div class="signature-name" th:text="${ownerFullNameUppercase}"></div></td>
+            <td><strong>ĐẠI DIỆN BÊN B</strong><div class="signature-name" th:text="${signerFullName}"></div></td>
+        </tr>
+    </table>
 
-    <p style="margin-top: 10px;">
-        Hợp đồng được lập thành 02 bản có giá trị pháp lý như nhau, mỗi bên giữ một bản.
-    </p>
-
-    <!-- Ký tên -->
-    <div class="signature-section">
-        <div class="issued-date">
-            <em>Hà Nội, <span th:text="${issuedAtDateString ?: '............'}"></span></em>
-        </div>
-        <table class="sig-table">
-            <tr>
-                <td>
-                    <div class="sig-title">ĐẠI DIỆN BÊN A</div>
-                    <div class="sig-instruction">(Ký và ghi rõ họ tên)</div>
-                    <div class="sig-name" th:text="${ownerFullNameUppercase ?: '............'}"></div>
-                </td>
-                <td>
-                    <div class="sig-title">ĐẠI DIỆN BÊN B</div>
-                    <div class="sig-instruction">(Ký và ghi rõ họ tên)</div>
-                    <div class="sig-name"></div>
-                </td>
-            </tr>
+    <section class="appendix">
+        <h2 class="appendix-title">PHỤ LỤC HỢP ĐỒNG</h2>
+        <p class="section-title">Danh mục nội thất bàn giao</p>
+        <table class="inventory">
+            <thead><tr><th>STT</th><th>Hạng mục</th><th>Diễn giải</th><th>Số lượng</th><th>Tình trạng</th></tr></thead>
+            <tbody>
+            <tr><td>1</td><td>Cửa đi</td><td></td><td></td><td></td></tr>
+            <tr><td>2</td><td>Cửa sổ</td><td></td><td></td><td></td></tr>
+            <tr><td>3</td><td>Giường</td><td></td><td></td><td></td></tr>
+            <tr><td>4</td><td>Tủ quần áo</td><td></td><td></td><td></td></tr>
+            <tr><td>5</td><td>Bàn học</td><td></td><td></td><td></td></tr>
+            <tr><td>6</td><td>Tủ lạnh</td><td></td><td></td><td></td></tr>
+            <tr><td>7</td><td>Chậu rửa bát + vòi</td><td></td><td></td><td></td></tr>
+            <tr><td>8</td><td>Chậu rửa mặt + vòi</td><td></td><td></td><td></td></tr>
+            <tr><td>9</td><td>Xí bệt + vòi</td><td></td><td></td><td></td></tr>
+            <tr><td>10</td><td>Vòi hoa sen</td><td></td><td></td><td></td></tr>
+            <tr><td>11</td><td>Quạt hút mùi</td><td></td><td></td><td></td></tr>
+            <tr><td>12</td><td>Bóng đèn</td><td></td><td></td><td></td></tr>
+            <tr><td>13</td><td>Điều hòa</td><td></td><td></td><td></td></tr>
+            <tr th:each="row : ${#numbers.sequence(14, 19)}"><td th:text="${row}"></td><td></td><td></td><td></td><td></td></tr>
+            </tbody>
         </table>
-    </div>
 
-</div>
+        <h2 class="appendix-title">NỘI QUY CỘNG ĐỒNG TẠI TÒA NHÀ</h2>
+        <div class="rules">
+            <p>Để đảm bảo an toàn và an ninh trong tòa nhà, BQL đề nghị Quý cư dân thực hiện một cách nghiêm túc các nội quy sau:</p>
+            <p>1. Tự bảo quản tài sản cá nhân và các trang thiết bị bên trong căn hộ cẩn thận.</p>
+            <p>2. Không đục khoét, vẽ bậy, dán tranh ảnh lên tường nhà. Không tự ý sửa chữa bên trong căn nhà nếu chưa có sự đồng ý của BQL.</p>
+            <p>3. Không gom rác, bụi và để giày dép ngoài hành lang đi lại chung. Không vất rác qua cửa sổ và ban công.</p>
+            <p>4. Không nuôi chó, mèo, vật nuôi khác trong căn hộ và trong tòa nhà.</p>
+            <p><strong>5. KHÔNG TỰ Ý SỬ DỤNG, LẤY ĐỒ CỦA NGƯỜI KHÁC KHI CHƯA ĐƯỢC SỰ ĐỒNG Ý.</strong></p>
+            <p><strong>6. KHÔNG GÂY ỒN ÀO, MẤT TRẬT TỰ SAU 22H ĐÊM.</strong></p>
+            <p>7. Ra vào tòa nhà phải chú ý <strong><u>ĐÓNG CỬA</u></strong> &amp; <strong><u>ĐÓNG CỬA NHẸ NHÀNG</u></strong></p>
+            <p>8. <strong>TUYỆT ĐỐI KHÔNG MỞ CỬA CHO NGƯỜI LẠ RA – VÀO TÒA NHÀ.</strong> Khách đến chơi, Quý cư dân vui lòng chủ động xuống đón khách. Báo ngay cho Ban quản lý nếu thấy có trường hợp khả nghi nhờ mở cửa hoặc ra vào tòa nhà!</p>
+            <p>9. Tất cả các vấn đề phát sinh do quý khách không thực hiện nghiêm túc các quy định trên, quý khách hoàn toàn phải chịu trách nhiệm.</p>
+            <p>10. Vui lòng <strong>TẮT MÁY – DẮT XE</strong> ra vào tòa nhà vào các khung giờ: 12h – 13h trưa và 22h đêm – 6h sáng hôm sau.</p>
+        </div>
+
+        <table class="signature handover-note">
+            <tr><td></td><td><strong>ĐẠI DIỆN BÊN B</strong></td></tr>
+            <tr><td></td><td>1. Tôi xác nhận đã nhận bàn giao đầy đủ các trang thiết bị như phụ lục Hợp đồng. Tất cả đều đang sử dụng bình thường.</td></tr>
+            <tr><td></td><td>2. Tôi đồng ý và cam kết thực hiện đúng các nội quy nêu trên!</td></tr>
+        </table>
+    </section>
+</main>
 </body>
 </html>

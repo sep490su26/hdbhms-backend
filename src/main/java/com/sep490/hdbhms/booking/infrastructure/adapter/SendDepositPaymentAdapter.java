@@ -14,18 +14,14 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
-import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.booking.application.port.out.SendDepositPaymentPort;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
 import com.sep490.hdbhms.booking.domain.model.DepositForm;
-import com.sep490.hdbhms.property.domain.model.Property;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.booking.domain.model.RoomHold;
-import com.sep490.hdbhms.shared.constant.DefaultConfig;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
-import com.sep490.hdbhms.shared.utils.DateUtils;
 import jakarta.mail.internet.MimeMessage;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -36,13 +32,10 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
 
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -57,16 +50,13 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
     static final long DEPOSIT_AMOUNT = 2_000L;
 
     JavaMailSender mailSender;
-    TemplateEngine templateEngine;
     RoomRepository roomRepository;
-    PropertyRepository propertyRepository;
     OtpCodeGenerator otpCodeGenerator;
     InvoiceRepository invoiceRepository;
     ExternalPaymentPort externalPaymentPort;
     InvoiceLineRepository invoiceLineRepository;
     PaymentIntentRepository paymentIntentRepository;
     DepositAgreementRepository depositAgreementRepository;
-    DefaultConfig defaultConfig;
     ObjectMapper objectMapper;
 
     @Override
@@ -193,44 +183,20 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(depositForm.getEmail());
             helper.setSubject("[Nhà trọ Hải Đăng] Thanh toán hóa đơn đặt cọc phòng " + room.getRoomCode());
-            helper.setText(generateDepositContractHtml(depositForm, room, depositAmount), true);
+            helper.setText(generateDepositPaymentHtml(depositForm, room, depositAmount), true);
             mailSender.send(message);
         } catch (Exception e) {
             log.warn("Could not send deposit receipt email. depositFormId={}, email={}", depositForm.getId(), depositForm.getEmail(), e);
         }
     }
 
-    private String generateDepositContractHtml(DepositForm depositForm, Room room, Long depositAmount) {
-        Property property = propertyRepository.findById(room.getPropertyId()).orElse(null);
-        DefaultConfig.Owner owner = defaultConfig.getOwner();
-        Context context = new Context();
-        Map<String, Object> data = new HashMap<>();
-        data.put("issuedAt", DateUtils.toddMMyyyyDateString(LocalDate.now()));
-        data.put("ownerFullName", valueOrDefault(owner.getFullName(), "Hải Đăng House"));
-        data.put("ownerDob", "............");
-        data.put("ownerIdNumber", "............");
-        data.put("ownerIdIssuedDate", "............");
-        data.put("ownerIdIssuedPlace", "............");
-        data.put("contactPhoneListString", valueOrDefault(owner.getPhone(), "Chưa cấu hình"));
-        data.put("fullName", depositForm.getFullName());
-        data.put("idNumber", depositForm.getIdNumber());
-        data.put("dob", DateUtils.toddMMyyyyDateString(depositForm.getDob()));
-        data.put("permanentAddress", depositForm.getPermanentAddress());
-        data.put("idIssueDate", DateUtils.toddMMyyyyDateString(depositForm.getIdIssueDate()));
-        data.put("idIssuePlace", depositForm.getIdIssuePlace());
-        data.put("phone", depositForm.getPhone());
-        data.put("roomNumber", room.getRoomCode());
-        data.put("propertyAddress", property == null ? "............" : valueOrDefault(property.getAddressLine(), "............"));
-        data.put("occupantNumber", room.getMaxOccupants() == null ? "............" : room.getMaxOccupants().toString());
-        data.put("listedPrice", formatMoney(room.getListedPrice()));
-        data.put("expectedLeaseSignDate", DateUtils.toddMMyyyyDateString(depositForm.getExpectedLeaseSignDate()));
-        data.put("expectedMoveInDateString", DateUtils.toVietnameseDateString(depositForm.getExpectedMoveInDate()));
-        data.put("depositAmount", formatMoney(depositAmount));
-        data.put("depositAmountString", amountText(depositAmount));
-        data.put("depositSignedDateString", DateUtils.toVietnameseDateString(LocalDate.now()));
-        data.put("currentYear", LocalDate.now().getYear());
-        context.setVariables(data);
-        return templateEngine.process("deposit-contract-template", context);
+    private String generateDepositPaymentHtml(DepositForm depositForm, Room room, Long depositAmount) {
+        return "<p>Deposit payment checkout has been created.</p>"
+                + "<p>Customer: " + valueOrDefault(depositForm.getFullName(), "Customer") + "</p>"
+                + "<p>Room: " + valueOrDefault(room.getRoomCode(), "Room") + "</p>"
+                + "<p>Amount: " + formatMoney(depositAmount) + "</p>"
+                + "<p>Amount in words: " + amountText(depositAmount) + "</p>"
+                + "<p>Please complete the payment using the provided checkout link or QR code.</p>";
     }
 
     private String formatMoney(Long amount) {

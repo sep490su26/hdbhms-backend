@@ -49,6 +49,9 @@ public class SendDepositFormRequest {
     @NotNull
     Integer depositMonths;
     @NotNull
+    @Min(value = 6, message = "Thời hạn hợp đồng tối thiểu là 6 tháng.")
+    Integer contractTermMonths;
+    @NotNull
     @ValidPaymentCycle
     Integer paymentCycleMonths;
     @NotNull(message = "DEPOSIT_001")

@@ -45,12 +45,6 @@ public class SecurityConfig {
             "/api/v1/auth/forgot-password",
             "/api/v1/auth/reset-password",
             "/api/v1/deposit/checkout",
-            "/api/v1/public/deposits/batch-checkout",
-            "/api/v1/public/deposits/batches/*/cancel",
-            "/api/v1/public/deposits/batches/*/expire",
-            "/api/v1/deposit/contracts/preview",
-            "/api/v1/deposit/payments/*/cancel",
-            "/api/v1/deposit/payments/*/expire",
             "/api/v1/mock/payments/*/success",
             "/api/v1/visit-requests",
             "/api/v1/webhook/**",
@@ -64,10 +58,6 @@ public class SecurityConfig {
             "/api/v1/rooms/*/assets",
             "/api/v1/rooms/*/assets/*",
             "/api/v1/rooms/*/meter-readings/latest",
-            "/api/v1/deposit/rooms/*/hold-status",
-            "/api/v1/deposit/payments/*/status",
-            "/api/v1/deposit/payments/*/contract",
-            "/api/v1/public/deposits/batches/*/status",
             "/api/v1/public/properties/*/floor-plan",
             "/api/v1/properties",
             "/api/v1/properties/simple",
@@ -90,25 +80,6 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/v3/api-docs/**",
     };
-
-    @Bean
-    @Order(0)
-    public SecurityFilterChain depositCheckoutPublicChain(HttpSecurity http) throws Exception {
-        return http
-                .securityMatcher(new AntPathRequestMatcher("/api/v1/deposit/checkout"))
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .httpBasic(AbstractHttpConfigurer::disable)
-                .formLogin(AbstractHttpConfigurer::disable)
-                .logout(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(authorizeRequests -> authorizeRequests
-                        .anyRequest().permitAll()
-                )
-                .build();
-    }
 
     @Bean
     @Order(1)

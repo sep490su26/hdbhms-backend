@@ -11,6 +11,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEnti
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyImageRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.application.service.GetFacilitiesDashboardService;
@@ -89,6 +90,7 @@ class GetFacilitiesDashboardServiceTest {
                 proxy(JpaFloorRepository.class, floorResults),
                 proxy(JpaFloorPlanItemRepository.class, floorPlanItemResults),
                 proxy(JpaRoomRepository.class, roomResults),
+                proxy(JpaPropertyImageRepository.class, method -> List.of()),
                 proxy(JpaRolePromotionRepository.class, promotionResults)
         );
     }
