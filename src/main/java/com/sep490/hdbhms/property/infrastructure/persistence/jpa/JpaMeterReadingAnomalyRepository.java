@@ -12,4 +12,9 @@ public interface JpaMeterReadingAnomalyRepository extends JpaRepository<MeterRea
     long countByBatch_IdAndResolvedAtIsNull(Long batchId);
 
     List<MeterReadingAnomalyEntity> findByMeterReading_IdInAndResolvedAtIsNullOrderByIdAsc(Collection<Long> readingIds);
+
+    List<MeterReadingAnomalyEntity> findByBatch_IdAndMeterReading_Room_IdAndResolvedAtIsNullOrderByIdAsc(
+            Long batchId,
+            Long roomId
+    );
 }

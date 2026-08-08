@@ -7,8 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record MeterReadingLatestResponse(
-        Item electricity,
-        Item water
+        Item electricity
 ) {
     public record Item(
             Long id,

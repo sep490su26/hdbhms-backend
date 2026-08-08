@@ -3,6 +3,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.repository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.LeaseContractPersistenceMapper;
@@ -124,6 +126,25 @@ public class SpringDataLeaseContractRepository implements LeaseContractRepositor
     }
 
     @Override
+    public long countMeterReadingRoomsByPeriodWithActiveMeter(
+            Long propertyId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            MeterType meterType,
+            MeterStatus meterStatus
+    ) {
+        return jpaLeaseContractRepository.countMeterReadingRoomsByPeriodWithActiveMeter(
+                propertyId,
+                statuses,
+                periodStart,
+                periodEnd,
+                meterType,
+                meterStatus
+        );
+    }
+
+    @Override
     public boolean roomRequiresMeterReadingForPeriod(
             Long propertyId,
             Long roomId,
@@ -137,6 +158,27 @@ public class SpringDataLeaseContractRepository implements LeaseContractRepositor
                 statuses,
                 periodStart,
                 periodEnd
+        ) > 0;
+    }
+
+    @Override
+    public boolean roomRequiresMeterReadingForPeriodWithActiveMeter(
+            Long propertyId,
+            Long roomId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            MeterType meterType,
+            MeterStatus meterStatus
+    ) {
+        return jpaLeaseContractRepository.countMeterReadingRoomContractsByPeriodWithActiveMeter(
+                propertyId,
+                roomId,
+                statuses,
+                periodStart,
+                periodEnd,
+                meterType,
+                meterStatus
         ) > 0;
     }
 }

@@ -8,8 +8,6 @@ public record SubmitSingleMeterReadingCommand(
         String readingPeriod,
         LocalDate readingDate,
         BigDecimal electricityValue,
-        BigDecimal waterValue,
-        Long electricityPhotoId,
-        Long waterPhotoId
+        Long electricityPhotoId
 ) {
 }

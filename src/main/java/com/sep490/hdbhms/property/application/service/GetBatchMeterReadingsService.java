@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.property.application.service;
 
 import com.sep490.hdbhms.property.domain.policy.ReadingWindow;
+import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingAnomalyEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingBatchEntity;
@@ -72,11 +73,13 @@ public class GetBatchMeterReadingsService {
                 : meterReadingRepository.findByPeriodAndOptionalProperty(resolvedPeriod, resolvedPropertyId);
         List<RoomEntity> rooms = lockedBatch
                 ? roomsFromBatchReadings(currentReadings)
-                : leaseContractRepository.findMeterReadingRoomsByPeriod(
+                : leaseContractRepository.findMeterReadingRoomsByPeriodWithActiveMeter(
                         resolvedPropertyId,
                         MeterReadingContractEligibility.STATUSES,
                         startOfPeriod,
-                        endOfPeriod
+                        endOfPeriod,
+                        MeterType.ELECTRICITY,
+                        MeterStatus.ACTIVE
                 );
         Map<Long, List<MeterReadingAnomalyEntity>> anomaliesByReading = currentReadings.isEmpty()
                 ? Map.of()
@@ -102,28 +105,21 @@ public class GetBatchMeterReadingsService {
             List<MeterReadingEntity> prev = previousByRoom.getOrDefault(room.getId(), List.of());
 
             MeterReadingEntity currElec = curr.stream().filter(r -> r.getMeter().getMeterType() == MeterType.ELECTRICITY).findFirst().orElse(null);
-            MeterReadingEntity currWater = curr.stream().filter(r -> r.getMeter().getMeterType() == MeterType.WATER).findFirst().orElse(null);
-
             MeterReadingEntity prevElec = prev.stream().filter(r -> r.getMeter().getMeterType() == MeterType.ELECTRICITY).findFirst().orElse(null);
-            MeterReadingEntity prevWater = prev.stream().filter(r -> r.getMeter().getMeterType() == MeterType.WATER).findFirst().orElse(null);
 
             String status = "pending";
-            if (currElec != null && currWater != null
-                    && currElec.getPhotoFile() != null
-                    && currWater.getPhotoFile() != null) {
+            if (currElec != null) {
                 status = "synced";
             }
 
             int photosCount = 0;
             if (currElec != null && currElec.getPhotoFile() != null) photosCount++;
-            if (currWater != null && currWater.getPhotoFile() != null) photosCount++;
 
             List<BatchMeterReadingStatusResponse.ReadingWarning> warnings = buildWarnings(
                     currElec,
-                    currWater,
                     anomaliesByReading
             );
-            if (!warnings.isEmpty() && currElec != null && currWater != null) {
+            if (!warnings.isEmpty() && currElec != null) {
                 status = "warning";
             }
 
@@ -134,11 +130,8 @@ public class GetBatchMeterReadingsService {
                     .electricityPrevious(currElec != null ? currElec.getPreviousValue() : (prevElec != null ? prevElec.getCurrentValue() : null))
                     .electricityCurrent(currElec != null ? currElec.getCurrentValue() : null)
                     .electricityPhotoId(currElec != null && currElec.getPhotoFile() != null ? currElec.getPhotoFile().getId() : null)
-                    .waterPrevious(currWater != null ? currWater.getPreviousValue() : (prevWater != null ? prevWater.getCurrentValue() : null))
-                    .waterCurrent(currWater != null ? currWater.getCurrentValue() : null)
-                    .waterPhotoId(currWater != null && currWater.getPhotoFile() != null ? currWater.getPhotoFile().getId() : null)
                     .status(status)
-                    .syncTime(currElec != null ? currElec.getCreatedAt() : (currWater != null ? currWater.getCreatedAt() : null))
+                    .syncTime(currElec != null ? currElec.getCreatedAt() : null)
                     .photosCount(photosCount)
                     .warnings(warnings)
                     .build();
@@ -147,10 +140,10 @@ public class GetBatchMeterReadingsService {
         return BatchMeterReadingStatusResponse.builder()
                 .propertyId(resolvedPropertyId)
                 .propertyName(readPropertyName(resolvedPropertyId))
+                .readingPeriod(resolvedPeriod)
                 .batchId(batch != null ? batch.getId() : null)
                 .batchStatus(batch != null ? batch.getStatus().name() : null)
                 .electricityTariff(readUtilityTariff(resolvedPropertyId, UtilityType.ELECTRICITY, tariffDate))
-                .waterTariff(readUtilityTariff(resolvedPropertyId, UtilityType.WATER, tariffDate))
                 .rooms(statusList)
                 .build();
     }
@@ -189,12 +182,10 @@ public class GetBatchMeterReadingsService {
 
     private List<BatchMeterReadingStatusResponse.ReadingWarning> buildWarnings(
             MeterReadingEntity electricity,
-            MeterReadingEntity water,
             Map<Long, List<MeterReadingAnomalyEntity>> anomaliesByReading
     ) {
         List<BatchMeterReadingStatusResponse.ReadingWarning> warnings = new ArrayList<>();
         addReadingWarnings(warnings, "ELECTRICITY", electricity, anomaliesByReading);
-        addReadingWarnings(warnings, "WATER", water, anomaliesByReading);
         return warnings;
     }
 
@@ -216,6 +207,7 @@ public class GetBatchMeterReadingsService {
 
         anomaliesByReading.getOrDefault(reading.getId(), List.of()).forEach(anomaly ->
                 warnings.add(BatchMeterReadingStatusResponse.ReadingWarning.builder()
+                        .id(anomaly.getId())
                         .meterType(meterType)
                         .type(anomaly.getAnomalyType().name())
                         .severity(anomaly.getSeverity().name())
@@ -270,6 +262,7 @@ public class GetBatchMeterReadingsService {
 
     @Transactional(readOnly = true)
     public MeterReadingBatchHistoryResponse getBatchHistory(Long propertyId) {
+        YearMonth currentReadingPeriod = YearMonth.now();
         List<MeterReadingBatchEntity> batches;
         if (propertyId != null) {
             batches = batchRepository.findByProperty_IdOrderByReadingPeriodDescIdDesc(propertyId);
@@ -287,7 +280,10 @@ public class GetBatchMeterReadingsService {
             return MeterReadingBatchHistoryResponse.BatchHistoryItem.builder()
                     .batchId(b.getId())
                     .period(period)
-                    .isCurrent(b.getStatus() == BatchStatus.DRAFT)
+                    .isCurrent(
+                            b.getStatus() == BatchStatus.DRAFT
+                                    && period.equals(currentReadingPeriod.toString())
+                    )
                     .startDate(ym.atDay(1))
                     .endDate(ym.atEndOfMonth())
                     .status(b.getStatus())
@@ -346,11 +342,13 @@ public class GetBatchMeterReadingsService {
 
     private int countMeterReadingRooms(Long propertyId, String readingPeriod) {
         YearMonth period = MeterReadingPeriod.parse(readingPeriod);
-        return Math.toIntExact(leaseContractRepository.countMeterReadingRoomsByPeriod(
+        return Math.toIntExact(leaseContractRepository.countMeterReadingRoomsByPeriodWithActiveMeter(
                 propertyId,
                 MeterReadingContractEligibility.STATUSES,
                 period.atDay(1),
-                period.atEndOfMonth()
+                period.atEndOfMonth(),
+                MeterType.ELECTRICITY,
+                MeterStatus.ACTIVE
         ));
     }
 
@@ -398,9 +396,10 @@ public class GetBatchMeterReadingsService {
                                   OR mb.confirmed_at IS NULL
                                   OR mr.created_at <= mb.confirmed_at
                               )
-                              AND m.meter_type IN ('ELECTRICITY', 'WATER')
+                              AND m.meter_type = 'ELECTRICITY'
+                              AND m.status = 'ACTIVE'
                             GROUP BY mr.room_id
-                            HAVING COUNT(DISTINCT m.meter_type) = 2
+                            HAVING COUNT(DISTINCT m.meter_type) = 1
                         ) completed_rooms
                         """,
                 Integer.class,
@@ -421,13 +420,14 @@ public class GetBatchMeterReadingsService {
     @Transactional(readOnly = true)
     public UtilityDashboardResponse getDashboard(Long propertyId) {
         LocalDate today = LocalDate.now();
+        String currentReadingPeriod = YearMonth.now().toString();
 
         Optional<MeterReadingBatchEntity> currentBatchOpt =
             propertyId != null 
-                ? batchRepository.findFirstByProperty_IdAndStatusInOrderByCreatedAtDesc(
-                        propertyId,
-                        java.util.List.of(BatchStatus.DRAFT)
-                )
+                ? batchRepository.findAllByProperty_IdAndReadingPeriodOrderByIdDesc(propertyId, currentReadingPeriod)
+                        .stream()
+                        .filter(batch -> batch.getStatus() == BatchStatus.DRAFT)
+                        .findFirst()
                 : java.util.Optional.empty();
 
         if (currentBatchOpt.isPresent()) {

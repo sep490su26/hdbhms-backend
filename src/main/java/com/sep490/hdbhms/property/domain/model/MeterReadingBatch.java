@@ -25,6 +25,7 @@ public class MeterReadingBatch {
     @Setter
     @Builder.Default
     BatchStatus status = BatchStatus.DRAFT;
+    @Setter
     Long importedFileId;
     Long createdById;
     @Setter

@@ -13,7 +13,6 @@ import java.time.LocalDate;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,33 +43,16 @@ class GetLatestMeterReadingsServiceTest {
                         ReadingStatus.VOIDED
                 ))
                 .thenReturn(Optional.of(latestElectricity));
-        when(meterReadingRepository
-                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
-                        roomId,
-                        MeterType.WATER,
-                        ReadingStatus.VOIDED
-                ))
-                .thenReturn(Optional.empty());
-
         var response = service.getLatestReadings(roomId);
 
         assertEquals(new BigDecimal("345.500"), response.getElectricity().getPreviousValue());
         assertEquals(new BigDecimal("345.500"), response.getElectricity().getSuggestedValue());
         assertEquals(LocalDate.of(2026, 7, 1), response.getElectricity().getLastReadingDate());
-        assertEquals(BigDecimal.ZERO, response.getWater().getPreviousValue());
-        assertEquals(BigDecimal.ZERO, response.getWater().getSuggestedValue());
-        assertNull(response.getWater().getLastReadingDate());
 
         verify(meterReadingRepository)
                 .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
                         roomId,
                         MeterType.ELECTRICITY,
-                        ReadingStatus.VOIDED
-                );
-        verify(meterReadingRepository)
-                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
-                        roomId,
-                        MeterType.WATER,
                         ReadingStatus.VOIDED
                 );
     }

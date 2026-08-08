@@ -2,6 +2,8 @@ package com.sep490.hdbhms.occupancy.application.port.out;
 
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -40,11 +42,30 @@ public interface LeaseContractRepository {
             LocalDate periodEnd
     );
 
+    long countMeterReadingRoomsByPeriodWithActiveMeter(
+            Long propertyId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            MeterType meterType,
+            MeterStatus meterStatus
+    );
+
     boolean roomRequiresMeterReadingForPeriod(
             Long propertyId,
             Long roomId,
             List<LeaseStatus> statuses,
             LocalDate periodStart,
             LocalDate periodEnd
+    );
+
+    boolean roomRequiresMeterReadingForPeriodWithActiveMeter(
+            Long propertyId,
+            Long roomId,
+            List<LeaseStatus> statuses,
+            LocalDate periodStart,
+            LocalDate periodEnd,
+            MeterType meterType,
+            MeterStatus meterStatus
     );
 }

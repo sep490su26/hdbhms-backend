@@ -24,7 +24,6 @@ public record ExecuteTransferRequest(
             LocalDate handoverDate,
             String note,
             @Valid MeterReadingPayload electricity,
-            @Valid MeterReadingPayload water,
             @Valid List<AssetPayload> assets,
             @PositiveOrZero(message = "Incidental charge amount must not be negative")
             Long incidentalChargeAmount,

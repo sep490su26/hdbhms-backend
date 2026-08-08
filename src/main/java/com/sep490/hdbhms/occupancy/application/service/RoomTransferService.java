@@ -850,7 +850,6 @@ public class RoomTransferService implements RoomTransferUseCase {
             oldRoomFinalInvoiceId = utilityBillingRunService.issueTransferInvoiceFromReadings(
                     oldContract.getId(),
                     transferOutHandover.getElectricityReadingId(),
-                    transferOutHandover.getWaterReadingId(),
                     transferOutHandover.getHandoverDate() == null ? null : transferOutHandover.getHandoverDate().toLocalDate(),
                     command.executedById()
             );
@@ -897,24 +896,16 @@ public class RoomTransferService implements RoomTransferUseCase {
                 UtilityType.ELECTRICITY,
                 payload.electricity()
         );
-        TransferOutUtilityEstimateResponse.MeterChargeEstimate water = estimateMeterCharge(
-                oldRoom.getId(),
-                oldRoom.getPropertyId(),
-                UtilityType.WATER,
-                payload.water()
-        );
         long incidentalAmount = safe(payload.incidentalChargeAmount());
         ServiceFeeCharge serviceFee = buildTransferServiceFeeCharge(
                 oldContract.getId(),
                 oldRoom.getPropertyId(),
                 YearMonth.from(handoverDate).toString(),
-                handoverDate,
-                electricity.amount()
+                handoverDate
         );
-        long totalAmount = safe(electricity.amount()) + safe(water.amount()) + incidentalAmount + serviceFee.amount();
+        long totalAmount = safe(electricity.amount()) + incidentalAmount + serviceFee.amount();
         return new TransferOutUtilityEstimateResponse(
                 electricity,
-                water,
                 incidentalAmount,
                 serviceFee.amount(),
                 totalAmount
@@ -2364,8 +2355,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             throw new IllegalStateException(missingMessage);
         }
         Long electricityReadingId = handover.getElectricity() == null ? null : handover.getElectricity().getId();
-        Long waterReadingId = handover.getWater() == null ? null : handover.getWater().getId();
-        if (electricityReadingId == null || waterReadingId == null) {
+        if (electricityReadingId == null) {
             throw new IllegalStateException(missingMessage);
         }
         return SubmitHandoverResponse.builder()
@@ -2374,7 +2364,6 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .status(handover.getStatus())
                 .handoverDate(handover.getHandoverDate())
                 .electricityReadingId(electricityReadingId)
-                .waterReadingId(waterReadingId)
                 .build();
     }
 
@@ -2449,22 +2438,12 @@ public class RoomTransferService implements RoomTransferUseCase {
             Long oldContractId,
             Long propertyId,
             String billingPeriod,
-            LocalDate readingDate,
-            long electricityAmount
+            LocalDate readingDate
     ) {
         if (hasServiceFeeLineForContractAndPeriod(oldContractId, billingPeriod)) {
             return ServiceFeeCharge.empty();
         }
         UtilityTariffSnapshot tariff = readUtilityTariff(propertyId, UtilityType.SERVICE_FEE, readingDate);
-        Long waiveThreshold = tariff.serviceFeeWaiveElectricityThreshold();
-        if (waiveThreshold != null && electricityAmount < waiveThreshold) {
-            return new ServiceFeeCharge(
-                    tariff.unitPrice(),
-                    0L,
-                    "Service fee waived because electricity amount is below " + waiveThreshold + ".",
-                    true
-            );
-        }
         return new ServiceFeeCharge(
                 tariff.unitPrice(),
                 tariff.unitPrice(),
@@ -2516,8 +2495,8 @@ public class RoomTransferService implements RoomTransferUseCase {
         // TODO ponytail: Temporary dev fallback until owner-managed utility tariffs are required before transfer checkout.
         return switch (utilityType) {
             case ELECTRICITY -> new UtilityTariffSnapshot(3500L, 0L, null);
-            case WATER -> new UtilityTariffSnapshot(20000L, 6L, null);
-            case SERVICE_FEE -> new UtilityTariffSnapshot(50000L, 0L, 100000L);
+            case SERVICE_FEE -> new UtilityTariffSnapshot(50000L, 0L, null);
+            default -> new UtilityTariffSnapshot(0L, 0L, null);
         };
     }
 
@@ -2526,7 +2505,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (settlement != null && settlement.getOldRoomFinalInvoiceId() != null) {
             requirePaidInvoice(
                     settlement.getOldRoomFinalInvoiceId(),
-                    "Hóa đơn điện nước chốt phòng cũ #" + settlement.getOldRoomFinalInvoiceId()
+                    "Hóa đơn điện chốt phòng cũ #" + settlement.getOldRoomFinalInvoiceId()
                             + " cần được thanh toán trước khi hoàn tất chuyển phòng."
             );
         }
@@ -2668,7 +2647,6 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
         validateDateNotFuture(handoverDate, handoverName + " handover");
         validateMeterReadingDate(payload.electricity(), handoverName + " electricity reading");
-        validateMeterReadingDate(payload.water(), handoverName + " water reading");
     }
 
     private void validateMeterReadingDate(
@@ -2691,15 +2669,14 @@ public class RoomTransferService implements RoomTransferUseCase {
             ExecuteTransferCommand.TransferHandoverData payload,
             HandoverType handoverType
     ) {
-        if (payload.electricity() == null || payload.water() == null) {
-            throw new IllegalArgumentException("Electricity and water readings are required for transfer handover.");
+        if (payload.electricity() == null) {
+            throw new IllegalArgumentException("Electricity reading is required for transfer handover.");
         }
         SubmitHandoverRequest request = new SubmitHandoverRequest();
         request.setHandoverType(handoverType);
         request.setHandoverDate(payload.handoverDate());
         request.setNote(payload.note());
         request.setElectricity(toMeterInput(payload.electricity()));
-        request.setWater(toMeterInput(payload.water()));
         if (payload.assets() != null) {
             request.setAssets(payload.assets().stream()
                     .map(this::toAssetInput)

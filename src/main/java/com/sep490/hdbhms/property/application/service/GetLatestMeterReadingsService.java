@@ -32,7 +32,6 @@ public class GetLatestMeterReadingsService {
 
         return LatestMeterReadingsResponse.builder()
                 .electricity(buildReadingDetail(roomId, MeterType.ELECTRICITY))
-                .water(buildReadingDetail(roomId, MeterType.WATER))
                 .build();
     }
 

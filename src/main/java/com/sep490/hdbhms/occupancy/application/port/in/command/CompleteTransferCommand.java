@@ -17,7 +17,6 @@ public record CompleteTransferCommand(
             LocalDate handoverDate,
             String note,
             MeterReadingData electricity,
-            MeterReadingData water,
             List<AssetData> assets
     ) {}
 

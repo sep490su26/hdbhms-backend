@@ -3,6 +3,8 @@ package com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
+import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -95,6 +97,34 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
     );
 
     @Query("""
+            SELECT DISTINCT room FROM LeaseContractEntity contract
+            JOIN contract.room room
+            JOIN MeterEntity meter
+              ON meter.room.id = room.id
+             AND meter.meterType = :meterType
+             AND meter.status = :meterStatus
+            LEFT JOIN ContractLiquidationEntity liquidation
+              ON liquidation.contract.id = contract.id
+             AND liquidation.status = com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus.CONFIRMED
+            WHERE contract.deletedAt IS NULL
+              AND room.deletedAt IS NULL
+              AND contract.status IN :statuses
+              AND (:propertyId IS NULL OR room.property.id = :propertyId)
+              AND COALESCE(contract.rentStartDate, contract.startDate) <= :periodEnd
+              AND (COALESCE(liquidation.liquidationDate, contract.endDate) IS NULL
+                   OR COALESCE(liquidation.liquidationDate, contract.endDate) >= :periodStart)
+            ORDER BY room.sortOrder ASC, room.roomCode ASC
+            """)
+    List<RoomEntity> findMeterReadingRoomsByPeriodWithActiveMeter(
+            @Param("propertyId") Long propertyId,
+            @Param("statuses") List<LeaseStatus> statuses,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd,
+            @Param("meterType") MeterType meterType,
+            @Param("meterStatus") MeterStatus meterStatus
+    );
+
+    @Query("""
             SELECT COUNT(DISTINCT room.id) FROM LeaseContractEntity contract
             JOIN contract.room room
             LEFT JOIN ContractLiquidationEntity liquidation
@@ -113,6 +143,33 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
             @Param("statuses") List<LeaseStatus> statuses,
             @Param("periodStart") LocalDate periodStart,
             @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT room.id) FROM LeaseContractEntity contract
+            JOIN contract.room room
+            JOIN MeterEntity meter
+              ON meter.room.id = room.id
+             AND meter.meterType = :meterType
+             AND meter.status = :meterStatus
+            LEFT JOIN ContractLiquidationEntity liquidation
+              ON liquidation.contract.id = contract.id
+             AND liquidation.status = com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus.CONFIRMED
+            WHERE contract.deletedAt IS NULL
+              AND room.deletedAt IS NULL
+              AND contract.status IN :statuses
+              AND (:propertyId IS NULL OR room.property.id = :propertyId)
+              AND COALESCE(contract.rentStartDate, contract.startDate) <= :periodEnd
+              AND (COALESCE(liquidation.liquidationDate, contract.endDate) IS NULL
+                   OR COALESCE(liquidation.liquidationDate, contract.endDate) >= :periodStart)
+            """)
+    long countMeterReadingRoomsByPeriodWithActiveMeter(
+            @Param("propertyId") Long propertyId,
+            @Param("statuses") List<LeaseStatus> statuses,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd,
+            @Param("meterType") MeterType meterType,
+            @Param("meterStatus") MeterStatus meterStatus
     );
 
     @Query("""
@@ -136,6 +193,35 @@ public interface JpaLeaseContractRepository extends JpaRepository<LeaseContractE
             @Param("statuses") List<LeaseStatus> statuses,
             @Param("periodStart") LocalDate periodStart,
             @Param("periodEnd") LocalDate periodEnd
+    );
+
+    @Query("""
+            SELECT COUNT(DISTINCT contract.id) FROM LeaseContractEntity contract
+            JOIN contract.room room
+            JOIN MeterEntity meter
+              ON meter.room.id = room.id
+             AND meter.meterType = :meterType
+             AND meter.status = :meterStatus
+            LEFT JOIN ContractLiquidationEntity liquidation
+              ON liquidation.contract.id = contract.id
+             AND liquidation.status = com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus.CONFIRMED
+            WHERE contract.deletedAt IS NULL
+              AND room.deletedAt IS NULL
+              AND contract.status IN :statuses
+              AND room.id = :roomId
+              AND room.property.id = :propertyId
+              AND COALESCE(contract.rentStartDate, contract.startDate) <= :periodEnd
+              AND (COALESCE(liquidation.liquidationDate, contract.endDate) IS NULL
+                   OR COALESCE(liquidation.liquidationDate, contract.endDate) >= :periodStart)
+            """)
+    long countMeterReadingRoomContractsByPeriodWithActiveMeter(
+            @Param("propertyId") Long propertyId,
+            @Param("roomId") Long roomId,
+            @Param("statuses") List<LeaseStatus> statuses,
+            @Param("periodStart") LocalDate periodStart,
+            @Param("periodEnd") LocalDate periodEnd,
+            @Param("meterType") MeterType meterType,
+            @Param("meterStatus") MeterStatus meterStatus
     );
 
     @Query("""

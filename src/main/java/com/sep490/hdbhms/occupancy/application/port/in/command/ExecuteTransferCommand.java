@@ -20,7 +20,6 @@ public record ExecuteTransferCommand(
             LocalDate handoverDate,
             String note,
             MeterReadingData electricity,
-            MeterReadingData water,
             List<AssetData> assets,
             Long incidentalChargeAmount,
             String incidentalChargeNote

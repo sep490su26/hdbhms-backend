@@ -17,10 +17,6 @@ public class HandoverMeterReadingsRequest {
     @NotNull
     ReadingInput electricity;
 
-    @Valid
-    @NotNull
-    ReadingInput water;
-
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class ReadingInput {

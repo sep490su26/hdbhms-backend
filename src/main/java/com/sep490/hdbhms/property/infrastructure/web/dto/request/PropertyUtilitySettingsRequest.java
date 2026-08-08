@@ -13,6 +13,5 @@ import lombok.experimental.FieldDefaults;
 public class PropertyUtilitySettingsRequest {
     Long electricityUnitPrice;
     Long electricityFreeAllowance;
-    Long waterUnitPrice;
-    Long waterFreeAllowance;
+    Long serviceFeeUnitPrice;
 }

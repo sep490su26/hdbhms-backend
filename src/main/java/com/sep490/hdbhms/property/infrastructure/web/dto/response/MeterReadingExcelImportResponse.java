@@ -2,12 +2,14 @@ package com.sep490.hdbhms.property.infrastructure.web.dto.response;
 
 import lombok.AccessLevel;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 
-@Data
+@Getter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class HandoverMeterReadingsResponse {
-    Long electricityReadingId;
+public class MeterReadingExcelImportResponse {
+    Long batchId;
+    String fileName;
+    Integer importedRows;
 }

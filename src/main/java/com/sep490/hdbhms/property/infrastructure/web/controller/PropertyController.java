@@ -182,11 +182,10 @@ public class PropertyController {
         );
         upsertTariff(
                 property,
-                UtilityType.WATER,
-                request.getWaterUnitPrice(),
-                request.getWaterFreeAllowance()
+                UtilityType.SERVICE_FEE,
+                request.getServiceFeeUnitPrice(),
+                0L
         );
-
         return ApiResponse.<PropertyUtilitySettingsResponse>builder()
                 .data(buildUtilitySettingsResponse(property))
                 .build();
@@ -369,7 +368,7 @@ public class PropertyController {
                 .propertyId(property.getId())
                 .propertyName(property.getName())
                 .electricity(buildUtilitySetting(property, UtilityType.ELECTRICITY))
-                .water(buildUtilitySetting(property, UtilityType.WATER))
+                .serviceFee(buildUtilitySetting(property, UtilityType.SERVICE_FEE))
                 .build();
     }
 
@@ -413,6 +412,10 @@ public class PropertyController {
             return;
         }
 
+        Long nextWaiveThreshold = current == null
+                ? defaultServiceFeeWaiveElectricityThreshold(utilityType)
+                : current.getServiceFeeWaiveElectricityThreshold();
+
         if (current != null) {
             current.setEffectiveTo(today.minusDays(1));
         }
@@ -422,6 +425,7 @@ public class PropertyController {
                 .utilityType(utilityType)
                 .unitPrice(nextUnitPrice)
                 .freeAllowance(nextFreeAllowance)
+                .serviceFeeWaiveElectricityThreshold(nextWaiveThreshold)
                 .effectiveFrom(today)
                 .build());
     }
@@ -436,19 +440,23 @@ public class PropertyController {
     private Long defaultUnitPrice(UtilityType utilityType) {
         return switch (utilityType) {
             case ELECTRICITY -> 3500L;
-            case WATER -> 20000L;
+            case SERVICE_FEE -> 50000L;
             default -> 0L;
         };
     }
 
     private Long defaultFreeAllowance(UtilityType utilityType) {
-        return utilityType == UtilityType.WATER ? 6L : 0L;
+        return 0L;
+    }
+
+    private Long defaultServiceFeeWaiveElectricityThreshold(UtilityType utilityType) {
+        return null;
     }
 
     private Long nonNegative(Long value, Long fallback) {
         Long nextValue = value == null ? fallback : value;
         if (nextValue < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giá trị điện nước không được âm.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giá trị không được âm.");
         }
         return nextValue;
     }

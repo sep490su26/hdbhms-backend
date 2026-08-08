@@ -136,20 +136,17 @@ public class TenantRoomResourceController {
         ensureRoomExists(roomId);
         leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
         MeterReadingLatestResponse.Item electricity = null;
-        MeterReadingLatestResponse.Item water = null;
         for (MeterReadingEntity reading : meterReadingRepository.findActiveByRoomIdLatestFirst(roomId)) {
             MeterType meterType = reading.getMeter().getMeterType();
             if (meterType == MeterType.ELECTRICITY && electricity == null) {
                 electricity = toMeterReadingItem(reading);
-            } else if (meterType == MeterType.WATER && water == null) {
-                water = toMeterReadingItem(reading);
             }
-            if (electricity != null && water != null) {
+            if (electricity != null) {
                 break;
             }
         }
         return ApiResponse.<MeterReadingLatestResponse>builder()
-                .data(new MeterReadingLatestResponse(electricity, water))
+                .data(new MeterReadingLatestResponse(electricity))
                 .build();
     }
 

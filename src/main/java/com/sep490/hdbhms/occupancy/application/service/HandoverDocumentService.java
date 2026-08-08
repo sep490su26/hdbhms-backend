@@ -123,13 +123,11 @@ public class HandoverDocumentService {
         String sql = """
             SELECT 
                 r.room_code, f.floor_code,
-                e.current_value as elec_val, e.reading_date as elec_date,
-                w.current_value as water_val, w.reading_date as water_date
+                e.current_value as elec_val, e.reading_date as elec_date
             FROM contract_handover_records h
             JOIN rooms r ON h.room_id = r.room_id
             LEFT JOIN floors f ON r.floor_id = f.floor_id
             LEFT JOIN meter_readings e ON h.electricity_reading_id = e.meter_reading_id
-            LEFT JOIN meter_readings w ON h.water_reading_id = w.meter_reading_id
             WHERE h.contract_id = ? AND h.handover_type = ?
         """;
         
@@ -151,8 +149,6 @@ public class HandoverDocumentService {
                 .roomFloorNumber(rs.getString("floor_code"))
                 .elecValue(rs.getLong("elec_val"))
                 .elecDate(rs.getDate("elec_date") != null ? rs.getDate("elec_date").toLocalDate() : null)
-                .waterValue(rs.getLong("water_val"))
-                .waterDate(rs.getDate("water_date") != null ? rs.getDate("water_date").toLocalDate() : null)
                 .build();
     }
 
@@ -170,9 +166,6 @@ public class HandoverDocumentService {
         
         variables.put("roomElectricityValue", data.elecValue != null ? data.elecValue : "......");
         variables.put("roomElectricityReadingDate", formatDate(data.elecDate));
-        
-        variables.put("roomWaterValue", data.waterValue != null ? data.waterValue : "......");
-        variables.put("roomWaterReadingDate", formatDate(data.waterDate));
         
         variables.put("issuedAtDateString", formatVietnameseDate(LocalDate.now()));
 
@@ -230,8 +223,6 @@ public class HandoverDocumentService {
         String roomFloorNumber;
         Long elecValue;
         LocalDate elecDate;
-        Long waterValue;
-        LocalDate waterDate;
     }
 
     public record HandoverFilenameContext(

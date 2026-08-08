@@ -13,9 +13,7 @@ public record SubmitBatchMeterReadingsCommand(
     public record RoomReading(
             Long roomId,
             BigDecimal electricityValue,
-            BigDecimal waterValue,
-            Long electricityPhotoId,
-            Long waterPhotoId
+            Long electricityPhotoId
     ) {
     }
 }

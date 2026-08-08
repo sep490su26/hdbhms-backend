@@ -45,11 +45,6 @@ public class BatchMeterReadingRequest {
         @PositiveOrZero(message = "Electricity value cannot be negative")
         BigDecimal electricityValue;
 
-        @NotNull(message = "Water value is required")
-        @PositiveOrZero(message = "Water value cannot be negative")
-        BigDecimal waterValue;
-
         Long electricityPhotoId;
-        Long waterPhotoId;
     }
 }

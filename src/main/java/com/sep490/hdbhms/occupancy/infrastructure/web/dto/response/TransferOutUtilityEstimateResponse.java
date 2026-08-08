@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 
 public record TransferOutUtilityEstimateResponse(
         MeterChargeEstimate electricity,
-        MeterChargeEstimate water,
         Long incidentalAmount,
         Long serviceFeeAmount,
         Long totalAmount

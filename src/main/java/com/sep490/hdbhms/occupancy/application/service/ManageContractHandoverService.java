@@ -97,17 +97,12 @@ public class ManageContractHandoverService {
         // 2. Tạo hoặc cập nhật Reading cho Điện
         MeterReadingEntity electricReading = createOrUpdateReading(contract.getRoom(), MeterType.ELECTRICITY, request.getElectricity(), handoverRecord.getElectricityReading());
 
-        // 3. Tạo hoặc cập nhật Reading cho Nước
-        MeterReadingEntity waterReading = createOrUpdateReading(contract.getRoom(), MeterType.WATER, request.getWater(), handoverRecord.getWaterReading());
-
         handoverRecord.setElectricityReading(electricReading);
-        handoverRecord.setWaterReading(waterReading);
         
         handoverRecordRepository.save(handoverRecord);
 
         return HandoverMeterReadingsResponse.builder()
                 .electricityReadingId(electricReading.getId())
-                .waterReadingId(waterReading.getId())
                 .build();
     }
 
@@ -227,12 +222,9 @@ public class ManageContractHandoverService {
 
         // ── 2. Meter readings ────────────────────────────────────────────────
         MeterReadingEntity electricReading = createOrUpdateReading(contract.getRoom(), MeterType.ELECTRICITY, toReadingInput(request.getElectricity()), record.getElectricityReading());
-        MeterReadingEntity waterReading   = createOrUpdateReading(contract.getRoom(), MeterType.WATER,        toReadingInput(request.getWater()), record.getWaterReading());
         if (handoverType == HandoverType.TRANSFER_OUT || handoverType == HandoverType.TRANSFER_IN) {
             electricReading.setPurpose(ReadingPurpose.TRANSFER);
-            waterReading.setPurpose(ReadingPurpose.TRANSFER);
             electricReading = meterReadingRepository.save(electricReading);
-            waterReading = meterReadingRepository.save(waterReading);
         }
 
         LocalDateTime handoverDateTime = request.getHandoverDate() != null
@@ -241,7 +233,6 @@ public class ManageContractHandoverService {
 
         record.setHandoverDate(handoverDateTime);
         record.setElectricityReading(electricReading);
-        record.setWaterReading(waterReading);
         record.setNote(request.getNote());
         record.setStatus(HandoverStatus.CONFIRMED);
         record.setConfirmedBy(userRepository.getReferenceById(AuthUtils.getCurrentAuthenticationId()));
@@ -298,7 +289,6 @@ public class ManageContractHandoverService {
                 .status(record.getStatus())
                 .handoverDate(record.getHandoverDate())
                 .electricityReadingId(electricReading.getId())
-                .waterReadingId(waterReading.getId())
                 .assets(assetResults)
                 .compensationInvoiceId(compensationInvoice == null ? null : compensationInvoice.getId())
                 .compensationAmount(compensationInvoice == null ? 0L : compensationInvoice.getTotalAmount())
@@ -490,7 +480,6 @@ public class ManageContractHandoverService {
                 .signedDocumentId(record.getSignedDocument() != null ? record.getSignedDocument().getId() : null)
                 .signedDocumentUrl(record.getSignedDocument() != null ? "/api/v1/files/" + record.getSignedDocument().getId() : null)
                 .electricity(mapReading(record.getElectricityReading()))
-                .water(mapReading(record.getWaterReading()))
                 .items(items)
                 .build();
     }

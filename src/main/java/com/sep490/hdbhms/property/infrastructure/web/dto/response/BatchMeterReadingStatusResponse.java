@@ -16,10 +16,10 @@ public class BatchMeterReadingStatusResponse {
 
     Long propertyId;
     String propertyName;
+    String readingPeriod;
     Long batchId;
     String batchStatus;
     UtilityTariffSnapshot electricityTariff;
-    UtilityTariffSnapshot waterTariff;
     List<RoomBatchStatus> rooms;
 
     @Data
@@ -41,9 +41,6 @@ public class BatchMeterReadingStatusResponse {
         BigDecimal electricityPrevious;
         BigDecimal electricityCurrent;
         Long electricityPhotoId;
-        BigDecimal waterPrevious;
-        BigDecimal waterCurrent;
-        Long waterPhotoId;
         
         String status; // e.g., "pending", "synced"
         LocalDateTime syncTime;
@@ -55,6 +52,7 @@ public class BatchMeterReadingStatusResponse {
     @Builder
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class ReadingWarning {
+        Long id;
         String meterType;
         String type;
         String severity;

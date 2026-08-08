@@ -622,7 +622,6 @@ public class MockOccupancyFlowController {
                 payload.handoverDate(),
                 payload.note(),
                 toTransferMeterData(payload.electricity()),
-                toTransferMeterData(payload.water()),
                 payload.assets() == null
                         ? null
                         : payload.assets().stream()

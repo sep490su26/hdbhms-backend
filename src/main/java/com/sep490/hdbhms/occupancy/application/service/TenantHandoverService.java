@@ -66,7 +66,6 @@ public class TenantHandoverService {
                 .signedDocumentId(record.getSignedDocument() != null ? record.getSignedDocument().getId() : null)
                 .signedDocumentUrl(fileDownloadUrl(record.getSignedDocument()))
                 .electricity(mapReading(record.getElectricityReading()))
-                .water(mapReading(record.getWaterReading()))
                 .items(items)
                 .build();
     }

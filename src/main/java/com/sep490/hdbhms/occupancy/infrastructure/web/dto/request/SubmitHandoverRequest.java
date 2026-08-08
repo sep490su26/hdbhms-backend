@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * Single-shot request that creates or updates a complete handover record:
- *  - meter readings (electricity + water)
+ *  - electricity meter reading
  *  - room assets (upsert by id and soft-delete by deletedAssetIds)
  *  - the ContractHandoverRecord itself (CONFIRMED on success)
  */
@@ -34,10 +34,6 @@ public class SubmitHandoverRequest {
     @Valid
     @NotNull(message = "Chỉ số điện là bắt buộc")
     MeterInput electricity;
-
-    @Valid
-    @NotNull(message = "Chỉ số nước là bắt buộc")
-    MeterInput water;
 
     @Valid
     List<AssetInput> assets;

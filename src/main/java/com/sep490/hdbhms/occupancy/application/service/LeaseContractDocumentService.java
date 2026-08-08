@@ -89,7 +89,6 @@ public class LeaseContractDocumentService {
                 p.name AS property_name,
                 p.address_line AS property_address,
                 u1.unit_price AS electricity_price,
-                u2.unit_price AS water_price,
                 u3.unit_price AS utility_price,
                 pp.full_name AS tenant_name,
                 pp.dob AS tenant_dob,
@@ -110,10 +109,6 @@ public class LeaseContractDocumentService {
                 ON u1.property_id = p.property_id
                 AND u1.utility_type = 'ELECTRICITY'
                 AND (u1.effective_to IS NULL OR u1.effective_to >= CURRENT_DATE)
-            LEFT JOIN utility_tariffs u2
-                ON u2.property_id = p.property_id
-                AND u2.utility_type = 'WATER'
-                AND (u2.effective_to IS NULL OR u2.effective_to >= CURRENT_DATE)
             LEFT JOIN utility_tariffs u3
                 ON u3.property_id = p.property_id
                 AND u3.utility_type = 'SERVICE_FEE'
@@ -150,7 +145,6 @@ public class LeaseContractDocumentService {
                 .propertyName(rs.getString("property_name"))
                 .propertyAddress(rs.getString("property_address"))
                 .electricityPrice(rs.getObject("electricity_price", Long.class))
-                .waterPrice(rs.getObject("water_price", Long.class))
                 .utilityPrice(rs.getObject("utility_price", Long.class))
                 .tenantName(rs.getString("tenant_name"))
                 .tenantDob(localDate(rs, "tenant_dob"))
@@ -194,7 +188,6 @@ public class LeaseContractDocumentService {
                 .tenantIdIssuedDate(toDate(input.get("idIssueDate")))
                 .tenantIdIssuedPlace(stringValue(input.get("idIssuePlace")))
                 .electricityPrice(null)
-                .waterPrice(null)
                 .utilityPrice(null)
                 .leaseTermMonths(termMonths)
                 .renewalTermMonths(termMonths)
@@ -333,7 +326,6 @@ public class LeaseContractDocumentService {
         variables.put("depositAmount", formatMoney(data.getDepositAmount()));
         variables.put("depositAmountString", amountText(data.getDepositAmount()));
         variables.put("propertyElectricityPrice", formatMoney(data.getElectricityPrice()));
-        variables.put("propertyWaterPrice", formatMoney(data.getWaterPrice()));
         variables.put("propertyUtilityPrice", formatMoney(data.getUtilityPrice()));
         variables.put("otherFees", valueOrDefault(data.getOtherFees(), "............"));
         return variables;
@@ -426,7 +418,6 @@ public class LeaseContractDocumentService {
         String propertyName;
         String propertyAddress;
         Long electricityPrice;
-        Long waterPrice;
         Long utilityPrice;
         String otherFees;
         String tenantName;

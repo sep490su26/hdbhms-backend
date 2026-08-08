@@ -14,7 +14,6 @@ import java.time.LocalDate;
 public class LatestMeterReadingsResponse {
 
     ReadingDetail electricity;
-    ReadingDetail water;
 
     @Data
     @Builder

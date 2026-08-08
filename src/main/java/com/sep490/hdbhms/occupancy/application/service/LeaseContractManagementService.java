@@ -1295,8 +1295,7 @@ public class LeaseContractManagementService {
                         "Vui long hoan tat ban giao tra phong truoc khi thanh ly hop dong."
                 ));
         if (handover.getStatus() != HandoverStatus.CONFIRMED
-                || handover.getElectricityReading() == null
-                || handover.getWaterReading() == null) {
+                || handover.getElectricityReading() == null) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Vui long hoan tat ban giao tra phong truoc khi thanh ly hop dong."
@@ -1329,6 +1328,7 @@ public class LeaseContractManagementService {
                 .filter(Objects::nonNull)
                 .filter(charge -> charge.lineType() != null)
                 .filter(charge -> charge.lineType() != InvoiceLineType.ROOM_RENT)
+                .filter(charge -> charge.lineType() != InvoiceLineType.WATER)
                 .filter(charge -> safe(charge.unitPrice()) > 0)
                 .map(charge -> new LiquidationChargeInput(
                         charge.lineType(),
@@ -1375,9 +1375,7 @@ public class LeaseContractManagementService {
         if (charge.currentValue().compareTo(charge.previousValue()) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi so moi khong duoc nho hon chi so cu.");
         }
-        MeterType meterType = charge.lineType() == InvoiceLineType.ELECTRICITY
-                ? MeterType.ELECTRICITY
-                : MeterType.WATER;
+        MeterType meterType = MeterType.ELECTRICITY;
         RoomEntity room = contract.getRoom();
         LocalDate readingDate = liquidationDate == null ? LocalDate.now() : liquidationDate;
         String readingPeriod = YearMonth.from(readingDate).toString();
@@ -1423,7 +1421,7 @@ public class LeaseContractManagementService {
     }
 
     private boolean isMeterCharge(InvoiceLineType lineType) {
-        return lineType == InvoiceLineType.ELECTRICITY || lineType == InvoiceLineType.WATER;
+        return lineType == InvoiceLineType.ELECTRICITY;
     }
 
     private long calculateLiquidationRoomRent(LeaseContractEntity contract, LocalDate liquidationDate) {
@@ -1933,7 +1931,7 @@ public class LeaseContractManagementService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
         }
 
-        // Bắt buộc phải có bản ghi bàn giao MOVE_IN kèm chỉ số điện/nước và bản ký trước khi kích hoạt
+        // Bắt buộc phải có bản ghi bàn giao MOVE_IN kèm chỉ số điện và bản ký trước khi kích hoạt
         // Skip check for renewal contracts (previous contract exists)
         if (contract.getPreviousContract() == null) {
             Integer handoverCount = jdbcTemplate.queryForObject("""
@@ -1942,7 +1940,6 @@ public class LeaseContractManagementService {
                             WHERE contract_id = ?
                               AND handover_type = 'MOVE_IN'
                               AND electricity_reading_id IS NOT NULL
-                              AND water_reading_id IS NOT NULL
                               AND signed_document_id IS NOT NULL
                             """,
                     Integer.class,
@@ -1951,7 +1948,7 @@ public class LeaseContractManagementService {
             if (handoverCount == null || handoverCount == 0) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Cần hoàn thành bàn giao phòng, nhập số điện/nước và upload biên bản bàn giao đã ký trước khi kích hoạt hợp đồng."
+                        "Cần hoàn thành bàn giao phòng, nhập số điện và upload biên bản bàn giao đã ký trước khi kích hoạt hợp đồng."
                 );
             }
         }

@@ -14,7 +14,7 @@ public class PropertyUtilitySettingsResponse {
     Long propertyId;
     String propertyName;
     UtilitySetting electricity;
-    UtilitySetting water;
+    UtilitySetting serviceFee;
 
     @Data
     @Builder

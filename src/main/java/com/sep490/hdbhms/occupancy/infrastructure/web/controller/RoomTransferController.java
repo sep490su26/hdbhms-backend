@@ -324,7 +324,6 @@ public class RoomTransferController {
                 payload.handoverDate(),
                 payload.note(),
                 toCommandMeter(payload.electricity()),
-                toCommandMeter(payload.water()),
                 payload.assets() == null
                         ? null
                         : payload.assets().stream()

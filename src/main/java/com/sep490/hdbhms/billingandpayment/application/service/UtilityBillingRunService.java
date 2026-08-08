@@ -152,6 +152,7 @@ public class UtilityBillingRunService {
         run.setStatus(UtilityBillingRunStatus.PREVIEWED);
         run = runRepository.saveAndFlush(run);
         itemRepository.deleteByRun_Id(run.getId());
+        itemRepository.flush();
 
         List<RoomEntity> rooms = leaseContractRepository.findMeterReadingRoomsByPeriod(
                 propertyId,
@@ -298,7 +299,6 @@ public class UtilityBillingRunService {
     public Long issueTransferInvoiceFromReadings(
             Long contractId,
             Long electricityReadingId,
-            Long waterReadingId,
             LocalDate handoverDate,
             Long currentUserId
     ) {
@@ -308,7 +308,6 @@ public class UtilityBillingRunService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease contract not found."));
         RoomEntity room = contract.getRoom();
         MeterReadingEntity electricity = requireReading(electricityReadingId, room.getId(), MeterType.ELECTRICITY);
-        MeterReadingEntity water = requireReading(waterReadingId, room.getId(), MeterType.WATER);
 
         UtilityBillingRunEntity run = runRepository
                 .findByProperty_IdAndBillingPeriodAndInvoiceReason(
@@ -338,7 +337,7 @@ public class UtilityBillingRunService {
         }
 
         UtilityBillingRunItemEntity item = itemRepository.saveAndFlush(
-                buildItem(run, room, contract, electricity, water, period)
+                buildItem(run, room, contract, electricity, null, period)
         );
         Long invoiceId = null;
         LocalDateTime now = LocalDateTime.now();
@@ -351,11 +350,9 @@ public class UtilityBillingRunService {
             item.setStatus(UtilityBillingRunItemStatus.INVOICED);
             invoiceId = invoice.getId();
             advanceBaseline(item.getElectricityReading(), invoice);
-            advanceBaseline(item.getWaterReading(), invoice);
         } else {
             item.setStatus(UtilityBillingRunItemStatus.SKIPPED);
             advanceBaseline(item.getElectricityReading(), null);
-            advanceBaseline(item.getWaterReading(), null);
         }
 
         itemRepository.save(item);
@@ -376,8 +373,7 @@ public class UtilityBillingRunService {
         Map<MeterType, MeterReadingEntity> readings = findReadings(room.getId(), period);
 
         MeterReadingEntity electricity = readings.get(MeterType.ELECTRICITY);
-        MeterReadingEntity water = readings.get(MeterType.WATER);
-        return buildItem(run, room, contract, electricity, water, period);
+        return buildItem(run, room, contract, electricity, null, period);
     }
 
     private UtilityBillingRunItemEntity buildItem(
@@ -394,24 +390,19 @@ public class UtilityBillingRunService {
         String anomalyMessage = readAnomalyMessage(readingIds);
 
         Charge electricityCharge = buildCharge(electricity, UtilityType.ELECTRICITY);
-        Charge waterCharge = buildCharge(water, UtilityType.WATER);
         StringJoiner warnings = new StringJoiner("; ");
         if (contract == null) warnings.add("No billable contract in this period");
         if (electricity == null) warnings.add("Missing electricity reading");
-        if (water == null) warnings.add("Missing water reading");
         if (electricityCharge.warning() != null) warnings.add(electricityCharge.warning());
-        if (waterCharge.warning() != null) warnings.add(waterCharge.warning());
         if (anomalyMessage != null && !anomalyMessage.isBlank()) warnings.add(anomalyMessage);
 
         boolean canInvoice = contract != null
                 && electricity != null
-                && water != null
-                && electricityCharge.warning() == null
-                && waterCharge.warning() == null;
+                && electricityCharge.warning() == null;
         ServiceFeeCharge serviceFeeCharge = canInvoice
-                ? buildServiceFeeCharge(contract, room.getProperty().getId(), period, electricityCharge.amount())
+                ? buildServiceFeeCharge(contract, room.getProperty().getId(), period)
                 : ServiceFeeCharge.empty();
-        long subtotal = electricityCharge.amount() + waterCharge.amount() + serviceFeeCharge.amount();
+        long subtotal = electricityCharge.amount() + serviceFeeCharge.amount();
         UtilityBillingRunItemStatus status;
         if (!canInvoice || subtotal <= 0) {
             status = UtilityBillingRunItemStatus.SKIPPED;
@@ -433,12 +424,12 @@ public class UtilityBillingRunService {
                 .electricityQuantity(electricityCharge.quantity())
                 .electricityUnitPrice(electricityCharge.unitPrice())
                 .electricityAmount(electricityCharge.amount())
-                .waterPrevious(waterCharge.previous())
-                .waterCurrent(waterCharge.current())
-                .waterUsage(waterCharge.usage())
-                .waterQuantity(waterCharge.quantity())
-                .waterUnitPrice(waterCharge.unitPrice())
-                .waterAmount(waterCharge.amount())
+                .waterPrevious(null)
+                .waterCurrent(null)
+                .waterUsage(null)
+                .waterQuantity(0)
+                .waterUnitPrice(0L)
+                .waterAmount(0L)
                 .serviceFeeUnitPrice(serviceFeeCharge.unitPrice())
                 .serviceFeeAmount(serviceFeeCharge.amount())
                 .serviceFeeWaived(serviceFeeCharge.waived())
@@ -523,8 +514,6 @@ public class UtilityBillingRunService {
 
         saveInvoiceLine(invoice, item, InvoiceLineType.ELECTRICITY, item.getElectricityReading(),
                 item.getElectricityQuantity(), item.getElectricityUnitPrice(), "Electricity");
-        saveInvoiceLine(invoice, item, InvoiceLineType.WATER, item.getWaterReading(),
-                item.getWaterQuantity(), item.getWaterUnitPrice(), "Water");
         saveServiceFeeLine(invoice, item);
 
         invoice.setStatus(InvoiceStatus.ISSUED);
@@ -699,16 +688,13 @@ public class UtilityBillingRunService {
     private boolean hasBillableReadings(UtilityBillingRunItemEntity item) {
         return item.getLeaseContract() != null
                 && item.getElectricityReading() != null
-                && item.getWaterReading() != null
-                && notNegative(item.getElectricityUsage())
-                && notNegative(item.getWaterUsage());
+                && notNegative(item.getElectricityUsage());
     }
 
     private ServiceFeeCharge buildServiceFeeCharge(
             LeaseContractEntity contract,
             Long propertyId,
-            YearMonth period,
-            long electricityAmount
+            YearMonth period
     ) {
         if (contract == null) {
             return ServiceFeeCharge.empty();
@@ -720,16 +706,6 @@ public class UtilityBillingRunService {
         }
 
         UtilityTariffSnapshot tariff = readTariff(propertyId, UtilityType.SERVICE_FEE, period.atEndOfMonth());
-        Long waiveThreshold = tariff.serviceFeeWaiveElectricityThreshold();
-        if (waiveThreshold != null && electricityAmount < waiveThreshold) {
-            return new ServiceFeeCharge(
-                    tariff.unitPrice(),
-                    0L,
-                    true,
-                    "Service fee waived because electricity amount is below " + waiveThreshold + ".",
-                    true
-            );
-        }
         return new ServiceFeeCharge(tariff.unitPrice(), tariff.unitPrice(), false, null, true);
     }
 
@@ -807,7 +783,7 @@ public class UtilityBillingRunService {
                 .orElseGet(() -> switch (utilityType) {
                     case ELECTRICITY -> new UtilityTariffSnapshot(3500L, 0L, null);
                     case WATER -> new UtilityTariffSnapshot(20000L, 6L, null);
-                    case SERVICE_FEE -> new UtilityTariffSnapshot(50000L, 0L, 100000L);
+                    case SERVICE_FEE -> new UtilityTariffSnapshot(50000L, 0L, null);
                 });
     }
 

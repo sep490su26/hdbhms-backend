@@ -702,7 +702,7 @@ public abstract class RoomTransferWebMapper {
             case WAITING_EXECUTION -> {
                 boolean blockedByOldRoomInvoices = false;
                 if (oldRoomFinalInvoiceId != null && !oldRoomFinalInvoicePaid) {
-                    reasons.add("Hóa đơn điện nước chốt phòng cũ phải được thanh toán trước khi hoàn tất chuyển phòng.");
+                    reasons.add("Hóa đơn điện chốt phòng cũ phải được thanh toán trước khi hoàn tất chuyển phòng.");
                     blockedByOldRoomInvoices = true;
                 }
                 if (unpaidOldRoomCompensationInvoiceIds != null && !unpaidOldRoomCompensationInvoiceIds.isEmpty()) {

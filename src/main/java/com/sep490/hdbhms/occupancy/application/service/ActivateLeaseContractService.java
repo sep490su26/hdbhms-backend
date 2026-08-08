@@ -119,7 +119,6 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
                         WHERE contract_id = ?
                           AND handover_type = 'MOVE_IN'
                           AND electricity_reading_id IS NOT NULL
-                          AND water_reading_id IS NOT NULL
                           AND signed_document_id IS NOT NULL
                         """,
                 Integer.class,

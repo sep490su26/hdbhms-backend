@@ -27,7 +27,6 @@ public class ContractHandoverDetailsResponse {
     String signedDocumentUrl;
 
     MeterReadingDetails electricity;
-    MeterReadingDetails water;
 
     @Builder.Default
     List<HandoverItemDetails> items = List.of();

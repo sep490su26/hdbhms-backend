@@ -223,14 +223,13 @@
         <p>Giá thuê: <strong th:text="${roomListedPrice}"></strong> đ/tháng</p>
         <p>Hình thức thanh toán: bằng tiền mặt hoặc chuyển khoản.</p>
         <p>+ Tiền điện: <span th:text="${propertyElectricityPrice}"></span>đ/kwh tính theo chỉ số công tơ.</p>
-        <p>+ Tiền nước sinh hoạt: <span th:text="${propertyWaterPrice}"></span>đ/1m³ (không tính 6m³/1 tháng).</p>
         <p>+ Tiền (đổ rác, máy giặt, nước uống, wifi, ….):
             <span th:text="${propertyUtilityPrice}"></span> đ/1 phòng</p>
         <p style="margin-top: 8px;">
-            Tiền dịch vụ (điện, nước, mạng, ….), tiền điện, tiền nước sinh hoạt sẽ thanh toán vào
+            Tiền dịch vụ, tiền điện sẽ thanh toán vào
             đầu tháng mới, muộn nhất là vào mùng
             <strong th:text="${leasePaymentDayTo}"></strong> đầu tháng
-            (Nếu như nợ quá 3 tháng tiền dịch vụ, tiền điện, tiền nước sinh hoạt thì phòng đấy
+            (Nếu như nợ quá 3 tháng tiền dịch vụ, tiền điện thì phòng đấy
             sẽ không được hoàn lại tiền cọc.)
         </p>
         <p style="margin-top: 8px;">

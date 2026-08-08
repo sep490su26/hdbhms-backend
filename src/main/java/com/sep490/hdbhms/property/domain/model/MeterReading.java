@@ -35,6 +35,7 @@ public class MeterReading {
     Long photoFileId;
     @Builder.Default
     ReadingPurpose purpose = ReadingPurpose.MONTHLY;
+    @Setter
     @Builder.Default
     ReadingSource source = ReadingSource.MANUAL;
     @Builder.Default

@@ -22,7 +22,6 @@ public class SubmitHandoverResponse {
     LocalDateTime handoverDate;
 
     Long electricityReadingId;
-    Long waterReadingId;
     Long compensationInvoiceId;
     Long compensationAmount;
 
