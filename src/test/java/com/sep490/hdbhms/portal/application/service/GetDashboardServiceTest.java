@@ -93,6 +93,16 @@ class GetDashboardServiceTest {
                         && sql.contains("invoice.invoice_type <> 'DEPOSIT'")
                         && sql.contains("invoice.updated_at >= ?")
         ));
+        assertTrue(jdbcTemplate.sql().stream().anyMatch(sql ->
+                sql.contains("FROM visit_requests visit")
+                        && sql.contains("visit.status = 'NOT_VIEWED'")
+        ));
+        assertTrue(jdbcTemplate.sql().stream().anyMatch(sql ->
+                sql.contains("FROM maintenance_tickets ticket")
+                        && sql.contains("ticket.status = 'PENDING_ACCEPTANCE'")
+        ));
+        assertTrue(jdbcTemplate.sql().stream().filter(sql -> sql.contains("FROM invoices invoice"))
+                .count() >= 3);
     }
 
     @Test

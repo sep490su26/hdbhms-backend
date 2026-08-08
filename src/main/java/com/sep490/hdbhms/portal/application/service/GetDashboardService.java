@@ -82,6 +82,8 @@ public class GetDashboardService implements GetDashboardUseCase {
         List<DashboardResponse.RevenuePointResponse> revenueSeries = revenueSeries(propertyIds);
         long currentMonthRevenue = revenueAmount(revenueSeries, YearMonth.now());
         long previousMonthRevenue = revenueAmount(revenueSeries, YearMonth.now().minusMonths(1));
+        DashboardResponse.ExpiringContractSummaryResponse expiringContractSummary =
+                expiringContractSummary(propertyIds);
 
         return DashboardResponse.builder()
                 .totalRoomCount((long) rooms.size())
@@ -95,7 +97,8 @@ public class GetDashboardService implements GetDashboardUseCase {
                 .totalDebtAmount(totalDebtAmount(propertyIds))
                 .debtWarningRoomCount(debtWarningRoomCount(propertyIds))
                 .utilityUsage(utilityUsage(propertyIds))
-                .expiringContractSummary(expiringContractSummary(propertyIds))
+                .expiringContractSummary(expiringContractSummary)
+                .actionSummary(actionSummary(propertyIds, expiringContractSummary.getCount()))
                 .recentActivities(recentActivities(propertyIds))
                 .build();
     }
@@ -264,6 +267,101 @@ public class GetDashboardService implements GetDashboardUseCase {
                   AND invoice_type IN ('RENT', 'UTILITY')
                   AND remaining_amount > 0
                 """.formatted(inClause("property_id", propertyIds.size())), Long.class, params.toArray());
+        return value == null ? 0L : value;
+    }
+
+    private DashboardResponse.ActionSummaryResponse actionSummary(
+            List<Long> propertyIds,
+            Long expiringContractCount
+    ) {
+        YearMonth billingPeriod = YearMonth.now();
+        return DashboardResponse.ActionSummaryResponse.builder()
+                .viewingPendingCount(pendingViewingCustomerCount(propertyIds))
+                .maintenancePendingCount(pendingMaintenanceTicketCount(propertyIds))
+                .billingPeriod(billingPeriod.toString())
+                .billingPaidRoomCount(paidBillingRoomCount(propertyIds, billingPeriod))
+                .billingTotalRoomCount(billableRoomCount(propertyIds, billingPeriod))
+                .expiringContractCount(expiringContractCount == null ? 0L : expiringContractCount)
+                .build();
+    }
+
+    private long pendingViewingCustomerCount(List<Long> propertyIds) {
+        if (propertyIds.isEmpty()) {
+            return 0L;
+        }
+
+        List<Object> params = new ArrayList<>(propertyIds);
+        Long value = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM visit_requests visit
+                LEFT JOIN rooms room
+                  ON room.room_id = visit.room_id
+                WHERE COALESCE(room.property_id, visit.property_id) %s
+                  AND visit.deleted_at IS NULL
+                  AND (visit.status = 'NOT_VIEWED' OR visit.status IS NULL)
+                """.formatted(inClauseOperator(propertyIds.size())), Long.class, params.toArray());
+        return value == null ? 0L : value;
+    }
+
+    private long pendingMaintenanceTicketCount(List<Long> propertyIds) {
+        if (propertyIds.isEmpty()) {
+            return 0L;
+        }
+
+        List<Object> params = new ArrayList<>(propertyIds);
+        Long value = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM maintenance_tickets ticket
+                WHERE ticket.property_id %s
+                  AND ticket.status = 'PENDING_ACCEPTANCE'
+                """.formatted(inClauseOperator(propertyIds.size())), Long.class, params.toArray());
+        return value == null ? 0L : value;
+    }
+
+    private long billableRoomCount(List<Long> propertyIds, YearMonth billingPeriod) {
+        if (propertyIds.isEmpty()) {
+            return 0L;
+        }
+
+        List<Object> params = new ArrayList<>(propertyIds);
+        params.add(billingPeriod.toString());
+        Long value = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM (
+                    SELECT invoice.room_id
+                    FROM invoices invoice
+                    WHERE invoice.property_id %s
+                      AND invoice.billing_period = ?
+                      AND invoice.room_id IS NOT NULL
+                      AND invoice.invoice_type IN ('RENT', 'UTILITY')
+                      AND invoice.status NOT IN ('DRAFT', 'VOIDED')
+                    GROUP BY invoice.room_id
+                ) billable_rooms
+                """.formatted(inClauseOperator(propertyIds.size())), Long.class, params.toArray());
+        return value == null ? 0L : value;
+    }
+
+    private long paidBillingRoomCount(List<Long> propertyIds, YearMonth billingPeriod) {
+        if (propertyIds.isEmpty()) {
+            return 0L;
+        }
+
+        List<Object> params = new ArrayList<>(propertyIds);
+        params.add(billingPeriod.toString());
+        Long value = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM (
+                    SELECT invoice.room_id
+                    FROM invoices invoice
+                    WHERE invoice.property_id %s
+                      AND invoice.billing_period = ?
+                      AND invoice.room_id IS NOT NULL
+                      AND invoice.invoice_type IN ('RENT', 'UTILITY')
+                      AND invoice.status NOT IN ('DRAFT', 'VOIDED')
+                    GROUP BY invoice.room_id
+                    HAVING SUM(CASE WHEN invoice.status <> 'PAID' THEN 1 ELSE 0 END) = 0
+                ) paid_rooms
+                """.formatted(inClauseOperator(propertyIds.size())), Long.class, params.toArray());
         return value == null ? 0L : value;
     }
 

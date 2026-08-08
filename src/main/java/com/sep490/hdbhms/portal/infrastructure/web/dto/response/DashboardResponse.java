@@ -23,7 +23,22 @@ public class DashboardResponse {
     Long debtWarningRoomCount;
     UtilityUsageResponse utilityUsage;
     ExpiringContractSummaryResponse expiringContractSummary;
+    ActionSummaryResponse actionSummary;
     List<RecentActivityResponse> recentActivities;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class ActionSummaryResponse {
+        Long viewingPendingCount;
+        Long maintenancePendingCount;
+        String billingPeriod;
+        Long billingPaidRoomCount;
+        Long billingTotalRoomCount;
+        Long expiringContractCount;
+    }
 
     @Data
     @Builder
