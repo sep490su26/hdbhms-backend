@@ -34,6 +34,7 @@ public class DashboardResponse {
     public static class ActionSummaryResponse {
         Long viewingPendingCount;
         Long maintenancePendingCount;
+        Long requestPendingCount;
         String billingPeriod;
         Long billingPaidRoomCount;
         Long billingTotalRoomCount;

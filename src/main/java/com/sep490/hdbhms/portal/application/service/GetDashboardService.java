@@ -278,6 +278,7 @@ public class GetDashboardService implements GetDashboardUseCase {
         return DashboardResponse.ActionSummaryResponse.builder()
                 .viewingPendingCount(pendingViewingCustomerCount(propertyIds))
                 .maintenancePendingCount(pendingMaintenanceTicketCount(propertyIds))
+                .requestPendingCount(pendingChangeRequestCount())
                 .billingPeriod(billingPeriod.toString())
                 .billingPaidRoomCount(paidBillingRoomCount(propertyIds, billingPeriod))
                 .billingTotalRoomCount(billableRoomCount(propertyIds, billingPeriod))
@@ -315,6 +316,15 @@ public class GetDashboardService implements GetDashboardUseCase {
                 WHERE ticket.property_id %s
                   AND ticket.status = 'PENDING_ACCEPTANCE'
                 """.formatted(inClauseOperator(propertyIds.size())), Long.class, params.toArray());
+        return value == null ? 0L : value;
+    }
+
+    private long pendingChangeRequestCount() {
+        Long value = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM change_requests change_request
+                WHERE change_request.status = 'PENDING'
+                """, Long.class, new Object[0]);
         return value == null ? 0L : value;
     }
 

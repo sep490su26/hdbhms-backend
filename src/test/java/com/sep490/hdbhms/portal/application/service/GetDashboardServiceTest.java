@@ -101,6 +101,10 @@ class GetDashboardServiceTest {
                 sql.contains("FROM maintenance_tickets ticket")
                         && sql.contains("ticket.status = 'PENDING_ACCEPTANCE'")
         ));
+        assertTrue(jdbcTemplate.sql().stream().anyMatch(sql ->
+                sql.contains("FROM change_requests change_request")
+                        && sql.contains("change_request.status = 'PENDING'")
+        ));
         assertTrue(jdbcTemplate.sql().stream().filter(sql -> sql.contains("FROM invoices invoice"))
                 .count() >= 3);
     }
