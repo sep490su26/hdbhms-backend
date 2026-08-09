@@ -221,7 +221,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 anyString(),
                 eq(Integer.class),
                 any(Object[].class)
-        )).thenReturn(0, 1);
+        )).thenReturn(0);
 
         var service = newService(
                 jdbcTemplate,
@@ -235,7 +235,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 () -> service.activate(99L)
         );
 
-        assertTrue(exception.getReason().contains("Phong phai o trang thai"));
+        assertTrue(exception.getReason().contains("bàn giao"));
         var sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate, times(2)).queryForObject(
                 sqlCaptor.capture(),
