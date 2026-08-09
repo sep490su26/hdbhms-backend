@@ -575,11 +575,20 @@ public class UtilityBillingRunService {
                 .invoice(invoice)
                 .lineType(InvoiceLineType.SERVICE_FEE)
                 .description(description)
-                .quantity(safe(item.getServiceFeeAmount()) > 0 ? 1 : 0)
+                .quantity(serviceFeeQuantity(item))
                 .unitPrice(safe(item.getServiceFeeUnitPrice()))
                 .sourceType(SOURCE_TYPE)
                 .sourceId(item.getId())
                 .build());
+    }
+
+    private int serviceFeeQuantity(UtilityBillingRunItemEntity item) {
+        long amount = safe(item.getServiceFeeAmount());
+        long unitPrice = safe(item.getServiceFeeUnitPrice());
+        if (amount <= 0 || unitPrice <= 0) {
+            return 0;
+        }
+        return Math.toIntExact((amount + unitPrice - 1) / unitPrice);
     }
 
     private void saveInvoiceLine(
@@ -705,8 +714,32 @@ public class UtilityBillingRunService {
             return new ServiceFeeCharge(0L, 0L, true, "Service fee already settled in transfer month.", false);
         }
 
+        int occupantCount = activeOccupantCount(contract.getId());
+        if (occupantCount <= 0) {
+            return ServiceFeeCharge.empty();
+        }
+
         UtilityTariffSnapshot tariff = readTariff(propertyId, UtilityType.SERVICE_FEE, period.atEndOfMonth());
-        return new ServiceFeeCharge(tariff.unitPrice(), tariff.unitPrice(), false, null, true);
+        int paymentCycleMonths = contract.getPaymentCycleMonths() == null
+                ? 1
+                : Math.max(contract.getPaymentCycleMonths(), 1);
+        return new ServiceFeeCharge(
+                tariff.unitPrice(),
+                tariff.unitPrice() * occupantCount * paymentCycleMonths,
+                false,
+                null,
+                true
+        );
+    }
+
+    private int activeOccupantCount(Long contractId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM contract_occupants
+                WHERE contract_id = ?
+                  AND status = 'ACTIVE'
+                """, Integer.class, contractId);
+        return count == null ? 0 : count;
     }
 
     private boolean hasServiceFeeLineForContractAndPeriod(Long contractId, String billingPeriod) {

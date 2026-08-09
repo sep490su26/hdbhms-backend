@@ -9,7 +9,6 @@ import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepos
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicketAttachment;
 import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
@@ -56,8 +55,6 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
         String category = firstNonBlank(command.category(), command.type(), "OTHER");
         String title = firstNonBlank(command.title(), category);
         TicketScope ticketScope = command.ticketScope() == null ? TicketScope.TENANT_ROOM : command.ticketScope();
-        Priority priority = command.priority() == null ? Priority.MEDIUM : command.priority();
-
         MaintenanceTicket maintenanceTicket = MaintenanceTicket.builder()
                 .ticketCode(String.format("#SC-TMP-%d-%d", currentSessionUserId, System.nanoTime()))
                 .propertyId(leaseRoom.room().getPropertyId())
@@ -65,7 +62,6 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                 .contractId(leaseRoom.leaseContract() == null ? null : leaseRoom.leaseContract().getId())
                 .createdById(currentSessionUserId)
                 .ticketScope(ticketScope)
-                .priority(priority)
                 .category(category)
                 .title(title)
                 .description(command.description())

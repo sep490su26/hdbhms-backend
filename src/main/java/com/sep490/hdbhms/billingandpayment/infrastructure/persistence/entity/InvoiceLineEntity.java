@@ -61,10 +61,6 @@ public class InvoiceLineEntity {
     @Column(name = "source_id")
     Long sourceId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "collection_account_id", nullable = true)
-    CollectionAccountEntity collectionAccount;
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, nullable = false)
     LocalDateTime createdAt;

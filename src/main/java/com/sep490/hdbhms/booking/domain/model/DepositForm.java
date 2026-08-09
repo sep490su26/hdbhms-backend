@@ -46,7 +46,6 @@ public class DepositForm {
     String depositCode;
     Long roomHoldId;
     Long tenantId;
-    Long leadId;
     Long depositorPersonProfileId;
     Long amount;
     @Builder.Default

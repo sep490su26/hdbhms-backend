@@ -18,7 +18,6 @@ public class PaymentTransaction {
     Long id;
     TransactionProvider provider;
     String providerTransactionId;
-    Long collectionAccountId;
     Long amount;
     LocalDateTime transactionTime;
     String payerName;

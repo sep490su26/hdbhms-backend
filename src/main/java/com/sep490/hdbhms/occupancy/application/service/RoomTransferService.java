@@ -1261,8 +1261,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (targetRoom.getCurrentStatus() == RoomStatus.OCCUPIED) {
             throw new IllegalArgumentException("Target room is already occupied.");
         }
-        if (targetRoom.getCurrentStatus() == RoomStatus.MAINTENANCE
-                || targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
+        if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER
                 || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
@@ -1287,8 +1286,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (targetRoom.getCurrentStatus() != RoomStatus.OCCUPIED) {
             throw new IllegalArgumentException("Target room must already be occupied for existing-contract transfers.");
         }
-        if (targetRoom.getCurrentStatus() == RoomStatus.MAINTENANCE
-                || targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
+        if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER
                 || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
@@ -1299,8 +1297,7 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private void validateTargetRoomStatusForExecution(Room targetRoom, RoomTransferRequest request) {
         targetRoom = releaseExpiredReservationIfPossible(targetRoom);
-        if (targetRoom.getCurrentStatus() == RoomStatus.MAINTENANCE
-                || targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
+        if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
                 || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
             throw new IllegalArgumentException("Target room is not available for transfer execution.");
         }

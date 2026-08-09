@@ -204,7 +204,7 @@ class LeaseContractManagementServiceSignedFileTest {
         var leaseContractRepository = mock(JpaLeaseContractRepository.class);
         var room = RoomEntity.builder()
                 .id(8L)
-                .currentStatus(RoomStatus.MAINTENANCE)
+                .currentStatus(RoomStatus.ON_HOLD)
                 .build();
         var contract = LeaseContractEntity.builder()
                 .id(99L)

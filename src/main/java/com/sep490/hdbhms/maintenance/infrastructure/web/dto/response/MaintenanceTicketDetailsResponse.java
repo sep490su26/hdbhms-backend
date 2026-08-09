@@ -3,7 +3,6 @@ package com.sep490.hdbhms.maintenance.infrastructure.web.dto.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sep490.hdbhms.maintenance.domain.value_objects.CostResponsibility;
 import com.sep490.hdbhms.maintenance.domain.value_objects.PaidBy;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -26,8 +25,6 @@ public class MaintenanceTicketDetailsResponse {
     String propertyName;
     String ticketScope;
     String scope;
-    Priority priority;
-    Priority severity;
     String category;
     String title;
     String description;

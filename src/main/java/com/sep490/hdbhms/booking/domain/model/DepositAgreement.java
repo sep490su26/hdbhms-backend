@@ -18,7 +18,6 @@ public class DepositAgreement {
     Long roomId;
     Long depositFormId;
     Long tenantId;
-    Long leadId;
     Long depositorPersonProfileId;
     Long roomHoldId;
     Long amount;
@@ -44,7 +43,7 @@ public class DepositAgreement {
                 + (referenceDate == null ? "DATE" : referenceDate);
     }
 
-    public static DepositAgreement newDepositAgreementForLeadUser(
+    public static DepositAgreement newDepositAgreement(
             String depositCode,
             Long roomId,
             Long depositFormId,
@@ -65,11 +64,6 @@ public class DepositAgreement {
                 .depositExpiresAt(expectedMoveInDate.plusDays(14))
                 .paymentDueAt(paymentDueAt)
                 .build();
-    }
-
-    public void setLeadId(Long leadId) {
-        this.leadId = leadId;
-        this.updatedAt = LocalDateTime.now();
     }
 
     public void setDepositorPersonProfileId(Long depositorPersonProfileId) {

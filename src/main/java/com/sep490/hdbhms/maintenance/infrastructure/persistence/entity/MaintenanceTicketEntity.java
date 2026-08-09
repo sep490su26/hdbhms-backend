@@ -2,7 +2,6 @@ package com.sep490.hdbhms.maintenance.infrastructure.persistence.entity;
 
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
@@ -61,11 +60,6 @@ public class MaintenanceTicketEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "ticket_scope", nullable = false, length = 50)
     TicketScope ticketScope;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    @Builder.Default
-    Priority priority = Priority.MEDIUM;
 
     @Column(nullable = false, length = 100)
     String category;

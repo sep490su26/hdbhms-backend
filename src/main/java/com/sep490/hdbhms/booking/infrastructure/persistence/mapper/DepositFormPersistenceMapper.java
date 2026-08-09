@@ -5,7 +5,6 @@ import com.sep490.hdbhms.booking.domain.model.DepositForm;
 import com.sep490.hdbhms.booking.domain.model.DepositFormCoOccupant;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormCoOccupantEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaLeadRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaRoomHoldRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPersonProfileRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaTenantRepository;
@@ -28,7 +27,6 @@ public class DepositFormPersistenceMapper {
     JpaFileMetadataRepository jpaFileMetadataRepository;
     JpaRoomHoldRepository jpaRoomHoldRepository;
     JpaTenantRepository jpaTenantRepository;
-    JpaLeadRepository jpaLeadRepository;
     JpaPersonProfileRepository jpaPersonProfileRepository;
 
     public DepositForm toDomain(DepositFormEntity entity) {
@@ -55,7 +53,6 @@ public class DepositFormPersistenceMapper {
                 .depositCode(entity.getDepositCode())
                 .roomHoldId(entity.getRoomHold() != null ? entity.getRoomHold().getId() : null)
                 .tenantId(entity.getTenant() != null ? entity.getTenant().getId() : null)
-                .leadId(entity.getLead() != null ? entity.getLead().getId() : null)
                 .depositorPersonProfileId(entity.getDepositorPersonProfile() != null ? entity.getDepositorPersonProfile().getId() : null)
                 .amount(entity.getAmount())
                 .depositStatus(entity.getDepositStatus())
@@ -116,9 +113,6 @@ public class DepositFormPersistenceMapper {
                         : null)
                 .tenant(domain.getTenantId() != null
                         ? jpaTenantRepository.findById(domain.getTenantId()).orElse(null)
-                        : null)
-                .lead(domain.getLeadId() != null
-                        ? jpaLeadRepository.findById(domain.getLeadId()).orElse(null)
                         : null)
                 .depositorPersonProfile(domain.getDepositorPersonProfileId() != null
                         ? jpaPersonProfileRepository.findById(domain.getDepositorPersonProfileId()).orElse(null)

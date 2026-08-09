@@ -8,6 +8,5 @@ public enum RoomStatus {
     RESERVED_FOR_TRANSFER,
     OCCUPIED,
     SOON_VACANT,
-    MAINTENANCE,
     EXPIRED
 }

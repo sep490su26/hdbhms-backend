@@ -42,10 +42,6 @@ public class PaymentTransactionEntity {
     @Column(name = "provider_transaction_id", length = 255)
     String providerTransactionId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "collection_account_id", nullable = true)
-    CollectionAccountEntity collectionAccount;
-
     @Column(nullable = false)
     Long amount;
 

@@ -45,10 +45,6 @@ public class PaymentIntentEntity {
     @JoinColumn(name = "deposit_batch_id")
     DepositBatchEntity depositBatch;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "invoice_payment_group_id", nullable = true)
-    InvoicePaymentGroupEntity invoicePaymentGroup;
-
     @Column(nullable = false)
     Long amount;
 
@@ -57,10 +53,6 @@ public class PaymentIntentEntity {
     PaymentIntentProvider provider;
     @Column(name = "provider_order_code", length = 255)
     String providerOrderCode;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "collection_account_id", nullable = true)
-    CollectionAccountEntity collectionAccount;
 
     @Column(name = "payment_content", nullable = false, length = 255)
     String paymentContent;

@@ -11,9 +11,15 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.MockU
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.RentOverrideResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,6 +52,24 @@ public class BillingManagementController {
         return ApiResponse.<List<BillingInvoiceResponse>>builder()
                 .data(billingManagementService.listInvoices(billingPeriod, status, propertyId, roomId, invoiceType))
                 .build();
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<Resource> exportInvoices(
+            @RequestParam(required = false) String billingPeriod,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long propertyId,
+            @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) String invoiceType
+    ) {
+        var file = billingManagementService.exportInvoicesAsExcel(
+                billingPeriod, status, propertyId, roomId, invoiceType
+        );
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        DocumentFilenameBuilder.attachmentContentDisposition(file.filename()))
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .body(new ByteArrayResource(file.bytes()));
     }
 
     @PostMapping("/rent-overrides")

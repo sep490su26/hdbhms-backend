@@ -65,7 +65,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
         Room room = roomRepository.findById(depositForm.getRoomId()).orElseThrow(
                 () -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)
         );
-        DepositAgreement depositAgreement = DepositAgreement.newDepositAgreementForLeadUser(
+        DepositAgreement depositAgreement = DepositAgreement.newDepositAgreement(
                 resolveDepositCode(room, depositForm.getExpectedMoveInDate()),
                 room.getId(),
                 depositForm.getId(),

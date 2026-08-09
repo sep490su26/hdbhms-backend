@@ -585,14 +585,15 @@ public class LeaseContractManagementService {
         liquidation.setLiquidationDate(finalLiquidationDate);
         liquidation.setReason(finalReason);
         liquidation.setDepositAmount(depositAmount);
-        liquidation.setDepositDeductionAmount(0L);
-        liquidation.setDepositDeductionReason(null);
-        liquidation.setDepositRefundAmount(calculateLiquidationDepositRefund(
+        LiquidationDepositSettlement depositSettlement = calculateLiquidationDepositSettlement(
                 contract,
                 finalLiquidationDate,
                 depositAmount,
-                holderReplacement ? depositAmount : 0L
-        ));
+                holderReplacement
+        );
+        liquidation.setDepositDeductionAmount(depositSettlement.deductionAmount());
+        liquidation.setDepositDeductionReason(depositSettlement.deductionReason());
+        liquidation.setDepositRefundAmount(depositSettlement.refundAmount());
         liquidation.setStatus(LiquidationStatus.DRAFT);
         contractLiquidationRepository.save(liquidation);
 
@@ -1068,7 +1069,13 @@ public class LeaseContractManagementService {
         );
         liquidation.setStatus(LiquidationStatus.DRAFT);
         liquidation = contractLiquidationRepository.saveAndFlush(liquidation);
-        InvoiceEntity finalInvoice = upsertFinalSettlementInvoice(contract, liquidation, charges, true);
+        InvoiceEntity finalInvoice = upsertFinalSettlementInvoice(
+                contract,
+                liquidation,
+                charges,
+                true,
+                holderReplacement
+        );
         liquidation.setFinalInvoice(finalInvoice);
         contractLiquidationRepository.save(liquidation);
         if (!holderReplacement) {
@@ -1097,21 +1104,23 @@ public class LeaseContractManagementService {
         liquidation.setLiquidationDate(liquidationDate);
         liquidation.setReason(reason);
         liquidation.setDepositAmount(depositAmount);
-        liquidation.setDepositDeductionAmount(0L);
-        liquidation.setDepositDeductionReason(null);
-        liquidation.setDepositRefundAmount(calculateLiquidationDepositRefund(
+        LiquidationDepositSettlement depositSettlement = calculateLiquidationDepositSettlement(
                 contract,
                 liquidationDate,
                 depositAmount,
-                depositCarriedForward ? safe(depositAmount) : 0L
-        ));
+                depositCarriedForward
+        );
+        liquidation.setDepositDeductionAmount(depositSettlement.deductionAmount());
+        liquidation.setDepositDeductionReason(depositSettlement.deductionReason());
+        liquidation.setDepositRefundAmount(depositSettlement.refundAmount());
     }
 
     private InvoiceEntity upsertFinalSettlementInvoice(
             LeaseContractEntity contract,
             ContractLiquidationEntity liquidation,
             List<LiquidationChargeInput> charges,
-            boolean issue
+            boolean issue,
+            boolean depositCarriedForward
     ) {
         List<LiquidationChargeInput> normalizedCharges = normalizeLiquidationCharges(contract, liquidation.getLiquidationDate(), charges);
         String billingPeriod = liquidation.getLiquidationDate() == null
@@ -1126,14 +1135,15 @@ public class LeaseContractManagementService {
         long totalAmount = Math.max(0L, subtotal);
 
         liquidation.setDepositAmount(depositAmount);
-        liquidation.setDepositDeductionAmount(0L);
-        liquidation.setDepositDeductionReason(null);
-        liquidation.setDepositRefundAmount(calculateLiquidationDepositRefund(
+        LiquidationDepositSettlement depositSettlement = calculateLiquidationDepositSettlement(
                 contract,
                 liquidation.getLiquidationDate(),
                 depositAmount,
-                0L
-        ));
+                depositCarriedForward
+        );
+        liquidation.setDepositDeductionAmount(depositSettlement.deductionAmount());
+        liquidation.setDepositDeductionReason(depositSettlement.deductionReason());
+        liquidation.setDepositRefundAmount(depositSettlement.refundAmount());
 
         InvoiceEntity invoice = liquidation.getFinalInvoice() != null
                 ? liquidation.getFinalInvoice()
@@ -1310,13 +1320,38 @@ public class LeaseContractManagementService {
         return safe(contract.getDepositAmount());
     }
 
-    private long calculateLiquidationDepositRefund(
+    static boolean isShortTermEarlyTermination(
+            LocalDate contractEndDate,
+            LocalDate liquidationDate
+    ) {
+        if (contractEndDate == null || liquidationDate == null) {
+            return false;
+        }
+        return liquidationDate.isBefore(contractEndDate)
+                && liquidationDate.isAfter(contractEndDate.minusMonths(1));
+    }
+
+    private LiquidationDepositSettlement calculateLiquidationDepositSettlement(
             LeaseContractEntity contract,
             LocalDate liquidationDate,
             Long depositAmount,
-            long deductionAmount
+            boolean depositCarriedForward
     ) {
-        return Math.max(0L, safe(depositAmount) - deductionAmount);
+        long safeDepositAmount = safe(depositAmount);
+        if (safeDepositAmount <= 0L) {
+            return new LiquidationDepositSettlement(0L, 0L, null);
+        }
+        if (depositCarriedForward) {
+            return new LiquidationDepositSettlement(safeDepositAmount, 0L, null);
+        }
+        if (isShortTermEarlyTermination(contract == null ? null : contract.getEndDate(), liquidationDate)) {
+            return new LiquidationDepositSettlement(
+                    safeDepositAmount,
+                    safeDepositAmount,
+                    "Khách chấm dứt hoặc trả phòng trước hạn khi hợp đồng còn dưới 1 tháng."
+            );
+        }
+        return new LiquidationDepositSettlement(safeDepositAmount, 0L, null);
     }
 
     private List<LiquidationChargeInput> normalizeLiquidationCharges(
@@ -2961,6 +2996,16 @@ public class LeaseContractManagementService {
             BigDecimal currentValue,
             Long photoFileId
     ) {
+    }
+
+    private record LiquidationDepositSettlement(
+            long depositAmount,
+            long deductionAmount,
+            String deductionReason
+    ) {
+        long refundAmount() {
+            return Math.max(0L, depositAmount - deductionAmount);
+        }
     }
 
     private record LiquidationInvoiceSummary(

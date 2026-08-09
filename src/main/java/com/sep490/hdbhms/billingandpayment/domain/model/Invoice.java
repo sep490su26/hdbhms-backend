@@ -38,7 +38,6 @@ public class Invoice {
     @Builder.Default
     Long paidAmount = 0L;
     Long remainingAmount;
-    Long collectionAccountId;
     Long createdBy;
     LocalDateTime issuedAt;
     LocalDateTime voidedAt;

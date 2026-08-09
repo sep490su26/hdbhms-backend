@@ -2,7 +2,6 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.billingandpayment.domain.model.Invoice;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
-import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaCollectionAccountRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositBatchRepository;
@@ -24,7 +23,6 @@ public class InvoicePersistenceMapper {
     JpaLeaseContractRepository leaseContractRepository;
     JpaDepositAgreementRepository depositAgreementRepository;
     JpaDepositBatchRepository depositBatchRepository;
-    JpaCollectionAccountRepository collectionAccountRepository;
 
     public Invoice toDomain(InvoiceEntity entity) {
         if (entity == null) return null;
@@ -33,7 +31,6 @@ public class InvoicePersistenceMapper {
         Long leaseContractId = entity.getLeastContract() != null ? entity.getLeastContract().getId() : null;
         Long depositAgreementId = entity.getDepositAgreement() != null ? entity.getDepositAgreement().getId() : null;
         Long depositBatchId = entity.getDepositBatch() != null ? entity.getDepositBatch().getId() : null;
-        Long collectionAccountId = entity.getCollectionAccount() != null ? entity.getCollectionAccount().getId() : null;
         Long createdBy = entity.getCreatedBy() != null ? entity.getCreatedBy().getId() : null;
 
         return Invoice.builder()
@@ -56,7 +53,6 @@ public class InvoicePersistenceMapper {
                 .totalAmount(entity.getTotalAmount())
                 .paidAmount(entity.getPaidAmount())
                 .remainingAmount(entity.getRemainingAmount())
-                .collectionAccountId(collectionAccountId)
                 .createdBy(createdBy)
                 .issuedAt(entity.getIssuedAt() != null ? entity.getIssuedAt() : null)
                 .voidedAt(entity.getVoidedAt() != null ? entity.getVoidedAt() : null)
@@ -80,8 +76,6 @@ public class InvoicePersistenceMapper {
                 ? depositAgreementRepository.findById(domain.getDepositAgreementId()).orElse(null) : null;
         var depositBatch = domain.getDepositBatchId() != null
                 ? depositBatchRepository.findById(domain.getDepositBatchId()).orElse(null) : null;
-        var collectionAccount = domain.getCollectionAccountId() != null
-                ? collectionAccountRepository.findById(domain.getCollectionAccountId()).orElse(null) : null;
         var createdBy = domain.getCreatedBy() != null
                 ? userRepository.findById(domain.getCreatedBy()).orElse(null) : null;
 
@@ -105,7 +99,6 @@ public class InvoicePersistenceMapper {
                 .totalAmount(domain.getTotalAmount())
                 .paidAmount(domain.getPaidAmount())
                 .remainingAmount(domain.getRemainingAmount())
-                .collectionAccount(collectionAccount)
                 .createdBy(createdBy)
                 .issuedAt(domain.getIssuedAt() != null ? domain.getIssuedAt() : null)
                 .voidedAt(domain.getVoidedAt() != null ? domain.getVoidedAt() : null)

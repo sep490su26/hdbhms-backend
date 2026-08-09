@@ -46,7 +46,6 @@ import com.sep490.hdbhms.maintenance.domain.value_objects.CostType;
 import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketAction;
 import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
 import com.sep490.hdbhms.maintenance.domain.value_objects.PaidBy;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceCostEntity;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceReviewEntity;
@@ -169,10 +168,9 @@ public class MaintenanceTicketController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) Long floorId,
             @RequestParam(required = false) Long propertyId,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String severity,
-            @RequestParam(required = false) String priority,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
@@ -182,7 +180,7 @@ public class MaintenanceTicketController {
     ) {
         Role role = requireRole();
         if (role == Role.TENANT) {
-            return searchTicketsForTenant(code, status, roomId, category, severity, priority, scope, fromDate, toDate, pageable);
+            return searchTicketsForTenant(code, status, roomId, floorId, category, scope, fromDate, toDate, pageable);
         }
         assertManagerOrOwner(role);
         List<Long> restrictedPropertyIds = restrictedPropertyIdsForCurrentManager(role);
@@ -192,7 +190,7 @@ public class MaintenanceTicketController {
         if (propertyId != null && restrictedPropertyIds != null && !restrictedPropertyIds.contains(propertyId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem phiếu sự cố của cơ sở này.");
         }
-        return searchTickets(code, status, roomId, propertyId, firstNonBlank(category, type), severity, priority, scope, fromDate, toDate, pageable, null, restrictedPropertyIds);
+        return searchTickets(code, status, roomId, floorId, propertyId, firstNonBlank(category, type), scope, fromDate, toDate, pageable, null, restrictedPropertyIds);
     }
 
     @GetMapping("/my")
@@ -201,9 +199,8 @@ public class MaintenanceTicketController {
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) Long floorId,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) String severity,
-            @RequestParam(required = false) String priority,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
@@ -214,7 +211,7 @@ public class MaintenanceTicketController {
         if (requireRole() != Role.TENANT) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only tenants can use this endpoint.");
         }
-        return searchTicketsForTenant(code, status, roomId, category, severity, priority, scope, fromDate, toDate, pageable);
+        return searchTicketsForTenant(code, status, roomId, floorId, category, scope, fromDate, toDate, pageable);
     }
 
     @GetMapping("/{id}")
@@ -542,9 +539,8 @@ public class MaintenanceTicketController {
             String code,
             String status,
             Long roomId,
+            Long floorId,
             String category,
-            String severity,
-            String priority,
             String scope,
             LocalDate fromDate,
             LocalDate toDate,
@@ -569,7 +565,7 @@ public class MaintenanceTicketController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem ticket của phòng này.");
         }
         List<Long> restrictedRoomIds = roomId == null ? activeRoomIds : List.of(roomId);
-        return searchTickets(code, status, null, null, category, severity, priority,
+        return searchTickets(code, status, null, floorId, null, category,
                 firstNonBlank(scope, "ROOM"), fromDate, toDate, pageable, restrictedRoomIds, null);
     }
 
@@ -577,10 +573,9 @@ public class MaintenanceTicketController {
             String code,
             String status,
             Long roomId,
+            Long floorId,
             Long propertyId,
             String category,
-            String severity,
-            String priority,
             String scope,
             LocalDate fromDate,
             LocalDate toDate,
@@ -601,6 +596,9 @@ public class MaintenanceTicketController {
         if (roomId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("room").get("id"), roomId));
         }
+        if (floorId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("room").get("floor").get("id"), floorId));
+        }
         if (propertyId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("property").get("id"), propertyId));
         }
@@ -613,10 +611,6 @@ public class MaintenanceTicketController {
         String normalizedCategory = firstNonBlank(category).isBlank() ? "" : normalizeCategory(category);
         if (!normalizedCategory.isBlank()) {
             spec = spec.and((root, query, cb) -> cb.equal(cb.upper(root.get("category")), normalizedCategory));
-        }
-        Priority normalizedPriority = parsePriority(firstNonBlank(severity, priority));
-        if (normalizedPriority != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("priority"), normalizedPriority));
         }
         TicketScope normalizedScope = parseScope(scope);
         if (normalizedScope != null) {
@@ -714,7 +708,6 @@ public class MaintenanceTicketController {
             CreateMaintenanceTicketRequest request
     ) {
         String category = normalizeCategory(firstNonBlank(request.getCategory(), request.getType(), "OTHER"));
-        Priority priority = firstNonNull(request.getSeverity(), request.getPriority(), Priority.MEDIUM);
         MaintenanceTicket ticket = MaintenanceTicket.builder()
                 .ticketCode(String.format("#SC-TMP-%d-%d", currentUserId(), System.nanoTime()))
                 .propertyId(propertyId)
@@ -722,7 +715,6 @@ public class MaintenanceTicketController {
                 .contractId(contractId)
                 .createdById(currentUserId())
                 .ticketScope(scope)
-                .priority(priority)
                 .category(category)
                 .title(firstNonBlank(request.getTitle(), category))
                 .description(request.getDescription().trim())
@@ -1199,8 +1191,6 @@ public class MaintenanceTicketController {
                 .roomName(room.roomName())
                 .ticketScope(toBusinessScope(ticket.getTicketScope()))
                 .scope(toBusinessScope(ticket.getTicketScope()))
-                .priority(ticket.getPriority())
-                .severity(ticket.getPriority())
                 .category(ticket.getCategory())
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
@@ -1261,8 +1251,6 @@ public class MaintenanceTicketController {
                 .roomName(room.roomName())
                 .ticketScope(toBusinessScope(ticket.getTicketScope()))
                 .scope(toBusinessScope(ticket.getTicketScope()))
-                .priority(ticket.getPriority())
-                .severity(ticket.getPriority())
                 .category(ticket.getCategory())
                 .title(ticket.getTitle())
                 .description(ticket.getDescription())
@@ -1722,18 +1710,6 @@ public class MaintenanceTicketController {
             return MaintenanceTicketStatus.valueOf(normalized);
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái phiếu sự cố không hợp lệ.");
-        }
-    }
-
-    private Priority parsePriority(String priority) {
-        String normalized = firstNonBlank(priority).toUpperCase(Locale.ROOT);
-        if (normalized.isBlank() || "ALL".equals(normalized)) {
-            return null;
-        }
-        try {
-            return Priority.valueOf(normalized);
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mức độ sự cố không hợp lệ.");
         }
     }
 

@@ -55,6 +55,7 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
             FROM InvoiceEntity invoice
             LEFT JOIN FETCH invoice.property property
             LEFT JOIN FETCH invoice.room room
+            LEFT JOIN FETCH room.floor floor
             LEFT JOIN FETCH invoice.leastContract contract
             LEFT JOIN FETCH contract.primaryTenantProfile profile
             WHERE (:billingPeriod IS NULL OR invoice.billingPeriod = :billingPeriod)

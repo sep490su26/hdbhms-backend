@@ -19,11 +19,9 @@ public class PaymentIntent {
     Long invoiceId;
     Long depositAgreementId;
     Long depositBatchId;
-    Long invoicePaymentGroupId;
     Long amount;
     String providerOrderCode;
     PaymentIntentProvider provider;
-    Long collectionAccountId;
     String paymentContent;
     String qrPayload;
     PaymentIntentStatus status;

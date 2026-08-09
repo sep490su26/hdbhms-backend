@@ -117,10 +117,6 @@ public class InvoiceEntity {
     Long remainingAmount = 0L;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "collection_account_id", nullable = true)
-    CollectionAccountEntity collectionAccount;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = true)
     UserEntity createdBy;
 

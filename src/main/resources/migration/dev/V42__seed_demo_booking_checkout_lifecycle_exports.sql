@@ -60,13 +60,13 @@ BEGIN
                 WHEN '301' THEN 'VACANT'
                 WHEN '302' THEN 'OCCUPIED'
                 WHEN '401' THEN 'OCCUPIED'
-                WHEN '402' THEN 'SOON_VACANT'
-                WHEN '403' THEN 'OCCUPIED'
+                WHEN '402' THEN 'OCCUPIED'
+                WHEN '403' THEN 'SOON_VACANT'
                 WHEN '404' THEN 'OCCUPIED'
                 WHEN '405' THEN 'OCCUPIED'
                 WHEN '406' THEN 'VACANT'
                 WHEN '407' THEN 'VACANT'
-                WHEN '408' THEN 'MAINTENANCE'
+                WHEN '408' THEN 'OCCUPIED'
                 WHEN '501' THEN 'OCCUPIED'
                 WHEN '502' THEN 'RESERVED_FOR_TRANSFER'
                 WHEN '503' THEN 'OCCUPIED'
@@ -86,7 +86,7 @@ BEGIN
                 WHEN '405' THEN 'Seed: nguồn chuyển phòng, người đứng tên chọn người ở cùng chuyển cùng.'
                 WHEN '406' THEN 'Seed: phòng đích cho yêu cầu chuyển phòng mới tạo.'
                 WHEN '407' THEN 'Seed: phòng trống có thể đặt lịch xem.'
-                WHEN '408' THEN 'Seed: phòng bảo trì, không cho đặt lịch.'
+                WHEN '408' THEN 'Seed: phòng đang thuê, theo dõi phiếu bảo trì.'
                 WHEN '501' THEN 'Seed: nguồn chuyển phòng đang chờ ký hợp đồng mới.'
                 WHEN '502' THEN 'Seed: phòng đích chuyển phòng chờ ký hợp đồng.'
                 WHEN '503' THEN 'Seed: chuyển phòng đã bàn giao, còn hóa đơn chốt.'
@@ -98,7 +98,7 @@ BEGIN
             END,
             internal_note = CASE room_code
                 WHEN '402' THEN 'Ngày dự kiến trống: 2026-08-15'
-                WHEN '408' THEN 'Trạng thái bảo trì demo.'
+                WHEN '408' THEN 'Theo dõi phiếu bảo trì demo.'
                 WHEN '502' THEN 'Reserved by transfer request CP_P502_30_07_2026'
                 WHEN '504' THEN 'Reserved by transfer request CP_P504_30_07_2026'
                 WHEN '507' THEN 'Needs holder replacement flow, room remains occupied.'
@@ -213,7 +213,7 @@ BEGIN
             (contract_code, room_id, deposit_agreement_id, primary_tenant_profile_id, start_date, end_date, rent_start_date, monthly_rent, payment_cycle_months, deposit_amount, status, tenant_intention, expected_vacant_date, intention_recorded_at, previous_contract_id, contract_file_id, signed_at, created_by, created_at, updated_at, deleted_at)
         VALUES
             ('HD-SEED-401-2026', @r401, NULL, @p401, '2026-01-01', '2026-12-31', '2026-01-01', 2400000, 1, 2400000, 'ACTIVE', NULL, NULL, NULL, NULL, @lease_signed_file, '2026-01-01 09:00:00', @owner_tenant, '2026-01-01 08:00:00', @seed_now, NULL),
-            ('HD-SEED-402-2026', @r402, NULL, @p401, '2025-09-01', '2026-08-15', '2025-09-01', 2500000, 1, 2500000, 'EXPIRING_SOON', 'MOVE_OUT', '2026-08-15', '2026-07-20 08:00:00', NULL, NULL, '2025-09-01 09:00:00', @owner_tenant, '2025-09-01 08:00:00', @seed_now, NULL),
+            ('HD-SEED-402-2026', @r402, NULL, @p401, '2025-09-01', '2026-08-15', '2025-09-01', 2500000, 1, 2500000, 'EXPIRING_SOON', NULL, NULL, NULL, NULL, NULL, '2025-09-01 09:00:00', @owner_tenant, '2025-09-01 08:00:00', @seed_now, NULL),
             ('HD-SEED-403-2026', @r403, NULL, @p401, '2025-10-01', '2026-09-30', '2025-10-01', 2300000, 1, 2300000, 'TERMINATION_PENDING', 'MOVE_OUT', '2026-07-31', '2026-07-20 08:00:00', NULL, NULL, '2025-10-01 09:00:00', @owner_tenant, '2025-10-01 08:00:00', @seed_now, NULL),
             ('HD-SEED-404-2026', @r404, NULL, @p401, '2025-09-01', '2026-08-31', '2025-09-01', 2600000, 1, 2600000, 'EXPIRING_SOON', 'RENEW', NULL, '2026-07-21 08:00:00', NULL, @lease_draft_404_file, '2025-09-01 09:00:00', @owner_tenant, '2025-09-01 08:00:00', @seed_now, NULL),
             ('HD-SEED-405-2026', @r405, NULL, @p401, '2025-11-01', '2026-10-31', '2025-11-01', 2200000, 1, 2200000, 'ACTIVE', NULL, NULL, NULL, NULL, @lease_signed_file, '2025-11-01 09:00:00', @owner_tenant, '2025-11-01 08:00:00', @seed_now, NULL),
@@ -221,7 +221,7 @@ BEGIN
             ('HD-SEED-502-TRANSFER-DRAFT', @r502, NULL, @p401, '2026-08-10', '2026-12-31', '2026-08-10', 2500000, 1, 2500000, 'CONFIRMED', NULL, NULL, NULL, NULL, @lease_signed_file, NULL, @owner_tenant, '2026-07-30 10:00:00', @seed_now, NULL),
             ('HD-SEED-503-2026', @r503, NULL, @p401, '2026-01-01', '2026-12-31', '2026-01-01', 2300000, 1, 2300000, 'ACTIVE', NULL, NULL, NULL, NULL, @lease_signed_file, '2026-01-01 09:00:00', @owner_tenant, '2026-01-01 08:00:00', @seed_now, NULL),
             ('HD-SEED-504-TRANSFER-SIGNED', @r504, NULL, @p401, '2026-08-08', '2026-12-31', '2026-08-08', 2300000, 1, 2300000, 'SIGNED', NULL, NULL, NULL, NULL, @lease_signed_file, '2026-07-30 11:30:00', @owner_tenant, '2026-07-30 10:30:00', @seed_now, NULL),
-            ('HD-SEED-505-2026', @r505, NULL, @p401, '2026-01-01', '2026-12-31', '2026-01-01', 2200000, 1, 2200000, 'TRANSFERRED', 'TRANSFER', '2026-07-20', '2026-07-20 08:00:00', NULL, @lease_signed_file, '2026-01-01 09:00:00', @owner_tenant, '2026-01-01 08:00:00', @seed_now, NULL),
+            ('HD-SEED-505-2026', @r505, NULL, @p401, '2026-01-01', '2026-12-31', '2026-01-01', 2200000, 1, 2200000, 'TRANSFERRED', NULL, NULL, NULL, NULL, @lease_signed_file, '2026-01-01 09:00:00', @owner_tenant, '2026-01-01 08:00:00', @seed_now, NULL),
             ('HD-SEED-506-TRANSFER-ACTIVE', @r506, NULL, @p401, '2026-07-20', '2026-12-31', '2026-07-20', 2600000, 1, 2200000, 'ACTIVE', NULL, NULL, NULL, NULL, @lease_signed_file, '2026-07-20 09:00:00', @owner_tenant, '2026-07-20 08:00:00', @seed_now, NULL),
             ('HD-SEED-507-2026', @r507, NULL, @p401, '2026-01-01', '2026-12-31', '2026-01-01', 2450000, 1, 2450000, 'ACTIVE', NULL, NULL, NULL, NULL, @lease_signed_file, '2026-01-01 09:00:00', @owner_tenant, '2026-01-01 08:00:00', @seed_now, NULL),
             ('HD-SEED-301-2026', @r301, NULL, @p401, '2026-01-01', '2026-07-25', '2026-01-01', 2200000, 1, 2200000, 'LIQUIDATED', 'MOVE_OUT', '2026-07-25', '2026-07-20 08:00:00', NULL, @lease_signed_file, '2026-01-01 09:00:00', @owner_tenant, '2026-01-01 08:00:00', @seed_now, NULL),
@@ -241,6 +241,76 @@ BEGIN
         SET @c507 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-SEED-507-2026' LIMIT 1);
         SET @c301 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-SEED-301-2026' LIMIT 1);
         SET @c302 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-SEED-302-2026' LIMIT 1);
+
+        -- Keep generated transfer contracts linked to their source contracts.
+        UPDATE hdbhms.lease_contracts
+        SET previous_contract_id = @c501,
+            monthly_rent = (SELECT listed_price FROM hdbhms.rooms WHERE room_id = @r502),
+            signed_file_id = NULL,
+            signed_uploaded_by = NULL
+        WHERE lease_contract_id = @c502new;
+
+        UPDATE hdbhms.lease_contracts
+        SET previous_contract_id = @c503,
+            monthly_rent = (SELECT listed_price FROM hdbhms.rooms WHERE room_id = @r504),
+            signed_file_id = @lease_signed_file,
+            signed_uploaded_by = @manager_id
+        WHERE lease_contract_id = @c504new;
+
+        UPDATE hdbhms.lease_contracts
+        SET previous_contract_id = @c505,
+            monthly_rent = (SELECT listed_price FROM hdbhms.rooms WHERE room_id = @r506),
+            signed_file_id = @lease_signed_file,
+            signed_uploaded_by = @manager_id
+        WHERE lease_contract_id = @c506new;
+
+        -- Mirror the tasks and notifications produced when the expiry workflow
+        -- processes the intentions recorded in the demo contracts.
+        INSERT INTO hdbhms.manager_tasks
+            (title, description, task_type, idempotency_key, assignee_id, room_id, lease_contract_id, status, due_date, created_at, updated_at)
+        VALUES
+            ('Chốt lịch bàn giao phòng 403', 'Khách đã chọn chuyển đi và dự kiến bàn giao ngày 2026-07-31.', 'LEASE_HANDOVER_CONFIRMATION', CONCAT('LEASE_HANDOVER_CONFIRMATION:CONTRACT:', @c403), @manager_id, @r403, @c403, 'PENDING', '2026-07-31', '2026-07-30 09:00:00', '2026-07-30 09:00:00'),
+            ('Chốt điều khoản gia hạn phòng 404', 'Khách đã chọn gia hạn hợp đồng. Cần chốt giá, thời hạn, tiền cọc và lịch ký.', 'LEASE_RENEWAL_TERMS_CONFIRMATION', CONCAT('LEASE_RENEWAL_TERMS_CONFIRMATION:CONTRACT:', @c404), @manager_id, @r404, @c404, 'PENDING', '2026-08-06', '2026-07-30 09:00:00', '2026-07-30 09:00:00')
+        ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            description = VALUES(description),
+            assignee_id = VALUES(assignee_id),
+            room_id = VALUES(room_id),
+            lease_contract_id = VALUES(lease_contract_id),
+            status = VALUES(status),
+            due_date = VALUES(due_date),
+            updated_at = VALUES(updated_at);
+
+        SET @task403Expiry := (SELECT manager_task_id FROM hdbhms.manager_tasks WHERE idempotency_key = CONCAT('LEASE_HANDOVER_CONFIRMATION:CONTRACT:', @c403) LIMIT 1);
+        SET @task404Renewal := (SELECT manager_task_id FROM hdbhms.manager_tasks WHERE idempotency_key = CONCAT('LEASE_RENEWAL_TERMS_CONFIRMATION:CONTRACT:', @c404) LIMIT 1);
+
+        INSERT INTO hdbhms.reminder_trackers
+            (reminder_key, target_type, target_id, audience, status, sent_count, next_due_at, related_task_id, metadata, created_at, updated_at)
+        VALUES
+            ('LEASE_HANDOVER_CONFIRMATION', 'CONTRACT', @c403, 'PROPERTY_MANAGER', 'ACTIVE', 0, NULL, @task403Expiry, JSON_OBJECT('endDate', '2026-09-30', 'stage', 'HANDOVER'), '2026-07-30 09:00:00', '2026-07-30 09:00:00');
+
+        INSERT INTO hdbhms.notification_outbox
+            (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status, retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+        VALUES
+            ('LEASE_HANDOVER_CONFIRMATION_DUE', 'MANAGER_TASK', @task403Expiry, @manager_id, 'WEB', 'Cần chốt bàn giao phòng Phòng 403', 'Hợp đồng HD-SEED-403-2026 sắp đến hạn 2026-09-30. Hạn công việc 2026-07-31. Lý do: Khách đã chọn chuyển đi và dự kiến bàn giao ngày 2026-07-31.', JSON_OBJECT('taskId', @task403Expiry, 'contractId', @c403, 'contractCode', 'HD-SEED-403-2026', 'roomId', @r403, 'roomName', 'Phòng 403', 'roomCode', '403', 'propertyName', 'Nhà trọ Hải Đăng 1', 'endDate', '2026-09-30', 'dueDate', '2026-07-31', 'reason', 'Khách đã chọn chuyển đi và dự kiến bàn giao ngày 2026-07-31.', 'targetRoute', CONCAT('/dashboard/contracts/', @c403)), 'SENT', 0, 3, '2026-07-30 09:00:00', '2026-07-30 09:00:00', '2026-07-30 09:00:00', FALSE),
+            ('LEASE_RENEWAL_TERMS_CONFIRMATION_DUE', 'MANAGER_TASK', @task404Renewal, @manager_id, 'WEB', 'Cần chốt gia hạn hợp đồng HD-SEED-404-2026', 'Khách phòng Phòng 404 đã chọn gia hạn. Cần chốt giá, thời hạn, tiền cọc và lịch ký trước 2026-08-06.', JSON_OBJECT('taskId', @task404Renewal, 'contractId', @c404, 'contractCode', 'HD-SEED-404-2026', 'roomId', @r404, 'roomName', 'Phòng 404', 'roomCode', '404', 'propertyName', 'Nhà trọ Hải Đăng 1', 'endDate', '2026-08-31', 'dueDate', '2026-08-06', 'reason', 'Khách đã chọn gia hạn hợp đồng.', 'targetRoute', CONCAT('/dashboard/contracts/', @c404)), 'SENT', 0, 3, '2026-07-30 09:00:00', '2026-07-30 09:00:00', '2026-07-30 09:00:00', FALSE);
+
+        INSERT INTO hdbhms.notification_outbox
+            (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status, retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+        SELECT event_type, target_type, target_id, recipient_user_id, 'PUSH', title, body, payload, status, retry_count, max_retries, scheduled_at, sent_at, created_at, is_read
+        FROM hdbhms.notification_outbox
+        WHERE channel = 'WEB'
+          AND target_type = 'MANAGER_TASK'
+          AND target_id IN (@task403Expiry, @task404Renewal)
+          AND NOT EXISTS (
+              SELECT 1
+              FROM hdbhms.notification_outbox existing_push
+              WHERE existing_push.event_type = notification_outbox.event_type
+                AND existing_push.target_type = notification_outbox.target_type
+                AND existing_push.target_id = notification_outbox.target_id
+                AND existing_push.recipient_user_id = notification_outbox.recipient_user_id
+                AND existing_push.channel = 'PUSH'
+          );
 
         INSERT INTO hdbhms.contract_occupants
             (contract_id, tenant_id, tenant_profile_id, occupant_role, move_in_date, move_out_date, status, disabled_reason, disabled_by, disabled_at, created_at)
@@ -564,7 +634,8 @@ BEGIN
         VALUES
             (@c503, @r503, 'TRANSFER_OUT', '2026-07-30 11:30:00', NULL, NULL, 'Seed transfer-out handover, waiting final execution.', 'CONFIRMED', @manager_id, '2026-07-30 11:35:00', '2026-07-30 11:30:00', NULL),
             (@c505, @r505, 'TRANSFER_OUT', '2026-07-20 11:00:00', NULL, NULL, 'Seed completed transfer-out handover.', 'CONFIRMED', @manager_id, '2026-07-20 11:05:00', '2026-07-20 11:00:00', NULL),
-            (@c506new, @r506, 'TRANSFER_IN', '2026-07-20 12:00:00', NULL, NULL, 'Seed completed transfer-in handover.', 'CONFIRMED', @manager_id, '2026-07-20 12:05:00', '2026-07-20 12:00:00', NULL);
+            (@c506new, @r506, 'TRANSFER_IN', '2026-07-20 12:00:00', NULL, NULL, 'Seed completed transfer-in handover.', 'CONFIRMED', @manager_id, '2026-07-20 12:05:00', '2026-07-20 12:00:00', NULL),
+            (@c301, @r301, 'MOVE_OUT', '2026-07-25 09:30:00', @mr301eJul, @mr301wJul, 'Seed completed move-out handover.', 'CONFIRMED', @manager_id, '2026-07-25 09:35:00', '2026-07-25 09:30:00', @receipt_file);
 
         INSERT INTO hdbhms.contract_liquidations
             (contract_id, liquidation_date, reason, deposit_amount, deposit_deduction_amount, deposit_deduction_reason, deposit_refund_amount, final_invoice_id, signed_file_id, status, created_by, created_at)

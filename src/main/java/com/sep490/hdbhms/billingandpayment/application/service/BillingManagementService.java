@@ -37,6 +37,13 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -44,6 +51,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -51,6 +62,9 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -64,6 +78,18 @@ public class BillingManagementService {
     static final String INVOICE_OVERDUE_EVENT = "INVOICE_OVERDUE";
     static final String INVOICE_TARGET = "INVOICE";
     static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    static final String INVOICE_EXCEL_TEMPLATE = "templates/Template Hai Dang 1 payment notice.xlsx";
+    static final String INVOICE_EXCEL_CONTENT_TYPE =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    static final int INVOICE_EXCEL_CONTENT_START_ROW = 7;
+    static final Map<String, Integer> INVOICE_EXCEL_MAX_ROWS_BY_FLOOR = Map.of(
+            "F1", 6,
+            "F2", 8,
+            "F3", 8,
+            "F4", 8,
+            "F5", 7
+    );
+    static final List<String> INVOICE_EXCEL_FLOOR_CODES = List.of("F1", "F2", "F3", "F4", "F5");
     static final List<InvoiceStatus> OVERDUE_WARNING_STATUSES = List.of(
             InvoiceStatus.ISSUED,
             InvoiceStatus.PARTIALLY_PAID,
@@ -108,6 +134,332 @@ public class BillingManagementService {
                 .stream()
                 .map(this::toInvoiceResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ExportedFile exportInvoicesAsExcel(
+            String billingPeriod,
+            String status,
+            Long propertyId,
+            Long roomId,
+            String invoiceType
+    ) {
+        String normalizedPeriod = normalizeOptionalPeriod(billingPeriod);
+        if (normalizedPeriod == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Vui long chon mot ky thang cu the de xuat Excel"
+            );
+        }
+        InvoiceStatus parsedStatus = parseInvoiceStatus(status);
+        InvoiceType parsedType = parseInvoiceType(invoiceType);
+        List<InvoiceEntity> invoices = invoiceRepository.findManagementInvoices(
+                        normalizedPeriod, parsedStatus, propertyId, roomId, parsedType
+                ).stream()
+                // Keep the exported workbook tied to the selected invoice period even for CHAR columns with padding.
+                .filter(invoice -> normalizedPeriod.equals(
+                        invoice.getBillingPeriod() == null ? null : invoice.getBillingPeriod().trim()
+                ))
+                .toList();
+        if (invoices.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chưa có hóa đơn để xuất");
+        }
+
+        List<InvoiceExcelRow> rows = buildInvoiceExcelRows(invoices);
+        if (rows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có hóa đơn gắn với phòng để xuất");
+        }
+
+        try {
+            return new ExportedFile(
+                    generateInvoiceExcel(rows, normalizedPeriod),
+                    INVOICE_EXCEL_CONTENT_TYPE,
+                    invoiceExcelFilename(normalizedPeriod)
+            );
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file Excel thất bại");
+        }
+    }
+
+    private List<InvoiceExcelRow> buildInvoiceExcelRows(List<InvoiceEntity> invoices) {
+        Map<Long, InvoiceExcelRowBuilder> grouped = new LinkedHashMap<>();
+        Map<Long, Integer> occupantCounts = new LinkedHashMap<>();
+
+        for (InvoiceEntity invoice : invoices) {
+            if (invoice.getRoom() == null) {
+                continue;
+            }
+            Long roomId = invoice.getRoom().getId();
+            InvoiceExcelRowBuilder builder = grouped.computeIfAbsent(
+                    roomId,
+                    ignored -> new InvoiceExcelRowBuilder(
+                            invoice,
+                            activeOccupantCount(invoice.getLeastContract(), occupantCounts)
+                    )
+            );
+            builder.merge(invoice);
+        }
+
+        return grouped.values().stream()
+                .map(InvoiceExcelRowBuilder::toRow)
+                .sorted(Comparator
+                        .comparingInt((InvoiceExcelRow row) -> floorNumber(row.floorCode()))
+                        .thenComparingInt(row -> roomNumber(row.roomCode())))
+                .toList();
+    }
+
+    private int activeOccupantCount(LeaseContractEntity contract, Map<Long, Integer> cache) {
+        if (contract == null || contract.getId() == null) {
+            return 0;
+        }
+        return cache.computeIfAbsent(
+                contract.getId(),
+                id -> jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM contract_occupants WHERE contract_id = ? AND status = 'ACTIVE'",
+                        Integer.class,
+                        id
+                )
+        );
+    }
+
+    private byte[] generateInvoiceExcel(List<InvoiceExcelRow> rows, String billingPeriod) throws IOException {
+        ClassPathResource template = new ClassPathResource(INVOICE_EXCEL_TEMPLATE);
+        try (
+                InputStream inputStream = template.getInputStream();
+                XSSFWorkbook workbook = new XSSFWorkbook(inputStream);
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+        ) {
+            Sheet sheet = workbook.getSheetAt(0);
+            if (billingPeriod != null) {
+                setText(sheet, 5, 0, invoiceExcelTitle(billingPeriod));
+            }
+
+            long totalOccupants = 0L;
+            long totalListedPrice = 0L;
+            long totalRent = 0L;
+            long totalService = 0L;
+            long totalElectricity = 0L;
+            long totalDebt = 0L;
+            long totalDiscount = 0L;
+            long totalAmount = 0L;
+
+            Map<String, List<InvoiceExcelRow>> rowsByFloor = new LinkedHashMap<>();
+            for (InvoiceExcelRow item : rows) {
+                String floorCode = normalizeFloorCode(item.floorCode());
+                if (!INVOICE_EXCEL_MAX_ROWS_BY_FLOOR.containsKey(floorCode)) {
+                    throw new IOException("Khong co block tang trong template cho phong " + item.roomCode());
+                }
+                rowsByFloor.computeIfAbsent(floorCode, ignored -> new ArrayList<>()).add(item);
+            }
+
+            InvoiceExcelTemplateStyles styles = captureInvoiceExcelTemplateStyles(sheet);
+            removeInvoiceExcelContentRows(sheet);
+
+            int sequence = 1;
+            int outputRowIndex = INVOICE_EXCEL_CONTENT_START_ROW;
+            for (String floorCode : INVOICE_EXCEL_FLOOR_CODES) {
+                List<InvoiceExcelRow> floorRows = rowsByFloor.getOrDefault(floorCode, List.of());
+                CellStyle[] dataStyles = styles.dataStyles();
+                if (floorRows.size() > INVOICE_EXCEL_MAX_ROWS_BY_FLOOR.get(floorCode)) {
+                    throw new IOException("So phong cua tang " + floorCode + " vuot qua so dong trong template");
+                }
+                if (floorRows.isEmpty()) {
+                    continue;
+                }
+
+                Row floorHeader = createStyledRow(
+                        sheet,
+                        outputRowIndex++,
+                        styles.floorHeaderStyles(),
+                        styles.floorHeaderHeight()
+                );
+                setText(floorHeader, 0, floorTitle(floorRows.get(0)));
+                sheet.addMergedRegion(new CellRangeAddress(
+                        floorHeader.getRowNum(), floorHeader.getRowNum(), 0, 19
+                ));
+
+                for (InvoiceExcelRow item : floorRows) {
+                    Row dataRow = createStyledRow(sheet, outputRowIndex++, dataStyles, styles.dataHeight());
+                    writeInvoiceExcelRow(dataRow, item, sequence++);
+
+                    totalOccupants += item.occupantCount();
+                    totalListedPrice += item.listedPrice();
+                    totalRent += item.rentAmount();
+                    totalService += item.serviceAmount();
+                    totalElectricity += item.electricityAmount();
+                    totalDebt += item.previousDebt();
+                    totalDiscount += item.discountAmount();
+                    totalAmount += item.totalAmount();
+                }
+            }
+
+            Row totalRow = createStyledRow(
+                    sheet,
+                    outputRowIndex,
+                    styles.totalStyles(),
+                    styles.totalHeight()
+            );
+            sheet.addMergedRegion(new CellRangeAddress(
+                    totalRow.getRowNum(), totalRow.getRowNum(), 0, 1
+            ));
+            setText(totalRow, 0, "Tổng");
+            setNumber(totalRow, 2, totalOccupants);
+            setNumber(totalRow, 3, totalListedPrice);
+            setNumber(totalRow, 9, totalRent);
+            setNumber(totalRow, 10, totalService);
+            setNumber(totalRow, 14, totalElectricity);
+            setNumber(totalRow, 15, totalDebt);
+            setNumber(totalRow, 16, totalDiscount);
+            setNumber(totalRow, 17, totalAmount);
+
+            workbook.setPrintArea(
+                    workbook.getSheetIndex(sheet),
+                    0,
+                    19,
+                    0,
+                    totalRow.getRowNum()
+            );
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        }
+    }
+
+    private InvoiceExcelTemplateStyles captureInvoiceExcelTemplateStyles(Sheet sheet) {
+        return new InvoiceExcelTemplateStyles(
+                captureRowStyles(sheet.getRow(7), 20),
+                sheet.getRow(7).getHeight(),
+                captureRowStyles(sheet.getRow(8), 20),
+                sheet.getRow(8).getHeight(),
+                captureRowStyles(sheet.getRow(49), 20),
+                sheet.getRow(49).getHeight()
+        );
+    }
+
+    private CellStyle[] captureRowStyles(Row source, int columnCount) {
+        CellStyle[] styles = new CellStyle[columnCount];
+        for (int column = 0; column < columnCount; column++) {
+            Cell cell = source.getCell(column);
+            if (cell != null) {
+                styles[column] = cell.getCellStyle();
+            }
+        }
+        return styles;
+    }
+
+    private Row createStyledRow(Sheet sheet, int rowIndex, CellStyle[] styles, short height) {
+        Row row = sheet.createRow(rowIndex);
+        row.setHeight(height);
+        for (int column = 0; column < styles.length; column++) {
+            if (styles[column] != null) {
+                row.createCell(column).setCellStyle(styles[column]);
+            }
+        }
+        return row;
+    }
+
+    private void removeInvoiceExcelContentRows(Sheet sheet) {
+        for (int mergeIndex = sheet.getNumMergedRegions() - 1; mergeIndex >= 0; mergeIndex--) {
+            if (sheet.getMergedRegion(mergeIndex).getFirstRow() >= INVOICE_EXCEL_CONTENT_START_ROW) {
+                sheet.removeMergedRegion(mergeIndex);
+            }
+        }
+        for (int rowIndex = sheet.getLastRowNum(); rowIndex >= INVOICE_EXCEL_CONTENT_START_ROW; rowIndex--) {
+            Row row = sheet.getRow(rowIndex);
+            if (row != null) {
+                sheet.removeRow(row);
+            }
+        }
+    }
+
+    private void writeInvoiceExcelRow(Row row, InvoiceExcelRow item, int sequence) {
+        setNumber(row, 0, sequence);
+        setText(row, 1, item.roomCode());
+        setNumber(row, 2, item.occupantCount());
+        setNumber(row, 3, item.listedPrice());
+        setNumber(row, 4, item.servicePerPerson());
+        setNumber(row, 5, item.contractTermMonths());
+        setDate(row, 6, item.contractStartDate());
+        setDate(row, 7, item.contractEndDate());
+        setNumber(row, 8, item.paymentCycleMonths());
+        setNumber(row, 9, item.rentAmount());
+        setNumber(row, 10, item.serviceAmount());
+        setNumber(row, 11, item.electricityPrevious());
+        setNumber(row, 12, item.electricityCurrent());
+        setNumber(row, 13, item.electricityUsage());
+        setNumber(row, 14, item.electricityAmount());
+        setNumber(row, 15, item.previousDebt());
+        setNumber(row, 16, item.discountAmount());
+        setNumber(row, 17, item.totalAmount());
+        setText(row, 18, item.note());
+    }
+
+    private String invoiceExcelTitle(String billingPeriod) {
+        YearMonth period = YearMonth.parse(billingPeriod);
+        return "Thông báo thu tiền trọ Hải Đăng 1 kỳ "
+                + period.format(DateTimeFormatter.ofPattern("MM/yyyy"));
+    }
+
+    private String floorTitle(InvoiceExcelRow row) {
+        int floor = floorNumber(row.floorCode());
+        return floor == Integer.MAX_VALUE ? defaultText(row.floorName(), "TẦNG") : "TẦNG " + floor;
+    }
+
+    private String normalizeFloorCode(String floorCode) {
+        return floorCode == null ? "" : floorCode.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private int floorNumber(String floorCode) {
+        String normalized = normalizeFloorCode(floorCode);
+        if (normalized.startsWith("F")) {
+            try {
+                return Integer.parseInt(normalized.substring(1));
+            } catch (NumberFormatException ignored) {
+                // Fall through to the last sort position for an invalid floor code.
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    private String invoiceExcelFilename(String billingPeriod) {
+        return billingPeriod == null
+                ? "Thông báo đóng tiền trọ Hải Đăng 1.xlsx"
+                : "Thông báo đóng tiền trọ Hải Đăng 1 " + billingPeriod + ".xlsx";
+    }
+
+    private void setText(Sheet sheet, int rowIndex, int column, String value) {
+        setText(sheet.getRow(rowIndex), column, value);
+    }
+
+    private void setText(Row row, int column, String value) {
+        if (row != null) {
+            row.getCell(column, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK).setCellValue(value == null ? "" : value);
+        }
+    }
+
+    private void setNumber(Row row, int column, Number value) {
+        if (row != null) {
+            row.getCell(column, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
+                    .setCellValue(value == null ? 0D : value.doubleValue());
+        }
+    }
+
+    private void setDate(Row row, int column, LocalDate value) {
+        if (row != null) {
+            Cell cell = row.getCell(column, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+            if (value == null) {
+                cell.setBlank();
+            } else {
+                cell.setCellValue(java.sql.Date.valueOf(value));
+            }
+        }
+    }
+
+    private int roomNumber(String roomCode) {
+        try {
+            return Integer.parseInt(roomCode == null ? "99999" : roomCode);
+        } catch (NumberFormatException exception) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     @Transactional
@@ -214,6 +566,14 @@ public class BillingManagementService {
                         "Không có hợp đồng/phòng đang hiệu lực để điều chỉnh giá."
                 ));
 
+        long listedRent = safe(contract.getMonthlyRent());
+        if (listedRent > 0 && newRent >= listedRent) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Giá khuyến mãi phải thấp hơn giá niêm yết cơ bản của phòng."
+            );
+        }
+
         RentOverrideEntity rentOverride = rentOverrideRepository
                 .findByContract_IdAndBillingPeriod(contract.getId(), period.toString())
                 .orElseGet(RentOverrideEntity::new);
@@ -277,7 +637,6 @@ public class BillingManagementService {
         PaymentTransactionEntity transaction = paymentTransactionRepository.save(PaymentTransactionEntity.builder()
                 .provider(TransactionProvider.CASH)
                 .providerTransactionId("MANUAL-" + invoiceId + "-" + System.currentTimeMillis())
-                .collectionAccount(invoice.getCollectionAccount())
                 .amount(amount)
                 .transactionTime(now.atZone(ZoneId.systemDefault()).toInstant())
                 .payerName(defaultText(request == null ? null : request.payerName(), null))
@@ -489,7 +848,6 @@ public class BillingManagementService {
                         .description("Tiền phòng tháng " + invoice.getBillingPeriod())
                         .quantity(1)
                         .unitPrice(oldRent)
-                        .collectionAccount(invoice.getCollectionAccount())
                         .build());
 
         long oldLineAmount = existingLine.map(this::lineAmount).orElse(0L);
@@ -706,6 +1064,161 @@ public class BillingManagementService {
 
     private LocalDateTime toLocalDateTime(Instant instant) {
         return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+    }
+
+    private final class InvoiceExcelRowBuilder {
+        private final Long roomId;
+        private final String roomCode;
+        private final String floorCode;
+        private final String floorName;
+        private final int occupantCount;
+        private long listedPrice;
+        private long rentAmount;
+        private long serviceAmount;
+        private long electricityAmount;
+        private long discountAmount;
+        private long totalAmount;
+        private BigDecimal electricityPrevious = BigDecimal.ZERO;
+        private BigDecimal electricityCurrent = BigDecimal.ZERO;
+        private LocalDate contractStartDate;
+        private LocalDate contractEndDate;
+        private Integer paymentCycleMonths = 1;
+        private LocalDateTime latestIssueDate;
+        private final List<String> invoiceCodes = new ArrayList<>();
+
+        private InvoiceExcelRowBuilder(InvoiceEntity invoice, int occupantCount) {
+            this.roomId = invoice.getRoom().getId();
+            this.roomCode = invoice.getRoom().getRoomCode();
+            this.floorCode = invoice.getRoom().getFloor() == null
+                    ? null
+                    : invoice.getRoom().getFloor().getFloorCode();
+            this.floorName = invoice.getRoom().getFloor() == null
+                    ? null
+                    : invoice.getRoom().getFloor().getName();
+            this.occupantCount = occupantCount;
+            this.listedPrice = safe(invoice.getRoom().getListedPrice());
+            updateContract(invoice.getLeastContract());
+        }
+
+        private void merge(InvoiceEntity invoice) {
+            if (invoice.getInvoiceCode() != null && !invoiceCodes.contains(invoice.getInvoiceCode())) {
+                invoiceCodes.add(invoice.getInvoiceCode());
+            }
+            rentAmount += sumLines(invoice, InvoiceLineType.ROOM_RENT);
+            serviceAmount += sumLines(invoice, InvoiceLineType.SERVICE_FEE);
+            electricityAmount += sumLines(invoice, InvoiceLineType.ELECTRICITY);
+            discountAmount += safe(invoice.getDiscountAmount());
+            totalAmount += safe(invoice.getTotalAmount());
+
+            if (latestIssueDate == null
+                    || (invoice.getIssueDate() != null && invoice.getIssueDate().isAfter(latestIssueDate))) {
+                latestIssueDate = invoice.getIssueDate();
+                updateContract(invoice.getLeastContract());
+                InvoiceLineEntity electricityLine = invoiceLineRepository
+                        .findByInvoice_IdOrderByIdAsc(invoice.getId())
+                        .stream()
+                        .filter(line -> line.getLineType() == InvoiceLineType.ELECTRICITY)
+                        .findFirst()
+                        .orElse(null);
+                if (electricityLine != null && electricityLine.getMeterReading() != null) {
+                    if (electricityLine.getMeterReading().getPreviousValue() != null) {
+                        electricityPrevious = electricityLine.getMeterReading().getPreviousValue();
+                    }
+                    if (electricityLine.getMeterReading().getCurrentValue() != null) {
+                        electricityCurrent = electricityLine.getMeterReading().getCurrentValue();
+                    }
+                }
+            }
+        }
+
+        private long sumLines(InvoiceEntity invoice, InvoiceLineType lineType) {
+            return invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId()).stream()
+                    .filter(line -> line.getLineType() == lineType)
+                    .mapToLong(BillingManagementService.this::lineAmount)
+                    .sum();
+        }
+
+        private void updateContract(LeaseContractEntity contract) {
+            if (contract == null) {
+                return;
+            }
+            contractStartDate = contract.getStartDate();
+            contractEndDate = contract.getEndDate();
+            paymentCycleMonths = contract.getPaymentCycleMonths() == null ? 1 : contract.getPaymentCycleMonths();
+        }
+
+        private InvoiceExcelRow toRow() {
+            BigDecimal usage = electricityCurrent.subtract(electricityPrevious);
+            long serviceUnits = (long) occupantCount * Math.max(paymentCycleMonths, 1);
+            long servicePerPerson = serviceUnits <= 0 ? 0L : serviceAmount / serviceUnits;
+            int contractTermMonths = contractStartDate == null || contractEndDate == null
+                    ? 0
+                    : (int) ChronoUnit.MONTHS.between(
+                    contractStartDate.withDayOfMonth(1), contractEndDate.withDayOfMonth(1)
+            ) + 1;
+            String note = invoiceCodes.isEmpty() ? "" : String.join(", ", invoiceCodes);
+            return new InvoiceExcelRow(
+                    roomId,
+                    roomCode,
+                    floorCode,
+                    floorName,
+                    occupantCount,
+                    listedPrice,
+                    servicePerPerson,
+                    contractTermMonths,
+                    contractStartDate,
+                    contractEndDate,
+                    paymentCycleMonths,
+                    rentAmount,
+                    serviceAmount,
+                    electricityPrevious,
+                    electricityCurrent,
+                    usage.max(BigDecimal.ZERO),
+                    electricityAmount,
+                    0L,
+                    discountAmount,
+                    totalAmount,
+                    note
+            );
+        }
+    }
+
+    private record InvoiceExcelTemplateStyles(
+            CellStyle[] floorHeaderStyles,
+            short floorHeaderHeight,
+            CellStyle[] dataStyles,
+            short dataHeight,
+            CellStyle[] totalStyles,
+            short totalHeight
+    ) {
+    }
+
+    private record InvoiceExcelRow(
+            Long roomId,
+            String roomCode,
+            String floorCode,
+            String floorName,
+            int occupantCount,
+            long listedPrice,
+            long servicePerPerson,
+            int contractTermMonths,
+            LocalDate contractStartDate,
+            LocalDate contractEndDate,
+            int paymentCycleMonths,
+            long rentAmount,
+            long serviceAmount,
+            BigDecimal electricityPrevious,
+            BigDecimal electricityCurrent,
+            BigDecimal electricityUsage,
+            long electricityAmount,
+            long previousDebt,
+            long discountAmount,
+            long totalAmount,
+            String note
+    ) {
+    }
+
+    public record ExportedFile(byte[] bytes, String contentType, String filename) {
     }
 
     private record WarningResult(int recipientCount, int outboxCount, int duplicateCount) {

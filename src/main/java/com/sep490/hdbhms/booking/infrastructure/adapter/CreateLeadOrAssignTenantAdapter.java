@@ -16,8 +16,6 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.booking.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
-import com.sep490.hdbhms.booking.application.port.out.LeadRepository;
-import com.sep490.hdbhms.booking.domain.model.Lead;
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
@@ -42,7 +40,6 @@ import java.util.Optional;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenantPort {
     UserRepository userRepository;
-    LeadRepository leadRepository;
     RoomRepository roomRepository;
     PasswordEncoder passwordEncoder;
     TenantRepository tenantRepository;
@@ -65,7 +62,6 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
         PersonProfile personProfile = ensurePersonProfile(depositForm);
         ensureIdentityDocument(personProfile, depositForm);
 
-//        depositAgreement.setLeadId(lead.getId());
         depositAgreement.setDepositorPersonProfileId(personProfile.getId());
         depositAgreementRepository.save(depositAgreement);
     }

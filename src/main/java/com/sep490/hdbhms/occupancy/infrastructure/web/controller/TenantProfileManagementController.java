@@ -257,7 +257,7 @@ public class TenantProfileManagementController {
                     ? getEmergencyContacts(row.profileId())
                     : List.of();
             ProfileStatus profileStatus = canViewSensitiveProfile
-                    ? resolveProfileStatus(row, identityDocument, emergencyContacts)
+                    ? resolveProfileStatus(row, identityDocument)
                     : restrictedProfileStatus(accessDecision);
             List<RoommateResponse> roommates = canViewSensitiveProfile
                     ? roomRows.stream()
@@ -1364,8 +1364,7 @@ public class TenantProfileManagementController {
 
     private ProfileStatus resolveProfileStatus(
             TenantProfileRow row,
-            IdentityDocumentResponse identityDocument,
-            List<EmergencyContactResponse> emergencyContacts
+            IdentityDocumentResponse identityDocument
     ) {
         if (identityDocument == null
                 || identityDocument.docNumber() == null
@@ -1376,9 +1375,6 @@ public class TenantProfileManagementController {
         }
         if (row.portraitFileId() == null) {
             return new ProfileStatus("MISSING_PORTRAIT", "Thiếu ảnh chân dung");
-        }
-        if (emergencyContacts == null || emergencyContacts.isEmpty()) {
-            return new ProfileStatus("MISSING_EMERGENCY_CONTACT", "Thiếu liên hệ khẩn cấp");
         }
         return new ProfileStatus("COMPLETED", "Hồ sơ đủ");
     }

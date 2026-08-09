@@ -1,6 +1,5 @@
 package com.sep490.hdbhms.maintenance.application.port.in.command;
 
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 
 import java.util.List;
@@ -11,7 +10,6 @@ public record CreateMaintenanceTicketCommand(
         String category,
         String title,
         TicketScope ticketScope,
-        Priority priority,
         String description,
         Boolean repairRequested,
         List<Long> attachmentIds

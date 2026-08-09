@@ -1,7 +1,6 @@
 package com.sep490.hdbhms.maintenance.domain.model;
 
 import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
@@ -24,8 +23,6 @@ public class MaintenanceTicket {
     Long contractId;
     Long createdById;
     TicketScope ticketScope;
-    @Builder.Default
-    Priority priority = Priority.URGENT;
     @Builder.Default
     String category = "";
     @Builder.Default

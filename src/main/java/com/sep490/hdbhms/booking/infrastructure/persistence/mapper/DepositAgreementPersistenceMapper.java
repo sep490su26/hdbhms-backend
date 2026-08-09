@@ -4,7 +4,6 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPer
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositFormRepository;
-import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaLeadRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaRoomHoldRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaTenantRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Component;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DepositAgreementPersistenceMapper {
     JpaRoomRepository jpaRoomRepository;
-    JpaLeadRepository jpaLeadRepository;
     JpaTenantRepository jpaTenantRepository;
     JpaRoomHoldRepository jpaRoomHoldRepository;
     JpaDepositFormRepository jpaDepositFormRepository;
@@ -34,7 +32,6 @@ public class DepositAgreementPersistenceMapper {
                 .roomId(entity.getRoom() != null ? entity.getRoom().getId() : null)
                 .depositFormId(entity.getId())
                 .tenantId(entity.getTenant() != null ? entity.getTenant().getId() : null)
-                .leadId(entity.getLead() != null ? entity.getLead().getId() : null)
                 .depositorPersonProfileId(entity.getDepositorPersonProfile() != null ? entity.getDepositorPersonProfile().getId() : null)
                 .roomHoldId(entity.getRoomHold() != null ? entity.getRoomHold().getId() : null)
                 .amount(entity.getAmount())
@@ -65,8 +62,6 @@ public class DepositAgreementPersistenceMapper {
         entity.setRoom(domain.getRoomId() == null ? entity.getRoom() : jpaRoomRepository.findById(domain.getRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)));
         entity.setTenant(domain.getTenantId() == null ? null : jpaTenantRepository.findById(domain.getTenantId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)));
-        entity.setLead(domain.getLeadId() == null ? null : jpaLeadRepository.findById(domain.getLeadId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)));
         entity.setDepositorPersonProfile(domain.getDepositorPersonProfileId() == null ? null : jpaPersonProfileRepository.findById(domain.getDepositorPersonProfileId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND)));

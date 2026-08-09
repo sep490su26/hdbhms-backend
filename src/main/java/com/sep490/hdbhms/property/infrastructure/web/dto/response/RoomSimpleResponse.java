@@ -14,6 +14,9 @@ public class RoomSimpleResponse {
     String roomCode;
     String name;
     Long propertyId;
+    Long floorId;
+    String floorName;
+    String floorCode;
     RoomStatus status;
     Long listedPrice;
 }

@@ -2,8 +2,6 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PaymentIntentEntity;
-import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaCollectionAccountRepository;
-import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoicePaymentGroupRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositAgreementRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositBatchRepository;
@@ -19,26 +17,20 @@ public class PaymentIntentPersistenceMapper {
     JpaInvoiceRepository invoiceRepository;
     JpaDepositAgreementRepository depositAgreementRepository;
     JpaDepositBatchRepository depositBatchRepository;
-    JpaInvoicePaymentGroupRepository invoicePaymentGroupRepository;
-    JpaCollectionAccountRepository collectionAccountRepository;
 
     public PaymentIntent toDomain(PaymentIntentEntity entity) {
         if (entity == null) return null;
         Long invoiceId = entity.getInvoice() != null ? entity.getInvoice().getId() : null;
         Long depositAgreementId = entity.getDepositAgreement() != null ? entity.getDepositAgreement().getId() : null;
         Long depositBatchId = entity.getDepositBatch() != null ? entity.getDepositBatch().getId() : null;
-        Long invoicePaymentGroupId = entity.getInvoicePaymentGroup() != null ? entity.getInvoicePaymentGroup().getId() : null;
-        Long collectionAccountId = entity.getCollectionAccount() != null ? entity.getCollectionAccount().getId() : null;
         
         return PaymentIntent.builder()
                 .id(entity.getId())
                 .invoiceId(invoiceId)
                 .depositAgreementId(depositAgreementId)
                 .depositBatchId(depositBatchId)
-                .invoicePaymentGroupId(invoicePaymentGroupId)
                 .amount(entity.getAmount())
                 .provider(entity.getProvider())
-                .collectionAccountId(collectionAccountId)
                 .providerOrderCode(entity.getProviderOrderCode())
                 .paymentContent(entity.getPaymentContent())
                 .qrPayload(entity.getQrPayload())
@@ -56,21 +48,15 @@ public class PaymentIntentPersistenceMapper {
                 ? depositAgreementRepository.findById(domain.getDepositAgreementId()).orElse(null) : null;
         var depositBatch = domain.getDepositBatchId() != null
                 ? depositBatchRepository.findById(domain.getDepositBatchId()).orElse(null) : null;
-        var invoicePaymentGroup = domain.getInvoicePaymentGroupId() != null 
-                ? invoicePaymentGroupRepository.findById(domain.getInvoicePaymentGroupId()).orElse(null) : null;
-        var collectionAccount = domain.getCollectionAccountId() != null 
-                ? collectionAccountRepository.findById(domain.getCollectionAccountId()).orElse(null) : null;
 
         return PaymentIntentEntity.builder()
                 .id(domain.getId())
                 .invoice(invoice)
                 .depositAgreement(depositAgreement)
                 .depositBatch(depositBatch)
-                .invoicePaymentGroup(invoicePaymentGroup)
                 .amount(domain.getAmount())
                 .provider(domain.getProvider())
                 .providerOrderCode(domain.getProviderOrderCode())
-                .collectionAccount(collectionAccount)
                 .paymentContent(domain.getPaymentContent())
                 .qrPayload(domain.getQrPayload())
                 .status(domain.getStatus())

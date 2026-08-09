@@ -878,11 +878,6 @@ public class TenantAccountProvisioningService {
                               AND idoc.doc_number NOT LIKE 'PENDING-%'
                         ) THEN 'MISSING_IDENTITY'
                         WHEN pp.portrait_file_id IS NULL THEN 'MISSING_PORTRAIT'
-                        WHEN NOT EXISTS (
-                            SELECT 1
-                            FROM emergency_contacts ec
-                            WHERE ec.tenant_profile_id = pp.person_profile_id
-                        ) THEN 'MISSING_EMERGENCY_CONTACT'
                         ELSE 'COMPLETED'
                     END AS profile_status,
                     NOT EXISTS (
@@ -894,12 +889,7 @@ public class TenantAccountProvisioningService {
                           AND idoc.doc_number <> ''
                           AND idoc.doc_number NOT LIKE 'PENDING-%'
                     ) AS missing_identity,
-                    pp.portrait_file_id IS NULL AS missing_portrait,
-                    NOT EXISTS (
-                        SELECT 1
-                        FROM emergency_contacts ec
-                            WHERE ec.tenant_profile_id = pp.person_profile_id
-                    ) AS missing_emergency_contact
+                    pp.portrait_file_id IS NULL AS missing_portrait
                 FROM lease_contracts lc
                 JOIN rooms r ON r.room_id = lc.room_id
                 JOIN properties p ON p.property_id = r.property_id
@@ -1010,7 +1000,6 @@ public class TenantAccountProvisioningService {
                 .profileStatus(rs.getString("profile_status"))
                 .missingIdentity(rs.getBoolean("missing_identity"))
                 .missingPortrait(rs.getBoolean("missing_portrait"))
-                .missingEmergencyContact(rs.getBoolean("missing_emergency_contact"))
                 .build();
     }
 

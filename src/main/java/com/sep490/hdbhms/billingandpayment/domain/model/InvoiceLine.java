@@ -24,7 +24,6 @@ public class InvoiceLine {
     Long meterReadingId;
     String sourceType;
     Long sourceId;
-    Long collectionAccountId;
     LocalDateTime createdAt;
 
     public static InvoiceLine newDepositInvoiceLine(Long invoiceId, Long depositAmount) {

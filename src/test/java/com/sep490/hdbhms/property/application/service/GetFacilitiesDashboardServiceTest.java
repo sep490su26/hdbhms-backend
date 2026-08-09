@@ -32,7 +32,7 @@ class GetFacilitiesDashboardServiceTest {
         List<RoomEntity> rooms = List.of(
                 room(100L, property, floor, "P101", RoomStatus.OCCUPIED),
                 room(101L, property, floor, "P102", RoomStatus.VACANT),
-                room(102L, property, floor, "P103", RoomStatus.MAINTENANCE)
+                room(102L, property, floor, "P103", RoomStatus.VACANT)
         );
 
         GetFacilitiesDashboardService service = service(
@@ -52,8 +52,8 @@ class GetFacilitiesDashboardServiceTest {
         assertEquals(1, response.getSummary().getTotalFloors());
         assertEquals(3, response.getSummary().getTotalRooms());
         assertEquals(1, response.getSummary().getOccupiedRooms());
-        assertEquals(1, response.getSummary().getVacantRooms());
-        assertEquals(33, response.getSummary().getVacancyRate());
+        assertEquals(2, response.getSummary().getVacantRooms());
+        assertEquals(67, response.getSummary().getVacancyRate());
         assertEquals("Nhà trọ Hải Đăng", response.getFacilities().getFirst().getName());
         assertTrue(response.getFacilities().getFirst().isHasFloorPlan());
         assertEquals(3, response.getFacilities().getFirst().getFloors().getFirst().getRooms().size());

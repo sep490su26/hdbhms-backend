@@ -6,7 +6,6 @@ import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEnti
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositFormStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
-import com.sep490.hdbhms.booking.infrastructure.persistence.entity.LeadEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PersonProfileEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.TenantEntity;
 import jakarta.persistence.*;
@@ -120,10 +119,6 @@ public class DepositFormEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id")
     TenantEntity tenant;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lead_id")
-    LeadEntity lead;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "depositor_person_profile_id")

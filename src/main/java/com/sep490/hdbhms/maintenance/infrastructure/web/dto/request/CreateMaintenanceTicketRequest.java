@@ -1,7 +1,6 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.dto.request;
 
 import com.sep490.hdbhms.maintenance.domain.value_objects.CostType;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -21,8 +20,6 @@ public class CreateMaintenanceTicketRequest {
     String title;
     TicketScope ticketScope;
     TicketScope scope;
-    Priority priority;
-    Priority severity;
     String description;
     Boolean repairRequested;
     List<Long> attachmentIds;

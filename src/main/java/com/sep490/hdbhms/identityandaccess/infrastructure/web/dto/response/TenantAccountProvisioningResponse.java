@@ -62,6 +62,5 @@ public class TenantAccountProvisioningResponse {
     String profileStatus;
     Boolean missingIdentity;
     Boolean missingPortrait;
-    Boolean missingEmergencyContact;
     String message;
 }

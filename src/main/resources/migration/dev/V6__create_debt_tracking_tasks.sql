@@ -50,9 +50,9 @@ INSERT IGNORE INTO notification_templates (
 ) VALUES (
     'DEBT_DIRECT_VISIT_REQUIRED',
     'PUSH',
-    CONCAT('Cần gặp trực tiếp khách phòng [[', '$', '{roomName}]]'),
+    CONCAT('Cần gặp trực tiếp khách thuê nợ quá hạn'),
     CONCAT(
-        'Phòng [[', '$', '{roomName}]] tại [[', '$', '{propertyName}]] còn nợ [[',
+        '[[', '$', '{roomName}]] tại [[', '$', '{propertyName}]] có tổng nợ [[',
         '$', '{totalDebt}]] VND. Hạn xử lý: [[', '$', '{dueDate}]].'
     ),
     'ACTIVE'

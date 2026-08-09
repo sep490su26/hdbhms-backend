@@ -19,7 +19,6 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUse
 import com.sep490.hdbhms.maintenance.domain.value_objects.AttachmentPhase;
 import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketAction;
 import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
-import com.sep490.hdbhms.maintenance.domain.value_objects.Priority;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceTicketAttachmentEntity;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceTicketEntity;
@@ -342,7 +341,6 @@ public class MaintenanceViolationController {
                 .contract(contract)
                 .createdBy(jpaUserRepository.getReferenceById(currentUserId()))
                 .ticketScope(TicketScope.TENANT_ROOM)
-                .priority(Priority.MEDIUM)
                 .category("RULE_VIOLATION")
                 .title("Vi phạm nội quy: " + title)
                 .description(description.trim() + "\nTiền phạt: " + fineAmount + " đ\nNội quy vi phạm: " + title)
