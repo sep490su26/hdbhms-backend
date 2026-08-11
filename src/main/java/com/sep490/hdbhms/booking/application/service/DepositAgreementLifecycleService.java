@@ -12,13 +12,14 @@ import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositContac
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositExtensionEventRepository;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositFormRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -44,11 +45,11 @@ public class DepositAgreementLifecycleService {
     public void recordContact(Long depositAgreementId, Long actorId, DepositContactOutcome outcome, String note) {
         DepositFormEntity agreement = getAgreement(depositAgreementId);
         if (!DepositLifecyclePolicy.isActive(agreement.getDepositStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ ghi nhận liên hệ cho khoản cọc đang giữ chỗ.");
+            throw new AppException(ApiErrorCode.DEPOSIT_CONTACT_NOT_ALLOWED);
         }
         LocalDate today = LocalDate.now();
         if (today.isBefore(agreement.getExpectedMoveInDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ liên hệ xử lý từ ngày khách dự kiến vào ở.");
+            throw new AppException(ApiErrorCode.DEPOSIT_CONTACT_DATE_NOT_REACHED);
         }
         saveContactEvent(agreement, actorId, outcome, note);
     }
@@ -72,7 +73,7 @@ public class DepositAgreementLifecycleService {
                     LocalDate.now()
             );
         } catch (IllegalArgumentException | IllegalStateException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+            throw new AppException(ApiErrorCode.DEPOSIT_EXTENSION_INVALID);
         }
 
         LocalDate newExpiresAt = DepositLifecyclePolicy.forfeitureDecisionDate(newExpectedMoveInDate);
@@ -101,10 +102,7 @@ public class DepositAgreementLifecycleService {
         DepositFormEntity agreement = getAgreement(depositAgreementId);
         LifecycleSnapshot lifecycle = snapshot(agreement);
         if (!lifecycle.forfeitureEligible()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ được xử lý mất cọc sau 14 ngày quá hạn và lần liên hệ gần nhất ghi nhận không liên lạc được."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_FORFEITURE_NOT_ELIGIBLE);
         }
 
         agreement.setDepositStatus(DepositAgreementStatus.FORFEITED);
@@ -170,7 +168,7 @@ public class DepositAgreementLifecycleService {
 
     private DepositFormEntity getAgreement(Long depositAgreementId) {
         return depositAgreementRepository.findById(depositAgreementId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng đặt cọc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_CONTRACT_NOT_FOUND));
     }
 
     private LocalDate effectiveExpiresAt(DepositFormEntity agreement) {

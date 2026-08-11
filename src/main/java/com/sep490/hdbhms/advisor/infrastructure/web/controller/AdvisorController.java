@@ -74,7 +74,10 @@ public class AdvisorController {
             @RequestParam(required = false) String period,
             @Valid @RequestBody AdvisorAskRequest request
     ) {
-        return ok(advisorService.ask(principal.getId(), period, request.toCommand()));
+        return ApiResponse.<JsonNode>builder()
+                .message("Nhận câu trả lời từ trợ lý AI thành công")
+                .data(advisorService.ask(principal.getId(), period, request.toCommand()))
+                .build();
     }
 
     @PostMapping("/copilot/report")

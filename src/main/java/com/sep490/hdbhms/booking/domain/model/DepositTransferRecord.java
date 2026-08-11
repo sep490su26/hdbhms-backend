@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.booking.domain.model;
 
 import com.sep490.hdbhms.booking.domain.value_objects.DepositTransferStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -34,7 +36,7 @@ public class DepositTransferRecord {
 
     public void markEffective(LocalDate effectiveDate) {
         if (status == DepositTransferStatus.CANCELLED) {
-            throw new IllegalStateException("Cancelled deposit transfer records cannot become effective.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = DepositTransferStatus.EFFECTIVE;
         this.effectiveDate = effectiveDate;
@@ -43,7 +45,7 @@ public class DepositTransferRecord {
 
     public void cancel() {
         if (status == DepositTransferStatus.EFFECTIVE) {
-            throw new IllegalStateException("Effective deposit transfer records cannot be cancelled.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = DepositTransferStatus.CANCELLED;
         this.cancelledAt = LocalDateTime.now();

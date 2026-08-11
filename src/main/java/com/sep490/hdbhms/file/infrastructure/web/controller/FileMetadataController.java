@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.file.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.file.application.port.in.command.UploadBatchFileCommand;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
@@ -31,7 +34,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
@@ -59,6 +61,7 @@ public class FileMetadataController {
     ) {
         FileCategory fileCategory = parseFileCategory(category);
         return ApiResponse.<FileMetadataResponse>builder()
+                .message("Tải tệp lên thành công")
                 .data(
                         fileMetadataWebMapper.toSuccessResponse(
                                 uploadFileService.execute(
@@ -83,6 +86,7 @@ public class FileMetadataController {
     ) {
         FileCategory fileCategory = parseFileCategory(category);
         return ApiResponse.<BatchFileResponse>builder()
+                .message("Tải tệp lên thành công")
                 .data(uploadBatchFileService.execute(new UploadBatchFileCommand(
                         AuthUtils.getCurrentAuthenticationId(),
                         files,
@@ -103,7 +107,7 @@ public class FileMetadataController {
         try {
             return FileCategory.valueOf(normalizedCategory);
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid file category: " + category);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -112,16 +116,16 @@ public class FileMetadataController {
     ResponseEntity<Resource> download(@PathVariable Long fileId) {
         var fileData = downloadFileService.execute(new DownloadFileQuery(fileId));
         if (fileData == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         if (fileData.sensitive()) {
             UserPrincipal principal = currentPrincipal();
             if (!canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
+                throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
             }
             assertCanDownloadTenantProfileFile(principal, fileId);
         } else if (!isPublicCatalogImage(fileId) && !canDownloadSensitiveFile(fileId, fileData.ownerUserId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, fileData.contentType())
@@ -136,7 +140,7 @@ public class FileMetadataController {
         assertCanDownloadTenantProfileFile(principal, fileId);
         var fileData = downloadFileService.execute(new DownloadFileQuery(fileId));
         if (fileData == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, fileData.contentType())
@@ -155,12 +159,12 @@ public class FileMetadataController {
     private UserPrincipal requireOwnerOrManager() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Please login to view this file");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
         Role role = principal.getRole();
         if (role != Role.OWNER && role != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return principal;
     }
@@ -261,7 +265,7 @@ public class FileMetadataController {
             try {
                 leaseContractQueryService.assertCurrentUserCanReadContract(contractId);
                 return true;
-            } catch (ResponseStatusException exception) {
+            } catch (AppException exception) {
                 log.debug("Tenant cannot read contract {} linked to sensitive file", contractId, exception);
             }
         }
@@ -276,7 +280,7 @@ public class FileMetadataController {
             try {
                 leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
                 return true;
-            } catch (ResponseStatusException exception) {
+            } catch (AppException exception) {
                 log.debug("Tenant cannot read room {} linked to sensitive file", roomId, exception);
             }
         }
@@ -308,7 +312,7 @@ public class FileMetadataController {
                 return;
             }
         }
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tenant profile access has not been approved.");
+        throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
     }
 
     private List<Long> tenantProfileIdsForFile(Long fileId) {

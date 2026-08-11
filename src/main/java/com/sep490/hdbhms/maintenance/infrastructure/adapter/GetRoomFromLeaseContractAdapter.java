@@ -5,6 +5,8 @@ import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.property.domain.model.Room;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -20,8 +22,8 @@ public class GetRoomFromLeaseContractAdapter implements GetRoomFromLeaseContract
     @Override
     public Room execute(Long leaseContractId) {
         LeaseContract leaseContract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid leaseContractId: " + leaseContractId));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
         return roomRepository.findById(leaseContract.getRoomId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid roomId: " + leaseContract.getRoomId()));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
     }
 }

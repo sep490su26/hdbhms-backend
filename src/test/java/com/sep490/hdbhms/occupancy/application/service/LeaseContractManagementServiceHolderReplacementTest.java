@@ -1,8 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Set;
@@ -30,8 +29,8 @@ class LeaseContractManagementServiceHolderReplacementTest {
 
     @Test
     void rejectsOverlappingLeavingAndStayingOccupants() {
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> LeaseContractManagementService.validateHolderReplacementProfileIds(
                         1L,
                         Set.of(1L, 2L),
@@ -41,6 +40,6 @@ class LeaseContractManagementServiceHolderReplacementTest {
                 )
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals("HOLDER_REPLACEMENT_OCCUPANTS_OVERLAP", exception.getApiErrorCode().name());
     }
 }

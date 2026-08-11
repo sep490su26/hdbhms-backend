@@ -17,6 +17,8 @@ import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeReq
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestStatsResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/change-requests")
@@ -101,7 +102,7 @@ public class ChangeRequestController {
         ));
         return ApiResponse.<Void>builder()
                 .code(0)
-                .message("Request approved successfully")
+                .message("Phê duyệt yêu cầu thay đổi thành công")
                 .build();
     }
 
@@ -116,7 +117,7 @@ public class ChangeRequestController {
         useCase.rejectRequest(new RejectRequestCommand(id, managerId, request.resolutionNote()));
         return ApiResponse.<Void>builder()
                 .code(0)
-                .message("Request rejected successfully")
+                .message("Từ chối yêu cầu thay đổi thành công")
                 .build();
     }
 
@@ -160,14 +161,14 @@ public class ChangeRequestController {
         }
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         if (request.getRequestType() == RequestType.CONTRACT_RENEWAL
                 && (principal.getRole() == Role.OWNER || principal.getRole() == Role.MANAGER)) {
             return;
         }
         if (principal.getRole() != Role.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only owner can approve this request.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 

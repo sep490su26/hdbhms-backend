@@ -32,6 +32,8 @@ import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositPaymentS
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositRoomHoldStatusResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.RoomWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +50,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -96,6 +97,7 @@ public class DepositController {
                 roomWebMapper.toCommand(request, idFrontFile, idBackFile, portraitFile)
         );
         return ApiResponse.<DepositCheckoutResponse>builder()
+                .message("Đặt cọc phòng thành công")
                 .data(toCheckoutResponse(paymentIntent))
                 .build();
     }
@@ -103,6 +105,7 @@ public class DepositController {
     @PostMapping("/contract-preview")
     public ApiResponse<Map<String, String>> previewLeaseContract(@RequestBody Map<String, Object> metadata) {
         return ApiResponse.<Map<String, String>>builder()
+                .message("Tạo bản xem trước hợp đồng đặt cọc thành công")
                 .data(Map.of("html", leaseContractDocumentService.previewDepositContract(metadata)))
                 .build();
     }
@@ -121,7 +124,7 @@ public class DepositController {
     @GetMapping("/payments/{paymentIntentId}/status")
     public ApiResponse<DepositPaymentStatusResponse> getDepositPaymentStatus(@PathVariable Long paymentIntentId) {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PAYMENT_INTENT_NOT_FOUND));
         paymentIntent = syncPayOSPaymentIfPaid(paymentIntent);
         DepositAgreement depositAgreement = paymentIntent.getDepositAgreementId() == null
                 ? null
@@ -147,7 +150,7 @@ public class DepositController {
     public ApiResponse<DepositPaymentStatusResponse> expireDepositPayment(@PathVariable Long paymentIntentId) {
         paymentIntentRepository.findById(paymentIntentId)
                 .map(this::syncPayOSPaymentIfPaid)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phien thanh toan."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PAYMENT_INTENT_NOT_FOUND));
         PaymentIntent paymentIntent = depositPaymentExpiryService.expire(paymentIntentId);
         DepositAgreement depositAgreement = paymentIntent.getDepositAgreementId() == null
                 ? null
@@ -173,17 +176,17 @@ public class DepositController {
     @PostMapping("/payments/{paymentIntentId}/cancel")
     public ApiResponse<DepositRoomHoldStatusResponse> cancelDepositPayment(@PathVariable Long paymentIntentId) {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên thanh toán."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PAYMENT_INTENT_NOT_FOUND));
         if (paymentIntent.getDepositAgreementId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phiên thanh toán không thuộc đặt cọc phòng.");
+            throw new AppException(ApiErrorCode.PAYMENT_INTENT_NOT_DEPOSIT);
         }
 
         DepositAgreement depositAgreement = depositAgreementRepository.findById(paymentIntent.getDepositAgreementId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin đặt cọc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_FORM_NOT_FOUND));
         RoomHold roomHold = roomHoldRepository.findById(depositAgreement.getRoomHoldId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiên giữ chỗ."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_HOLD_NOT_FOUND));
         if (roomHold.getStatus() == RoomHoldStatus.CONFIRMED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đã được đặt cọc thành công, không thể hủy giữ chỗ.");
+            throw new AppException(ApiErrorCode.DEPOSIT_ALREADY_PAID);
         }
 
         roomHold.cancel();
@@ -292,10 +295,10 @@ public class DepositController {
             Long roomId = Long.valueOf(roomIdentifier);
             return roomRepository.findById(roomId)
                     .or(() -> roomRepository.findByRoomCode(roomIdentifier))
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng."));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         } catch (NumberFormatException ex) {
             return roomRepository.findByRoomCode(roomIdentifier)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng."));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         }
     }
 

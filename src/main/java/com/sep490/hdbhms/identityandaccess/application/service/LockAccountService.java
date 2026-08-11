@@ -4,6 +4,8 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.command.LockAccou
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.LockAccountUseCase;
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -19,7 +21,7 @@ public class LockAccountService implements LockAccountUseCase {
     @Override
     public void execute(LockAccountCommand command) {
         User user = userRepository.findById(command.userId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         user.lockAccount();
         userRepository.save(user);
     }

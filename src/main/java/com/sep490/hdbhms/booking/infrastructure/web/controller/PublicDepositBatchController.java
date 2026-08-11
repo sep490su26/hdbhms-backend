@@ -1,8 +1,6 @@
 package com.sep490.hdbhms.booking.infrastructure.web.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
@@ -11,8 +9,6 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentSta
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
-import com.sep490.hdbhms.booking.application.service.BatchRoomUnavailableException;
-import com.sep490.hdbhms.booking.application.service.BatchDepositRequestException;
 import com.sep490.hdbhms.booking.application.service.DepositBatchCheckoutService;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.BatchDepositCheckoutRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.BatchDepositCheckoutResponse;
@@ -23,9 +19,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.multipart.MultipartFile;
 import vn.payos.model.v2.paymentRequests.PaymentLink;
 import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
@@ -34,8 +28,6 @@ import vn.payos.model.v2.paymentRequests.Transaction;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -49,48 +41,23 @@ public class PublicDepositBatchController {
     ObjectMapper objectMapper;
 
     @PostMapping("/batch-checkout")
-    public ResponseEntity<?> checkout(
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<BatchDepositCheckoutResponse> checkout(
             @Valid @RequestPart("metadata") BatchDepositCheckoutRequest request,
             @RequestPart("frontIdCardFile") MultipartFile frontIdCardFile,
             @RequestPart("backIdCardFile") MultipartFile backIdCardFile,
             @RequestPart("portraitFile") MultipartFile portraitFile
     ) {
-        try {
-            BatchDepositCheckoutResponse response = depositBatchCheckoutService.checkout(
-                    request,
-                    frontIdCardFile,
-                    backIdCardFile,
-                    portraitFile
-            );
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.<BatchDepositCheckoutResponse>builder().data(response).build());
-        } catch (BatchRoomUnavailableException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(new BatchRoomUnavailableResponse(
-                    "BATCH_ROOM_UNAVAILABLE",
-                    ex.getMessage(),
-                    ex.getUnavailableRooms(),
-                    ex.getAvailableRooms()
-            ));
-        } catch (BatchDepositRequestException ex) {
-            return ResponseEntity.status(ex.getStatus()).body(new BatchErrorResponse(
-                    ex.getCode(),
-                    ex.getMessage(),
-                    null
-            ));
-        }
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<BatchErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error ->
-                fieldErrors.putIfAbsent(error.getField(), error.getDefaultMessage())
+        BatchDepositCheckoutResponse response = depositBatchCheckoutService.checkout(
+                request,
+                frontIdCardFile,
+                backIdCardFile,
+                portraitFile
         );
-        return ResponseEntity.badRequest().body(new BatchErrorResponse(
-                "VALIDATION_ERROR",
-                "Dữ liệu không hợp lệ.",
-                fieldErrors
-        ));
+        return ApiResponse.<BatchDepositCheckoutResponse>builder()
+                .message("Đặt cọc nhiều phòng thành công")
+                .data(response)
+                .build();
     }
 
     @GetMapping("/batches/{batchId}/status")
@@ -183,20 +150,4 @@ public class PublicDepositBatchController {
         return LocalDateTime.now();
     }
 
-    @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
-    private record BatchRoomUnavailableResponse(
-            String code,
-            String message,
-            List<BatchRoomUnavailableException.UnavailableRoom> unavailableRooms,
-            List<BatchRoomUnavailableException.AvailableRoom> availableRooms
-    ) {
-    }
-
-    @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
-    private record BatchErrorResponse(
-            String code,
-            String message,
-            Map<String, String> fieldErrors
-    ) {
-    }
 }

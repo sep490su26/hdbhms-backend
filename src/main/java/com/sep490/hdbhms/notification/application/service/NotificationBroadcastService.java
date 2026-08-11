@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.notification.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.notification.application.port.out.NotificationOutboxRepository;
@@ -16,7 +19,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -64,14 +66,14 @@ public class NotificationBroadcastService {
         List<Long> scopeIds = normalizeIds(request == null ? null : request.getScopeIds());
         List<NotificationChannel> channels = normalizeChannels(request == null ? null : request.getChannels());
         BroadcastRolePlan rolePlan = resolveRolePlan(request == null ? null : request.getRoles(), channels);
-        String title = requiredText(request == null ? null : request.getTitle(), "Title is required");
-        String body = requiredText(request == null ? null : request.getBody(), "Body is required");
+        String title = requiredText(request == null ? null : request.getTitle());
+        String body = requiredText(request == null ? null : request.getBody());
 
         if (title.length() > 255) {
-            throw badRequest("Title must be 255 characters or fewer");
+            throw badRequest();
         }
         if (scope.requiresIds() && scopeIds.isEmpty()) {
-            throw badRequest("Scope ids are required");
+            throw badRequest();
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -116,7 +118,7 @@ public class NotificationBroadcastService {
         BroadcastRolePlan rolePlan = resolveRolePlan(request == null ? null : request.getRoles(), channels);
 
         if (scope.requiresIds() && scopeIds.isEmpty()) {
-            throw badRequest("Scope ids are required");
+            throw badRequest();
         }
 
         LinkedHashSet<Long> distinctRecipients = new LinkedHashSet<>();
@@ -225,12 +227,12 @@ public class NotificationBroadcastService {
 
     private BroadcastScope resolveScope(String raw) {
         if (raw == null || raw.isBlank()) {
-            return BroadcastScope.SYSTEM;
+            throw badRequest();
         }
         try {
             return BroadcastScope.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (Exception exception) {
-            throw badRequest("Invalid broadcast scope");
+            throw badRequest();
         }
     }
 
@@ -254,7 +256,7 @@ public class NotificationBroadcastService {
                 try {
                     roles.add(Role.valueOf(role.trim().toUpperCase(Locale.ROOT)).name());
                 } catch (Exception exception) {
-                    throw badRequest("Invalid recipient role");
+            throw badRequest();
                 }
             });
         }
@@ -273,6 +275,9 @@ public class NotificationBroadcastService {
                     : requestedRoles.stream()
                     .filter(allowedRoles::contains)
                     .toList();
+            if (!requestedRoles.isEmpty() && channelRoles.isEmpty()) {
+            throw badRequest();
+            }
             rolesByChannel.put(channel, channelRoles);
             effectiveRoles.addAll(channelRoles);
         }
@@ -298,25 +303,25 @@ public class NotificationBroadcastService {
                 try {
                     channels.add(NotificationChannel.valueOf(channel.trim().toUpperCase(Locale.ROOT)));
                 } catch (Exception exception) {
-                    throw badRequest("Invalid notification channel");
+                    throw badRequest();
                 }
             });
         }
         if (channels.isEmpty()) {
-            channels.add(NotificationChannel.WEB);
+            throw badRequest();
         }
         return List.copyOf(channels);
     }
 
-    private String requiredText(String value, String message) {
+    private String requiredText(String value) {
         if (value == null || value.isBlank()) {
-            throw badRequest(message);
+            throw badRequest();
         }
         return value.trim();
     }
 
-    private ResponseStatusException badRequest(String message) {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    private AppException badRequest() {
+        return new AppException(ApiErrorCode.INVALID_REQUEST);
     }
 
     private enum BroadcastScope {

@@ -151,7 +151,7 @@ public class RoomTransferRequestPersistenceMapper {
             return objectMapper.readValue(value, new TypeReference<java.util.List<Long>>() {
             });
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Invalid room transfer occupant payload", exception);
+            throw new AppException(ApiErrorCode.UNDEFINED, exception);
         }
     }
 
@@ -162,7 +162,7 @@ public class RoomTransferRequestPersistenceMapper {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Could not serialize room transfer occupant payload", exception);
+            throw new AppException(ApiErrorCode.UNDEFINED, exception);
         }
     }
 }

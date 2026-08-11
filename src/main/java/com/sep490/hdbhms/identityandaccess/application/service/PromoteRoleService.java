@@ -5,6 +5,8 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.PromoteRo
 import com.sep490.hdbhms.identityandaccess.application.port.out.UserRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.User;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -21,10 +23,10 @@ public class PromoteRoleService implements PromoteRoleUseCase {
     @Override
     public void execute(PromoteRoleCommand command) {
         if (command.toRole() != Role.MANAGER && command.toRole() != Role.ACCOUNTANT) {
-            throw new IllegalArgumentException("Invalid role");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         User user = userRepository.findById(command.userId())
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         user.assignRole(command.toRole());
         //TODO: Audit the role promotion
         userRepository.save(user);

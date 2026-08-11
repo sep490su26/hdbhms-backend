@@ -21,6 +21,8 @@ import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositBatchR
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaRoomHoldRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -53,7 +55,7 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
             return;
         }
         DepositBatchEntity batch = batchRepository.findById(invoice.getDepositBatchId())
-                .orElseThrow(() -> new IllegalStateException("Deposit batch not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_BATCH_NOT_FOUND));
         if (batch.getStatus() == DepositBatchStatus.CONFIRMED
                 || batch.getStatus() == DepositBatchStatus.REFUND_REQUIRED) {
             return;
@@ -116,7 +118,7 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
                 );
             }
             if (updated == 0 && item.getRoom().getCurrentStatus() != RoomStatus.RESERVED) {
-                throw new IllegalStateException("Room status changed during batch payment");
+                throw new AppException(ApiErrorCode.ROOM_DEPOSIT_UNAVAILABLE);
             }
 
             item.getDepositForm().setDepositStatus(DepositAgreementStatus.PAID);
@@ -127,7 +129,7 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
             DepositAgreement agreement = depositAgreementRepository.findById(
                             item.getDepositForm().getId()
                     )
-                    .orElseThrow(() -> new IllegalStateException("Deposit agreement not found"));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
             createLeadOrAssignTenantPort.execute(agreement);
         }
 

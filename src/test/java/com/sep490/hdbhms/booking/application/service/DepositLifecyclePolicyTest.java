@@ -2,6 +2,8 @@ package com.sep490.hdbhms.booking.application.service;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositContactOutcome;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -21,19 +23,21 @@ class DepositLifecyclePolicyTest {
                         DepositAgreementStatus.PAID, dueDate, 0, 1, 7, dueDate
                 )
         );
-        assertThrows(IllegalArgumentException.class, () ->
+        AppException invalidDays = assertThrows(AppException.class, () ->
                 DepositLifecyclePolicy.calculateExtensionDate(
                         DepositAgreementStatus.PAID, dueDate, 0, 1, 8, dueDate
                 ));
-        assertThrows(IllegalStateException.class, () ->
+        assertEquals(ApiErrorCode.DEPOSIT_EXTENSION_INVALID, invalidDays.getApiErrorCode());
+        AppException exhausted = assertThrows(AppException.class, () ->
                 DepositLifecyclePolicy.calculateExtensionDate(
                         DepositAgreementStatus.EXTENDED, dueDate, 1, 1, 1, dueDate
                 ));
+        assertEquals(ApiErrorCode.DEPOSIT_EXTENSION_INVALID, exhausted.getApiErrorCode());
     }
 
     @Test
     void extensionRejectsAResultThatIsAlreadyInThePast() {
-        assertThrows(IllegalStateException.class, () ->
+        AppException pastDate = assertThrows(AppException.class, () ->
                 DepositLifecyclePolicy.calculateExtensionDate(
                         DepositAgreementStatus.PAID,
                         LocalDate.of(2026, 7, 1),
@@ -42,6 +46,7 @@ class DepositLifecyclePolicyTest {
                         7,
                         LocalDate.of(2026, 7, 13)
                 ));
+        assertEquals(ApiErrorCode.DEPOSIT_EXTENSION_INVALID, pastDate.getApiErrorCode());
     }
 
     @Test

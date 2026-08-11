@@ -10,6 +10,8 @@ import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -30,15 +32,15 @@ public class ConfirmLeaseContractService implements ConfirmLeaseContractUseCase 
     public void execute(ConfirmLeaseContractCommand command) {
         LeaseContract leaseContract = leaseContractRepository
                 .findById(command.leaseContractId())
-                .orElseThrow(() -> new IllegalArgumentException("Lease contract not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
         if (leaseContract.getStatus() != LeaseStatus.DRAFT) {
             return;
         }
         PersonProfile personProfile = personProfileRepository
                 .findById(leaseContract.getPrimaryTenantProfileId())
-                .orElseThrow(() -> new IllegalArgumentException("Primary tenant profile not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND));
         Room room = roomRepository.findById(leaseContract.getRoomId())
-                .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         if (personProfile.getUserId() != null) {
             promoteToTenantPort.execute(room.getPropertyId(), personProfile.getUserId());
         }

@@ -15,6 +15,8 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -90,7 +92,7 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
         }
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new RuntimeException("Invoice not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (
                 invoice.getStatus() != InvoiceStatus.ISSUED
                         && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID

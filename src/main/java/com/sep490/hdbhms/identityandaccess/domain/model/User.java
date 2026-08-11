@@ -56,7 +56,7 @@ public class User {
                 48,
                 ChronoUnit.HOURS)
         ) {
-            throw new AppException(ApiErrorCode.CHANGE_USERNAME_NOT_ALLOWED_YET);
+            throw new AppException(ApiErrorCode.CHANGE_EMAIL_NOT_ALLOWED_YET);
         }
         if (StringUtils.isEmpty(newEmail)) {
             throw new AppException(ApiErrorCode.INVALID_EMAIL);

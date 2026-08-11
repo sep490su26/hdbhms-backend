@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.shared.utils;
 
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -19,7 +21,7 @@ public class RandomPasswordUtils {
 
     public static String generatePassword(int length, boolean useAllSets, boolean avoidAmbiguous) {
         if (length < 4) {
-            throw new IllegalArgumentException("Password length must be at least 4");
+            throw new AppException(ApiErrorCode.INVALID_PASSWORD_LENGTH);
         }
 
         StringBuilder charPool = new StringBuilder();

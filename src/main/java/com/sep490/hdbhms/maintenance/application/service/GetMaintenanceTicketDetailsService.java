@@ -4,6 +4,8 @@ import com.sep490.hdbhms.maintenance.application.port.in.query.GetMaintenanceTic
 import com.sep490.hdbhms.maintenance.application.port.in.usecase.GetMaintenanceTicketDetailsUseCase;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepository;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +22,6 @@ public class GetMaintenanceTicketDetailsService implements GetMaintenanceTicketD
     @Override
     public MaintenanceTicket execute(GetMaintenanceTicketDetailsQuery query) {
         return maintenanceTicketRepository.findById(query.maintenanceTicketId())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid maintenance ticket id: " + query.maintenanceTicketId()));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 }

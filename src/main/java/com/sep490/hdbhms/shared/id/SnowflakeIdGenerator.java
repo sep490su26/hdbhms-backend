@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.shared.id;
 
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -26,7 +28,7 @@ public class SnowflakeIdGenerator {
     public synchronized long next() {
         long timestamp = System.currentTimeMillis();
         if (timestamp < lastTimestamp) {
-            throw new RuntimeException("Clock moved backwards, refusing to generate id");
+            throw new AppException(ApiErrorCode.SNOWFLAKE_CLOCK_MOVED_BACKWARDS);
         }
         if (timestamp == lastTimestamp) {
             sequence = (sequence + 1) & MAX_SEQUENCE;

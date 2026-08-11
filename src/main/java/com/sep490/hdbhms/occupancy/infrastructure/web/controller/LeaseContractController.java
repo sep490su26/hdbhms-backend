@@ -36,6 +36,8 @@ import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRe
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
@@ -70,7 +72,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -182,12 +183,12 @@ public class LeaseContractController {
         assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
         LeaseContractManagementResponse contract = getLeaseContractManagementUseCase.findOne(leaseContractId);
         if (contract.getSignedFileId() == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chua co ban hop dong thue da ky.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHUA_CO_BAN_HOP_DONG_THUE_DA_KY);
         }
 
         FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(contract.getSignedFileId()));
         if (fileData == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay file hop dong thue da ky.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_FILE_HOP_DONG_THUE_DA_KY);
         }
         String contentType = fileData.contentType() == null
                 ? org.springframework.http.MediaType.APPLICATION_OCTET_STREAM_VALUE
@@ -730,7 +731,7 @@ public class LeaseContractController {
 
     private OccupantScope currentActiveOccupant(Long leaseContractId, Long userId) {
         if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHUA_DANG_NHAP);
         }
         return jdbcTemplate.query("""
                         SELECT co.contract_occupant_id, co.tenant_profile_id
@@ -749,7 +750,7 @@ public class LeaseContractController {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong phai nguoi o cung cua hop dong nay.");
+                        throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_PHAI_NGUOI_O_CUNG_CUA_HOP_DONG_NAY);
                     }
                     return new OccupantScope(
                             rs.getLong("contract_occupant_id"),
@@ -802,7 +803,7 @@ public class LeaseContractController {
         if (List.of("FOLLOW_PRIMARY_MOVE_OUT", "JOIN_RENEWAL").contains(normalized)) {
             return normalized;
         }
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Y dinh nguoi o cung khong hop le.");
+        throw new AppException(ApiErrorCode.MIGRATED_Y_DINH_NGUOI_O_CUNG_KHONG_HOP_LE);
     }
 
     private String blankToNull(String value) {
@@ -812,13 +813,13 @@ public class LeaseContractController {
     private void assertOwnerOrAssignedManagerCanAccessContract(Long leaseContractId) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         if (principal.getRole() == Role.OWNER) {
             return;
         }
         if (principal.getRole() != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
 
         Long propertyId = jdbcTemplate.query("""
@@ -833,7 +834,7 @@ public class LeaseContractController {
                 leaseContractId
         );
         if (propertyId == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.CONTRACT_NOT_FOUND);
         }
 
         Integer count = jdbcTemplate.queryForObject("""
@@ -850,7 +851,7 @@ public class LeaseContractController {
                 propertyId
         );
         if (count == null || count == 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 

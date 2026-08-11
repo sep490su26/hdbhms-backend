@@ -97,7 +97,7 @@ public class TokenProvider {
             return accessToken;
         } catch (JOSEException e) {
             log.error("Can not create sessionId", e);
-            throw new RuntimeException(e);
+            throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN, e);
         }
     }
 
@@ -183,7 +183,7 @@ public class TokenProvider {
             return sessionId;
         } catch (Exception e) {
             log.error("Can not create sessionId", e);
-            throw new RuntimeException(e);
+            throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN, e);
         }
     }
 

@@ -10,7 +10,7 @@ import java.lang.annotation.*;
 @Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface VietnamesePhone {
-    String message() default "Invalid Vietnamese phone number";
+    String message() default "Số điện thoại Việt Nam không hợp lệ";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }

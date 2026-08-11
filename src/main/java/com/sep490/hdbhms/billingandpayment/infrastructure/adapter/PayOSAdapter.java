@@ -7,6 +7,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent;
 import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -86,7 +88,7 @@ public class PayOSAdapter implements ExternalPaymentPort {
                     createPaymentLinkResponse.getDescription()
             );
         } catch (PayOSException e) {
-            throw new RuntimeException(e.getMessage());
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, e);
         }
     }
 
@@ -101,9 +103,7 @@ public class PayOSAdapter implements ExternalPaymentPort {
                 || !StringUtils.hasText(payOSProperties.getChecksumKey())
                 || !StringUtils.hasText(payOSProperties.getReturnUrl())
                 || !StringUtils.hasText(payOSProperties.getCancelUrl())) {
-            throw new IllegalStateException(
-                    "Missing PayOS configuration. Required env: PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY, PAYOS_RETURN_URL, PAYOS_CANCEL_URL."
-            );
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
         }
     }
 

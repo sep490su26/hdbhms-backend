@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = AllowedFileTypeValidator.class)
 public @interface AllowedFileType {
-    String message() default "Invalid file type";
+    String message() default "Loại tệp không hợp lệ";
 
     String[] allowedMimeTypes() default {};
 

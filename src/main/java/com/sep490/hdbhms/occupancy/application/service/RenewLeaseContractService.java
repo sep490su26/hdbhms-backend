@@ -15,12 +15,13 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContract
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -41,19 +42,22 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
     public LeaseContractRenewalResponse execute(RenewLeaseContractCommand command) {
         assertOwnerOrManagerCanRenew();
         LeaseContractEntity oldContract = leaseContractRepository.findById(command.leaseContractId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (oldContract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
                 .contains(oldContract.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ được tái ký hợp đồng ACTIVE, EXPIRING_SOON hoặc EXPIRED."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (leaseContractRepository.existsByPreviousContract_IdAndDeletedAtIsNull(oldContract.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hợp đồng này đã có hợp đồng tái ký.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
+        }
+
+        if (command.newStartDate() == null
+                || command.newEndDate() == null
+                || !command.newEndDate().isAfter(command.newStartDate())) {
+            throw new AppException(ApiErrorCode.LEASE_RENEWAL_DATES_INVALID);
         }
 
         workflowSupport.validateContractTerms(
@@ -64,10 +68,10 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
         );
         RoomEntity room = oldContract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa gắn phòng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (workflowSupport.hasOtherActiveContract(room.getId(), oldContract.getId(), null)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đang có hợp đồng hiệu lực khác.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
 
         RoomStatus previousRoomStatus = room.getCurrentStatus();
@@ -177,10 +181,10 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
             contractCode = generateRenewalContractCode(oldContract);
         }
         if (contractCode.length() > 80) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã hợp đồng mới không được vượt quá 80 ký tự.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (leaseContractRepository.existsByContractCodeAndDeletedAtIsNull(contractCode)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã hợp đồng mới đã tồn tại.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         return contractCode;
     }
@@ -204,18 +208,15 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
                 .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority())
                         || "ROLE_MANAGER".equals(authority.getAuthority()));
         if (!canRenew) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "RENEWAL_APPROVAL_REQUIRED: Chỉ chủ trọ hoặc quản lý mới có quyền xác nhận tái ký hợp đồng."
-            );
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 
     private void throwRenewBlocked(RoomCommitmentChecker.Blocker blocker) {
         if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đang được giữ chỗ cho khách khác.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
-        throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể tái ký.");
+        throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
     }
 
     private Long getLongOrNull(ResultSet rs, String column) throws SQLException {

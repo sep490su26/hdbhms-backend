@@ -27,6 +27,7 @@ public class NotificationBroadcastController {
             @RequestBody(required = false) SendNotificationBroadcastRequest request
     ) {
         return ApiResponse.<NotificationBroadcastResponse>builder()
+                .message("Tạo bản xem trước thành công")
                 .data(toResponse(notificationBroadcastService.previewRecipients(request)))
                 .build();
     }
@@ -37,6 +38,7 @@ public class NotificationBroadcastController {
             @RequestBody SendNotificationBroadcastRequest request
     ) {
         return ApiResponse.<NotificationBroadcastResponse>builder()
+                .message("Gửi thông báo hàng loạt thành công")
                 .data(toResponse(notificationBroadcastService.send(request, AuthUtils.getCurrentAuthenticationId())))
                 .build();
     }

@@ -39,6 +39,8 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReading
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaUtilityTariffRepository;
 import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -47,7 +49,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -134,7 +135,7 @@ public class UtilityBillingRunService {
         YearMonth period = requirePeriod(billingPeriod);
         InvoiceReason reason = parseReason(invoiceReason);
         PropertyEntity property = propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Property not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_NOT_FOUND));
 
         UtilityBillingRunEntity run = runRepository
                 .findByProperty_IdAndBillingPeriodAndInvoiceReason(propertyId, period.toString(), reason)
@@ -161,7 +162,7 @@ public class UtilityBillingRunService {
                 period.atEndOfMonth()
         );
         if (rooms.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No rooms require utility billing in this period.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         for (RoomEntity room : rooms) {
@@ -174,7 +175,7 @@ public class UtilityBillingRunService {
     @Transactional(readOnly = true)
     public UtilityBillingRunResponse getRun(Long runId) {
         UtilityBillingRunEntity run = runRepository.findById(runId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utility billing run not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         return toResponse(run, itemRepository.findByRun_IdOrderByRoom_RoomCodeAscIdAsc(runId));
     }
 
@@ -208,10 +209,10 @@ public class UtilityBillingRunService {
     ) {
         UtilityBillingRunEntity run = requireEditableRun(runId);
         UtilityBillingRunItemEntity item = itemRepository.findByIdAndRun_Id(itemId, runId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utility billing item not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         long discount = request == null || request.discountAmount() == null ? 0L : request.discountAmount();
         if (discount < 0 || discount > safe(item.getSubtotalAmount())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Discount amount is invalid.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         item.setDiscountAmount(discount);
         item.setAdjustmentReason(request == null ? null : cleanText(request.adjustmentReason()));
@@ -232,9 +233,9 @@ public class UtilityBillingRunService {
     @Transactional
     public UtilityBillingRunResponse generateInvoices(Long runId, Integer dueDays, Long currentUserId) {
         UtilityBillingRunEntity run = runRepository.findById(runId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utility billing run not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (run.getStatus() == UtilityBillingRunStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Utility billing run is cancelled.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED) {
             return getRun(runId);
@@ -242,7 +243,7 @@ public class UtilityBillingRunService {
 
         int paymentDueDays = dueDays == null ? 7 : dueDays;
         if (paymentDueDays <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Due days must be greater than 0.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         List<UtilityBillingRunItemEntity> items = itemRepository.findByRun_IdOrderByRoom_RoomCodeAscIdAsc(runId);
@@ -250,10 +251,7 @@ public class UtilityBillingRunService {
                 .filter(item -> item.getStatus() == UtilityBillingRunItemStatus.WARNING)
                 .count();
         if (warningCount > 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Utility billing batch still has items that need review."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         int invoiceCount = 0;
@@ -305,7 +303,7 @@ public class UtilityBillingRunService {
         LocalDate invoiceDate = handoverDate == null ? LocalDate.now() : handoverDate;
         YearMonth period = YearMonth.from(invoiceDate);
         LeaseContractEntity contract = leaseContractRepository.findByIdAndDeletedAtIsNull(contractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease contract not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         RoomEntity room = contract.getRoom();
         MeterReadingEntity electricity = requireReading(electricityReadingId, room.getId(), MeterType.ELECTRICITY);
 
@@ -445,18 +443,18 @@ public class UtilityBillingRunService {
 
     private MeterReadingEntity requireReading(Long readingId, Long roomId, MeterType meterType) {
         if (readingId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, meterType + " reading is required.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         MeterReadingEntity reading = meterReadingRepository.findById(readingId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Meter reading not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_NOT_FOUND));
         if (reading.getRoom() == null || !roomId.equals(reading.getRoom().getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Meter reading does not belong to transfer room.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (reading.getMeter() == null || reading.getMeter().getMeterType() != meterType) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Meter reading type is invalid.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (reading.getStatus() == ReadingStatus.VOIDED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Meter reading has been voided.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return reading;
     }
@@ -671,7 +669,7 @@ public class UtilityBillingRunService {
 
     private void syncRunTotals(Long runId) {
         UtilityBillingRunEntity run = runRepository.findById(runId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utility billing run not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         List<UtilityBillingRunItemEntity> items = itemRepository.findByRun_IdOrderByRoom_RoomCodeAscIdAsc(runId);
         run.setTotalRooms(items.size());
         run.setReadyCount((int) items.stream().filter(item -> item.getStatus() == UtilityBillingRunItemStatus.READY).count());
@@ -686,10 +684,10 @@ public class UtilityBillingRunService {
 
     private UtilityBillingRunEntity requireEditableRun(Long runId) {
         UtilityBillingRunEntity run = runRepository.findById(runId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utility billing run not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED
                 || run.getStatus() == UtilityBillingRunStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Utility billing run can no longer be edited.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return run;
     }
@@ -989,7 +987,7 @@ public class UtilityBillingRunService {
         try {
             return InvoiceReason.valueOf(value.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid invoice reason.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -1006,19 +1004,19 @@ public class UtilityBillingRunService {
         try {
             return UtilityBillingRunStatus.valueOf(normalized);
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid utility billing batch status.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
     private YearMonth requirePeriod(String value) {
         if (value == null || value.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Billing period is required.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         String period = value.trim();
         try {
             return period.contains("/") ? YearMonth.parse(period, LEGACY_PERIOD) : YearMonth.parse(period);
         } catch (DateTimeParseException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Billing period must be yyyy-MM or MM/yyyy.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 

@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.occupancy.domain.model;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -67,7 +69,7 @@ public class LeaseContract {
 
     public void activateContract() {
         if (this.status != LeaseStatus.DRAFT && this.status != LeaseStatus.SIGNED) {
-            throw new IllegalStateException("Lease contract must be DRAFT or SIGNED to become ACTIVE.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = LeaseStatus.ACTIVE;
         if (this.signedAt == null) {
@@ -78,7 +80,7 @@ public class LeaseContract {
 
     public void confirmContract() {
         if (this.status != LeaseStatus.DRAFT) {
-            throw new IllegalStateException("Only DRAFT contracts can be confirmed.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = LeaseStatus.CONFIRMED;
         this.updatedAt = LocalDateTime.now();
@@ -86,7 +88,7 @@ public class LeaseContract {
 
     public void signContract() {
         if (this.status != LeaseStatus.CONFIRMED && this.status != LeaseStatus.PENDING_SIGNATURE) {
-            throw new IllegalStateException("Only CONFIRMED contracts can be signed.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = LeaseStatus.SIGNED;
         this.signedAt = LocalDateTime.now();
@@ -95,7 +97,7 @@ public class LeaseContract {
 
     public void cancelContract() {
         if (this.status == LeaseStatus.ACTIVE) {
-            throw new IllegalStateException("ACTIVE contracts cannot be cancelled by transfer rejection.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = LeaseStatus.CANCELLED;
         this.updatedAt = LocalDateTime.now();
@@ -108,7 +110,7 @@ public class LeaseContract {
         if (this.status != LeaseStatus.ACTIVE
                 && this.status != LeaseStatus.EXPIRING_SOON
                 && this.status != LeaseStatus.TERMINATION_PENDING) {
-            throw new IllegalStateException("Chỉ hợp đồng đang hiệu lực, sắp hết hạn hoặc chờ thanh lý mới được chuyển phòng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = LeaseStatus.TRANSFERRED;
         this.updatedAt = LocalDateTime.now();

@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.shared.infrastructure.smtp;
 
 import com.sep490.hdbhms.shared.application.port.out.MailSenderPort;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.AccessLevel;
@@ -26,7 +28,7 @@ public class JavaMailSenderAdapter implements MailSenderPort {
             helper.setText(body, isHtml);
             javaMailSender.send(mimeMessage);
         } catch (MessagingException e) {
-            throw new RuntimeException("Failed to send email", e);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, e);
         }
     }
 }

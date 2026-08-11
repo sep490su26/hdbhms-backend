@@ -65,6 +65,7 @@ public class TenantController {
             @Valid @RequestBody UpdateTenantProfileRequest request
     ) {
         return ApiResponse.<TenantProfileResponse>builder()
+                .message("Cập nhật hồ sơ thành công")
                 .data(updateMyTenantProfileUseCase.execute(request))
                 .build();
     }

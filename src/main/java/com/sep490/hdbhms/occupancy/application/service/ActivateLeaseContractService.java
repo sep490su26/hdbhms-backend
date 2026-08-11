@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
@@ -16,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,30 +37,30 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
     @Override
     public LeaseContractManagementResponse execute(Long leaseContractId) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease contract not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
             return getLeaseContractManagementUseCase.findOne(leaseContractId);
         }
         workflowSupport.ensureNotRoomTransferManagedContract(leaseContractId);
         if (contract.getStatus() != LeaseStatus.DRAFT && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only pending lease contracts can be activated.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (contract.getSignedFile() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Upload the signed lease contract before activation.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (contract.getPrimaryTenantProfile() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lease contract has no primary tenant.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (contract.getStartDate() == null || contract.getEndDate() == null || contract.getEndDate().isBefore(contract.getStartDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lease contract dates are invalid.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lease contract has no room.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         if (contract.getPreviousContract() == null && !hasCompletedMoveInHandover(leaseContractId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Complete move-in handover before activating the lease contract.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         boolean renewalActivation = contract.getPreviousContract() != null
@@ -68,19 +70,19 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
                 && room.getCurrentStatus() != RoomStatus.RESERVED
                 && room.getCurrentStatus() != RoomStatus.VACANT
                 && room.getCurrentStatus() != RoomStatus.ON_HOLD) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room must be vacant or reserved before activation.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         Long previousContractId = contract.getPreviousContract() != null
                 ? contract.getPreviousContract().getId()
                 : null;
         if (workflowSupport.hasOtherActiveContract(room.getId(), contract.getId(), previousContractId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room already has an active contract.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         workflowSupport.ensureContractOccupants(contract);
         LeaseContractEntity previousContract = contract.getPreviousContract();
         if (previousContract != null && workflowSupport.isHolderReplacementLiquidation(previousContract.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Complete the liquidation flow before activating the replacement contract.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         if (previousContract != null) {
             workflowSupport.copyContractOccupants(previousContract, contract);
@@ -89,7 +91,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
             if (!legacyPrematureRenewal
                     && !List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
                     .contains(previousContract.getStatus())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Previous contract cannot be renewed from its current state.");
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
             previousContract.setStatus(LeaseStatus.RENEWED);
             leaseContractRepository.saveAndFlush(previousContract);

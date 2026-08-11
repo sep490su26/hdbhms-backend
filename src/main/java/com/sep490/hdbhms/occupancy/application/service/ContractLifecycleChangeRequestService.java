@@ -23,6 +23,8 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractOccupantRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -30,7 +32,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -176,7 +177,7 @@ public class ContractLifecycleChangeRequestService {
                 contract.getId(),
                 OPEN_REQUEST_STATUSES
         )) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hợp đồng đã có yêu cầu đang cho duyệt.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
 
         ChangeRequest changeRequest = ChangeRequest.builder()
@@ -279,16 +280,16 @@ public class ContractLifecycleChangeRequestService {
 
     private void assertLifecycleAllowed(LeaseContractEntity contract, RequestType requestType) {
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         if (requestType == RequestType.CONTRACT_LIQUIDATION && !LIQUIDATABLE_STATUSES.contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng không thể thanh lý.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (requestType == RequestType.CONTRACT_RENEWAL && !RENEWABLE_STATUSES.contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng không thể gia hạn.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (requestType == RequestType.ADD_CO_OCCUPANT && !ADD_CO_OCCUPANT_STATUSES.contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng không thế thêm người ở cùng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -303,9 +304,9 @@ public class ContractLifecycleChangeRequestService {
     ) {
         if (tenantProfileId != null) {
             PersonProfileEntity profile = personProfileRepository.findById(tenantProfileId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người o cùng."));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
             if (profile.getDeletedAt() != null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người ở cùng.");
+                throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
             }
             return profile;
         }
@@ -321,7 +322,7 @@ public class ContractLifecycleChangeRequestService {
 
         String cleanedFullName = trimToNull(fullName);
         if (cleanedFullName == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tên người ở cùng là bắt buộc.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return personProfileRepository.save(PersonProfileEntity.builder()
                 .fullName(cleanedFullName)
@@ -337,14 +338,14 @@ public class ContractLifecycleChangeRequestService {
         if (contract.getPrimaryTenantProfile() != null
                 && contract.getPrimaryTenantProfile().getId() != null
                 && contract.getPrimaryTenantProfile().getId().equals(profile.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Người này đã là người đứng tên hợp đồng.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         if (contractOccupantRepository.findFirstByContract_IdAndTenantProfile_IdAndStatus(
                 contract.getId(),
                 profile.getId(),
                 OccupantStatus.ACTIVE
         ).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Người này đã là người ở cùng trong hợp đồng.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
 
         RoomEntity room = contract.getRoom();
@@ -354,19 +355,19 @@ public class ContractLifecycleChangeRequestService {
                 OccupantStatus.ACTIVE
         ).size();
         if (activeOccupants >= maxOccupants) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đã dạt số người ở tối đa.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
     }
 
     private LeaseContractEntity getContract(Long leaseContractId) {
         return leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private UserPrincipal currentPrincipal() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         return principal;
     }
@@ -398,7 +399,7 @@ public class ContractLifecycleChangeRequestService {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không tạo được nội dung yêu cầu.");
+            throw new AppException(ApiErrorCode.UNDEFINED);
         }
     }
 }

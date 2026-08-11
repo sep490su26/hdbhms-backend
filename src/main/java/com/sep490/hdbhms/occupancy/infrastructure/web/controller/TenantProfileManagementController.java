@@ -20,6 +20,8 @@ import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
 import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import jakarta.validation.Valid;
@@ -60,7 +62,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.ByteArrayOutputStream;
@@ -337,7 +338,7 @@ public class TenantProfileManagementController {
         List<PoliceReportColumn> selectedColumns = resolvePoliceReportColumns(columns);
         List<PoliceReportRow> rows = fetchPoliceReportRows();
         if (rows.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chưa có dữ liệu cư dân để xuất.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         byte[] bytes = generatePoliceReportWorkbook(rows, selectedColumns);
@@ -357,7 +358,7 @@ public class TenantProfileManagementController {
         List<PoliceReportColumn> selectedColumns = resolvePoliceReportColumns(columns);
         List<PoliceReportRow> rows = fetchPoliceReportRows();
         if (rows.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ChÆ°a cÃ³ dá»¯ liá»‡u cÆ° dÃ¢n Ä‘á»ƒ xuáº¥t.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         byte[] bytes = generatePoliceReportPackage(rows, selectedColumns);
@@ -378,7 +379,7 @@ public class TenantProfileManagementController {
         UserPrincipal principal = requireCurrentPrincipal();
         TenantProfileAccessContext context = getTenantProfileAccessContext(profileId);
         if (!isAssignedManager(principal.getId(), context.propertyId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Manager is not assigned to this property.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
 
         ProfileAccessDecision existingAccess = resolveProfileAccess(profileId, principal, false);
@@ -493,7 +494,7 @@ public class TenantProfileManagementController {
                     .forEach(columnKeys::add);
         }
         if (columnKeys.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn ít nhất một cột để xuất.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         List<PoliceReportColumn> selectedColumns = new ArrayList<>();
@@ -655,7 +656,7 @@ public class TenantProfileManagementController {
             workbook.write(outputStream);
             return outputStream.toByteArray();
         } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file Excel thất bại, vui lòng thử lại.");
+            throw new AppException(ApiErrorCode.UNDEFINED);
         }
     }
 
@@ -694,7 +695,7 @@ public class TenantProfileManagementController {
             zip.finish();
             return outputStream.toByteArray();
         } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file ZIP thất bại, vui lòng thử lại.");
+            throw new AppException(ApiErrorCode.UNDEFINED);
         }
     }
 
@@ -1036,7 +1037,7 @@ public class TenantProfileManagementController {
     private UserPrincipal requireCurrentPrincipal() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         return principal;
     }
@@ -1089,7 +1090,7 @@ public class TenantProfileManagementController {
                 profileId
         );
         if (contexts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant profile not found.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         return contexts.getFirst();
     }
@@ -1223,7 +1224,7 @@ public class TenantProfileManagementController {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not serialize request payload.");
+            throw new AppException(ApiErrorCode.UNDEFINED);
         }
     }
 
@@ -1643,7 +1644,7 @@ public class TenantProfileManagementController {
                     return column;
                 }
             }
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cột xuất Excel không hợp lệ: " + key);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         String header() {

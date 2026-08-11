@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.maintenance.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
 import com.sep490.hdbhms.maintenance.application.port.in.command.CreateMaintenanceTicketCommand;
 import com.sep490.hdbhms.maintenance.application.port.in.usecase.CreateMaintenanceTicketUseCase;
@@ -24,7 +27,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
@@ -49,7 +51,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
     public MaintenanceTicket execute(CreateMaintenanceTicketCommand command) {
         Long currentSessionUserId = AuthUtils.getCurrentAuthenticationId();
         Tenant tenant = tenantRepository.findByUserId(currentSessionUserId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy thông tin khách thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         LeaseRoom leaseRoom = resolveLeaseRoom(tenant, command.roomId());
 
         String category = firstNonBlank(command.category(), command.type(), "OTHER");
@@ -78,10 +80,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                     .filter(java.util.Objects::nonNull)
                     .toList();
             if (attachmentFileIds.size() > MAX_ATTACHMENTS) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Chỉ được upload tối đa 3 ảnh trước sửa."
-                );
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
             validateAttachments(attachmentFileIds);
             int sort = 0;
@@ -102,7 +101,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
 
     private LeaseRoom resolveLeaseRoom(Tenant tenant, Long requestedRoomId) {
         if (requestedRoomId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng đang thuê để tạo phiếu sự cố.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         leaseContractQueryService.assertCurrentUserCanReadRoom(requestedRoomId);
@@ -118,9 +117,9 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
         }
 
         Room room = roomRepository.findById(requestedRoomId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng đang thuê để tạo phiếu sự cố."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         if (!tenant.getPropertyId().equals(room.getPropertyId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền tạo phiếu sự cố cho phòng này.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return new LeaseRoom(null, room);
     }
@@ -138,9 +137,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
         List<Long> uniqueFileIds = fileIds.stream().distinct().toList();
         long count = fileMetadataRepository.countByIdInAndDeletedAtIsNull(uniqueFileIds);
         if (count != uniqueFileIds.size()) {
-            throw new IllegalArgumentException(
-                    "One or more attachment files are no longer available. Please re-upload."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 

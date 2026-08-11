@@ -16,11 +16,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class VisitRequestUpdateRequest {
-    @NotBlank(message = "VISIT_006")
+    @NotBlank(message = "Vui lòng nhập tên người xem")
     String customerName;
 
-    @NotBlank(message = "VISIT_006")
-    @Pattern(regexp = "^(0|\\+84)(\\d{9,10})$", message = "VISIT_003")
+    @NotBlank(message = "Vui lòng nhập số điện thoại người xem")
+    @Pattern(regexp = "^(0|\\+84)(\\d{9,10})$", message = "Số điện thoại phải là số Việt Nam gồm 10 chữ số và bắt đầu bằng 0.")
     String phone;
 
     @NotNull(message = "VISIT_006")
@@ -28,8 +28,8 @@ public class VisitRequestUpdateRequest {
 
     Long roomId;
 
-    @NotNull(message = "VISIT_006")
-    @Future(message = "VISIT_007")
+    @NotNull(message = "Vui lòng nhập ngày đến xem")
+    @Future(message = "Thời gian xem phải ở tương lai")
     LocalDateTime appointmentAt;
 
     String note;

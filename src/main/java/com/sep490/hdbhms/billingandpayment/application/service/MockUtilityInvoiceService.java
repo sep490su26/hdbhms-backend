@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
@@ -29,7 +32,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -71,7 +73,7 @@ public class MockUtilityInvoiceService {
     public MockUtilityInvoiceResponse createForRoom(Long roomId, String billingPeriod, Integer dueDays, Long currentUserId) {
         YearMonth period = requirePeriod(billingPeriod);
         RoomEntity room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phong."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         LeaseContractEntity contract = findContract(room.getId(), period);
         if (contract == null) {
@@ -102,7 +104,7 @@ public class MockUtilityInvoiceService {
         LocalDateTime now = LocalDateTime.now();
         int paymentDueDays = dueDays == null ? 7 : dueDays;
         if (paymentDueDays <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Han thanh toan phai lon hon 0 ngay.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         InvoiceEntity invoice = invoiceRepository.saveAndFlush(InvoiceEntity.builder()
@@ -147,7 +149,7 @@ public class MockUtilityInvoiceService {
     public MockUtilityInvoiceBatchResponse createForProperty(Long propertyId, String billingPeriod, Integer dueDays, Long currentUserId) {
         YearMonth period = requirePeriod(billingPeriod);
         propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay co so."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         List<RoomEntity> rooms = leaseContractRepository.findMeterReadingRoomsByPeriod(
                 propertyId,
@@ -156,7 +158,7 @@ public class MockUtilityInvoiceService {
                 period.atEndOfMonth()
         );
         if (rooms.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khong co phong can tao hoa don dien nuoc trong ky nay.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         List<MockUtilityInvoiceResponse> results = rooms.stream()
@@ -190,7 +192,7 @@ public class MockUtilityInvoiceService {
         BigDecimal currentValue = reading.getCurrentValue() == null ? BigDecimal.ZERO : reading.getCurrentValue();
         BigDecimal usage = currentValue.subtract(previousValue);
         if (usage.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, label + " co chi so moi nho hon chi so cu.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         UtilityTariffSnapshot tariff = readTariff(
@@ -259,13 +261,13 @@ public class MockUtilityInvoiceService {
 
     private YearMonth requirePeriod(String value) {
         if (value == null || value.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Billing period la bat buoc.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         String period = value.trim();
         try {
             return period.contains("/") ? YearMonth.parse(period, LEGACY_PERIOD) : YearMonth.parse(period);
         } catch (DateTimeParseException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Billing period phai co dinh dang yyyy-MM hoac MM/yyyy.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 

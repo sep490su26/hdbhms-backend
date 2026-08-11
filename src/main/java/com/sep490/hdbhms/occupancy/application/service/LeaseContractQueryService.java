@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
@@ -17,7 +20,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
@@ -268,7 +270,7 @@ public class LeaseContractQueryService {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+                        throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
                     }
                     return toDetailsShell(rs, List.of(), List.of());
                 },
@@ -295,7 +297,7 @@ public class LeaseContractQueryService {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phong.");
+                        throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
                     }
                     return new RoomInfoRow(
                             rs.getLong("id"),
@@ -347,7 +349,7 @@ public class LeaseContractQueryService {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phong.");
+                        throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
                     }
                     return new RoomInfoRow(
                             rs.getLong("id"),
@@ -397,7 +399,7 @@ public class LeaseContractQueryService {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+                        throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
                     }
                     return rs.getLong("property_id");
                 },
@@ -537,7 +539,7 @@ public class LeaseContractQueryService {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+                        throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
                     }
                     return toDetailsShell(rs, findOccupants(contractId), findEvents(contractId));
                 },
@@ -622,7 +624,7 @@ public class LeaseContractQueryService {
                 scope.userId()
         );
         if (count == null || count == 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen xem hop dong nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 
@@ -639,7 +641,7 @@ public class LeaseContractQueryService {
                 tenantId
         );
         if (propertyId == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay tenant scope.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         if (currentUser.role() == Role.TENANT) {
             Integer count = jdbcTemplate.queryForObject("""
@@ -654,7 +656,7 @@ public class LeaseContractQueryService {
                     currentUser.userId()
             );
             if (count == null || count == 0) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen xem du lieu tenant nay.");
+                throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
             }
         }
         return new Scope(tenantId, propertyId, currentUser.userId(), currentUser.role());
@@ -663,11 +665,11 @@ public class LeaseContractQueryService {
     private CurrentUser getCurrentUser() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal userPrincipal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         Role role = userPrincipal.getRole();
         if (role == null) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Khong xac dinh duoc quyen truy cap.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return new CurrentUser(userPrincipal.getId(), role);
     }
@@ -677,7 +679,7 @@ public class LeaseContractQueryService {
             return;
         }
         if (currentUser.role() != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen xem lich su thue phong.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -693,7 +695,7 @@ public class LeaseContractQueryService {
                 propertyId
         );
         if (count == null || count == 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen xem co so nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 
@@ -1266,7 +1268,7 @@ public class LeaseContractQueryService {
         boolean allowed = getRentalContexts(currentUser.userId()).stream()
                 .anyMatch(context -> context.contractId().equals(contractId));
         if (!allowed) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen xem hop dong nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 
@@ -1278,7 +1280,7 @@ public class LeaseContractQueryService {
         boolean allowed = getRentalContexts(currentUser.userId()).stream()
                 .anyMatch(context -> context.roomId().equals(roomId));
         if (!allowed) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen xem phong nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 

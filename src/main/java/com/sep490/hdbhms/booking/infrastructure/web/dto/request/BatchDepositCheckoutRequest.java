@@ -23,63 +23,60 @@ import java.util.Set;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
 public class BatchDepositCheckoutRequest {
-    @NotEmpty
-    @Size(min = 1)
+    @NotEmpty(message = "Danh sách phòng không được trống")
+    @Size(min = 1, message = "Danh sách phòng không được trống")
     @Valid
     List<RoomRequest> rooms;
 
-    @NotBlank
-    @Pattern(regexp = "^[\\p{L}\\s]+$")
+    @NotBlank(message = "Vui lòng nhập họ và tên")
+    @Pattern(regexp = "^[\\p{L}\\s]+$", message = "Họ và tên không hợp lệ")
     String fullName;
 
-    @NotNull
-    @PastOrPresent(message = "Ngày sinh không được lớn hơn ngày hiện tại")
+    @NotNull(message = "Vui lòng nhập ngày sinh")
+    @PastOrPresent(message = "Ngày sinh không được ở tương lai")
     LocalDate dob;
 
-    @NotBlank
+    @NotBlank(message = "Vui lòng chọn giới tính")
     String gender;
 
-    @NotBlank
+    @NotBlank(message = "Vui lòng nhập số điện thoại")
     @Pattern(
             regexp = "^0\\d{9}$",
-            message = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0"
+            message = "Số điện thoại phải gồm 10 chữ số"
     )
     String phone;
 
-    @Email
+    @Email(message = "Email không đúng định dạng")
     String email;
 
-    @NotBlank
-    @Pattern(
-            regexp = "^(?:\\d{9}|\\d{10}|\\d{12})$",
-            message = "Số CCCD phải gồm 9, 10 hoặc 12 chữ số."
-    )
+    @NotBlank(message = "Vui lòng nhập số CCCD")
+    @Pattern(regexp = "^\\d{12}$", message = "Số CCCD phải có 12 chữ số")
     String idNumber;
 
-    @NotNull
-    @PastOrPresent
+    @NotNull(message = "Vui lòng nhập ngày cấp CCCD")
+    @PastOrPresent(message = "Ngày cấp CCCD không được ở tương lai")
     LocalDate idIssueDate;
 
-    @NotBlank
+    @NotBlank(message = "Vui lòng nhập nơi cấp CCCD")
     String idIssuePlace;
 
-    @NotBlank
+    @NotBlank(message = "Vui lòng nhập địa chỉ")
     String permanentAddress;
 
-    @NotNull
-    @FutureOrPresent(message = "Ngày dự kiến vào ở không được là ngày trong quá khứ")
+    @NotNull(message = "Vui lòng nhập ngày dự kiến đến ở")
+    @FutureOrPresent(message = "Ngày dự kiến đến ở không được ở quá khứ")
     LocalDate expectedMoveInDate;
 
-    @NotNull
-    @FutureOrPresent(message = "Ngày hẹn ký hợp đồng không được là ngày trong quá khứ")
+    @NotNull(message = "Vui lòng nhập ngày dự kiến đến ký")
+    @FutureOrPresent(message = "Ngày dự kiến đến ký không được ở quá khứ")
     LocalDate expectedLeaseSignDate;
 
-    @NotNull
-    @Positive
+    @NotNull(message = "Vui lòng nhập số tháng đặt cọc")
+    @Positive(message = "Số tháng đặt cọc phải lớn hơn 0")
     Integer depositMonths;
 
-    @NotNull
-    @ValidPaymentCycle
+    @NotNull(message = "Vui lòng nhập chu kỳ thanh toán")
+    @ValidPaymentCycle(message = "Chu kỳ thanh toán chỉ nhận 1 hoặc 3 tháng")
     Integer paymentCycleMonths;
 
     @AssertTrue(message = "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay")
@@ -137,7 +134,7 @@ public class BatchDepositCheckoutRequest {
         return gender == null || Gender.fromLabel(gender) != Gender.UNKNOWN;
     }
 
-    @AssertTrue(message = "Danh sách phòng có roomId trùng lặp.")
+    @AssertTrue(message = "Danh sách phòng không được chứa phòng trùng")
     public boolean isRoomListUnique() {
         if (rooms == null) {
             return true;
@@ -167,11 +164,11 @@ public class BatchDepositCheckoutRequest {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
     public static class RoomRequest {
-        @NotNull
+        @NotNull(message = "Vui lòng chọn phòng")
         Long roomId;
 
-        @NotNull
-        @Positive
+        @NotNull(message = "Vui lòng nhập số người ở")
+        @Positive(message = "Số người ở phải lớn hơn 0")
         Integer occupantCount;
 
         @Builder.Default
@@ -186,18 +183,18 @@ public class BatchDepositCheckoutRequest {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     @JsonNaming(PropertyNamingStrategies.LowerCamelCaseStrategy.class)
     public static class CoOccupantRequest {
-        @NotBlank
+        @NotBlank(message = "Vui lòng nhập đầy đủ họ và tên")
         String fullName;
 
-        @NotBlank
+        @NotBlank(message = "Vui lòng nhập số điện thoại")
         @Pattern(
                 regexp = "^0\\d{9}$",
-                message = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0"
+                message = "Số điện thoại phải gồm 10 chữ số"
         )
         String phone;
 
-        @NotNull
-        @Positive
+        @NotNull(message = "Vui lòng nhập thứ tự người ở cùng")
+        @Positive(message = "Thứ tự người ở cùng không hợp lệ")
         Integer displayOrder;
     }
 }

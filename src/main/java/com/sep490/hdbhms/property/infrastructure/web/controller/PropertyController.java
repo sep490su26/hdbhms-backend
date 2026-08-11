@@ -42,6 +42,8 @@ import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyImageWebMapp
 import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -53,7 +55,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -189,7 +190,13 @@ public class PropertyController {
                 request.getServiceFeeUnitPrice(),
                 0L
         );
+        String message = request.getElectricityUnitPrice() == null
+                && request.getElectricityFreeAllowance() == null
+                && request.getServiceFeeUnitPrice() == null
+                ? "Giữ nguyên cấu hình điện nước hiện tại"
+                : "Cập nhật giá điện nước thành công";
         return ApiResponse.<PropertyUtilitySettingsResponse>builder()
+                .message(message)
                 .data(buildUtilitySettingsResponse(property))
                 .build();
     }
@@ -200,6 +207,7 @@ public class PropertyController {
             @Valid @RequestBody CreatePropertyRequest request
     ) {
         return ApiResponse.<PropertyResponse>builder()
+                .message("Tạo cơ sở thành công.")
                 .data(
                         propertyWebMapper.toResponse(
                                 createPropertyUseCase.execute(
@@ -225,13 +233,14 @@ public class PropertyController {
         assertManagerCanAccessProperty(propertyId);
         PropertyEntity property = jpaPropertyRepository.findById(propertyId)
                 .filter(item -> item.getDeletedAt() == null)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy cơ sở."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_NOT_FOUND));
         property.setName(request.name().trim());
         property.setPropertyType(request.propertyType());
         property.setAddressLine(request.addressLine().trim());
         property.setDescription(request.description());
         applyPropertyStatusChange(property, request.status());
         return ApiResponse.<PropertyResponse>builder()
+                .message("Cập nhật cơ sở thành công")
                 .data(toPropertyResponse(jpaPropertyRepository.save(property)))
                 .build();
     }
@@ -247,6 +256,7 @@ public class PropertyController {
         PropertyEntity property = findProperty(propertyId);
         applyPropertyStatusChange(property, request.status());
         return ApiResponse.<PropertyResponse>builder()
+                .message("Cập nhật trạng thái cơ sở thành công")
                 .data(toPropertyResponse(jpaPropertyRepository.save(property)))
                 .build();
     }
@@ -322,7 +332,7 @@ public class PropertyController {
     private PropertyEntity findProperty(Long propertyId) {
         return jpaPropertyRepository.findById(propertyId)
                 .filter(property -> property.getDeletedAt() == null)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy cơ sở."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_NOT_FOUND));
     }
 
     private void validateCanChangeStatus(PropertyEntity property, PropertyStatus nextStatus) {
@@ -333,22 +343,13 @@ public class PropertyController {
         boolean hasRooms = jpaRoomRepository.existsByProperty_IdAndDeletedAtIsNull(property.getId());
         boolean hasFloorPlan = jpaFloorPlanItemRepository.existsByProperty_Id(property.getId());
         if (!hasRooms && !hasFloorPlan) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Cơ sở cần có sơ đồ tầng và ít nhất một phòng trước khi đổi trạng thái."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (!hasFloorPlan) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Cơ sở chưa có sơ đồ tầng nên không thể đổi trạng thái."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (!hasRooms) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Cơ sở chưa có phòng nên không thể đổi trạng thái."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -459,7 +460,7 @@ public class PropertyController {
     private Long nonNegative(Long value, Long fallback) {
         Long nextValue = value == null ? fallback : value;
         if (nextValue < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giá trị không được âm.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return nextValue;
     }
@@ -469,7 +470,7 @@ public class PropertyController {
             return;
         }
         if (propertyId == null || !managerPropertyIds().contains(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem cơ sở này.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 

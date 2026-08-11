@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.notification.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.notification.application.port.out.NotificationTemplateRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationTemplate;
 import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
@@ -11,7 +14,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.StringTemplateResolver;
@@ -63,6 +65,9 @@ public class NotificationTemplateManagementService {
             String bodyTemplate,
             Map<String, Object> data
     ) {
+        if (!hasText(eventType)) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
         return templateDefaults.findByEventType(eventType)
                 .filter(definition -> definition.allowedChannels().contains(channel))
                 .flatMap(definition -> preview(definition, channel, titleTemplate, bodyTemplate, data));
@@ -115,10 +120,7 @@ public class NotificationTemplateManagementService {
         return effectiveTemplates(definition).stream()
                 .filter(template -> template.channel() == channel)
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatusCode.valueOf(404),
-                        "Default notification template not found"
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private Optional<PreviewResult> preview(
@@ -164,14 +166,14 @@ public class NotificationTemplateManagementService {
             String eventType,
             NotificationChannel channel
     ) {
+        if (!hasText(eventType)) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
         NotificationTemplateDefaults.Definition definition = templateDefaults.findByEventType(eventType)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatusCode.valueOf(404),
-                        "Notification template definition not found"
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         if (!definition.allowedChannels().contains(channel)) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(400), "Notification channel not allowed");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         return definition;
@@ -183,15 +185,15 @@ public class NotificationTemplateManagementService {
             String bodyTemplate
     ) {
         if (!hasText(titleTemplate)) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(400), "Title template is required");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         if (!hasText(bodyTemplate)) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(400), "Body template is required");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         if (titleTemplate.trim().length() > TITLE_TEMPLATE_MAX_LENGTH) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(400), "Title template is too long");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         validateVariables(definition, titleTemplate);
@@ -207,10 +209,7 @@ public class NotificationTemplateManagementService {
         while (matcher.find()) {
             String variableName = matcher.group(1);
             if (!allowedVariables.contains(variableName)) {
-                throw new ResponseStatusException(
-                        HttpStatusCode.valueOf(400),
-                        "Variable is not allowed: " + variableName
-                );
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
         }
     }

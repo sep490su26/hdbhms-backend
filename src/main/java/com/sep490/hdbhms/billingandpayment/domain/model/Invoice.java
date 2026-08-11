@@ -3,6 +3,8 @@ package com.sep490.hdbhms.billingandpayment.domain.model;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -65,7 +67,7 @@ public class Invoice {
 
     public void applyAmount(long amountInDong) {
         if (status == InvoiceStatus.VOIDED || status == InvoiceStatus.DRAFT) {
-            throw new IllegalStateException("Invoice cannot be paid in state " + status);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.paidAmount += amountInDong;
         this.remainingAmount = this.totalAmount - this.paidAmount;
@@ -78,13 +80,13 @@ public class Invoice {
     }
 
     public void issue() {
-        if (status != InvoiceStatus.DRAFT) throw new IllegalStateException();
+        if (status != InvoiceStatus.DRAFT) throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         this.status = InvoiceStatus.ISSUED;
         this.issuedAt = LocalDateTime.now();
     }
 
     public void voidInvoice(String reason) {
-        if (status == InvoiceStatus.VOIDED) throw new IllegalStateException();
+        if (status == InvoiceStatus.VOIDED) throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         this.status = InvoiceStatus.VOIDED;
         this.voidedAt = LocalDateTime.now();
         this.voidReason = reason;

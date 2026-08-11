@@ -46,7 +46,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -417,7 +416,7 @@ public class ManageContractHandoverService {
                 contractId
         );
         if (count != null && count > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, message);
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
     }
 

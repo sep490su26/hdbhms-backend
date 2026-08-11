@@ -13,6 +13,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContra
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -22,7 +24,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -73,7 +74,7 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
     public LeaseContractManagementResponse executeForCurrentTenant(RecordTenantIntentionCommand command) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         Integer contractExists = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -85,7 +86,7 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
                 command.leaseContractId()
         );
         if (contractExists == null || contractExists == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
 
         Integer isPrimarySigner = jdbcTemplate.queryForObject("""
@@ -114,10 +115,7 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
                 userId
         );
         if (isPrimarySigner == null || isPrimarySigner == 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "CONTRACT_INTENTION_PRIMARY_ONLY: Chỉ người ký chính của hợp đồng mới được ghi nhận ý định."
-            );
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return recordTenantIntention(
                 command.leaseContractId(),
@@ -137,54 +135,39 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
     ) {
         lockContractAndRoom(leaseContractId);
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ ghi nhận ý định cho hợp đồng ACTIVE hoặc EXPIRING_SOON."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         String normalizedIntention = normalizeTenantIntention(intention);
         log.info(normalizedIntention);
         if (!TENANT_INTENTIONS.contains(normalizedIntention)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ý định khách không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         LocalDate today = LocalDate.now();
         boolean withinThreeMonths = isWithinThreeMonths(contract, today);
         if (List.of("MOVE_OUT", "TRANSFER").contains(normalizedIntention)) {
             if (!withinThreeMonths) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "INTENTION_TOO_EARLY: Chỉ ghi nhận MOVE_OUT/TRANSFER khi hợp đồng còn 3 tháng trở xuống."
-                );
+                throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
             }
             if (expectedMoveOutDate == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_MOVE_OUT_DATE_REQUIRED: Cần có ngày dự kiến bàn giao phòng."
-                );
+                throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
             }
             if (expectedMoveOutDate.isBefore(today)) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_MOVE_OUT_DATE_IN_PAST: Ngày dự kiến bàn giao không được trước hôm nay."
-                );
+                throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
             }
             if (contract.getEndDate() != null && expectedMoveOutDate.isAfter(contract.getEndDate())) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_MOVE_OUT_DATE_AFTER_CONTRACT_END: Ngày dự kiến bàn giao không được sau ngày kết thúc hợp đồng."
-                );
+                throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
             }
         }
 
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa gắn phòng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         contract.setTenantIntention(normalizedIntention);
         contract.setIntentionRecordedAt(LocalDateTime.now());
@@ -255,7 +238,7 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
                 leaseContractId
         );
         if (locked.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
@@ -278,8 +261,8 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
 
     private void throwRenewBlocked(RoomCommitmentChecker.Blocker blocker) {
         if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đang được giữ chỗ cho khách khác.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
-        throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể tái ký.");
+        throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
     }
 }

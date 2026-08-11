@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisionHandler;
@@ -16,7 +19,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
@@ -87,7 +89,7 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
         try {
             return objectMapper.readValue(request.getRequestPayload(), new TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Noi dung yeu cau khong hop le.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 

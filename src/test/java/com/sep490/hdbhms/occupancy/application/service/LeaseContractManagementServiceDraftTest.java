@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
@@ -11,9 +12,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Optional;
@@ -93,15 +92,15 @@ class LeaseContractManagementServiceDraftTest {
                 mock(ExpenseRequestService.class)
         );
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> service.assertRoomHasNoPendingContract(room)
         );
 
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-        assertTrue(exception.getReason().contains("Phòng 505"));
-        assertTrue(exception.getReason().contains("DEMO-LEASE-505-DRAFT"));
-        assertTrue(exception.getReason().contains("DRAFT"));
+        assertEquals("PENDING_CONTRACT_EXISTS", exception.getApiErrorCode().name());
+        assertTrue(exception.getMessage().contains("Phòng 505"));
+        assertTrue(exception.getMessage().contains("DEMO-LEASE-505-DRAFT"));
+        assertTrue(exception.getMessage().contains("DRAFT"));
     }
 
     @Test

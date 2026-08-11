@@ -178,6 +178,11 @@ class DepositCompletionAdapterTest {
         }
 
         @Override
+        public boolean existsByName(String name) {
+            return property != null && property.getName().equals(name);
+        }
+
+        @Override
         public Optional<Property> findById(Long id) {
             return Optional.ofNullable(property);
         }

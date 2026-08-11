@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.booking.domain.model;
 
 import com.sep490.hdbhms.booking.domain.value_objects.RoomHoldStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,7 +40,7 @@ public class RoomHold {
                         && this.getStatus() != RoomHoldStatus.PAYMENT_PROCESSING
                         || this.getExpiresAt().isAfter(LocalDateTime.now())
         ) {
-            throw new IllegalStateException("Scheduled task is not expired yet");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = RoomHoldStatus.EXPIRED;
         this.releasedAt = LocalDateTime.now();
@@ -46,7 +48,7 @@ public class RoomHold {
 
     public void confirm() {
         if (this.getStatus() != RoomHoldStatus.ACTIVE) {
-            throw new IllegalStateException("Scheduled task is not active");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = RoomHoldStatus.CONFIRMED;
     }
@@ -61,7 +63,7 @@ public class RoomHold {
 
     public void cancel() {
         if (this.status == RoomHoldStatus.CONFIRMED) {
-            throw new IllegalStateException("Room hold is already confirmed");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         if (this.status == RoomHoldStatus.CANCELLED || this.status == RoomHoldStatus.EXPIRED) {
             return;

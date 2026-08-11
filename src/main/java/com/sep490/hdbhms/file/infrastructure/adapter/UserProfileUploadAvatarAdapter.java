@@ -1,4 +1,7 @@
 //package com.sep490.hdbhms.file.infrastructure.adapter;
+
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 //
 //import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
 //import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileResponse;

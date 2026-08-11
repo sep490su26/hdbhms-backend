@@ -19,7 +19,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = {})
 public @interface ValidPassword {
-    String message() default "Password must be at least 8 characters, contain a letter and a digit";
+    String message() default "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ và số";
 
     Class<?>[] groups() default {};
 

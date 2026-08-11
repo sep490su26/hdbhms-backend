@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,7 +62,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 import vn.payos.model.v2.paymentRequests.PaymentLink;
 import vn.payos.model.v2.paymentRequests.PaymentLinkStatus;
 import vn.payos.model.v2.paymentRequests.Transaction;
@@ -131,29 +133,29 @@ public class TenantInvoiceController {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         InvoiceEntity invoice = requireTenantVisibleInvoice(invoiceId, userId);
         InvoiceLineEntity line = jpaInvoiceLineRepository.findById(lineId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy dòng hóa đơn."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_DONG_HOA_ON));
         if (line.getInvoice() == null || !invoice.getId().equals(line.getInvoice().getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dòng hóa đơn không thuộc hóa đơn đã chọn.");
+            throw new AppException(ApiErrorCode.MIGRATED_DONG_HOA_ON_KHONG_THUOC_HOA_ON_A_CHON);
         }
         if (invoice.getInvoiceType() != InvoiceType.UTILITY) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ hỗ trợ khiếu nại hóa đơn điện nước.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_HO_TRO_KHIEU_NAI_HOA_ON_IEN_NUOC);
         }
         if (!isReviewableInvoice(invoice)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể khiếu nại hóa đơn điện nước chưa thanh toán.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_CO_THE_KHIEU_NAI_HOA_ON_IEN_NUOC_CHUA_THANH_TOAN);
         }
         if (!isUtilityMeterLine(line)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể khiếu nại dòng điện hoặc nước.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_CO_THE_KHIEU_NAI_DONG_IEN_HOAC_NUOC);
         }
         MeterReadingEntity reading = line.getMeterReading();
         if (reading == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dòng hóa đơn chưa liên kết chỉ số điện nước.");
+            throw new AppException(ApiErrorCode.MIGRATED_DONG_HOA_ON_CHUA_LIEN_KET_CHI_SO_IEN_NUOC);
         }
         BigDecimal reportedValue = request == null ? null : request.reportedCurrentValue();
         if (reportedValue == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập chỉ số bạn cho là đúng.");
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_NHAP_CHI_SO_BAN_CHO_LA_UNG);
         }
         if (reading.getPreviousValue() != null && reportedValue.compareTo(reading.getPreviousValue()) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ số đề xuất không được nhỏ hơn chỉ số cũ.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_SO_E_XUAT_KHONG_UOC_NHO_HON_CHI_SO_CU);
         }
         if (jpaChangeRequestRepository.existsByRequestTypeAndTargetTypeAndTargetIdAndStatusIn(
                 RequestType.METER_READING_CORRECTION,
@@ -161,15 +163,15 @@ public class TenantInvoiceController {
                 reading.getId(),
                 OPEN_REVIEW_STATUSES
         )) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Chỉ số này đang có khiếu nại chờ xử lý.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_SO_NAY_ANG_CO_KHIEU_NAI_CHO_XU_LY);
         }
 
         UserEntity requester = jpaUserRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Không tìm thấy tài khoản."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_TAI_KHOAN));
         FileMetadataEntity evidence = request == null || request.evidenceFileId() == null
                 ? null
                 : jpaFileMetadataRepository.findById(request.evidenceFileId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tệp minh chứng."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_TEP_MINH_CHUNG));
 
         ChangeRequestEntity created = jpaChangeRequestRepository.save(ChangeRequestEntity.builder()
                 .requestCode(RequestCodeBuilder.nextAvailable(
@@ -359,7 +361,7 @@ public class TenantInvoiceController {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Khong the luu du lieu checkout PayOS.", exception);
+            throw new AppException(ApiErrorCode.UNDEFINED, exception);
         }
     }
 
@@ -595,7 +597,7 @@ public class TenantInvoiceController {
                 .stream()
                 .filter(invoice -> invoice.getId().equals(invoiceId))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOA_ON));
     }
 
     private boolean isReviewableInvoice(InvoiceEntity invoice) {
@@ -668,7 +670,7 @@ public class TenantInvoiceController {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu dữ liệu khiếu nại.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_THE_LUU_DU_LIEU_KHIEU_NAI);
         }
     }
 

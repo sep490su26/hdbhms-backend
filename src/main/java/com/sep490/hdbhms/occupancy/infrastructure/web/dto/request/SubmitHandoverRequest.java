@@ -32,7 +32,7 @@ public class SubmitHandoverRequest {
     String note;
 
     @Valid
-    @NotNull(message = "Chỉ số điện là bắt buộc")
+    @NotNull(message = "Vui lòng nhập chỉ số điện")
     MeterInput electricity;
 
     @Valid
@@ -46,8 +46,8 @@ public class SubmitHandoverRequest {
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class MeterInput {
-        @NotNull(message = "Chỉ số là bắt buộc")
-        @PositiveOrZero(message = "Chỉ số không được âm")
+        @NotNull(message = "Vui lòng nhập chỉ số điện")
+        @PositiveOrZero(message = "Chỉ số điện không được âm")
         BigDecimal currentValue;
 
         /** File ID from /api/v1/files/upload – nullable */
@@ -55,6 +55,12 @@ public class SubmitHandoverRequest {
 
         /** Ngày chụp ảnh / ngày ghi chỉ số */
         LocalDate readingDate;
+
+        @NotNull(message = "Chỉ số nước là bắt buộc")
+        @PositiveOrZero(message = "Chỉ số nước không được âm")
+        BigDecimal waterValue;
+
+        Long waterPhotoFileId;
     }
 
     @Data
@@ -69,11 +75,11 @@ public class SubmitHandoverRequest {
         @NotBlank(message = "Danh mục thiết bị là bắt buộc")
         String assetCategory;
 
-        @NotNull(message = "Số lượng là bắt buộc")
+        @NotNull(message = "Vui lòng nhập số lượng")
         @PositiveOrZero(message = "Số lượng không được âm")
         Integer quantity;
 
-        @NotNull(message = "Tình trạng là bắt buộc")
+        @NotNull(message = "Vui lòng chọn tình trạng tài sản")
         AssetCondition currentCondition;
 
         String description;
@@ -81,10 +87,10 @@ public class SubmitHandoverRequest {
         /** File ID from /api/v1/files/upload – nullable */
         Long fileImageId;
 
-        @PositiveOrZero(message = "So tien boi thuong khong duoc am")
+        @PositiveOrZero(message = "Khoản chênh lệch không được âm")
         Long compensationAmount;
 
-        @Size(max = 1000, message = "Ghi chu thiet hai khong duoc vuot qua 1000 ky tu")
+        @Size(max = 1000, message = "Ghi chú thiệt hại không được vượt quá 1000 ký tự")
         String damageNote;
 
         Long evidenceFileId;

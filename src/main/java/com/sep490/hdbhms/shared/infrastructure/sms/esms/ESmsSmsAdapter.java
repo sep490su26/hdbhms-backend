@@ -3,6 +3,8 @@ package com.sep490.hdbhms.shared.infrastructure.sms.esms;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.shared.application.port.out.SmsPort;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -60,14 +62,14 @@ public class ESmsSmsAdapter implements SmsPort {
             String smsId = responseJson.path("SMSID").asText();
 
             if (!SUCCESS_CODE.equals(codeResult)) {
-                throw new IllegalStateException("eSMS send failed. CodeResult=" + codeResult + ", ErrorMessage=" + errorMessage);
+                throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
             }
 
             log.info("eSMS request accepted. phoneNumber={}, smsId={}, codeResult={}",
                     normalizeVietnamPhoneNumber(phoneNumber), smsId, codeResult);
         } catch (Exception ex) {
             log.error("Failed to send SMS via eSMS. phoneNumber={}", phoneNumber, ex);
-            throw new IllegalStateException("Failed to send SMS via eSMS", ex);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, ex);
         }
     }
 

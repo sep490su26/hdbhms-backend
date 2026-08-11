@@ -69,6 +69,7 @@ public class FloorController {
                 new GetPropertyDetailsQuery(floor.getPropertyId())
         );
         return ApiResponse.<FloorResponse>builder()
+                .message("Thêm tầng mới thành công")
                 .data(
                         floorWebMapper.toFloorResponse(floor, property)
                 )

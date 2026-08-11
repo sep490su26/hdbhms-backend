@@ -4,6 +4,8 @@ import com.sep490.hdbhms.property.application.port.in.query.GetPropertyDetailsQu
 import com.sep490.hdbhms.property.application.port.in.usecase.GetPropertyDetailsUseCase;
 import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.property.domain.model.Property;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +22,6 @@ public class GetPropertyDetailsService implements GetPropertyDetailsUseCase {
     @Override
     public Property execute(GetPropertyDetailsQuery query) {
         return propertyRepository.findById(query.propertyId())
-                .orElseThrow(() -> new IllegalArgumentException("Property not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_NOT_FOUND));
     }
 }

@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RoomTransferUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.command.AcceptHolderNominationCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ApproveTransferCommand;
@@ -37,7 +40,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.Date;
 import java.time.LocalDate;
@@ -677,10 +679,7 @@ public class MockOccupancyFlowController {
                 contractId
         );
         if (userIds.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Khong tim thay user cua nguoi thue chinh cho hop dong: " + contractId
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return userIds.get(0);
     }
@@ -705,20 +704,14 @@ public class MockOccupancyFlowController {
                 sourceContractId
         );
         if (roomIds.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Khong tim thay phong trong cung co so de mock chuyen phong. Truyen targetRoomId neu muon chon phong cu the."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return roomIds.get(0);
     }
 
     private LeaseContractEntity requireContract(Long contractId) {
         return leaseContractRepository.findByIdAndDeletedAtIsNull(contractId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Khong tim thay hop dong thue: " + contractId
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private void requireRoom(Long roomId) {
@@ -732,10 +725,7 @@ public class MockOccupancyFlowController {
                 roomId
         );
         if (count == null || count == 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Khong tim thay phong: " + roomId
-            );
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
@@ -750,10 +740,7 @@ public class MockOccupancyFlowController {
                 userId
         );
         if (count == null || count == 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    "Khong tim thay user: " + userId
-            );
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 

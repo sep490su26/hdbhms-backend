@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
@@ -16,7 +19,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -35,19 +37,16 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
     @Override
     public LeaseContractManagementResponse execute(UpdateLeaseContractTermsCommand command) {
         LeaseContractEntity contract = leaseContractRepository.findById(command.leaseContractId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         if (List.of(
                 LeaseStatus.LIQUIDATED,
                 LeaseStatus.AUTO_TERMINATED,
                 LeaseStatus.CANCELLED
         ).contains(contract.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Không thể cập nhật thời hạn của hợp đồng đã kết thúc."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         workflowSupport.validateContractTerms(

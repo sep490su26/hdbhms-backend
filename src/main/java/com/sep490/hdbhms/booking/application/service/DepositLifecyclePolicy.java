@@ -2,6 +2,8 @@ package com.sep490.hdbhms.booking.application.service;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositContactOutcome;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,17 +36,17 @@ public final class DepositLifecyclePolicy {
             LocalDate today
     ) {
         if (!isActive(status)) {
-            throw new IllegalStateException("Chỉ được gia hạn khoản cọc đang giữ chỗ.");
+            throw new AppException(ApiErrorCode.DEPOSIT_EXTENSION_INVALID);
         }
         if (extensionCount >= maxExtensions) {
-            throw new IllegalStateException("Khoản cọc này đã sử dụng hết số lần gia hạn.");
+            throw new AppException(ApiErrorCode.DEPOSIT_EXTENSION_INVALID);
         }
         if (additionalDays < 1 || additionalDays > MAX_EXTENSION_DAYS) {
-            throw new IllegalArgumentException("Chỉ được gia hạn từ 1 đến 7 ngày.");
+            throw new AppException(ApiErrorCode.DEPOSIT_EXTENSION_INVALID);
         }
         LocalDate nextDate = currentExpectedMoveInDate.plusDays(additionalDays);
         if (nextDate.isBefore(today)) {
-            throw new IllegalStateException("Ngày gia hạn mới đã ở trong quá khứ.");
+            throw new AppException(ApiErrorCode.DEPOSIT_EXTENSION_INVALID);
         }
         return nextDate;
     }

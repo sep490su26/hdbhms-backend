@@ -16,24 +16,24 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UpdateRoomRequest {
-    @NotNull(message = "floorId is required")
+    @NotNull(message = "Vui lòng chọn tầng")
     Long floorId;
 
-    @NotBlank(message = "roomCode is required")
+    @NotBlank(message = "Vui lòng nhập mã phòng")
     String roomCode;
 
-    @NotBlank(message = "name is required")
+    @NotBlank(message = "Vui lòng nhập tên phòng")
     String name;
 
     BigDecimal areaM2;
 
-    @Min(value = 0, message = "listedPrice must not be negative")
+    @Min(value = 0, message = "Giá phòng không được âm")
     Long listedPrice;
 
-    @Min(value = 1, message = "maxOccupants must be greater than zero")
+    @Min(value = 1, message = "Số người tối đa phải lớn hơn 0")
     Integer maxOccupants;
 
-    @Min(value = 0, message = "sortOrder must not be negative")
+    @Min(value = 0, message = "Thứ tự phòng không được âm")
     Integer sortOrder;
 
     @JsonAlias("status")

@@ -12,6 +12,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AccountFirstPasswordUpdateRequest {
     @NotBlank
-    @ValidPassword
+    @ValidPassword(message = "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ và số.")
     String newPassword;
 }

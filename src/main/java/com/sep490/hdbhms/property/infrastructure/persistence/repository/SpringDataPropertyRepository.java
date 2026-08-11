@@ -35,6 +35,11 @@ public class SpringDataPropertyRepository implements PropertyRepository {
     }
 
     @Override
+    public boolean existsByName(String name) {
+        return jpaPropertyRepository.existsByNameIgnoreCaseAndDeletedAtIsNull(name);
+    }
+
+    @Override
     public Optional<Property> findById(Long id) {
         return jpaPropertyRepository.findById(id)
                 .map(propertyPersistenceMapper::toDomain);

@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -13,7 +16,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
@@ -27,7 +29,7 @@ public class TenantFileController {
     public ResponseEntity<Resource> downloadMyTenantFile(@PathVariable Long fileId) {
         var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
         Long userId = principal.getId();
@@ -99,14 +101,14 @@ public class TenantFileController {
                 """, Boolean.class, userId, fileId, fileId);
 
             if (Boolean.FALSE.equals(hasContract)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have permission to view this file");
+                throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
             }
         }
         }
 
         var fileData = downloadFileUseCase.execute(new DownloadFileQuery(fileId));
         if (fileData == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
 
         return ResponseEntity.ok()

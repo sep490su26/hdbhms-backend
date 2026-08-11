@@ -84,7 +84,7 @@ public class ManageRoomAssetService implements ManageRoomAssetUseCase {
 
     private RoomAssetEntity getActiveAssetEntity(Long roomId, Long assetId) {
         return jpaRoomAssetRepository.findByIdAndRoom_IdAndDeletedAtIsNull(assetId, roomId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_ASSET_NOT_FOUND));
     }
 
     private RoomAssetResponse toResponse(RoomAsset domain) {

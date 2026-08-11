@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
 
 import java.util.Objects;
 
@@ -35,7 +36,7 @@ public class ResetPasswordService implements ResetPasswordUseCase {
     public void requestResetPassword(RequestResetPasswordCommand command) {
         var identity = command.email() == null ? "" : command.email().trim();
         var account = userRepository.findByPhoneOrEmailAndDeletedAtIsNull(identity, identity)
-                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND_BY_EMAIL));
         var numberOfPasswordResetOfTheLast3Days = userModificationHistoryRepository.getNumberOfPasswordResetOfTheDays(account.getId(), 3);
         if (numberOfPasswordResetOfTheLast3Days >= 10) {
             throw new AppException(ApiErrorCode.RESET_PASSWORD_NOT_ALLOWED_YET);

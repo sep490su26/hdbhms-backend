@@ -57,6 +57,7 @@ public class PermissionGrantController {
                 request == null ? null : request.reason()
         );
         return ApiResponse.<PermissionGrantResponse>builder()
+                .message("Thu hồi quyền truy cập thành công")
                 .data(toResponse(grant))
                 .build();
     }

@@ -3,6 +3,8 @@ package com.sep490.hdbhms.booking.application.service;
 import com.sep490.hdbhms.booking.application.port.out.RoomDepositFailureRepository;
 import com.sep490.hdbhms.booking.domain.model.RoomDepositFailure;
 import com.sep490.hdbhms.booking.domain.value_objects.RoomDepositFailureReason;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -11,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -30,7 +31,7 @@ public class RoomDepositLockService {
 
     public void assertNotLocked(Long roomId) {
         getActiveLock(roomId).ifPresent(lock -> {
-            throw new ResponseStatusException(HttpStatus.LOCKED, buildLockMessage(lock.remainingSeconds()));
+            throw new AppException(ApiErrorCode.ROOM_DEPOSIT_LOCKED);
         });
     }
 

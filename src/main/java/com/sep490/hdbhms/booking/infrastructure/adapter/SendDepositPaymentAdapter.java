@@ -168,7 +168,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Could not serialize payment checkout payload", e);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, e);
         }
     }
 

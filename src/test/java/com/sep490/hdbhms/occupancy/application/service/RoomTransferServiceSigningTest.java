@@ -21,16 +21,15 @@ import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
 import com.sep490.hdbhms.occupancy.domain.model.RoomTransferRequest;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Optional;
 import java.util.Set;
@@ -85,13 +84,13 @@ class RoomTransferServiceSigningTest {
         when(leaseContractRepository.findById(102L))
                 .thenReturn(Optional.of(transferContract(102L, LeaseStatus.CONFIRMED, 202L)));
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> newService(leaseContractRepository, roomTransferRepository).signTransferContract(10L, 1L)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        assertTrue(exception.getReason().contains("xác nhận từng hợp đồng"));
+        assertEquals("TRANSFER_CONTRACTS_MUST_BE_CONFIRMED_INDIVIDUALLY", exception.getApiErrorCode().name());
+        assertTrue(exception.getMessage().contains("xác nhận từng hợp đồng"));
         assertEquals(TransferRequestStatus.WAITING_SIGNING, request.getStatus());
         verify(roomTransferRepository, never()).save(any());
     }

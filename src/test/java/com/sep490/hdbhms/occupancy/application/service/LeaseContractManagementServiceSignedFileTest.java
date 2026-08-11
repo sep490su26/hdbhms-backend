@@ -18,16 +18,16 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContra
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -165,12 +165,13 @@ class LeaseContractManagementServiceSignedFileTest {
 
         var service = newService(mock(UploadFileService.class), mock(JpaFileMetadataRepository.class), leaseContractRepository);
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> service.uploadSignedFile(99L, pdfFile(), false)
         );
 
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+        assertEquals(ApiErrorCode.MIGRATED_HOP_DONG_THUE_DA_CO_FILE_DA_KY_GUI_REPLACE_TRUE_NEU_MUON_5BEFFD,
+                exception.getApiErrorCode());
     }
 
     @Test
@@ -189,13 +190,13 @@ class LeaseContractManagementServiceSignedFileTest {
                 leaseContractRepository
         );
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> service.activate(99L)
         );
 
-        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-        assertTrue(exception.getReason().contains("hop dong da ky"));
+        assertEquals(ApiErrorCode.MIGRATED_CAN_UPLOAD_FILE_HOP_DONG_DA_KY_TRUOC_KHI_KICH_HOAT,
+                exception.getApiErrorCode());
     }
 
     @Test
@@ -230,12 +231,13 @@ class LeaseContractManagementServiceSignedFileTest {
                 leaseContractRepository
         );
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> service.activate(99L)
         );
 
-        assertTrue(exception.getReason().contains("bàn giao"));
+        assertEquals(ApiErrorCode.MIGRATED_CAN_HOAN_THANH_BAN_GIAO_PHONG_NHAP_SO_IEN_VA_UPLOAD_BIEN_6ACA66,
+                exception.getApiErrorCode());
         var sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate, times(2)).queryForObject(
                 sqlCaptor.capture(),

@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.TransactionExportRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TransactionHistoryResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
@@ -22,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -195,7 +197,7 @@ public class TransactionHistoryService {
     public ExportedFile exportTransactions(TransactionExportRequest request) {
         List<TransactionHistoryResponse> rows = findAll(request);
         if (rows.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chưa có dữ liệu để xuất");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         String format = request == null || request.format() == null ? "excel" : request.format().trim().toLowerCase(Locale.ROOT);
@@ -211,10 +213,10 @@ public class TransactionHistoryService {
                         PDF_CONTENT_TYPE,
                         "lich-su-thanh-toan-" + LocalDate.now() + ".pdf"
                 );
-                default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Định dạng xuất không hợp lệ");
+                default -> throw new AppException(ApiErrorCode.INVALID_REQUEST);
             };
         } catch (IOException | POIXMLException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file thất bại, vui lòng thử lại");
+            throw new AppException(ApiErrorCode.UNDEFINED);
         }
     }
 
@@ -281,7 +283,7 @@ public class TransactionHistoryService {
                 params.add(dateRange.fromDate().atStartOfDay());
                 params.add(dateRange.toDate().atTime(LocalTime.MAX));
             }
-            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phạm vi xuất hóa đơn không hợp lệ");
+            default -> throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -297,7 +299,7 @@ public class TransactionHistoryService {
                         + " đến " + EXPORT_DAY_FILENAME.format(dateRange.toDate()) + ".xlsx";
             }
             case "ALL" -> "Danh sách tất cả hóa đơn.xlsx";
-            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phạm vi xuất hóa đơn không hợp lệ");
+            default -> throw new AppException(ApiErrorCode.INVALID_REQUEST);
         };
     }
 
@@ -309,13 +311,13 @@ public class TransactionHistoryService {
         try {
             return YearMonth.parse(value == null ? "" : value.trim());
         } catch (DateTimeParseException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tháng hóa đơn không hợp lệ");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
     private int requireBillingYear(Integer value) {
         if (value == null || value < 1900 || value > 2100) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Năm hóa đơn không hợp lệ");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return value;
     }
@@ -324,7 +326,7 @@ public class TransactionHistoryService {
         LocalDate fromDate = request == null ? null : request.issueFromDate();
         LocalDate toDate = request == null ? null : request.issueToDate();
         if (fromDate == null || toDate == null || fromDate.isAfter(toDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khoảng ngày phát hành hóa đơn không hợp lệ");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return new InvoiceIssueDateRange(fromDate, toDate);
     }

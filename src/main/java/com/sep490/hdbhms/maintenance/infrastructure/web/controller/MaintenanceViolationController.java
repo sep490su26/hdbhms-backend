@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
 import com.sep490.hdbhms.billingandpayment.application.service.ScheduledBillingChargeService;
@@ -55,7 +58,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -100,20 +102,20 @@ public class MaintenanceViolationController {
     public ApiResponse<RuleViolationResponse> createViolation(@RequestBody CreateRuleViolationRequest request) {
         Role role = requireRole();
         if (role != Role.OWNER && role != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ chủ trọ hoặc quản lý được ghi nhận vi phạm.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         validateRequest(request);
         String ruleCode = normalizeViolationType(request.getViolationType());
 
         RoomEntity room = jpaRoomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         Long propertyId = request.getPropertyId();
         if (room.getProperty() == null || !Objects.equals(room.getProperty().getId(), propertyId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng không thuộc cơ sở đã chọn.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         assertManagerCanAccessProperty(propertyId);
         if (!jpaPropertyRepository.existsById(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy cơ sở.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         LeaseContractEntity contract = jpaLeaseContractRepository
@@ -121,15 +123,9 @@ public class MaintenanceViolationController {
                         room.getId(),
                         ACTIVE_CONTRACT_STATUSES.stream().toList()
                 )
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Phòng chưa có hợp đồng đang hiệu lực, không thể ghi nhận vi phạm cho khách thuê."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         if (room.getCurrentStatus() != RoomStatus.OCCUPIED && room.getCurrentStatus() != RoomStatus.SOON_VACANT) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Phòng chưa có hợp đồng đang hiệu lực, không thể ghi nhận vi phạm cho khách thuê."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         PersonProfileEntity tenantProfile = resolveTenantProfile(request, contract);
         PropertyRuleEntity rule = findRule(propertyId, ruleCode);
@@ -151,6 +147,9 @@ public class MaintenanceViolationController {
 
         InvoiceLineEntity invoiceLine = null;
         InvoiceEntity invoice = null;
+        if (request.getCollectionMethod() == null || request.getCollectionMethod().isBlank()) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
         String collectionMethod = normalizeCollectionMethod(request.getCollectionMethod());
         boolean billNow = "BILL_NOW".equals(collectionMethod);
         boolean monthlyScheduled = "MONTHLY_SCHEDULED".equals(collectionMethod);
@@ -185,6 +184,7 @@ public class MaintenanceViolationController {
         }
 
         return ApiResponse.<RuleViolationResponse>builder()
+                .message("Tạo biên bản vi phạm thành công")
                 .data(RuleViolationResponse.builder()
                         .id(violation.getId())
                         .ticketId(ticket.getId())
@@ -242,16 +242,19 @@ public class MaintenanceViolationController {
 
     private void validateRequest(CreateRuleViolationRequest request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu ghi nhận vi phạm không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (request.getViolationType() == null || request.getViolationType().isBlank()) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (request.getPropertyId() == null || request.getPropertyId() <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn cơ sở.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (request.getRoomId() == null || request.getRoomId() <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn phòng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (request.getDescription() == null || request.getDescription().trim().length() < 10) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập mô tả vi phạm tối thiểu 10 ký tự.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -262,10 +265,10 @@ public class MaintenanceViolationController {
         }
         normalized = normalized.replaceAll("[^A-Z0-9_\\-]", "_").replaceAll("_+", "_");
         if (normalized.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn nội quy vi phạm.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (normalized.length() > 50) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã nội quy tối đa 50 ký tự.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return normalized;
     }
@@ -278,17 +281,14 @@ public class MaintenanceViolationController {
                 contract.getId(),
                 request.getOccupantId(),
                 OccupantStatus.ACTIVE
-        ).orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Người vi phạm không thuộc hợp đồng/phòng này."));
+        ).orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         return jpaPersonProfileRepository.getReferenceById(request.getOccupantId());
     }
 
     private PropertyRuleEntity findRule(Long propertyId, String ruleCode) {
         return jpaPropertyRuleRepository
                 .findFirstByProperty_IdAndRuleCodeAndStatus(propertyId, ruleCode, RuleStatus.ACTIVE)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Chưa cấu hình nội quy vi phạm đã chọn cho cơ sở này."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
     }
 
     private long resolveFineAmount(Long amount, PropertyRuleEntity rule, String ruleCode) {
@@ -298,7 +298,7 @@ public class MaintenanceViolationController {
         }
         long resolved = amount == null ? defaultFine : amount;
         if (resolved <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền phạt phải lớn hơn 0.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return resolved;
     }
@@ -308,19 +308,19 @@ public class MaintenanceViolationController {
                 ? List.of()
                 : attachmentIds.stream().filter(Objects::nonNull).distinct().toList();
         if (ids.size() > MAX_EVIDENCE_FILES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh bằng chứng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (ids.isEmpty()) {
             return ids;
         }
         List<FileMetadataEntity> files = jpaFileMetadataRepository.findAllById(ids);
         if (files.size() != ids.size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Một hoặc nhiều ảnh bằng chứng không tồn tại.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         for (FileMetadataEntity file : files) {
             String mimeType = file.getMimeType() == null ? "" : file.getMimeType().toLowerCase(Locale.ROOT);
             if (!mimeType.startsWith("image/")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bằng chứng chỉ hỗ trợ file ảnh.");
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
         }
         return ids;
@@ -412,7 +412,7 @@ public class MaintenanceViolationController {
             return;
         }
         if (propertyId == null || !managerPropertyIds().contains(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền ghi nhận vi phạm cho cơ sở này.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 
@@ -428,7 +428,7 @@ public class MaintenanceViolationController {
     private Role requireRole() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         return principal.getRole();
     }
@@ -436,7 +436,7 @@ public class MaintenanceViolationController {
     private Long currentUserId() {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         return userId;
     }

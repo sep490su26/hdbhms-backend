@@ -76,6 +76,7 @@ public class ExpenseRequestController {
     ) {
         return ApiResponse.<ExpenseRequestResponse>builder()
                 .code(0)
+                .message("Tạo yêu cầu chi phí thành công")
                 .data(expenseRequestService.createRequest(request, principal.getId(), principal.getRole()))
                 .build();
     }
@@ -113,6 +114,7 @@ public class ExpenseRequestController {
     ) {
         return ApiResponse.<ExpenseRequestResponse>builder()
                 .code(0)
+                .message("Từ chối yêu cầu chi phí thành công")
                 .data(expenseRequestService.rejectRequest(id, request, principal.getId()))
                 .build();
     }

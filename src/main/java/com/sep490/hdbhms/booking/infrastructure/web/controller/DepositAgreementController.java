@@ -26,6 +26,8 @@ import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositExtension
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositForfeitureRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositAgreementDetailsResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -34,7 +36,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -94,10 +95,7 @@ public class DepositAgreementController {
         assertOwnerOrManager();
         DepositAgreementStatus nextStatus = request.status();
         if (!MANAGER_UPDATEABLE_STATUSES.contains(nextStatus)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Trạng thái cọc không hợp lệ. Mất cọc phải được xử lý qua hành động có kiểm tra quá hạn."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_STATUS_INVALID);
         }
 
         DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
@@ -112,6 +110,7 @@ public class DepositAgreementController {
         Room savedRoom = roomRepository.save(room);
 
         return ApiResponse.<DepositAgreementDetailsResponse>builder()
+                .message("Cập nhật trạng thái phiếu cọc thành công")
                 .data(toDetailsResponse(savedDepositAgreement, savedRoom))
                 .build();
     }
@@ -132,25 +131,19 @@ public class DepositAgreementController {
         if (depositAgreement.getStatus() != DepositAgreementStatus.PENDING_PAYMENT
                 && (!Objects.equals(currentMoveInDate, request.expectedMoveInDate())
                 || !Objects.equals(currentLeaseSignDate, request.expectedLeaseSignDate()))) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Ngày hẹn của cọc đã thanh toán chỉ được thay đổi qua hành động gia hạn."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_PAID_DATES_IMMUTABLE);
         }
         validateManagementInfoUpdate(
                 request,
                 depositAgreement.getStatus() == DepositAgreementStatus.PENDING_PAYMENT
         );
         if (!MANAGER_INFO_UPDATEABLE_STATUSES.contains(depositAgreement.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ được cập nhật thông tin khi cọc đang chờ thanh toán, đã đặt cọc, đang giữ cọc hoặc chờ ký hợp đồng."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_MANAGEMENT_UPDATE_NOT_ALLOWED);
         }
 
         DepositForm depositForm = getDepositForm(depositAgreement);
         if (depositForm == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy form đặt cọc để cập nhật thông tin khách.");
+            throw new AppException(ApiErrorCode.DEPOSIT_FORM_FOR_UPDATE_NOT_FOUND);
         }
 
         String normalizedPhone = normalizePhone(request.depositorPhone());
@@ -183,7 +176,7 @@ public class DepositAgreementController {
                 request.outcome(),
                 request.note()
         );
-        return currentDetailsResponse(depositAgreementId);
+        return currentDetailsResponse(depositAgreementId, "Ghi nhận kết quả liên hệ thành công");
     }
 
     @PostMapping("/{depositAgreementId}/extensions")
@@ -198,7 +191,7 @@ public class DepositAgreementController {
                 request.additionalDays(),
                 request.reason()
         );
-        return currentDetailsResponse(depositAgreementId);
+        return currentDetailsResponse(depositAgreementId, "Gia hạn phiếu cọc thành công");
     }
 
     @PostMapping("/{depositAgreementId}/forfeit")
@@ -208,7 +201,7 @@ public class DepositAgreementController {
     ) {
         assertOwner();
         depositAgreementLifecycleService.forfeit(depositAgreementId, request.reason());
-        return currentDetailsResponse(depositAgreementId);
+        return currentDetailsResponse(depositAgreementId, "Ghi nhận mất cọc thành công");
     }
 
     private DepositAgreementDetailsResponse toDetailsResponse(DepositAgreement depositAgreement, Room room) {
@@ -287,21 +280,21 @@ public class DepositAgreementController {
     ) {
         String normalizedPhone = normalizePhone(request.depositorPhone());
         if (!normalizedPhone.matches("^0\\d{9}$")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại phải bắt đầu bằng 0 và có đúng 10 chữ số.");
+            throw new AppException(ApiErrorCode.DEPOSIT_PHONE_INVALID);
         }
         if (request.permanentAddress() == null || request.permanentAddress().trim().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Địa chỉ không được để trống.");
+            throw new AppException(ApiErrorCode.DEPOSIT_ADDRESS_REQUIRED);
         }
 
         LocalDate today = LocalDate.now();
         if (scheduleChangesAllowed && request.expectedLeaseSignDate().isBefore(today)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày ký hợp đồng dự kiến không được là ngày quá khứ.");
+            throw new AppException(ApiErrorCode.DEPOSIT_LEASE_SIGN_DATE_PAST);
         }
         if (scheduleChangesAllowed && request.expectedMoveInDate().isBefore(today)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày vào ở dự kiến không được là ngày quá khứ.");
+            throw new AppException(ApiErrorCode.DEPOSIT_MOVE_IN_DATE_PAST);
         }
         if (request.expectedMoveInDate().isBefore(request.expectedLeaseSignDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày vào ở dự kiến không được trước ngày ký hợp đồng dự kiến.");
+            throw new AppException(ApiErrorCode.DEPOSIT_MOVE_IN_BEFORE_SIGN_DATE);
         }
     }
 
@@ -320,18 +313,18 @@ public class DepositAgreementController {
     private void assertOwnerOrManager() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để cập nhật trạng thái cọc.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
         Role role = principal.getRole();
         if (role != Role.OWNER && role != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền cập nhật trạng thái cọc.");
+            throw new AppException(ApiErrorCode.UNAUTHORIZED);
         }
     }
 
     private void assertOwner() {
         if (currentRole() != Role.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ chủ trọ được quyết định xử lý mất cọc.");
+            throw new AppException(ApiErrorCode.UNAUTHORIZED);
         }
     }
 
@@ -344,14 +337,22 @@ public class DepositAgreementController {
     }
 
     private ApiResponse<DepositAgreementDetailsResponse> currentDetailsResponse(Long depositAgreementId) {
+        return currentDetailsResponse(depositAgreementId, null);
+    }
+
+    private ApiResponse<DepositAgreementDetailsResponse> currentDetailsResponse(
+            Long depositAgreementId,
+            String message
+    ) {
         DepositAgreement depositAgreement = getDepositAgreementDetailsUseCase.execute(
                 new GetDepositAgreementDetailsQuery(depositAgreementId)
         );
         if (!DepositLifecyclePolicy.isActive(depositAgreement.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể thay đổi khoản cọc đã kết thúc xử lý.");
+            throw new AppException(ApiErrorCode.DEPOSIT_LIFECYCLE_TERMINAL);
         }
         Room room = getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(depositAgreement.getRoomId()));
         return ApiResponse.<DepositAgreementDetailsResponse>builder()
+                .message(message)
                 .data(toDetailsResponse(depositAgreement, room))
                 .build();
     }
@@ -359,7 +360,7 @@ public class DepositAgreementController {
     private void assertCanAccessDeposit(DepositAgreement depositAgreement) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để xem hợp đồng đặt cọc.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
         Role role = principal.getRole();
@@ -375,6 +376,6 @@ public class DepositAgreementController {
             }
         }
 
-        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem hợp đồng đặt cọc này.");
+        throw new AppException(ApiErrorCode.UNAUTHORIZED);
     }
 }

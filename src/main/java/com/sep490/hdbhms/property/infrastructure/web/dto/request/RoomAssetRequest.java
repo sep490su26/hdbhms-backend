@@ -6,14 +6,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record RoomAssetRequest(
-        @NotBlank(message = "Asset name is required")
+        @NotBlank(message = "Vui lòng nhập tên tài sản")
         String assetName,
-        @NotBlank(message = "Asset category is required")
+        @NotBlank(message = "Vui lòng nhập loại tài sản")
         String assetCategory,
-        @NotNull(message = "Quantity is required")
-        @PositiveOrZero(message = "Quantity must not be negative")
+        @NotNull(message = "Vui lòng nhập số lượng")
+        @PositiveOrZero(message = "Số lượng không được nhỏ hơn 0")
         Integer quantity,
-        @NotNull(message = "Current condition is required")
+        @NotNull(message = "Vui lòng chọn tình trạng tài sản")
         AssetCondition currentCondition,
         String description,
         Long fileImageId

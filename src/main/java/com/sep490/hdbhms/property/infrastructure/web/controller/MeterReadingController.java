@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.property.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.property.application.service.GetMeterReadingsService;
 import com.sep490.hdbhms.property.application.port.in.usecase.SubmitMeterReadingUseCase;
 import com.sep490.hdbhms.property.application.service.MeterReadingPeriod;
@@ -46,7 +49,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.server.ResponseStatusException;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ProgressiveRoomReadingRequest;
 
 import java.io.ByteArrayOutputStream;
@@ -148,7 +150,7 @@ public class MeterReadingController {
             @Valid @RequestBody SingleMeterReadingRequest request) {
         submitMeterReadingUseCase.submitSingleReading(meterReadingWebMapper.toCommand(request));
         return ApiResponse.<Void>builder()
-                .message("Meter readings submitted successfully")
+                .message("Lưu chỉ số điện nước thành công")
                 .build();
     }
 
@@ -163,7 +165,7 @@ public class MeterReadingController {
             @Valid @RequestBody BatchMeterReadingRequest request) {
         submitMeterReadingUseCase.submitBatchReadings(meterReadingWebMapper.toCommand(request));
         return ApiResponse.<Void>builder()
-                .message("Batch meter readings submitted successfully")
+                .message("Gửi lô chỉ số điện nước thành công")
                 .build();
     }
 
@@ -190,7 +192,8 @@ public class MeterReadingController {
                 request.getElectricityValue(), request.getElectricityPhotoId()
         );
         return ApiResponse.<Void>builder()
-                .message("Room reading saved successfully")
+                .message("Lưu tiến độ chỉ số thành công")
+                .details("Lưu chỉ số phòng thành công")
                 .build();
     }
 
@@ -230,7 +233,7 @@ public class MeterReadingController {
                     .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
                     .body(workbook);
         } catch (IOException exception) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Could not create Excel template", exception);
+            throw new AppException(ApiErrorCode.UNDEFINED, exception);
         }
     }
 
@@ -251,7 +254,7 @@ public class MeterReadingController {
             @PathVariable Long batchId) {
         submitMeterReadingUseCase.confirmBatch(batchId);
         return ApiResponse.<Void>builder()
-                .message("Batch confirmed successfully")
+                .message("Đã chốt kỳ ghi chỉ số. Đang mở batch hóa đơn nháp.")
                 .build();
     }
 

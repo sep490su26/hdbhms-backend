@@ -15,6 +15,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,10 +44,10 @@ public class CreateStaffUserService implements CreateStaffUserUseCase {
         ) {
             throw new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND);
         }
-        if (
-                userRepository.existsByEmail(command.getEmail())
-                        || userRepository.existsByPhone(command.getPhone())
-        ) {
+        if (userRepository.existsByEmail(command.getEmail())) {
+            throw new AppException(ApiErrorCode.STAFF_EMAIL_ALREADY_USED);
+        }
+        if (userRepository.existsByPhone(command.getPhone())) {
             throw new AppException(ApiErrorCode.ACCOUNT_EXISTED);
         }
         String randomPassword = RandomPasswordUtils.generatePassword(

@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.accounting.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.accounting.domain.value_objects.ExpenseAttachmentType;
@@ -57,7 +60,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -129,22 +131,22 @@ public class ExpenseRequestService {
     @Transactional
     public ExpenseRequestResponse createRequest(CreateExpenseRequest request, Long currentUserId, Role currentRole) {
         if (currentRole != Role.MANAGER && currentRole != Role.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền tạo yêu cầu chi.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu yêu cầu chi không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (request.propertyId() == null || request.expenseType() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn cơ sở và loại chi.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         String reason = blankToNull(request.reason());
         if (reason == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập lý do chi.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         long amount = requirePositiveAmount(request.amount());
         UserEntity requester = requireUser(currentUserId);
         PropertyEntity property = propertyRepository.findById(request.propertyId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy cơ sở."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         RoomEntity room = resolveRoom(request.roomId(), property.getId());
 
         OperatingExpenseEntity expense = operatingExpenseRepository.save(OperatingExpenseEntity.builder()
@@ -217,7 +219,7 @@ public class ExpenseRequestService {
     public ExpenseRequestResponse rejectRequest(Long id, RejectExpenseRequest request, Long ownerId) {
         String reason = blankToNull(request == null ? null : request.reason());
         if (reason == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập lý do từ chối.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         OperatingExpenseEntity expense = requireExpense(id);
         ExpenseApprovalRequestEntity approval = requireApproval(expense.getId());
@@ -246,7 +248,7 @@ public class ExpenseRequestService {
         ChangeRequestEntity changeRequest = approval.getChangeRequest();
         requirePending(expense, changeRequest);
         if (currentRole != Role.OWNER && !Objects.equals(changeRequest.getRequester().getId(), currentUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền hủy yêu cầu chi này.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
 
         changeRequest.setStatus(RequestStatus.CANCELLED);
@@ -307,7 +309,7 @@ public class ExpenseRequestService {
 
         UserEntity requester = requireUser(currentUserId);
         PropertyEntity property = propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy cơ sở."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         RoomEntity room = resolveRoom(roomId, property.getId());
         String reason = "Hoàn cọc thanh lý hợp đồng " + defaultText(contractCode, "#" + contractId);
         String roomLabel = roomCode == null || roomCode.isBlank() ? "" : " phòng " + roomCode;
@@ -387,15 +389,15 @@ public class ExpenseRequestService {
         ExpenseApprovalRequestEntity approval = requireApproval(expense.getId());
         if (approval.getChangeRequest().getStatus() != RequestStatus.APPROVED
                 || expense.getStatus() != ExpenseStatus.READY_FOR_PAYMENT) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ ghi nhận thanh toán cho yêu cầu chi đã được duyệt.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (paymentRepository.existsByOperatingExpense_Id(expense.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Yêu cầu chi này đã được ghi nhận thanh toán.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         if (currentRole != Role.OWNER
                 && !(currentRole == Role.MANAGER && isLinkedLiquidationRefund(approval.getChangeRequest()))) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền ghi nhận thanh toán khoản chi này.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
 
         UserEntity owner = requireUser(currentUserId);
@@ -442,10 +444,7 @@ public class ExpenseRequestService {
 
     private void updateLinkedRefundExpense(OperatingExpenseEntity expense, long refundAmount) {
         if (expense.getStatus() == ExpenseStatus.PAID && !Objects.equals(expense.getAmount(), refundAmount)) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Khoản hoàn cọc đã ghi nhận thanh toán, không thể đổi số tiền hoàn."
-            );
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         if (expense.getStatus() == ExpenseStatus.CANCELLED || expense.getStatus() == ExpenseStatus.REJECTED) {
             return;
@@ -471,10 +470,7 @@ public class ExpenseRequestService {
         if (existingExpenseId != null) {
             OperatingExpenseEntity expense = operatingExpenseRepository.findById(existingExpenseId).orElse(null);
             if (expense != null && expense.getStatus() == ExpenseStatus.PAID) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Khoản hoàn cọc đã ghi nhận thanh toán, không thể chuyển sang không hoàn cọc."
-                );
+                throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
             }
             if (expense != null) {
                 expense.setStatus(ExpenseStatus.CANCELLED);
@@ -748,7 +744,7 @@ public class ExpenseRequestService {
 
     private void requirePending(OperatingExpenseEntity expense, ChangeRequestEntity changeRequest) {
         if (expense.getStatus() != ExpenseStatus.PENDING_APPROVAL || changeRequest.getStatus() != RequestStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ xử lý yêu cầu chi đang chờ duyệt.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -931,23 +927,23 @@ public class ExpenseRequestService {
 
     private OperatingExpenseEntity requireExpense(Long id) {
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn yêu cầu chi.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return operatingExpenseRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy yêu cầu chi."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private ExpenseApprovalRequestEntity requireApproval(Long expenseId) {
         return approvalRequestRepository.findByOperatingExpense_Id(expenseId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy thông tin phê duyệt."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private UserEntity requireUser(Long id) {
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         return userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNAUTHENTICATED));
     }
 
     private RoomEntity resolveRoom(Long roomId, Long propertyId) {
@@ -955,9 +951,9 @@ public class ExpenseRequestService {
             return null;
         }
         RoomEntity room = roomRepository.findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
         if (room.getProperty() == null || !Objects.equals(room.getProperty().getId(), propertyId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng không thuộc cơ sở đã chọn.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return room;
     }
@@ -967,12 +963,12 @@ public class ExpenseRequestService {
             return null;
         }
         return fileMetadataRepository.findById(fileId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Một hoặc nhiều file không tồn tại."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
     }
 
     private long requirePositiveAmount(Long amount) {
         if (amount == null || amount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền chi không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return amount;
     }
@@ -1014,7 +1010,7 @@ public class ExpenseRequestService {
                     }
             ));
         } catch (Exception e) {
-            throw new IllegalStateException("Invalid change request payload.", e);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST, e);
         }
         return data;
     }

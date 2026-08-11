@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.scheduling.config;
 
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.scheduling.application.handler.ScheduledTaskHandler;
 import com.sep490.hdbhms.scheduling.application.handler.ScheduledTaskFailureClassifier;
 import com.sep490.hdbhms.scheduling.application.handler.ScheduledTaskPolicy;
@@ -69,7 +71,7 @@ public class ScheduledTaskProcessor {
             for (TaskType taskType : taskHandler.supportedTaskTypes()) {
                 ScheduledTaskHandler previous = taskHandlerRegistry.putIfAbsent(taskType, taskHandler);
                 if (previous != null) {
-                    throw new IllegalStateException("Duplicate scheduled task handler for task type: " + taskType);
+                    throw new AppException(ApiErrorCode.DUPLICATE_SCHEDULED_TASK_HANDLER);
                 }
             }
         }
@@ -273,7 +275,7 @@ public class ScheduledTaskProcessor {
     private void executeTask(ScheduledTask scheduledTask) {
         ScheduledTaskHandler taskHandler = taskHandlerRegistry.get(scheduledTask.getTaskType());
         if (taskHandler == null) {
-            throw new IllegalStateException("No scheduled task handler registered for task type: " + scheduledTask.getTaskType());
+            throw new AppException(ApiErrorCode.SCHEDULED_TASK_HANDLER_NOT_FOUND);
         }
         taskHandler.handle(scheduledTask);
     }

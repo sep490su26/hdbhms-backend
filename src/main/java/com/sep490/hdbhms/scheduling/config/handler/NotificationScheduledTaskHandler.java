@@ -5,6 +5,8 @@ import com.sep490.hdbhms.scheduling.application.handler.ScheduledTaskHandler;
 import com.sep490.hdbhms.scheduling.application.handler.ScheduledTaskPolicy;
 import com.sep490.hdbhms.scheduling.domain.model.ScheduledTask;
 import com.sep490.hdbhms.scheduling.domain.value_objects.TaskType;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -33,7 +35,7 @@ public class NotificationScheduledTaskHandler implements ScheduledTaskHandler {
     @Override
     public void handle(ScheduledTask scheduledTask) {
         if (scheduledTask.getTaskType() != TaskType.NOTIFICATION_OUTBOX_DISPATCH) {
-            throw new IllegalStateException("Unsupported notification scheduled task type: " + scheduledTask.getTaskType());
+            throw new AppException(ApiErrorCode.UNSUPPORTED_NOTIFICATION_TASK);
         }
         notificationOutboxDispatcher.dispatch();
     }

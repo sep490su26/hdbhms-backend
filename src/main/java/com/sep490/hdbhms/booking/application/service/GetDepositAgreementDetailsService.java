@@ -4,6 +4,8 @@ import com.sep490.hdbhms.booking.application.port.in.query.GetDepositAgreementDe
 import com.sep490.hdbhms.booking.application.port.in.usecase.GetDepositAgreementDetailsUseCase;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +22,6 @@ public class GetDepositAgreementDetailsService implements GetDepositAgreementDet
     @Override
     public DepositAgreement execute(GetDepositAgreementDetailsQuery query) {
         return depositAgreementRepository.findById(query.depositAgreementId())
-                .orElseThrow(() -> new IllegalArgumentException("Deposit agreement not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_AGREEMENT_NOT_FOUND));
     }
 }

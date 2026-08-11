@@ -11,6 +11,6 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class VisitRequestStatusUpdateRequest {
-    @NotNull(message = "VISIT_004")
+    @NotNull(message = "Vui lòng chọn trạng thái lịch xem phòng")
     VisitRequestStatus status;
 }

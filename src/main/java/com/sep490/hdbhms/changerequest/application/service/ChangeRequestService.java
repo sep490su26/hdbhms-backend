@@ -19,7 +19,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -93,7 +92,7 @@ public class ChangeRequestService implements ChangeRequestUseCase {
     public ChangeRequest disputeLiquidationDepositRefund(Long requestId, Long tenantId, String reason) {
         String finalReason = reason == null ? "" : reason.trim();
         if (finalReason.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập lý do chưa nhận hoặc sai số tiền cọc.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         ChangeRequest request = liquidationRequestForTenant(requestId, tenantId);
         Map<String, Object> payload = payloadMap(request.getRequestPayload());
@@ -186,10 +185,10 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         ChangeRequest request = repository.findById(requestId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (request.getRequestType() != RequestType.CONTRACT_LIQUIDATION) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Yêu cầu không phải thanh lý hợp đồng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (tenantId == null || !tenantId.equals(request.getRequesterId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xác nhận hoàn cọc cho yêu cầu này.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return request;
     }
@@ -206,14 +205,14 @@ public class ChangeRequestService implements ChangeRequestUseCase {
                     }
             ));
         } catch (Exception e) {
-            throw new IllegalStateException("Invalid change request payload.", e);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST, e);
         }
         return data;
     }
 
     private void assertRefundRecordedByManager(Map<String, Object> payload) {
         if (!"RECORDED_BY_MANAGER".equals(payload.get("depositRefundStatus"))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quản lý chưa ghi nhận hoàn cọc để khách thuê xác nhận.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -245,7 +244,7 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
-            throw new IllegalStateException("Cannot update change request payload.", e);
+            throw new AppException(ApiErrorCode.UNDEFINED, e);
         }
     }
 

@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.permissiongrant.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
@@ -18,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,7 +38,7 @@ public class PermissionGrantService {
     public PermissionGrant grantTenantProfileAccess(ChangeRequest request, Long ownerId, String durationCode) {
         if (request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS
                 || request.getTargetType() != TargetType.TENANT_PROFILE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid tenant profile access request.");
+            throw new AppException(ApiErrorCode.INVALID_TENANT_PROFILE_ACCESS_REQUEST);
         }
         return grantAccess(request, ownerId, durationCode);
     }
@@ -48,7 +50,7 @@ public class PermissionGrantService {
                 || request.getTargetType() == null
                 || request.getRequesterId() == null
                 || request.getTargetId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid permission access request.");
+            throw new AppException(ApiErrorCode.INVALID_PERMISSION_ACCESS_REQUEST);
         }
 
         PermissionGrantDurationCode duration = resolveDuration(durationCode);
@@ -97,7 +99,7 @@ public class PermissionGrantService {
     @Transactional
     public PermissionGrant revokeGrant(Long grantId, Long ownerId, String reason) {
         PermissionGrant grant = permissionGrantRepository.findById(grantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission grant not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PERMISSION_GRANT_NOT_FOUND));
         grant.revoke(ownerId, reason);
         return permissionGrantRepository.save(grant);
     }
@@ -139,7 +141,7 @@ public class PermissionGrantService {
         try {
             return PermissionGrantDurationCode.fromNullable(durationCode);
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid permission grant duration.");
+            throw new AppException(ApiErrorCode.INVALID_PERMISSION_GRANT_DURATION);
         }
     }
 }

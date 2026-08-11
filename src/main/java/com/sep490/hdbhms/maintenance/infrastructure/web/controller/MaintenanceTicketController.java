@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.maintenance.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
+
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
 import com.sep490.hdbhms.billingandpayment.application.service.ScheduledBillingChargeService;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
@@ -100,7 +103,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -188,7 +190,7 @@ public class MaintenanceTicketController {
             return emptyTicketPage(pageable);
         }
         if (propertyId != null && restrictedPropertyIds != null && !restrictedPropertyIds.contains(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem phiếu sự cố của cơ sở này.");
+            throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_CO_QUYEN_XEM_PHIEU_SU_CO_CUA_CO_SO_NAY);
         }
         return searchTickets(code, status, roomId, floorId, propertyId, firstNonBlank(category, type), scope, fromDate, toDate, pageable, null, restrictedPropertyIds);
     }
@@ -209,7 +211,7 @@ public class MaintenanceTicketController {
             @PageableDefault(size = 20) Pageable pageable
     ) {
         if (requireRole() != Role.TENANT) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only tenants can use this endpoint.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_KHACH_THUE_MOI_UOC_SU_DUNG_CHUC_NANG_NAY);
         }
         return searchTicketsForTenant(code, status, roomId, floorId, category, scope, fromDate, toDate, pageable);
     }
@@ -242,7 +244,7 @@ public class MaintenanceTicketController {
     ) {
         Role role = requireRole();
         if (role != Role.OWNER && role != Role.MANAGER && role != Role.ACCOUNTANT) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem báo cáo chi phí nội bộ.");
+            throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_CO_QUYEN_XEM_BAO_CAO_CHI_PHI_NOI_BO);
         }
         List<Long> restrictedPropertyIds = role == Role.MANAGER
                 ? restrictedPropertyIdsForCurrentManager(role)
@@ -274,18 +276,18 @@ public class MaintenanceTicketController {
         Long roomId = request.getRoomId();
         if (roomId != null) {
             RoomEntity room = jpaRoomRepository.findById(roomId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_PHONG));
             propertyId = room.getProperty().getId();
         }
         if (propertyId == null || !jpaPropertyRepository.existsById(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn cơ sở hợp lệ.");
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_CHON_CO_SO_HOP_LE);
         }
         assertManagerCanAccessProperty(propertyId);
 
         List<Long> attachmentIds = attachmentIdsPreservingOrder(request.getAttachmentIds());
         validateImageFileIds(attachmentIds);
         if (attachmentIds.size() > MAX_BEFORE_ATTACHMENTS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh hiện trạng.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_UOC_UPLOAD_TOI_A_3_ANH_HIEN_TRANG);
         }
 
         MaintenanceTicket ticket = saveNewTicket(
@@ -309,7 +311,7 @@ public class MaintenanceTicketController {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
         assertManagerCanAccessTicket(ticket);
-        requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE, "Chỉ tiếp nhận phiếu đang chờ tiếp nhận.");
+        requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE, ApiErrorCode.MIGRATED_CHI_TIEP_NHAN_PHIEU_ANG_CHO_TIEP_NHAN);
         MaintenanceTicket saved = maintenanceTicketRepository.save(ticket.toBuilder()
                 .status(MaintenanceTicketStatus.ACCEPTED)
                 .assignedToId(currentUserId())
@@ -328,10 +330,10 @@ public class MaintenanceTicketController {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
         assertManagerCanAccessTicket(ticket);
-        requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE, "Chỉ từ chối phiếu đang chờ tiếp nhận.");
+        requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE, ApiErrorCode.MIGRATED_CHI_TU_CHOI_PHIEU_ANG_CHO_TIEP_NHAN);
         String reason = firstNonBlank(request == null ? null : request.getReason());
         if (reason.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập lý do từ chối.");
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_NHAP_LY_DO_TU_CHOI);
         }
         MaintenanceTicket saved = maintenanceTicketRepository.save(ticket.toBuilder()
                 .status(MaintenanceTicketStatus.REJECTED)
@@ -387,12 +389,12 @@ public class MaintenanceTicketController {
         MaintenanceTicket ticket = findTicket(id);
         assertManagerCanAccessTicket(ticket);
         if (ticket.getStatus() == MaintenanceTicketStatus.COMPLETED && role != Role.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ chủ trọ được sửa chi phí của ticket đã hoàn tất.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_CHU_TRO_UOC_SUA_CHI_PHI_CUA_TICKET_A_HOAN_TAT);
         }
         if (ticket.getStatus() != MaintenanceTicketStatus.ACCEPTED
                 && ticket.getStatus() != MaintenanceTicketStatus.IN_PROGRESS
                 && ticket.getStatus() != MaintenanceTicketStatus.COMPLETED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể cập nhật thông tin xử lý ở trạng thái này.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_THE_CAP_NHAT_THONG_TIN_XU_LY_O_TRANG_THAI_NAY);
         }
         MaintenanceTicketStatus fromStatus = ticket.getStatus();
         MaintenanceTicketStatus toStatus = fromStatus == MaintenanceTicketStatus.ACCEPTED
@@ -417,10 +419,10 @@ public class MaintenanceTicketController {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
         assertManagerCanAccessTicket(ticket);
-        requireStatus(ticket, MaintenanceTicketStatus.IN_PROGRESS, "Chỉ hoàn tất khi phiếu đang xử lý.");
+        requireStatus(ticket, MaintenanceTicketStatus.IN_PROGRESS, ApiErrorCode.MIGRATED_CHI_HOAN_TAT_KHI_PHIEU_ANG_XU_LY);
         Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
         if (amount != null && amount < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí thực tế không được âm.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_THUC_TE_KHONG_UOC_AM);
         }
         MaintenanceTicket saved = saveRepairInformation(ticket, request, targetStatusAfterManagerCompletion());
         saveCost(saved.getId(), request);
@@ -440,7 +442,7 @@ public class MaintenanceTicketController {
     @Transactional
     public ApiResponse<MaintenanceTicketDetailsResponse> confirmMaintenanceTicket(@PathVariable Long id) {
         MaintenanceTicket ticket = findTicket(id);
-        requireStatus(ticket, MaintenanceTicketStatus.WAITING_CONFIRMATION, "Chỉ xác nhận phiếu đang chờ xác nhận.");
+        requireStatus(ticket, MaintenanceTicketStatus.WAITING_CONFIRMATION, ApiErrorCode.MIGRATED_CHI_XAC_NHAN_PHIEU_ANG_CHO_XAC_NHAN);
         if (ticket.getTicketScope() == TicketScope.COMMON_AREA || ticket.getTicketScope() == TicketScope.PROPERTY_OPERATION) {
             assertManagerOrOwner(requireRole());
             assertManagerCanAccessTicket(ticket);
@@ -465,8 +467,7 @@ public class MaintenanceTicketController {
     ) {
         MaintenanceTicket ticket = findTicket(id);
         assertTenantCanActOnRoomTicket(ticket);
-        requireStatus(ticket, MaintenanceTicketStatus.WAITING_CONFIRMATION,
-                "Chỉ báo chưa sửa xong khi phiếu đang chờ xác nhận.");
+        requireStatus(ticket, MaintenanceTicketStatus.WAITING_CONFIRMATION, ApiErrorCode.MIGRATED_CHI_BAO_CHUA_SUA_XONG_KHI_PHIEU_ANG_CHO_XAC_NHAN);
         String note = firstNonBlank(request == null ? null : request.getNote(), "Khách thuê báo sự cố chưa được sửa xong");
         MaintenanceTicket saved = maintenanceTicketRepository.save(ticket.toBuilder()
                 .status(MaintenanceTicketStatus.IN_PROGRESS)
@@ -483,14 +484,14 @@ public class MaintenanceTicketController {
     ) {
         MaintenanceTicket ticket = findTicket(id);
         assertTenantCanActOnRoomTicket(ticket);
-        requireStatus(ticket, MaintenanceTicketStatus.COMPLETED, "Chỉ đánh giá phiếu đã hoàn tất.");
+        requireStatus(ticket, MaintenanceTicketStatus.COMPLETED, ApiErrorCode.MIGRATED_CHI_ANH_GIA_PHIEU_A_HOAN_TAT);
         Long currentUserId = currentUserId();
         int rating = request == null || request.getRating() == null ? 0 : request.getRating();
         if (rating < 1 || rating > 5) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Đánh giá phải từ 1 đến 5 sao.");
+            throw new AppException(ApiErrorCode.MIGRATED_ANH_GIA_PHAI_TU_1_EN_5_SAO);
         }
         if (jpaMaintenanceReviewRepository.findByTicket_IdAndReviewerUser_Id(id, currentUserId).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Bạn đã đánh giá phiếu này.");
+            throw new AppException(ApiErrorCode.MIGRATED_BAN_A_ANH_GIA_PHIEU_NAY);
         }
         jpaMaintenanceReviewRepository.save(MaintenanceReviewEntity.builder()
                 .ticket(jpaMaintenanceTicketRepository.getReferenceById(id))
@@ -513,20 +514,19 @@ public class MaintenanceTicketController {
         AttachmentPhase phase = request == null || request.getPhase() == null ? AttachmentPhase.AFTER : request.getPhase();
         List<Long> fileIds = request == null || request.getFileIds() == null ? List.of() : request.getFileIds();
         if (fileIds.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn ảnh cần upload.");
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_CHON_ANH_CAN_UPLOAD);
         }
         if (requireRole() == Role.TENANT) {
             assertTenantCanActOnRoomTicket(ticket);
             if (phase != AttachmentPhase.BEFORE) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Khách thuê chỉ được upload ảnh trước sửa.");
+                throw new AppException(ApiErrorCode.MIGRATED_KHACH_THUE_CHI_UOC_UPLOAD_ANH_TRUOC_SUA);
             }
-            requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE,
-                    "Chỉ bổ sung ảnh trước sửa khi phiếu đang chờ tiếp nhận.");
+            requireStatus(ticket, MaintenanceTicketStatus.PENDING_ACCEPTANCE, ApiErrorCode.MIGRATED_CHI_BO_SUNG_ANH_TRUOC_SUA_KHI_PHIEU_ANG_CHO_TIEP_NHAN);
         } else {
             assertManagerOrOwner(requireRole());
             assertManagerCanAccessTicket(ticket);
             if (phase == AttachmentPhase.BEFORE && ticket.getStatus() != MaintenanceTicketStatus.PENDING_ACCEPTANCE) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ bổ sung ảnh trước sửa khi phiếu đang chờ tiếp nhận.");
+                throw new AppException(ApiErrorCode.MIGRATED_CHI_BO_SUNG_ANH_TRUOC_SUA_KHI_PHIEU_ANG_CHO_TIEP_NHAN);
             }
         }
         attachFiles(ticket, fileIds, phase, firstNonBlank(request == null ? null : request.getNote(), "Upload ảnh cho phiếu sự cố"));
@@ -562,7 +562,7 @@ public class MaintenanceTicketController {
                     .build();
         }
         if (roomId != null && !activeRoomIds.contains(roomId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem ticket của phòng này.");
+            throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_CO_QUYEN_XEM_TICKET_CUA_PHONG_NAY);
         }
         List<Long> restrictedRoomIds = roomId == null ? activeRoomIds : List.of(roomId);
         return searchTickets(code, status, null, floorId, null, category,
@@ -633,23 +633,22 @@ public class MaintenanceTicketController {
     private MaintenanceTicket createTenantRoomTicket(CreateMaintenanceTicketRequest request) {
         validateCreatePayload(request);
         if (request.getRoomId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không xác định được phòng đang thuê để tạo phiếu sự cố.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_XAC_INH_UOC_PHONG_ANG_THUE_E_TAO_PHIEU_SU_CO);
         }
         TicketScope requestedScope = firstNonNull(request.getTicketScope(), request.getScope());
         if (requestedScope != null && requestedScope != TicketScope.TENANT_ROOM) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Khách thuê chỉ được tạo phiếu sự cố phòng đang thuê.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHACH_THUE_CHI_UOC_TAO_PHIEU_SU_CO_PHONG_ANG_THUE);
         }
         LeaseContractQueryService.ActiveRoomItem activeRoom = activeTenantRooms().stream()
                 .filter(room -> Objects.equals(room.roomId(), request.getRoomId()))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "Bạn không có quyền tạo phiếu sự cố cho phòng này."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_CO_QUYEN_TAO_PHIEU_SU_CO_CHO_PHONG_NAY));
         RoomEntity room = jpaRoomRepository.findById(request.getRoomId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_PHONG));
         List<Long> attachmentIds = attachmentIdsPreservingOrder(request.getAttachmentIds());
         validateImageFileIds(attachmentIds);
         if (attachmentIds.size() > MAX_BEFORE_ATTACHMENTS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh trước sửa.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_UOC_UPLOAD_TOI_A_3_ANH_TRUOC_SUA);
         }
         MaintenanceTicket ticket = saveNewTicket(
                 room.getProperty().getId(),
@@ -671,14 +670,14 @@ public class MaintenanceTicketController {
         Long contractId = null;
         if (roomId != null) {
             RoomEntity room = jpaRoomRepository.findById(roomId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng."));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_PHONG));
             propertyId = room.getProperty().getId();
         }
         if (propertyId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn cơ sở/property cho sự cố khu vực chung.");
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_CHON_CO_SO_PROPERTY_CHO_SU_CO_KHU_VUC_CHUNG);
         }
         if (!jpaPropertyRepository.existsById(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy cơ sở/property.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_CO_SO_PROPERTY);
         }
         assertManagerCanAccessProperty(propertyId);
         TicketScope scope = firstNonNull(request.getTicketScope(), request.getScope());
@@ -686,12 +685,12 @@ public class MaintenanceTicketController {
             scope = roomId == null ? TicketScope.COMMON_AREA : TicketScope.TENANT_ROOM;
         }
         if (roomId == null && scope == TicketScope.TENANT_ROOM) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ticket phòng cần có roomId.");
+            throw new AppException(ApiErrorCode.MIGRATED_TICKET_PHONG_CAN_CO_ROOMID);
         }
         List<Long> attachmentIds = attachmentIdsPreservingOrder(request.getAttachmentIds());
         validateImageFileIds(attachmentIds);
         if (attachmentIds.size() > MAX_BEFORE_ATTACHMENTS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh trước sửa.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_UOC_UPLOAD_TOI_A_3_ANH_TRUOC_SUA);
         }
         MaintenanceTicket ticket = saveNewTicket(propertyId, roomId, contractId, scope, request);
         attachFiles(ticket, attachmentIds, AttachmentPhase.BEFORE, "Quản lý upload ảnh trước sửa");
@@ -760,7 +759,7 @@ public class MaintenanceTicketController {
             return;
         }
         if (amount < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí thực tế không được âm.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_THUC_TE_KHONG_UOC_AM);
         }
         String description = firstNonBlank(
                 request.getCostDescription(),
@@ -810,8 +809,7 @@ public class MaintenanceTicketController {
                 .orElse(null);
         if (expense != null && expense.getStatus() == ExpenseStatus.PAID) {
             if (!Objects.equals(expense.getAmount(), cost.getAmount())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Khoan chi su co da thanh toan, khong the doi so tien.");
+                throw new AppException(ApiErrorCode.MIGRATED_KHOAN_CHI_SU_CO_DA_THANH_TOAN_KHONG_THE_DOI_SO_TIEN);
             }
             return;
         }
@@ -850,8 +848,7 @@ public class MaintenanceTicketController {
             return;
         }
         if (expense.getStatus() == ExpenseStatus.PAID) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Khoan chi su co da thanh toan, khong the chuyen nguoi chiu phi.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHOAN_CHI_SU_CO_DA_THANH_TOAN_KHONG_THE_CHUYEN_NGUOI_CHIU_PHI);
         }
         UserEntity actor = resolveMaintenanceExpenseActor(ticket, cost);
         expense.setStatus(ExpenseStatus.CANCELLED);
@@ -955,7 +952,7 @@ public class MaintenanceTicketController {
                 return candidate;
             }
         }
-        throw new IllegalStateException("Could not allocate expense code for maintenance ticket " + ticketId);
+        throw new AppException(ApiErrorCode.UNDEFINED);
     }
 
     private String nextMaintenanceExpenseRequestCode(Long ticketId) {
@@ -965,7 +962,7 @@ public class MaintenanceTicketController {
                 return candidate;
             }
         }
-        throw new IllegalStateException("Could not allocate expense request code for maintenance ticket " + ticketId);
+        throw new AppException(ApiErrorCode.UNDEFINED);
     }
 
     static String maintenanceExpenseCode(Long ticketId, int sequence) {
@@ -1014,7 +1011,7 @@ public class MaintenanceTicketController {
                 .build();
         if (request.getReceiptFileId() != null) {
             FileMetadataEntity receipt = jpaFileMetadataRepository.findById(request.getReceiptFileId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy chứng từ chi phí."));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_CHUNG_TU_CHI_PHI));
             cost.setReceiptFile(receipt);
         }
         jpaMaintenanceCostRepository.save(cost);
@@ -1042,7 +1039,7 @@ public class MaintenanceTicketController {
         assertManagerCanAccessTicket(ticket);
         BillingInfo billing = summarizeBilling(ticket.getId(), summarizeCosts(ticket.getId()));
         if (billing.invoiceId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phiếu chưa có hóa đơn nháp để phát hành.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHIEU_CHUA_CO_HOA_ON_NHAP_E_PHAT_HANH);
         }
         issuedInvoiceChargeService.issueDraftInvoice(billing.invoiceId());
         recordEvent(ticket.getId(), ticket.getStatus(), ticket.getStatus(), MaintenanceTicketAction.UPDATE_REPAIR_INFO,
@@ -1076,12 +1073,12 @@ public class MaintenanceTicketController {
     private void scheduleMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
         Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
         if (amount == null || amount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phi boi thuong phai lon hon 0.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_BOI_THUONG_PHAI_LON_HON_0);
         }
         RoomEntity room = ticket.getRoomId() == null
                 ? null
                 : jpaRoomRepository.findById(ticket.getRoomId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Khong tim thay phong de len lich thu khach."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_PHONG_DE_LEN_LICH_THU_KHACH));
         LeaseContractEntity contract = resolveInvoiceableContract(ticket);
         scheduledBillingChargeService.scheduleCharge(
                 room,
@@ -1099,12 +1096,12 @@ public class MaintenanceTicketController {
     private void issueMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
         Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
         if (amount == null || amount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi phí bồi thường phải lớn hơn 0.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_BOI_THUONG_PHAI_LON_HON_0);
         }
         RoomEntity room = ticket.getRoomId() == null
                 ? null
                 : jpaRoomRepository.findById(ticket.getRoomId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy phòng để xuất hóa đơn."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_PHONG_E_XUAT_HOA_ON));
         LeaseContractEntity contract = resolveInvoiceableContract(ticket);
         issuedInvoiceChargeService.issueMaintenanceCharge(
                 room,
@@ -1120,17 +1117,14 @@ public class MaintenanceTicketController {
     private LeaseContractEntity resolveInvoiceableContract(MaintenanceTicket ticket) {
         if (ticket.getContractId() != null) {
             return jpaLeaseContractRepository.findById(ticket.getContractId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy hợp đồng của phiếu sự cố."));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_ONG_CUA_PHIEU_SU_CO));
         }
         if (ticket.getRoomId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phiếu khu vực chung không thể xuất hóa đơn cho khách.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHIEU_KHU_VUC_CHUNG_KHONG_THE_XUAT_HOA_ON_CHO_KHACH);
         }
         return jpaLeaseContractRepository
                 .findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(ticket.getRoomId(), INVOICEABLE_CONTRACT_STATUSES)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Phòng chưa có hợp đồng đang hiệu lực, không thể xuất hóa đơn cho khách."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_PHONG_CHUA_CO_HOP_ONG_ANG_HIEU_LUC_KHONG_THE_XUAT_HOA_ON_C3FA9D));
     }
 
     private void attachFiles(MaintenanceTicket ticket, List<Long> fileIds, AttachmentPhase phase, String note) {
@@ -1145,7 +1139,7 @@ public class MaintenanceTicketController {
                 .filter(attachment -> attachment.getAttachmentPhase() == AttachmentPhase.BEFORE)
                 .count();
         if (phase == AttachmentPhase.BEFORE && existingBeforeCount + normalizedIds.size() > MAX_BEFORE_ATTACHMENTS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ được upload tối đa 3 ảnh trước sửa.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_UOC_UPLOAD_TOI_A_3_ANH_TRUOC_SUA);
         }
         int nextSort = existing.stream()
                 .map(MaintenanceTicketAttachmentEntity::getSortOrder)
@@ -1172,7 +1166,7 @@ public class MaintenanceTicketController {
 
     private MaintenanceTicket findTicket(Long id) {
         return maintenanceTicketRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phiếu sự cố."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_PHIEU_SU_CO));
     }
 
     private MaintenanceTicketResponse toResponse(MaintenanceTicket ticket) {
@@ -1399,7 +1393,7 @@ public class MaintenanceTicketController {
             return;
         }
         if (propertyId == null || !managerPropertyIds().contains(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xử lý phiếu sự cố của cơ sở này.");
+            throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_CO_QUYEN_XU_LY_PHIEU_SU_CO_CUA_CO_SO_NAY);
         }
     }
 
@@ -1432,30 +1426,30 @@ public class MaintenanceTicketController {
         boolean roomIsActive = ticket.getRoomId() != null && activeTenantRooms().stream()
                 .anyMatch(room -> Objects.equals(room.roomId(), ticket.getRoomId()));
         if (!createdByCurrentUser && !roomIsActive) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xem phiếu sự cố này.");
+            throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_CO_QUYEN_XEM_PHIEU_SU_CO_NAY);
         }
     }
 
     private void assertTenantCanActOnRoomTicket(MaintenanceTicket ticket) {
         if (requireRole() != Role.TENANT) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chỉ khách thuê hợp lệ được thực hiện thao tác này.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_KHACH_THUE_HOP_LE_UOC_THUC_HIEN_THAO_TAC_NAY);
         }
         if (ticket.getTicketScope() != TicketScope.TENANT_ROOM || ticket.getRoomId() == null) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Khách thuê không được xác nhận phiếu khu vực chung.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHACH_THUE_KHONG_UOC_XAC_NHAN_PHIEU_KHU_VUC_CHUNG);
         }
         assertTenantCanRead(ticket);
     }
 
     private void assertManagerOrOwner(Role role) {
         if (role != Role.MANAGER && role != Role.OWNER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền xử lý phiếu sự cố.");
+            throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_CO_QUYEN_XU_LY_PHIEU_SU_CO);
         }
     }
 
     private Role requireRole() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHIEN_ANG_NHAP_KHONG_HOP_LE);
         }
         return principal.getRole();
     }
@@ -1463,7 +1457,7 @@ public class MaintenanceTicketController {
     private Long currentUserId() {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Phiên đăng nhập không hợp lệ.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHIEN_ANG_NHAP_KHONG_HOP_LE);
         }
         return userId;
     }
@@ -1478,11 +1472,11 @@ public class MaintenanceTicketController {
 
     private void validateCreatePayload(CreateMaintenanceTicketRequest request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu tạo phiếu không hợp lệ.");
+            throw new AppException(ApiErrorCode.MIGRATED_DU_LIEU_TAO_PHIEU_KHONG_HOP_LE);
         }
         String description = firstNonBlank(request.getDescription());
         if (description.length() < MIN_DESCRIPTION_LENGTH) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mô tả sự cố phải có tối thiểu 10 ký tự.");
+            throw new AppException(ApiErrorCode.MIGRATED_MO_TA_SU_CO_PHAI_CO_TOI_THIEU_10_KY_TU);
         }
         normalizeCategory(firstNonBlank(request.getCategory(), request.getType(), "OTHER"));
     }
@@ -1493,7 +1487,7 @@ public class MaintenanceTicketController {
         }
         List<FileMetadataEntity> files = jpaFileMetadataRepository.findAllById(fileIds);
         if (files.size() != uniqueIds(fileIds).size()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Một hoặc nhiều file không tồn tại.");
+            throw new AppException(ApiErrorCode.MIGRATED_MOT_HOAC_NHIEU_FILE_KHONG_TON_TAI);
         }
         for (FileMetadataEntity file : files) {
             String mimeType = file.getMimeType() == null ? "" : file.getMimeType().toLowerCase(Locale.ROOT);
@@ -1502,20 +1496,19 @@ public class MaintenanceTicketController {
                     ? originalName.substring(originalName.lastIndexOf('.') + 1)
                     : "";
             if (!ALLOWED_IMAGE_MIME_TYPES.contains(mimeType) && !ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MVP chỉ hỗ trợ ảnh jpg, jpeg, png, webp.");
+                throw new AppException(ApiErrorCode.MIGRATED_MVP_CHI_HO_TRO_ANH_JPG_JPEG_PNG_WEBP);
             }
         }
     }
 
-    private void requireStatus(MaintenanceTicket ticket, MaintenanceTicketStatus required, String message) {
+    private void requireStatus(MaintenanceTicket ticket, MaintenanceTicketStatus required, ApiErrorCode apiErrorCode) {
         if (ticket.getStatus() != required) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+            throw new AppException(apiErrorCode);
         }
     }
 
-    private ResponseStatusException invalidTransition(MaintenanceTicketStatus from, MaintenanceTicketStatus to) {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Không thể chuyển trạng thái từ " + toBusinessStatus(from) + " sang " + toBusinessStatus(to) + ".");
+    private AppException invalidTransition(MaintenanceTicketStatus from, MaintenanceTicketStatus to) {
+        return new AppException(ApiErrorCode.MIGRATED_KHONG_THE_CHUYEN_TRANG_THAI_TU_TOBUSINESSSTATUS_FROM_SAN_B457BD);
     }
 
     private void recordEvent(
@@ -1709,7 +1702,7 @@ public class MaintenanceTicketController {
         try {
             return MaintenanceTicketStatus.valueOf(normalized);
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái phiếu sự cố không hợp lệ.");
+            throw new AppException(ApiErrorCode.MIGRATED_TRANG_THAI_PHIEU_SU_CO_KHONG_HOP_LE);
         }
     }
 
@@ -1724,7 +1717,7 @@ public class MaintenanceTicketController {
         try {
             return TicketScope.valueOf(normalized);
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phạm vi sự cố không hợp lệ.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHAM_VI_SU_CO_KHONG_HOP_LE);
         }
     }
 

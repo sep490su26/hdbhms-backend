@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
@@ -20,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -54,10 +56,10 @@ public class ScheduledBillingChargeService {
             UserEntity createdBy
     ) {
         if (room == null || contract == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có hợp đồng/phòng đang hiệu lực để lên lịch thu khách.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (amount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền phát sinh phải lớn hơn 0.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         YearMonth period = resolveBillingPeriod(billingPeriod);
         LocalDateTime scheduledIssueAt = period.atDay(1).atTime(8, 0);
@@ -201,7 +203,7 @@ public class ScheduledBillingChargeService {
         try {
             return YearMonth.parse(value.trim());
         } catch (DateTimeParseException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kỳ hóa đơn phải có định dạng yyyy-MM.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 

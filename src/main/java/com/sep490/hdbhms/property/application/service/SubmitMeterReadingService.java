@@ -42,7 +42,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
@@ -131,7 +130,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
             // Validate that room belongs to the property
             if (!room.getPropertyId().equals(property.getId())) {
-                throw new AppException(ApiErrorCode.VISIT_002); // Invalid room property
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
             assertRoomRequiresMeterReading(property.getId(), room.getId(), readingPeriod);
 
@@ -256,7 +255,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
 
         if (!room.getPropertyId().equals(batch.getPropertyId())) {
-            throw new AppException(ApiErrorCode.VISIT_002);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         assertRoomRequiresMeterReading(batch.getPropertyId(), room.getId(), batch.getReadingPeriod());
 
@@ -288,13 +287,13 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         for (ExcelReadingRow row : parsedRows) {
             String normalizedRoomCode = normalizeRoomCode(row.roomCode());
             if (!seenRoomCodes.add(normalizedRoomCode)) {
-                throw invalidExcel("Phòng " + row.roomCode() + " bị lặp trong file Excel.");
+                throw invalidExcel();
             }
 
             Room room = roomRepository.findByRoomCode(row.roomCode())
-                    .orElseThrow(() -> invalidExcel("Không tìm thấy phòng " + row.roomCode() + "."));
+                    .orElseThrow(() -> invalidExcel());
             if (!room.getPropertyId().equals(batch.getPropertyId())) {
-                throw invalidExcel("Phòng " + row.roomCode() + " không thuộc cơ sở của kỳ ghi.");
+                throw invalidExcel();
             }
             assertRoomRequiresMeterReading(batch.getPropertyId(), room.getId(), batch.getReadingPeriod());
             validatedRows.add(new ValidatedExcelReading(room, row.currentValue()));
@@ -330,16 +329,16 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
     private List<ExcelReadingRow> parseExcel(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw invalidExcel("Vui lòng chọn file Excel.");
+            throw invalidExcel();
         }
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         if (!filename.endsWith(".xlsx")) {
-            throw invalidExcel("Chỉ hỗ trợ file Excel định dạng .xlsx.");
+            throw invalidExcel();
         }
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(file.getInputStream())) {
             if (workbook.getNumberOfSheets() == 0) {
-                throw invalidExcel("File Excel không có sheet dữ liệu.");
+                throw invalidExcel();
             }
 
             Sheet sheet = workbook.getSheetAt(0);
@@ -347,7 +346,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
             ExcelImportColumns columns = findImportColumns(sheet, formatter, evaluator);
             if (columns == null) {
-                throw invalidExcel("File cần có hai cột: Mã phòng và Chỉ số điện.");
+                throw invalidExcel();
             }
 
             List<ExcelReadingRow> rows = new ArrayList<>();
@@ -356,24 +355,24 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 String roomCode = cellText(row == null ? null : row.getCell(columns.roomCodeColumn()), formatter, evaluator).trim();
                 String valueText = cellText(row == null ? null : row.getCell(columns.electricityColumn()), formatter, evaluator).trim();
                 if (roomCode.isBlank() && valueText.isBlank()) continue;
-                if (roomCode.isBlank()) throw invalidExcel("Dòng " + (rowIndex + 1) + " thiếu mã phòng.");
-                if (valueText.isBlank()) throw invalidExcel("Dòng " + (rowIndex + 1) + " thiếu chỉ số điện.");
+                if (roomCode.isBlank()) throw invalidExcel();
+                if (valueText.isBlank()) throw invalidExcel();
 
                 BigDecimal value;
                 try {
                     value = parseExcelNumber(valueText);
                 } catch (NumberFormatException exception) {
-                    throw invalidExcel("Dòng " + (rowIndex + 1) + " có chỉ số điện không hợp lệ.");
+                    throw invalidExcel();
                 }
                 if (value.compareTo(BigDecimal.ZERO) < 0) {
-                    throw invalidExcel("Dòng " + (rowIndex + 1) + " có chỉ số điện âm.");
+                    throw invalidExcel();
                 }
                 rows.add(new ExcelReadingRow(roomCode, value));
             }
-            if (rows.isEmpty()) throw invalidExcel("File Excel không có dữ liệu phòng.");
+            if (rows.isEmpty()) throw invalidExcel();
             return rows;
         } catch (IOException exception) {
-            throw invalidExcel("Không thể đọc file Excel.");
+            throw invalidExcel();
         }
     }
 
@@ -471,8 +470,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 
-    private ResponseStatusException invalidExcel(String message) {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    private AppException invalidExcel() {
+        return new AppException(ApiErrorCode.INVALID_REQUEST);
     }
 
     private record ExcelReadingRow(String roomCode, BigDecimal currentValue) {
@@ -743,20 +742,14 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         int totalRooms = requireMeterReadingRooms(batch.getPropertyId(), batch.getReadingPeriod());
         int completedRooms = countCompletedRooms(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
         if (completedRooms < totalRooms) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Cannot confirm meter reading batch before all eligible rooms have electricity readings."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
     private void requireNoUnresolvedAnomalies(MeterReadingBatch batch) {
         long unresolvedAnomalies = meterReadingAnomalyRepository.countByBatch_IdAndResolvedAtIsNull(batch.getId());
         if (unresolvedAnomalies > 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Vui lòng kiểm tra và xác nhận các chỉ số bất thường trước khi chốt kỳ."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 

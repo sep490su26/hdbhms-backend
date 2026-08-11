@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.out.ExternalPaymentPort;
@@ -24,7 +27,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -55,10 +57,10 @@ public class IssuedInvoiceChargeService {
             UserEntity createdBy
     ) {
         if (room == null || contract == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có hợp đồng/phòng đang hiệu lực để xuất hóa đơn cho khách.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (amount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền phát sinh phải lớn hơn 0.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expiresAt = now.plusDays(7);
@@ -109,7 +111,7 @@ public class IssuedInvoiceChargeService {
                     expiresAt
             ));
         } catch (RuntimeException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Không thể khởi tạo thanh toán PayOS. Vui lòng thử lại.");
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
         }
         paymentIntent.setProviderOrderCode(checkout.providerOrderCode());
         paymentIntent.setQrPayload(toCheckoutPayload(checkout, paymentIntent));
@@ -129,10 +131,10 @@ public class IssuedInvoiceChargeService {
             UserEntity createdBy
     ) {
         if (room == null || contract == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có hợp đồng/phòng đang hiệu lực để tạo hóa đơn nháp cho khách.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (amount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền phát sinh phải lớn hơn 0.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         LocalDateTime now = LocalDateTime.now();
         InvoiceEntity invoice = invoiceRepository.save(InvoiceEntity.builder()
@@ -169,9 +171,9 @@ public class IssuedInvoiceChargeService {
     @Transactional
     public IssuedChargeResult issueDraftInvoice(Long invoiceId) {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (invoice.getStatus() != InvoiceStatus.DRAFT) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể phát hành hóa đơn nháp.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime paymentExpiresAt = now.plusDays(7);
@@ -206,7 +208,7 @@ public class IssuedInvoiceChargeService {
                     paymentExpiresAt
             ));
         } catch (RuntimeException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Không thể khởi tạo thanh toán PayOS. Vui lòng thử lại.");
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
         }
         paymentIntent.setProviderOrderCode(checkout.providerOrderCode());
         paymentIntent.setQrPayload(toCheckoutPayload(checkout, paymentIntent));
@@ -237,7 +239,7 @@ public class IssuedInvoiceChargeService {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Không thể lưu dữ liệu checkout PayOS.", exception);
+            throw new AppException(ApiErrorCode.UNDEFINED, exception);
         }
     }
 

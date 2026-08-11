@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.occupancy.application.port.in.command.AddCoOccupantToContractCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.AddCoOccupantToContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
@@ -15,7 +18,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -34,19 +36,19 @@ public class AddCoOccupantToContractService implements AddCoOccupantToContractUs
     @Override
     public LeaseContractManagementResponse execute(AddCoOccupantToContractCommand command) {
         LeaseContractEntity contract = leaseContractRepository.findById(command.leaseContractId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng không thể thêm người ở cùng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (command.tenantProfileId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hồ sơ người ở cùng là bắt buộc.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (contract.getPrimaryTenantProfile() != null
                 && Objects.equals(contract.getPrimaryTenantProfile().getId(), command.tenantProfileId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Người này đã là người đứng tên hợp đồng.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         Integer profileExists = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -58,7 +60,7 @@ public class AddCoOccupantToContractService implements AddCoOccupantToContractUs
                 command.tenantProfileId()
         );
         if (profileExists == null || profileExists == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ người ở cùng.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
 
         Integer activeDuplicate = jdbcTemplate.queryForObject("""
@@ -78,7 +80,7 @@ public class AddCoOccupantToContractService implements AddCoOccupantToContractUs
 
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa gắn phòng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         Integer activeOccupants = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -91,7 +93,7 @@ public class AddCoOccupantToContractService implements AddCoOccupantToContractUs
         );
         int maxOccupants = room.getMaxOccupants() != null ? room.getMaxOccupants() : 3;
         if (activeOccupants != null && activeOccupants >= maxOccupants) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phòng đã đạt số người ở tối đa.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
 
         Long propertyId = room.getProperty() == null ? null : room.getProperty().getId();

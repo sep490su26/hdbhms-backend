@@ -23,6 +23,8 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEnti
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,7 +39,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -73,6 +74,8 @@ public class UserController {
             response = enrichAssignedProperties(response);
         }
         return ApiResponse.<UserResponse>builder()
+                .message("Đã tạo tài khoản quản lý và gửi thông tin đăng nhập qua email.")
+                .details("Tạo tài khoản quản lý thành công")
                 .data(response)
                 .build();
     }
@@ -123,6 +126,7 @@ public class UserController {
             @RequestParam(defaultValue = "false") boolean retry
     ) {
         return ApiResponse.<TenantAccountProvisioningResponse>builder()
+                .message("Đã gửi thông tin tài khoản khách thuê thành công")
                 .data(tenantAccountProvisioningService.provisionPrimaryTenantAccount(contractId, retry))
                 .build();
     }
@@ -135,6 +139,7 @@ public class UserController {
             @RequestBody TenantAccountAccessDisableRequest request
     ) {
         return ApiResponse.<TenantAccountProvisioningResponse>builder()
+                .message("Vô hiệu hóa quyền truy cập của người thuê thành công")
                 .data(tenantAccountProvisioningService.disableTenantContext(
                         contractId,
                         profileId,
@@ -162,8 +167,16 @@ public class UserController {
             @PathVariable Long accountId,
             @Valid @RequestBody AccountPropertyAssignmentRequest request
     ) {
+        boolean alreadyAssigned = jpaRolePromotionRepository
+                .findActiveAssignments(accountId, PromotionRole.MANAGER, RolePromotionStatus.ACTIVE)
+                .stream()
+                .anyMatch(assignment -> assignment.getProperty() != null
+                        && request.getPropertyId().equals(assignment.getProperty().getId()));
         assignManagerProperty(accountId, request.getPropertyId());
         return ApiResponse.<UserResponse>builder()
+                .message(alreadyAssigned
+                        ? "Cập nhật cơ sở được phân công thành công"
+                        : "Gán cơ sở cho tài khoản quản lý thành công")
                 .data(
                         enrichAssignedProperties(
                                 userWebMapper.toAccountResponse(
@@ -185,6 +198,7 @@ public class UserController {
                 emailUpdateRequest.getCurrentPassword()
         ));
         return ApiResponse.<Void>builder()
+                .message("Đã gửi mã OTP đến email mới")
                 .build();
     }
 
@@ -196,6 +210,7 @@ public class UserController {
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         return ApiResponse.<UserResponse>builder()
+                .message("Cập nhật email thành công")
                 .data(
                         userWebMapper.toAccountResponse(
                                 updateUserUseCase.confirmUpdateUserEmail(
@@ -217,6 +232,7 @@ public class UserController {
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         return ApiResponse.<UserResponse>builder()
+                .message("Thiết lập mật khẩu lần đầu thành công")
                 .data(userWebMapper.toAccountResponse(
                         updateUserUseCase.updateUserFirstPassword(
                                 new UpdateUserFirstPasswordCommand(
@@ -235,6 +251,8 @@ public class UserController {
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         return ApiResponse.<UserResponse>builder()
+                .message("Your password has been changed successfully.")
+                .details("Đổi mật khẩu thành công")
                 .data(userWebMapper.toAccountResponse(
                         updateUserUseCase.updateUserPassword(new UpdateUserPasswordCommand(
                                 userId,
@@ -253,6 +271,7 @@ public class UserController {
             @Valid @RequestBody AccountStatusUpdateRequest request
     ) {
         return ApiResponse.<UserResponse>builder()
+                .message("Cập nhật trạng thái tài khoản thành công")
                 .data(
                         enrichAssignedProperties(
                                 userWebMapper.toAccountResponse(
@@ -274,6 +293,7 @@ public class UserController {
             @Valid @RequestBody AccountRoleUpdateRequest request
     ) {
         return ApiResponse.<UserResponse>builder()
+                .message("Cập nhật vai trò tài khoản thành công")
                 .data(
                         enrichAssignedProperties(
                                 userWebMapper.toAccountResponse(
@@ -336,13 +356,13 @@ public class UserController {
 
     private void assignManagerProperty(Long accountId, Long propertyId) {
         UserEntity user = jpaUserRepository.findById(accountId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         if (user.getRole() != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only manager accounts can be assigned to a property.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         PropertyEntity property = jpaPropertyRepository.findById(propertyId)
                 .filter(item -> item.getDeletedAt() == null)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Property not found."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         jpaRolePromotionRepository
                 .findActiveAssignments(accountId, PromotionRole.MANAGER, RolePromotionStatus.ACTIVE)

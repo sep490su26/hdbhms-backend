@@ -21,6 +21,8 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.response.FloorPlanItemR
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.FloorPlanLayoutResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PublicPropertyFloorPlanResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +32,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -91,20 +92,21 @@ public class FloorPlanController {
         PropertyEntity property = requireProperty(propertyId);
         FloorEntity floor = requireFloor(propertyId, floorId);
         List<FloorPlanItemEntity> nextItems = new ArrayList<>();
+        boolean roomAreaAdjusted = false;
 
         for (SaveFloorPlanItemRequest item : request.items()) {
             String itemType = normalizeItemType(item.type());
             RoomEntity room = null;
             if ("ROOM".equals(itemType)) {
                 if (item.roomId() == null) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "roomId là bắt buộc với item ROOM.");
+                    throw new AppException(ApiErrorCode.INVALID_REQUEST);
                 }
                 room = roomRepository.findById(item.roomId())
                         .filter(candidate -> candidate.getDeletedAt() == null)
                         .filter(candidate -> Objects.equals(candidate.getProperty().getId(), propertyId))
                         .filter(candidate -> Objects.equals(candidate.getFloor().getId(), floorId))
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phòng không thuộc đúng cơ sở/tầng."));
-                syncRoomDetails(room, item.metadata());
+                        .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
+                roomAreaAdjusted |= syncRoomDetails(room, item.metadata());
             }
 
             nextItems.add(FloorPlanItemEntity.builder()
@@ -123,7 +125,7 @@ public class FloorPlanController {
         floorPlanItemRepository.deleteByProperty_IdAndFloor_Id(propertyId, floorId);
         List<FloorPlanItemEntity> savedItems = floorPlanItemRepository.saveAll(nextItems);
         return ApiResponse.<FloorPlanLayoutResponse>builder()
-                .message("Đã lưu sơ đồ tầng.")
+                .message(roomAreaAdjusted ? "Diện tích phòng được điều chỉnh về 4 m²" : "Đã lưu sơ đồ tầng")
                 .data(toLayoutResponse(property, floor, savedItems))
                 .build();
     }
@@ -155,19 +157,19 @@ public class FloorPlanController {
     private PropertyEntity requireProperty(Long propertyId) {
         return propertyRepository.findById(propertyId)
                 .filter(property -> property.getDeletedAt() == null)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy cơ sở."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_NOT_FOUND));
     }
 
     private FloorEntity requireFloor(Long propertyId, Long floorId) {
         return floorRepository.findById(floorId)
                 .filter(floor -> floor.getDeletedAt() == null)
                 .filter(floor -> Objects.equals(floor.getProperty().getId(), propertyId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy tầng."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private void assertCanManageProperty(UserPrincipal principal, Long propertyId) {
         if (principal == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         if (principal.getRole() != Role.MANAGER) {
             return;
@@ -178,14 +180,14 @@ public class FloorPlanController {
                 RolePromotionStatus.ACTIVE
         );
         if (!managerPropertyIds.contains(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn không có quyền cập nhật cơ sở này.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 
     private String normalizeItemType(String itemType) {
         String normalized = itemType == null ? "" : itemType.trim().toUpperCase(Locale.ROOT);
         if (!ALLOWED_ITEM_TYPES.contains(normalized)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loại item sơ đồ tầng không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return normalized;
     }
@@ -197,18 +199,24 @@ public class FloorPlanController {
         try {
             return objectMapper.writeValueAsString(metadata);
         } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "metadata không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
-    private void syncRoomDetails(RoomEntity room, Map<String, Object> metadata) {
+    private boolean syncRoomDetails(RoomEntity room, Map<String, Object> metadata) {
         if (metadata == null || metadata.isEmpty()) {
-            return;
+            return false;
         }
 
         readNonNegativeLong(metadata.get("listedPrice")).ifPresent(room::setListedPrice);
         readPositiveInteger(metadata.get("maxOccupants")).ifPresent(room::setMaxOccupants);
-        readNonNegativeDecimal(metadata.get("areaSqm")).ifPresent(room::setAreaM2);
+        Optional<BigDecimal> area = readNonNegativeDecimal(metadata.get("areaSqm"));
+        if (area.isEmpty()) {
+            return false;
+        }
+        boolean adjusted = area.get().compareTo(BigDecimal.valueOf(4)) < 0;
+        room.setAreaM2(adjusted ? BigDecimal.valueOf(4) : area.get());
+        return adjusted;
     }
 
     private Optional<Long> readNonNegativeLong(Object value) {
@@ -223,7 +231,7 @@ public class FloorPlanController {
             };
             return parsed == null || parsed < 0 ? Optional.empty() : Optional.of(parsed);
         } catch (RuntimeException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giá phòng không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -240,7 +248,7 @@ public class FloorPlanController {
             };
             return parsed == null || parsed.signum() < 0 ? Optional.empty() : Optional.of(parsed);
         } catch (RuntimeException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Diện tích phòng không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -256,7 +264,7 @@ public class FloorPlanController {
             };
             return parsed == null || parsed < 1 ? Optional.empty() : Optional.of(parsed);
         } catch (RuntimeException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sức chứa phòng không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 

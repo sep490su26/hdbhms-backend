@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.portal.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
@@ -14,7 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -236,7 +238,7 @@ public class RevenueReportService {
         try {
             return YearMonth.parse(value.trim());
         } catch (RuntimeException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endPeriod must use yyyy-MM format");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -349,7 +351,7 @@ public class RevenueReportService {
             try {
                 return ReportPeriodType.valueOf(value.trim().toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException exception) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "periodType must be month, quarter, or year");
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
         }
 

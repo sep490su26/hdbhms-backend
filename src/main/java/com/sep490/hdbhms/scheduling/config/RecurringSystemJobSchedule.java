@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.scheduling.config;
 
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.scheduling.domain.value_objects.TaskType;
 
 import java.time.LocalDateTime;
@@ -56,7 +58,7 @@ final class RecurringSystemJobSchedule {
             case VISIT_REQUEST_TRASH_CLEANUP -> nextDaily(after, LocalTime.of(3, 0));
             case ROOM_TRANSFER_TIMEOUT -> after.truncatedTo(ChronoUnit.HOURS).plusHours(1);
             case CONTRACT_LIFECYCLE_SCAN -> nextDaily(after, LocalTime.of(0, 5));
-            default -> throw new IllegalArgumentException("Task type is not a recurring system job: " + taskType);
+            default -> throw new AppException(ApiErrorCode.UNSUPPORTED_RECURRING_TASK);
         };
     }
 

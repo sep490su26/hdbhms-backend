@@ -10,4 +10,6 @@ public interface JpaPropertyRepository extends JpaRepository<PropertyEntity, Lon
     List<PropertyEntity> findAllByDeletedAtIsNull();
 
     List<PropertyEntity> findAllByIdInAndDeletedAtIsNull(List<Long> ids);
+
+    boolean existsByNameIgnoreCaseAndDeletedAtIsNull(String name);
 }

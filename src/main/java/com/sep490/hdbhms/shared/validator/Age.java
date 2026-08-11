@@ -10,7 +10,7 @@ import java.lang.annotation.*;
 @Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Age {
-    String message() default "You must be at least 18 years old";
+    String message() default "Bạn phải đủ 18 tuổi";
 
     int age() default 18;
 

@@ -10,6 +10,8 @@ import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.TransactionProvider;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -80,7 +82,7 @@ public class PayOSWebhookController {
                     .rawPayload(objectMapper.writeValueAsString(payload))
                     .build();
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, e);
         }
 
         reconcilePaymentUseCase.execute(command);

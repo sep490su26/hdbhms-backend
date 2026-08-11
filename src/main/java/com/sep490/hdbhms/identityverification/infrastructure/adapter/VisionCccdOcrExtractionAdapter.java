@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.identityverification.infrastructure.adapter;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityverification.application.port.out.CccdOcrExtractionPort;
@@ -21,7 +24,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -73,9 +75,9 @@ public class VisionCccdOcrExtractionAdapter implements CccdOcrExtractionPort {
                     .body(JsonNode.class);
             return Optional.ofNullable(toIdentity(response));
         } catch (IOException ex) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Không thể đọc file CCCD đã upload.", ex);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE, ex);
         } catch (RestClientException ex) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Vision service is unavailable.", ex);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_UNAVAILABLE, ex);
         }
     }
 

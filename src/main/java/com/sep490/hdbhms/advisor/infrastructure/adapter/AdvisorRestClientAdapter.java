@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.advisor.infrastructure.adapter;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sep490.hdbhms.advisor.application.port.in.command.AdvisorAskCommand;
 import com.sep490.hdbhms.advisor.application.port.out.AdvisorClientPort;
@@ -16,7 +19,6 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.server.ResponseStatusException;
 
 @Component
 @RequiredArgsConstructor
@@ -158,11 +160,7 @@ public class AdvisorRestClientAdapter implements AdvisorClientPort {
         return response;
     }
 
-    private ResponseStatusException unavailable(Exception ex) {
-        return new ResponseStatusException(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "AI advisor service is unavailable",
-                ex
-        );
+    private AppException unavailable(Exception ex) {
+        return new AppException(ApiErrorCode.EXTERNAL_SERVICE_UNAVAILABLE, ex);
     }
 }

@@ -21,7 +21,7 @@ public class HashUtils {
     public static String hmacSHA512(String key, String data) {
         try {
             if (key == null || key.isEmpty()) {
-                throw new IllegalArgumentException("HMAC secret key cannot be null or empty");
+                throw new AppException(ApiErrorCode.HMAC_SECRET_INVALID);
             }
             Mac mac = Mac.getInstance("HmacSHA512");
             SecretKeySpec secretKeySpec = new SecretKeySpec(
@@ -34,8 +34,8 @@ public class HashUtils {
                 sb.append(String.format("%02x", b));
             }
             return sb.toString();
-        } catch (IllegalArgumentException | NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException("Failed to generate HMAC-SHA512: " + e.getMessage(), e);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new AppException(ApiErrorCode.HMAC_GENERATION_FAILED, e);
         }
     }
 
@@ -52,7 +52,7 @@ public class HashUtils {
         try {
             digest = MessageDigest.getInstance("SHA256");
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new AppException(ApiErrorCode.SHA256_DIGEST_FAILED, e);
         }
         try (var is = new BufferedInputStream(fis)) {
             var buffer = new byte[8192];

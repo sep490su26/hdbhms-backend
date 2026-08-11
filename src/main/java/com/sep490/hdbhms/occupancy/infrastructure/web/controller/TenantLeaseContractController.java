@@ -29,6 +29,7 @@ public class TenantLeaseContractController {
             @Valid @RequestBody TenantIntentionRequest request
     ) {
         return ApiResponse.<LeaseContractManagementResponse>builder()
+                .message("Ghi nhận ý định thành công")
                 .data(recordTenantIntentionUseCase.executeForCurrentTenant(new RecordTenantIntentionCommand(
                         leaseContractId,
                         request.intention(),
@@ -39,7 +40,7 @@ public class TenantLeaseContractController {
     }
 
     public record TenantIntentionRequest(
-            @NotNull(message = "Y dinh khach la bat buoc.")
+            @NotNull(message = "Vui lòng chọn ý định")
             String intention,
             LocalDate expectedMoveOutDate,
             @Size(max = 1000, message = "Ghi chu khong duoc vuot qua 1000 ky tu.")

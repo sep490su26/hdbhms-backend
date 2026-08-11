@@ -5,6 +5,8 @@ import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequesterRole;
 import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -39,7 +41,7 @@ public class ChangeRequest {
 
     public void approve(Long managerId) {
         if (this.status != RequestStatus.PENDING) {
-            throw new IllegalStateException("Only PENDING requests can be approved.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = RequestStatus.APPROVED;
         this.resolvedBy = managerId;
@@ -48,7 +50,7 @@ public class ChangeRequest {
 
     public void startProcessing(Long managerId) {
         if (this.status != RequestStatus.PENDING) {
-            throw new IllegalStateException("Only PENDING requests can be processed.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = RequestStatus.PROCESSING;
         this.resolvedBy = managerId;
@@ -61,7 +63,7 @@ public class ChangeRequest {
 
     public void reject(Long managerId, String note) {
         if (this.status != RequestStatus.PENDING) {
-            throw new IllegalStateException("Only PENDING requests can be rejected.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = RequestStatus.REJECTED;
         this.resolvedBy = managerId;

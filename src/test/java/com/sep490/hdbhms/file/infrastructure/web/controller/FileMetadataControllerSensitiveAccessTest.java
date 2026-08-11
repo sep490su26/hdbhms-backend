@@ -10,6 +10,8 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
@@ -18,7 +20,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Set;
@@ -89,17 +90,17 @@ class FileMetadataControllerSensitiveAccessTest {
         givenSensitiveFile(66L, 7L);
         givenLinkedHandoverContracts(66L, List.of(99L));
         givenLinkedRoomAssetRooms(66L, List.of(15L));
-        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden"))
+        doThrow(new AppException(ApiErrorCode.FORBIDDEN_OPERATION))
                 .when(leaseContractQueryService).assertCurrentUserCanReadContract(99L);
-        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden"))
+        doThrow(new AppException(ApiErrorCode.FORBIDDEN_OPERATION))
                 .when(leaseContractQueryService).assertCurrentUserCanReadRoom(15L);
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> controller.download(66L)
         );
 
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals(ApiErrorCode.FORBIDDEN_OPERATION, exception.getApiErrorCode());
     }
 
     @Test

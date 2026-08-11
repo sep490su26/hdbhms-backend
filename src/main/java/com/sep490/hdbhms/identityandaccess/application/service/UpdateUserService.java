@@ -106,10 +106,10 @@ public class UpdateUserService implements UpdateUserUseCase {
                 48,
                 ChronoUnit.HOURS)
         ) {
-            throw new AppException(ApiErrorCode.CHANGE_USERNAME_NOT_ALLOWED_YET);
+            throw new AppException(ApiErrorCode.CHANGE_EMAIL_NOT_ALLOWED_YET);
         }
         if (!passwordEncoder.matches(command.currentPassword(), user.getPasswordHash())) {
-            throw new AppException(ApiErrorCode.INVALID_CREDENTIALS);
+            throw new AppException(ApiErrorCode.CURRENT_EMAIL_PASSWORD_INVALID);
         }
         otpCodePort.sendOtp(user.getId(), command.newEmail(), OtpType.EMAIL_MODIFICATION, command.newEmail());
     }
@@ -147,7 +147,7 @@ public class UpdateUserService implements UpdateUserUseCase {
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         if (!passwordEncoder.matches(command.currentPassword(), user.getPasswordHash())) {
-            throw new AppException(ApiErrorCode.INVALID_CREDENTIALS);
+            throw new AppException(ApiErrorCode.CURRENT_PASSWORD_INVALID);
         }
         if (passwordEncoder.matches(command.newPassword(), user.getPasswordHash())) {
             throw new AppException(ApiErrorCode.SAME_PASSWORD);
@@ -182,7 +182,7 @@ public class UpdateUserService implements UpdateUserUseCase {
         User user = userRepository.findById(command.userId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         if (!user.isMustChangePassword()) {
-            throw new AppException(ApiErrorCode.INVALID_CREDENTIALS);
+            throw new AppException(ApiErrorCode.FIRST_PASSWORD_CHANGE_NOT_REQUIRED);
         }
         String oldPasswordHash = user.getPasswordHash();
         String newPasswordHash = passwordEncoder.encode(command.newPassword());

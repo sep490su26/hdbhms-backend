@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.property.domain.value_objects.AssetCondition;
@@ -28,7 +31,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -152,12 +154,12 @@ public class TenantRoomResourceController {
 
     private RoomEntity ensureRoomExists(Long roomId) {
         return roomRepository.findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phong."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private RoomAssetEntity findRoomAsset(Long roomId, Long assetId) {
         return roomAssetRepository.findActiveByRoomIdAndId(roomId, assetId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay thiet bi phong."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
     }
 
     private RoomAssetResponse toAssetResponse(RoomAssetEntity asset) {
@@ -191,7 +193,7 @@ public class TenantRoomResourceController {
     private String requireAssetName(RoomAssetRequest request) {
         String assetName = request.assetName();
         if (assetName == null || assetName.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ten thiet bi la bat buoc.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return assetName;
     }
@@ -212,6 +214,6 @@ public class TenantRoomResourceController {
             return null;
         }
         return fileMetadataRepository.findById(fileId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "File anh khong ton tai."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
     }
 }

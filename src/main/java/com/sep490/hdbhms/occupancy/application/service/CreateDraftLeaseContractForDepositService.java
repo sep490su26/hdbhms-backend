@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
 import com.sep490.hdbhms.booking.infrastructure.persistence.entity.DepositFormEntity;
 import com.sep490.hdbhms.booking.infrastructure.persistence.jpa.JpaDepositFormRepository;
@@ -18,7 +21,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 
@@ -36,7 +38,7 @@ public class CreateDraftLeaseContractForDepositService implements CreateDraftLea
     @Override
     public LeaseContractManagementResponse execute(Long depositFormId) {
         DepositFormEntity deposit = depositFormRepository.findById(depositFormId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy form đặt cọc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         LeaseContractEntity existing = leaseContractRepository
                 .findFirstByDepositForm_IdAndDeletedAtIsNull(depositFormId)
                 .orElse(null);
@@ -46,18 +48,18 @@ public class CreateDraftLeaseContractForDepositService implements CreateDraftLea
         if (deposit.getDepositStatus() != DepositAgreementStatus.PAID
                 && deposit.getDepositStatus() != DepositAgreementStatus.CONFIRMED
                 && deposit.getDepositStatus() != DepositAgreementStatus.CONVERTED_TO_LEASE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Form đặt cọc chưa được thanh toán.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         RoomEntity room = deposit.getRoom();
         PersonProfileEntity tenant = deposit.getDepositorPersonProfile();
         LocalDate startDate = deposit.getExpectedMoveInDate();
         if (room == null || tenant == null || startDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Form đặt cọc chưa đủ dữ liệu để tạo hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         int termMonths = deposit.getContractTermMonths() == null ? 12 : deposit.getContractTermMonths();
         if (termMonths < 6) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Thời hạn hợp đồng tối thiểu là 6 tháng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         LocalDate endDate = startDate.plusMonths(termMonths).minusDays(1);
         int paymentCycleMonths = deposit.getPaymentCycleMonths() == null ? 1 : deposit.getPaymentCycleMonths();

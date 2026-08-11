@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.shared.utils;
 
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -32,7 +34,7 @@ public final class RequestCodeBuilder {
                 return candidate;
             }
         }
-        throw new IllegalStateException("Could not allocate request code for " + baseCode);
+        throw new AppException(ApiErrorCode.REQUEST_CODE_ALLOCATION_FAILED);
     }
 
     public static String abbreviation(RequestType requestType) {

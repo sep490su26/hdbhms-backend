@@ -3,7 +3,8 @@ package com.sep490.hdbhms.scheduling.application.handler;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 
 @Component
 public class ScheduledTaskFailureClassifier {
@@ -12,9 +13,12 @@ public class ScheduledTaskFailureClassifier {
         if (containsCause(exception, IllegalArgumentException.class)) {
             return false;
         }
-        ResponseStatusException responseStatusException = findCause(exception, ResponseStatusException.class);
-        if (responseStatusException != null) {
-            return retryableStatus(responseStatusException.getStatusCode());
+        AppException appException = findCause(exception, AppException.class);
+        if (appException != null) {
+            if (appException.getApiErrorCode() == ApiErrorCode.SCHEDULED_TASK_HANDLER_NOT_FOUND) {
+                return false;
+            }
+            return retryableStatus(appException.getApiErrorCode().getStatusCode());
         }
         if (containsCause(exception, DataIntegrityViolationException.class)) {
             return false;

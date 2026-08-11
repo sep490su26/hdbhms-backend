@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.billingandpayment.application.port.in.command.ReconcilePaymentCommand;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceRepository;
@@ -21,7 +24,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -51,10 +53,7 @@ public class MockPaymentController {
     @PostMapping("/payment")
     public ApiResponse<Void> mockPayment(@RequestBody(required = false) MockPaymentRequest request) {
         if (request == null || request.getPaymentIntentId() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Thiếu paymentIntentId. Hãy gọi POST /api/v1/mock/payments/{paymentIntentId}/success hoặc truyền paymentIntentId trong body."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         Long amount = resolveAmount(request.getPaymentIntentId(), request);
@@ -64,30 +63,24 @@ public class MockPaymentController {
 
     private Long resolveAmount(Long paymentIntentId, MockPaymentRequest request) {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Không tìm thấy payment intent: " + paymentIntentId
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         if (request != null && request.getAmount() != null) {
             if (request.getAmount() <= 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền thanh toán phải lớn hơn 0.");
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
             return request.getAmount();
         }
 
         if (paymentIntent.getInvoiceId() == null) {
             if (paymentIntent.getAmount() == null || paymentIntent.getAmount() <= 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment intent không có số tiền hợp lệ.");
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
             return paymentIntent.getAmount();
         }
 
         Invoice invoice = invoiceRepository.findById(paymentIntent.getInvoiceId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Không tìm thấy invoice của payment intent: " + paymentIntentId
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         Long remainingAmount = invoice.getRemainingAmount();
         if (remainingAmount != null && remainingAmount > 0) {
             return remainingAmount;
@@ -95,7 +88,7 @@ public class MockPaymentController {
         if (paymentIntent.getAmount() != null && paymentIntent.getAmount() > 0) {
             return paymentIntent.getAmount();
         }
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không xác định được số tiền cần thanh toán.");
+        throw new AppException(ApiErrorCode.INVALID_REQUEST);
     }
 
     private void reconcile(Long paymentIntentId, Long amount) {

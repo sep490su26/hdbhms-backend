@@ -25,6 +25,8 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.Permi
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import jakarta.validation.Valid;
@@ -39,7 +41,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -78,8 +79,11 @@ public class PermissionRequestController {
     public ApiResponse<PermissionRequestResponse> createPermissionRequest(
             @Valid @RequestBody CreatePermissionRequestRequest request
     ) {
-        if (request.getTargetType() == null || request.getTargetId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "targetType and targetId are required.");
+        if (request.getTargetType() == null) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (request.getTargetId() == null) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         Long requesterUserId = AuthUtils.getCurrentAuthenticationId();
         TargetType targetType = toChangeTargetType(request.getTargetType());
@@ -110,6 +114,7 @@ public class PermissionRequestController {
         changeRequestNotificationService.notifyCreated(savedRequest);
 
         return ApiResponse.<PermissionRequestResponse>builder()
+                .message("Tạo yêu cầu cấp quyền thành công")
                 .data(toResponse(savedRequest))
                 .build();
     }
@@ -125,6 +130,7 @@ public class PermissionRequestController {
         );
         ChangeRequest changeRequest = requirePermissionAccessRequest(permissionRequestId);
         return ApiResponse.<PermissionRequestApprovalResponse>builder()
+                .message("Phê duyệt yêu cầu cấp quyền thành công")
                 .data(PermissionRequestApprovalResponse.builder()
                         .id(changeRequest.getId())
                         .status(toPermissionStatus(changeRequest.getStatus()))
@@ -145,6 +151,7 @@ public class PermissionRequestController {
         );
         ChangeRequest changeRequest = requirePermissionAccessRequest(permissionRequestId);
         return ApiResponse.<PermissionRequestRejectionResponse>builder()
+                .message("Từ chối yêu cầu cấp quyền thành công")
                 .data(PermissionRequestRejectionResponse.builder()
                         .id(changeRequest.getId())
                         .rejectedReason(changeRequest.getResolutionNote())
@@ -157,7 +164,7 @@ public class PermissionRequestController {
     private ChangeRequest requirePermissionAccessRequest(Long id) {
         ChangeRequest changeRequest = changeRequestQueryUseCase.getRequestById(id);
         if (changeRequest.getRequestType() != RequestType.PERMISSION_ACCESS) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Permission request not found.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         return changeRequest;
     }
@@ -216,7 +223,7 @@ public class PermissionRequestController {
     private RequesterRole currentRequesterRole() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         Role role = principal.getRole();
         return switch (role) {
@@ -232,7 +239,7 @@ public class PermissionRequestController {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not serialize request payload.");
+            throw new AppException(ApiErrorCode.UNDEFINED);
         }
     }
 }

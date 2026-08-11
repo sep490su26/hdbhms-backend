@@ -15,22 +15,28 @@ import java.time.LocalDate;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SingleMeterReadingRequest {
 
-    @NotNull(message = "Room ID is required")
+    @NotNull(message = "Vui lòng chọn phòng")
     Long roomId;
 
-    @NotBlank(message = "Reading period is required")
+    @NotBlank(message = "Vui lòng chọn kỳ ghi chỉ số")
     @Pattern(
             regexp = "^(?:(0?[1-9]|1[0-2])[-/]\\d{4}|\\d{4}-(0?[1-9]|1[0-2]))$",
-            message = "Reading period must be in MM-yyyy format"
+            message = "Kỳ ghi chỉ số phải có định dạng MMyyyy"
     )
     String readingPeriod;
 
-    @NotNull(message = "Reading date is required")
+    @NotNull(message = "Vui lòng chọn ngày ghi")
     LocalDate readingDate;
 
-    @NotNull(message = "Electricity value is required")
-    @PositiveOrZero(message = "Electricity value cannot be negative")
+    @NotNull(message = "Vui lòng nhập chỉ số điện")
+    @PositiveOrZero(message = "Chỉ số điện không được nhỏ hơn 0")
     BigDecimal electricityValue;
 
     Long electricityPhotoId;
+
+    @NotNull(message = "Vui lòng nhập chỉ số nước")
+    @PositiveOrZero(message = "Chỉ số nước không được nhỏ hơn 0")
+    BigDecimal waterValue;
+
+    Long waterPhotoId;
 }

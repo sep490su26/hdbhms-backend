@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = ValidPaymentCycleValidator.class)
 public @interface ValidPaymentCycle {
-    String message() default "paymentCycleMonths must be 1 or 3";
+    String message() default "Chu kỳ thanh toán chỉ nhận 1 hoặc 3 tháng";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }

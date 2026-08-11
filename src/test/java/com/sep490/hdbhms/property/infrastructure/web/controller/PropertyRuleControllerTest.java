@@ -1,7 +1,7 @@
 package com.sep490.hdbhms.property.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,6 +15,6 @@ class PropertyRuleControllerTest {
 
     @Test
     void rejectsNegativeFineAmount() {
-        assertThrows(ResponseStatusException.class, () -> PropertyRuleController.normalizeFineAmount(-1L));
+        assertThrows(AppException.class, () -> PropertyRuleController.normalizeFineAmount(-1L));
     }
 }

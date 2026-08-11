@@ -2,6 +2,8 @@ package com.sep490.hdbhms.shared.infrastructure.sms.android_sms;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.shared.application.port.out.SmsPort;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -60,8 +62,7 @@ public class AndroidSmsGatewaySmsAdapter implements SmsPort {
                     String.class
             );
             if (!responseEntity.getStatusCode().is2xxSuccessful()) {
-                throw new IllegalStateException(
-                        "SMS gateway returned error status: " + responseEntity.getStatusCode());
+                throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
             }
             String responseBody = responseEntity.getBody();
             log.info("SMS sent successfully via sms-gate. phoneNumber={}, response={}", phoneNumber, responseBody);
@@ -69,10 +70,10 @@ public class AndroidSmsGatewaySmsAdapter implements SmsPort {
         } catch (HttpClientErrorException | HttpServerErrorException ex) {
             log.error("Failed to send SMS via sms-gate. phoneNumber={}, status={}, body={}",
                     phoneNumber, ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
-            throw new IllegalStateException("Failed to send SMS via sms-gate", ex);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, ex);
         } catch (Exception ex) {
             log.error("Failed to send SMS via sms-gate. phoneNumber={}", phoneNumber, ex);
-            throw new IllegalStateException("Failed to send SMS via sms-gate", ex);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, ex);
         }
     }
 

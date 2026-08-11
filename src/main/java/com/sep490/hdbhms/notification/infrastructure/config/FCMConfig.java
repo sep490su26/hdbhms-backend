@@ -3,6 +3,8 @@ package com.sep490.hdbhms.notification.infrastructure.config;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
 
@@ -24,7 +26,7 @@ public class FCMConfig {
                 FirebaseApp.initializeApp(options);
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize Firebase", e);
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, e);
         }
     }
 }

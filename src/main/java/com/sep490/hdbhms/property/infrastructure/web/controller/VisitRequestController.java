@@ -34,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -66,6 +67,7 @@ public class VisitRequestController {
         Room room = getRoomOrNull(visitRequest.getRoomId());
         Property property = getPropertyForVisitRequest(visitRequest, room);
         return ApiResponse.<VisitRequestDetailsResponse>builder()
+                .message("Đăng ký lịch xem phòng thành công")
                 .data(
                         visitRequestWebMapper.toDetailsResponse(
                                 visitRequest,
@@ -144,6 +146,7 @@ public class VisitRequestController {
         Property property = getPropertyForVisitRequest(visitRequest, room);
         assertCanAccessProperty(principal, property == null ? visitRequest.getPropertyId() : property.getId());
         return ApiResponse.<VisitRequestDetailsResponse>builder()
+                .message("Cập nhật trạng thái lịch xem phòng thành công")
                 .data(
                         visitRequestWebMapper.toDetailsResponse(
                                 visitRequest,
@@ -207,9 +210,17 @@ public class VisitRequestController {
             @Valid @RequestBody VisitRequestStatusUpdateRequest request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        VisitRequest current = getVisitRequestDetailsUseCase.execute(
-                new GetVisitRequestDetailsQuery(id)
-        );
+        VisitRequest current;
+        try {
+            current = getVisitRequestDetailsUseCase.execute(
+                    new GetVisitRequestDetailsQuery(id)
+            );
+        } catch (AppException exception) {
+            if (exception.getApiErrorCode() == ApiErrorCode.VISIT_001) {
+                throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
+            }
+            throw exception;
+        }
         assertCanAccessVisitRequest(principal, current);
         VisitRequest updated = VisitRequest.builder()
                 .id(current.getId())
@@ -318,7 +329,7 @@ public class VisitRequestController {
 
         List<Long> propertyIds = managerPropertyIds(principal.getId());
         if (requestedPropertyId != null && !propertyIds.contains(requestedPropertyId)) {
-            throw new AppException(ApiErrorCode.UNAUTHORIZED);
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return propertyIds;
     }

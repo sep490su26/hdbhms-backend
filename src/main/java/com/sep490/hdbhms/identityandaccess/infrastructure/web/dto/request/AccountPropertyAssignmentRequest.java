@@ -10,6 +10,6 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AccountPropertyAssignmentRequest {
-    @NotNull
+    @NotNull(message = "Vui lòng chọn cơ sở phụ trách cho tài khoản quản lý.")
     Long propertyId;
 }

@@ -12,15 +12,15 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CreateFloorRequest {
-    @NotNull(message = "propertyId is required")
+    @NotNull(message = "Vui lòng chọn cơ sở")
     Long propertyId;
 
-    @NotBlank(message = "floorCode is required")
+    @NotBlank(message = "Vui lòng nhập mã tầng")
     String floorCode;
 
-    @NotBlank(message = "name is required")
+    @NotBlank(message = "Vui lòng nhập tên tầng")
     String name;
 
-    @Min(value = 0, message = "sortOrder must not be negative")
+    @Min(value = 0, message = "Thứ tự tầng không được nhỏ hơn 0")
     Integer sortOrder;
 }

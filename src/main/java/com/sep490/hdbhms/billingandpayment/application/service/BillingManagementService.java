@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
@@ -48,7 +51,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.io.ByteArrayOutputStream;
@@ -146,10 +148,7 @@ public class BillingManagementService {
     ) {
         String normalizedPeriod = normalizeOptionalPeriod(billingPeriod);
         if (normalizedPeriod == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Vui long chon mot ky thang cu the de xuat Excel"
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_CHON_MOT_KY_THANG_CU_THE_DE_XUAT_EXCEL);
         }
         InvoiceStatus parsedStatus = parseInvoiceStatus(status);
         InvoiceType parsedType = parseInvoiceType(invoiceType);
@@ -162,12 +161,12 @@ public class BillingManagementService {
                 ))
                 .toList();
         if (invoices.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chưa có hóa đơn để xuất");
+            throw new AppException(ApiErrorCode.MIGRATED_CHUA_CO_HOA_ON_E_XUAT);
         }
 
         List<InvoiceExcelRow> rows = buildInvoiceExcelRows(invoices);
         if (rows.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không có hóa đơn gắn với phòng để xuất");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_CO_HOA_ON_GAN_VOI_PHONG_E_XUAT);
         }
 
         try {
@@ -177,7 +176,7 @@ public class BillingManagementService {
                     invoiceExcelFilename(normalizedPeriod)
             );
         } catch (IOException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Xuất file Excel thất bại");
+            throw new AppException(ApiErrorCode.MIGRATED_XUAT_FILE_EXCEL_THAT_BAI);
         }
     }
 
@@ -513,16 +512,16 @@ public class BillingManagementService {
     @Transactional
     public BillingInvoiceResponse mockMakeInvoiceOverdue(Long invoiceId, Integer daysPastDue) {
         if (invoiceId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn hóa đơn.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         int days = daysPastDue == null || daysPastDue < 1 ? 1 : daysPastDue;
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (invoice.getStatus() == InvoiceStatus.PAID || invoice.getStatus() == InvoiceStatus.VOIDED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không thể mock quá hạn cho hóa đơn đã thanh toán hoặc đã hủy.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (safe(invoice.getRemainingAmount()) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hóa đơn không còn số tiền phải thu.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
@@ -537,12 +536,12 @@ public class BillingManagementService {
     @Transactional
     public RentOverrideResponse applyRentOverride(ApplyRentOverrideRequest request, Long currentUserId) {
         if (request == null || request.roomId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn phòng cần điều chỉnh.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         YearMonth period = requirePeriod(request.billingPeriod());
         long newRent = requirePositiveAmount(request.overrideMonthlyRent(), "Giá không hợp lệ");
         var room = roomRepository.findById(request.roomId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phòng."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         InvoiceEntity invoice = invoiceRepository
                 .findFirstByRoom_IdAndBillingPeriodAndInvoiceTypeAndStatusNotOrderByIdDesc(
@@ -554,24 +553,18 @@ public class BillingManagementService {
                 .orElse(null);
 
         if (invoice != null && invoice.getStatus() == InvoiceStatus.PAID) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hóa đơn tháng này đã thanh toán, không thể điều chỉnh");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         LeaseContractEntity contract = invoice != null && invoice.getLeastContract() != null
                 ? invoice.getLeastContract()
                 : leaseContractRepository
                 .findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(request.roomId(), BILLABLE_CONTRACT_STATUSES)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Không có hợp đồng/phòng đang hiệu lực để điều chỉnh giá."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
 
         long listedRent = safe(contract.getMonthlyRent());
         if (listedRent > 0 && newRent >= listedRent) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Giá khuyến mãi phải thấp hơn giá niêm yết cơ bản của phòng."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_GIA_KHUYEN_MAI_PHAI_THAP_HON_GIA_NIEM_YET_CO_BAN_CUA_PHONG);
         }
 
         RentOverrideEntity rentOverride = rentOverrideRepository
@@ -616,21 +609,21 @@ public class BillingManagementService {
     @Transactional
     public ManualPaymentResponse confirmManualPayment(Long invoiceId, ManualPaymentRequest request, Long currentUserId) {
         if (invoiceId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn hóa đơn.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         long amount = requirePositiveAmount(request == null ? null : request.amount(), "Số tiền không hợp lệ");
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         if (invoice.getStatus() == InvoiceStatus.PAID) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hóa đơn này đã được thanh toán");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (invoice.getStatus() == InvoiceStatus.DRAFT || invoice.getStatus() == InvoiceStatus.VOIDED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ xác nhận thanh toán cho hóa đơn đã phát hành.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         long remaining = safe(invoice.getRemainingAmount());
         if (amount > remaining) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số tiền nhận vượt quá số tiền còn lại.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -674,15 +667,15 @@ public class BillingManagementService {
     @Transactional
     public Map<String, Object> sendOverdueWarning(Long invoiceId, Long currentUserId) {
         if (invoiceId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn hóa đơn.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (invoice.getRoom() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hóa đơn chưa gắn với phòng.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (!isOverdueOrExpired(invoice)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ gửi cảnh báo cho hóa đơn đã hết hạn.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         if (invoice.getStatus() != InvoiceStatus.OVERDUE) {
@@ -858,7 +851,7 @@ public class BillingManagementService {
         long nextSubtotal = Math.max(safe(invoice.getSubtotalAmount()) - oldLineAmount + newRent, 0L);
         long nextTotal = Math.max(nextSubtotal - safe(invoice.getDiscountAmount()), 0L);
         if (nextTotal < safe(invoice.getPaidAmount())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Giá điều chỉnh nhỏ hơn số tiền đã thanh toán.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         invoice.setSubtotalAmount(nextSubtotal);
         invoice.setTotalAmount(nextTotal);
@@ -986,12 +979,12 @@ public class BillingManagementService {
 
     private YearMonth requirePeriod(String value) {
         if (value == null || value.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng chọn tháng cần điều chỉnh");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         try {
             return YearMonth.parse(value.trim());
         } catch (DateTimeParseException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tháng cần điều chỉnh phải có định dạng yyyy-MM.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -1009,7 +1002,7 @@ public class BillingManagementService {
         try {
             return InvoiceStatus.valueOf(value.trim().toUpperCase());
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trạng thái hóa đơn không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -1020,13 +1013,13 @@ public class BillingManagementService {
         try {
             return InvoiceType.valueOf(value.trim().toUpperCase());
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Loại hóa đơn không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
     private long requirePositiveAmount(Long amount, String message) {
         if (amount == null || amount <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return amount;
     }

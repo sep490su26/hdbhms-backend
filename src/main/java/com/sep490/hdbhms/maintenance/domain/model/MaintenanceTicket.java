@@ -3,6 +3,8 @@ package com.sep490.hdbhms.maintenance.domain.model;
 import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatus;
 import com.sep490.hdbhms.maintenance.domain.value_objects.TicketScope;
 import com.sep490.hdbhms.shared.utils.StringUtils;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -66,7 +68,7 @@ public class MaintenanceTicket {
 
     public void setTicketCode(String ticketCode) {
         if (StringUtils.isEmpty(ticketCode)) {
-            throw new IllegalArgumentException("Ticket code cannot be empty");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         this.ticketCode = ticketCode;
     }

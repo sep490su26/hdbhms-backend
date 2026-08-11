@@ -10,6 +10,8 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.request.UpsertPropertyR
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyRuleResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyRuleWebMapper;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -24,7 +26,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
@@ -62,7 +63,7 @@ public class PropertyRuleController {
                 .findFirstByProperty_IdAndRuleCode(propertyId, ruleCode)
                 .orElse(null);
         if (existing != null && existing.getStatus() == RuleStatus.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã nội quy đã tồn tại.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         PropertyRuleEntity rule = existing == null
                 ? PropertyRuleEntity.builder()
@@ -90,7 +91,7 @@ public class PropertyRuleController {
         jpaPropertyRuleRepository.findFirstByProperty_IdAndRuleCode(propertyId, ruleCode)
                 .filter(existing -> !Objects.equals(existing.getId(), ruleId))
                 .ifPresent(existing -> {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã nội quy đã tồn tại.");
+                    throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
                 });
         applyRequest(rule, request, ruleCode);
         return ApiResponse.<PropertyRuleResponse>builder()
@@ -118,7 +119,7 @@ public class PropertyRuleController {
             String ruleCode
     ) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu nội quy không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         rule.setRuleCode(ruleCode);
         rule.setTitle(requireText(request.title(), "Vui lòng nhập tiêu đề nội quy.", 255));
@@ -130,7 +131,7 @@ public class PropertyRuleController {
 
     private Long requireProperty(Long propertyId) {
         if (propertyId == null || !jpaPropertyRepository.existsById(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy cơ sở.");
+            throw new AppException(ApiErrorCode.PROPERTY_NOT_FOUND);
         }
         return propertyId;
     }
@@ -138,7 +139,7 @@ public class PropertyRuleController {
     private PropertyRuleEntity findRule(Long propertyId, Long ruleId) {
         requireProperty(propertyId);
         return jpaPropertyRuleRepository.findByIdAndProperty_Id(ruleId, propertyId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy nội quy."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_RULE_NOT_FOUND));
     }
 
     static String normalizeRuleCode(String value) {
@@ -146,10 +147,10 @@ public class PropertyRuleController {
         normalized = normalized.replaceAll("[^A-Z0-9_\\-]", "_");
         normalized = normalized.replaceAll("_+", "_");
         if (normalized.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vui lòng nhập mã nội quy.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (normalized.length() > 50) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mã nội quy tối đa 50 ký tự.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return normalized;
     }
@@ -159,7 +160,7 @@ public class PropertyRuleController {
             return null;
         }
         if (value < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mức phạt không được âm.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return value;
     }
@@ -167,10 +168,10 @@ public class PropertyRuleController {
     private String requireText(String value, String message, int maxLength) {
         String normalized = value == null ? "" : value.trim();
         if (normalized.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (normalized.length() > maxLength) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nội dung quá dài.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return normalized;
     }

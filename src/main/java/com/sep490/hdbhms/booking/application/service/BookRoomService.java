@@ -28,7 +28,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -93,7 +92,7 @@ public class BookRoomService implements BookRoomUseCase {
             try {
                 roomHold = roomHoldRepository.save(roomHold);
             } catch (DataIntegrityViolationException ex) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, buildActiveHoldMessage(depositForm.getRoomId()));
+                throw new AppException(ApiErrorCode.ROOM_DEPOSIT_HOLD_ACTIVE);
             }
             Room room = roomRepository.findById(roomHold.getRoomId())
                     .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
@@ -102,7 +101,7 @@ public class BookRoomService implements BookRoomUseCase {
             createRoomHoldTaskPort.execute(roomHold);
             return sendDepositPaymentPort.execute(depositForm, roomHold);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new AppException(ApiErrorCode.FILE_UPLOAD_FAILED, e);
         }
     }
 
@@ -116,10 +115,54 @@ public class BookRoomService implements BookRoomUseCase {
             } else if (unavailableReason.startsWith("EXPECTED_")) {
                 status = HttpStatus.UNPROCESSABLE_ENTITY;
             }
-            throw new ResponseStatusException(status, locked
+            String message = locked
                     ? unavailableReason.substring(ROOM_DEPOSIT_LOCKED_PREFIX.length())
-                    : unavailableReason);
+                    : unavailableReason;
+            throw new AppException(unavailableCode(unavailableReason));
         }
+    }
+
+    private ApiErrorCode unavailableCode(String reason) {
+        if (reason.startsWith(ROOM_DEPOSIT_LOCKED_PREFIX)) {
+            return ApiErrorCode.ROOM_DEPOSIT_LOCKED;
+        }
+        if (reason.startsWith("EXPECTED_MOVE_IN_BEFORE_SIGN_DATE")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_MOVE_IN_BEFORE_SIGN_DATE;
+        }
+        if (reason.startsWith("EXPECTED_MOVE_IN_TOO_FAR_AFTER_VACANT")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_MOVE_IN_TOO_FAR_AFTER_VACANT;
+        }
+        if (reason.startsWith("EXPECTED_SIGN_DATE_TOO_FAR_AFTER_VACANT")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_SIGN_DATE_TOO_FAR_AFTER_VACANT;
+        }
+        if (reason.startsWith("EXPECTED_MOVE_IN_TOO_FAR")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_MOVE_IN_TOO_FAR;
+        }
+        if (reason.startsWith("EXPECTED_SIGN_DATE_TOO_FAR")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_SIGN_DATE_TOO_FAR;
+        }
+        if (reason.startsWith("EXPECTED_SIGN_DATE_REQUIRED")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_SIGN_DATE_REQUIRED;
+        }
+        if (reason.startsWith("EXPECTED_MOVE_IN_REQUIRED")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_MOVE_IN_REQUIRED;
+        }
+        if (reason.startsWith("EXPECTED_VACANT_DATE_MISSING")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_VACANT_DATE_MISSING;
+        }
+        if (reason.startsWith("EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE;
+        }
+        if (reason.startsWith("EXPECTED_MOVE_IN_BEFORE_VACANT_DATE")) {
+            return ApiErrorCode.DEPOSIT_EXPECTED_MOVE_IN_BEFORE_VACANT_DATE;
+        }
+        if (reason.startsWith("Phòng đang có người đặt cọc")) {
+            return ApiErrorCode.ROOM_DEPOSIT_HOLD_ACTIVE;
+        }
+        if (reason.startsWith("Phòng đã được đặt cọc")) {
+            return ApiErrorCode.ROOM_ALREADY_RESERVED;
+        }
+        return ApiErrorCode.ROOM_DEPOSIT_UNAVAILABLE;
     }
 
     private String getUnavailableReason(Long roomId, LocalDate expectedMoveInDate, LocalDate expectedLeaseSignDate) {

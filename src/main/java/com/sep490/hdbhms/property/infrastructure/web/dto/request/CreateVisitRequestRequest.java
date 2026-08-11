@@ -5,6 +5,7 @@ import com.sep490.hdbhms.shared.validator.VietnamesePhone;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -19,15 +20,16 @@ public class CreateVisitRequestRequest {
     @NonNull
     Long propertyId;
     Long roomId;
-    @NotBlank
-    @FullName
+    @NotBlank(message = "Vui lòng nhập tên người xem")
+    @FullName(message = "Vui lòng nhập tên người xem")
     String visitorName;
-    @NotBlank
-    @VietnamesePhone
+    @NotBlank(message = "Vui lòng nhập số điện thoại người xem")
+    @VietnamesePhone(message = "Số điện thoại phải là số Việt Nam gồm 10 chữ số và bắt đầu bằng 0.")
     String visitorPhone;
-    @Email
+    @Email(message = "Địa chỉ email sai định dạng")
     String visitorEmail;
-    @Future(message = "Preferred start date must be in the future")
+    @NotNull(message = "Vui lòng nhập ngày đến xem")
+    @Future(message = "Thời gian xem phải ở tương lai")
     LocalDateTime preferredStart;
     String notes;
 }

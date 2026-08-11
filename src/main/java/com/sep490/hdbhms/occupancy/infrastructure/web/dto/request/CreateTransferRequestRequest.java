@@ -6,15 +6,15 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record CreateTransferRequestRequest(
-        @NotNull(message = "Source contract ID is required")
+        @NotNull(message = "Vui lòng chọn hợp đồng")
         Long sourceContractId,
 
-        @NotNull(message = "Target room ID is required")
+        @NotNull(message = "Vui lòng chọn phòng muốn chuyển đến")
         Long targetRoomId,
 
         LocalDate requestedTransferDate,
 
-        @NotNull(message = "Expected transfer date is required")
+        @NotNull(message = "Vui lòng chọn ngày chuyển dự kiến")
         LocalDate expectedTransferDate,
 
         List<Long> transferredTenantProfileIds,

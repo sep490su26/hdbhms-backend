@@ -18,6 +18,8 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
@@ -34,7 +36,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -91,19 +92,13 @@ public class TenantAccountProvisioningService {
 
         List<TenantAccountProvisioningResponse> occupants = findContractOccupants(contractId);
         if (occupants.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Hợp đồng chưa có người thuê trong contract_occupants."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         List<TenantAccountProvisioningResponse> eligibleOccupants = occupants.stream()
                 .filter(this::isProvisioningEligibleContext)
                 .toList();
         if (eligibleOccupants.isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "NO_ACTIVE_TENANT_CONTEXT"
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         List<Long> claimedProfileIds = transactionTemplate().execute(status -> {
             List<Long> claimed = new ArrayList<>();
@@ -136,11 +131,7 @@ public class TenantAccountProvisioningService {
             String failureReason = shortFailureReason(exception);
             transactionTemplate().executeWithoutResult(status ->
                     markProvisioningFailed(preparedProfileIds, contractId, failureReason));
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Gửi tài khoản thất bại. Có thể thử gửi lại sau khi xác nhận.",
-                    exception
-            );
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, exception);
         }
 
         List<TenantAccountProvisioningResponse> current = findContractOccupants(contractId);
@@ -160,7 +151,7 @@ public class TenantAccountProvisioningService {
         TenantAccountProvisioningResponse occupant = findContractOccupant(contractId, tenantProfileId);
         if (!isProvisioningEligibleContext(occupant)) {
             return occupant.toBuilder()
-                    .message("TENANT_CONTEXT_DISABLED")
+                    .message("Quyền truy cập của người thuê đã bị vô hiệu hóa")
                     .build();
         }
 
@@ -184,11 +175,7 @@ public class TenantAccountProvisioningService {
             String failureReason = shortFailureReason(exception);
             transactionTemplate().executeWithoutResult(status ->
                     markProvisioningFailed(List.of(tenantProfileId), contractId, failureReason));
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Gá»­i tÃ i khoáº£n tháº¥t báº¡i. CÃ³ thá»ƒ thá»­ gá»­i láº¡i sau khi xÃ¡c nháº­n.",
-                    exception
-            );
+            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, exception);
         }
     }
 
@@ -200,27 +187,27 @@ public class TenantAccountProvisioningService {
         String normalizedReason = validateDisableReason(reason);
         Long disabledBy = AuthUtils.getCurrentAuthenticationId();
         if (disabledBy == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
         ContractMembershipContext context = findContractMembershipContext(contractId, tenantProfileId);
         if (!context.hasOccupant() && !Objects.equals(context.primaryTenantProfileId(), tenantProfileId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_CONTEXT_NOT_FOUND");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
 
         disableTenantContextStatus(contractId, tenantProfileId, normalizedReason, disabledBy, context);
         return findContractOccupant(contractId, tenantProfileId).toBuilder()
-                .message("TENANT_CONTEXT_DISABLED")
+                .message("Vô hiệu hóa quyền truy cập của người thuê thành công")
                 .build();
     }
 
     private String validateDisableReason(String reason) {
         String normalized = reason == null ? new String() : reason.trim();
         if (normalized.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DISABLE_REASON_REQUIRED");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (normalized.length() > 1000) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "DISABLE_REASON_TOO_LONG");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return normalized;
     }
@@ -286,10 +273,7 @@ public class TenantAccountProvisioningService {
     ) {
         Long profileId = occupant.getProfileId();
         if (profileId == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Người thuê chưa có tenant_profile_id."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         if (!isProvisioningEligibleContext(occupant)) {
@@ -351,10 +335,7 @@ public class TenantAccountProvisioningService {
 
         for (TenantAccountProvisioningResponse occupant : occupants) {
             if (StringUtils.isEmpty(occupant.getPhone())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Hồ sơ " + safeName(occupant.getFullName()) + " chưa có số điện thoại."
-                );
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
             }
 
             User existingUser = resolveExistingUser(occupant, occupant.getProfileId());
@@ -462,7 +443,7 @@ public class TenantAccountProvisioningService {
         return occupants.stream()
                 .filter(item -> Objects.equals(item.getProfileId(), profileId))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "TENANT_CONTEXT_NOT_FOUND"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
     }
 
     private void claimProvisioningAttempt(
@@ -607,10 +588,7 @@ public class TenantAccountProvisioningService {
         }
         if (linkedUserId != null) {
             return userRepository.findById(linkedUserId)
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Không tìm thấy tài khoản đã liên kết với hồ sơ."
-                    ));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         }
         return userRepository.findByPhoneOrEmailAndDeletedAtIsNull(
                         occupant.getPhone(),
@@ -626,18 +604,12 @@ public class TenantAccountProvisioningService {
 
     private void linkProfileIfNeeded(Long profileId, Long userId) {
         PersonProfile profile = personProfileRepository.findById(profileId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Không tìm thấy hồ sơ khách thuê."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (userId.equals(profile.getUserId())) {
             return;
         }
         if (profile.getUserId() != null) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Hồ sơ khách thuê đã liên kết với tài khoản khác."
-            );
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         PersonProfile existingUserProfile = personProfileRepository.findByUserId(userId)
                 .orElse(null);
@@ -678,10 +650,7 @@ public class TenantAccountProvisioningService {
 
     private TenantAccountProvisioningEntity getProvisioningForUpdate(Long profileId) {
         return provisioningRepository.findByTenantProfileIdForUpdate(profileId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Không tạo được trạng thái cấp tài khoản."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
     }
 
     private ContractMembershipContext findContractMembershipContext(Long contractId, Long tenantProfileId) {
@@ -699,11 +668,11 @@ public class TenantAccountProvisioningService {
                 contractId
         );
         if (contexts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "CONTRACT_NOT_FOUND");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         ContractMembershipContext context = contexts.getFirst();
         if (!context.profileExists()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_PROFILE_NOT_FOUND");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         return context;
     }
@@ -726,7 +695,7 @@ public class TenantAccountProvisioningService {
                 tenantProfileId
         );
         if (occupants.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "TENANT_CONTEXT_NOT_FOUND");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         return occupants.getFirst();
     }
@@ -757,28 +726,19 @@ public class TenantAccountProvisioningService {
                     contractId
             );
         } catch (EmptyResultDataAccessException exception) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
     }
 
     private void validateContractContext(ContractProvisioningContext context) {
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(context.contractStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ được gửi tài khoản khi hợp đồng đang ACTIVE hoặc EXPIRING_SOON."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (context.roomStatus() != RoomStatus.OCCUPIED) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Phòng phải ở trạng thái OCCUPIED trước khi gửi tài khoản."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (context.occupantCount() <= 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Hợp đồng chưa có người thuê trong contract_occupants."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -799,7 +759,7 @@ public class TenantAccountProvisioningService {
     private TenantAccountProvisioningResponse findPrimaryContractOccupant(Long contractId) {
         List<TenantAccountProvisioningResponse> occupants = findContractOccupants(contractId);
         if (occupants.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
         }
         return findPrimary(occupants);
     }
@@ -1044,10 +1004,7 @@ public class TenantAccountProvisioningService {
     private String normalizePhone(String phone) {
         String normalized = phone == null ? "" : phone.replaceAll("\\D+", "");
         if (StringUtils.isEmpty(normalized)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Số điện thoại khách thuê không hợp lệ."
-            );
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return normalized;
     }

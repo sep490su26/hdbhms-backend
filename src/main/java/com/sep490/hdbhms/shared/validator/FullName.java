@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Constraint(validatedBy = FullNameValidator.class)
 public @interface FullName {
-    String message() default "Please enter your full name (at least first and last name)";
+    String message() default "Vui lòng nhập họ và tên đầy đủ";
 
     Class<?>[] groups() default {};
 

@@ -10,6 +10,8 @@ import java.util.Optional;
 public interface PropertyRepository {
     Property save(Property property);
 
+    boolean existsByName(String name);
+
     Optional<Property> findById(Long id);
 
     Page<Property> findAll(PropertyStatus status, Pageable pageable);

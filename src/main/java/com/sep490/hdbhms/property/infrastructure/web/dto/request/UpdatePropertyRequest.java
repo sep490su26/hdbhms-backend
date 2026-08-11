@@ -6,10 +6,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record UpdatePropertyRequest(
-        @NotBlank String name,
-        @NotNull PropertyType propertyType,
-        @NotBlank String addressLine,
+        @NotBlank(message = "Vui lòng nhập tên cơ sở") String name,
+        @NotNull(message = "Vui lòng chọn loại hình cơ sở") PropertyType propertyType,
+        @NotBlank(message = "Vui lòng nhập địa chỉ") String addressLine,
         String description,
-        @NotNull PropertyStatus status
+        @NotNull(message = "Vui lòng chọn trạng thái") PropertyStatus status
 ) {
 }

@@ -13,6 +13,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandover
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.HandoverMeterReadingsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder.DocumentType;
 import jakarta.validation.Valid;
@@ -24,7 +26,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequiredArgsConstructor
@@ -112,12 +113,12 @@ public class ContractHandoverController {
         assertOwnerOrAssignedManagerCanAccessContract(contractId);
         var filenameContext = handoverDocumentService.getFilenameContext(contractId, type);
         if (filenameContext.signedFileId() == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Chua co bien ban ban giao da ky.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHUA_CO_BIEN_BAN_BAN_GIAO_DA_KY);
         }
 
         FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(filenameContext.signedFileId()));
         if (fileData == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay bien ban ban giao da ky.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_BIEN_BAN_BAN_GIAO_DA_KY);
         }
         String contentType = fileData.contentType() == null
                 ? org.springframework.http.MediaType.APPLICATION_OCTET_STREAM_VALUE
@@ -149,13 +150,13 @@ public class ContractHandoverController {
     private void assertOwnerOrAssignedManagerCanAccessContract(Long contractId) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap.");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         if (principal.getRole() == Role.OWNER) {
             return;
         }
         if (principal.getRole() != Role.MANAGER) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
 
         Long propertyId = jdbcTemplate.query("""
@@ -170,7 +171,7 @@ public class ContractHandoverController {
                 contractId
         );
         if (propertyId == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.CONTRACT_NOT_FOUND);
         }
 
         Integer count = jdbcTemplate.queryForObject("""
@@ -187,7 +188,7 @@ public class ContractHandoverController {
                 propertyId
         );
         if (count == null || count == 0) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ban khong co quyen thao tac hop dong nay.");
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
     }
 }

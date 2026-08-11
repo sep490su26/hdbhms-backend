@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -9,5 +10,6 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AccountStatusUpdateRequest {
+    @NotBlank(message = "Vui lòng chọn trạng thái tài khoản")
     String status;
 }

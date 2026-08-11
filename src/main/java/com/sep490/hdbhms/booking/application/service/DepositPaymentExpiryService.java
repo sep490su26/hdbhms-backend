@@ -15,13 +15,14 @@ import com.sep490.hdbhms.booking.domain.model.RoomHold;
 import com.sep490.hdbhms.booking.domain.value_objects.RoomDepositFailureReason;
 import com.sep490.hdbhms.booking.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
@@ -40,9 +41,9 @@ public class DepositPaymentExpiryService {
 
     public PaymentIntent expire(Long paymentIntentId) {
         PaymentIntent paymentIntent = paymentIntentRepository.findById(paymentIntentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay phien thanh toan."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PAYMENT_INTENT_NOT_FOUND));
         if (paymentIntent.getDepositAgreementId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phien thanh toan khong thuoc dat coc phong.");
+            throw new AppException(ApiErrorCode.PAYMENT_INTENT_NOT_DEPOSIT);
         }
         if (paymentIntent.getStatus() == PaymentIntentStatus.SUCCEEDED
                 || paymentIntent.getStatus() == PaymentIntentStatus.REFUND_REQUIRED) {
@@ -55,7 +56,7 @@ public class DepositPaymentExpiryService {
         }
 
         DepositAgreement depositAgreement = depositAgreementRepository.findById(paymentIntent.getDepositAgreementId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay thong tin dat coc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_FORM_NOT_FOUND));
         if (depositAgreement.getStatus() == DepositAgreementStatus.PENDING_PAYMENT) {
             boolean expiredHold = expireRoomHold(depositAgreement.getRoomHoldId(), now);
             if (expiredHold) {

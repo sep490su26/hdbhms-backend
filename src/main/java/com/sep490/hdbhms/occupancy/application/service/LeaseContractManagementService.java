@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
@@ -60,7 +62,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -338,12 +339,12 @@ public class LeaseContractManagementService {
 
     public LeaseContractManagementResponse uploadSignedFile(Long leaseContractId, MultipartFile file, boolean replace) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE));
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong da ACTIVE, khong upload thay file trong luong nay.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_DA_ACTIVE_KHONG_UPLOAD_THAY_FILE_TRONG_LUONG_NAY);
         }
         if (contract.getSignedFile() != null && !replace) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hop dong thue da co file da ky. Gui replace=true neu muon thay the.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_THUE_DA_CO_FILE_DA_KY_GUI_REPLACE_TRUE_NEU_MUON_5BEFFD);
         }
         Long currentUserId = AuthUtils.getCurrentAuthenticationId();
         var metadata = uploadFileService.execute(new UploadFileCommand(
@@ -353,7 +354,7 @@ public class LeaseContractManagementService {
                 true
         ));
         var signedFile = fileMetadataRepository.findById(metadata.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Khong luu duoc file hop dong."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_LUU_DUOC_FILE_HOP_DONG));
         signedFile.setCategory(FileCategory.CONTRACT);
         signedFile.setSensitive(true);
         contract.setSignedFile(fileMetadataRepository.save(signedFile));
@@ -369,22 +370,19 @@ public class LeaseContractManagementService {
             List<LiquidationChargeInput> charges
     ) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_ONG_THUE));
         if (contract.getStatus() == LeaseStatus.LIQUIDATED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong da duoc thanh ly.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_DA_DUOC_THANH_LY);
         }
         if (contract.getStatus() != LeaseStatus.ACTIVE
                 && contract.getStatus() != LeaseStatus.EXPIRING_SOON
                 && contract.getStatus() != LeaseStatus.EXPIRED
                 && contract.getStatus() != LeaseStatus.TERMINATION_PENDING) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chi thanh ly hop dong dang hieu luc, sap het han, het han hoac cho thanh ly."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_THANH_LY_HOP_DONG_DANG_HIEU_LUC_SAP_HET_HAN_HET_HAN__43EF2F);
         }
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa gắn phòng.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_CHUA_GAN_PHONG);
         }
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
@@ -393,10 +391,7 @@ public class LeaseContractManagementService {
                 : reason.trim();
         Long depositAmount = resolveLiquidationDepositAmount(contract);
         ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contract.getId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Vui long lap ho so thanh ly truoc khi hoan tat."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_VUI_LONG_LAP_HO_SO_THANH_LY_TRUOC_KHI_HOAN_TAT));
         finalLiquidationDate = liquidationDate != null
                 ? liquidationDate
                 : liquidation.getLiquidationDate() != null ? liquidation.getLiquidationDate() : finalLiquidationDate;
@@ -418,10 +413,7 @@ public class LeaseContractManagementService {
 
         LeaseContractEntity replacementContract = holderReplacement
                 ? latestReplacementContract(contract.getId())
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Vui long lap hop dong thay the cho nguoi o lai truoc khi hoan tat thanh ly."
-                ))
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_VUI_LONG_LAP_HOP_DONG_THAY_THE_CHO_NGUOI_O_LAI_TRUOC_KHI_92A4F2))
                 : null;
 
         requireNoUnpaidInvoicesForLiquidation(contract.getId());
@@ -537,25 +529,22 @@ public class LeaseContractManagementService {
     ) {
         lockContractAndRoom(leaseContractId);
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_ONG_THUE));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_ONG_THUE);
         }
         if (contract.getStatus() == LeaseStatus.LIQUIDATED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng đã được thanh lý.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_A_UOC_THANH_LY);
         }
         if (contract.getStatus() != LeaseStatus.ACTIVE
                 && contract.getStatus() != LeaseStatus.EXPIRING_SOON
                 && contract.getStatus() != LeaseStatus.EXPIRED
                 && contract.getStatus() != LeaseStatus.TERMINATION_PENDING) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chỉ xử lý thanh lý cho hợp đồng đang hiệu lực, sắp hết hạn, hết hạn hoặc chờ thanh lý."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_XU_LY_THANH_LY_CHO_HOP_ONG_ANG_HIEU_LUC_SAP_HET_HAN__99FCD7);
         }
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng chưa gắn phòng.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_CHUA_GAN_PHONG);
         }
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
@@ -580,7 +569,7 @@ public class LeaseContractManagementService {
                         .depositAmount(depositAmount)
                         .build());
         if (liquidation.getStatus() == LiquidationStatus.CONFIRMED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hồ sơ thanh lý đã được xác nhận.");
+            throw new AppException(ApiErrorCode.MIGRATED_HO_SO_THANH_LY_A_UOC_XAC_NHAN);
         }
         liquidation.setLiquidationDate(finalLiquidationDate);
         liquidation.setReason(finalReason);
@@ -641,10 +630,10 @@ public class LeaseContractManagementService {
             Long replacementPrimaryTenantProfileId
     ) {
         if (contract.getPrimaryTenantProfile() == null || contract.getPrimaryTenantProfile().getId() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract primary tenant is required.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_PHAI_CO_NGUOI_KY_CHINH);
         }
         if (replacementPrimaryTenantProfileId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Replacement primary tenant is required.");
+            throw new AppException(ApiErrorCode.MIGRATED_NGUOI_UNG_TEN_MOI_LA_BAT_BUOC);
         }
 
         List<ContractOccupantEntity> activeOccupants = contractOccupantRepository
@@ -657,7 +646,7 @@ public class LeaseContractManagementService {
             }
         }
         if (activeProfileIds.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Contract has no active occupants.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_KHONG_CO_NGUOI_O_ANG_HOAT_ONG);
         }
 
         HolderReplacementProfilePlan profilePlan = validateHolderReplacementProfileIds(
@@ -681,13 +670,13 @@ public class LeaseContractManagementService {
             LocalDate effectiveDate
     ) {
         if (plan == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Holder replacement payload is required.");
+            throw new AppException(ApiErrorCode.MIGRATED_DU_LIEU_THAY_NGUOI_UNG_TEN_LA_BAT_BUOC);
         }
         RoomEntity room = oldContract.getRoom();
         Optional<LeaseContractEntity> existingReplacement = latestReplacementContract(oldContract.getId());
         Long allowedExistingContractId = existingReplacement.map(LeaseContractEntity::getId).orElse(null);
         if (hasOtherActiveContract(room.getId(), oldContract.getId(), allowedExistingContractId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Room already has another active contract.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_A_CO_MOT_HOP_ONG_KHAC_ANG_HIEU_LUC);
         }
         Long carriedDepositAmount = resolveLiquidationDepositAmount(oldContract);
         validateContractTerms(
@@ -744,16 +733,16 @@ public class LeaseContractManagementService {
             HolderReplacementPlan plan
     ) {
         if (replacement.getStatus() == LeaseStatus.CANCELLED || replacement.getStatus() == LeaseStatus.LIQUIDATED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract is not usable.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_THAY_THE_KHONG_THE_SU_DUNG);
         }
         if (replacement.getRoom() == null || !Objects.equals(replacement.getRoom().getId(), oldContract.getRoom().getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract must stay in the same room.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_THAY_THE_PHAI_GIU_NGUYEN_PHONG);
         }
         Long currentPrimaryId = replacement.getPrimaryTenantProfile() == null
                 ? null
                 : replacement.getPrimaryTenantProfile().getId();
         if (!Objects.equals(currentPrimaryId, plan.replacementPrimaryTenantProfileId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract primary tenant does not match request.");
+            throw new AppException(ApiErrorCode.MIGRATED_NGUOI_KY_CHINH_CUA_HOP_ONG_THAY_THE_KHONG_KHOP_VOI_YEU_CAU);
         }
     }
 
@@ -826,7 +815,7 @@ public class LeaseContractManagementService {
 
     private void activateReplacementContract(LeaseContractEntity replacementContract, LocalDate effectiveDate) {
         if (replacementContract.getSignedFile() == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract must be signed before liquidation.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_THAY_THE_PHAI_UOC_KY_TRUOC_KHI_THANH_LY);
         }
         if (!List.of(
                 LeaseStatus.DRAFT,
@@ -835,7 +824,7 @@ public class LeaseContractManagementService {
                 LeaseStatus.SIGNED,
                 LeaseStatus.ACTIVE
         ).contains(replacementContract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Replacement contract status is not valid for activation.");
+            throw new AppException(ApiErrorCode.MIGRATED_TRANG_THAI_HOP_ONG_THAY_THE_KHONG_HOP_LE_E_KICH_HOAT);
         }
         if (replacementContract.getStatus() != LeaseStatus.ACTIVE) {
             replacementContract.setStartDate(effectiveDate);
@@ -950,28 +939,28 @@ public class LeaseContractManagementService {
         Set<Long> leavingIds = normalizeProfileIds(leavingProfileIds);
         Set<Long> stayingIds = normalizeProfileIds(stayingProfileIds);
         if (leavingIds.isEmpty() || stayingIds.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Leaving and staying occupants are required.");
+            throw new AppException(ApiErrorCode.HOLDER_REPLACEMENT_OCCUPANTS_REQUIRED);
         }
         if (!leavingIds.contains(currentPrimaryTenantProfileId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current primary tenant must be in leavingProfileIds.");
+            throw new AppException(ApiErrorCode.CURRENT_PRIMARY_TENANT_MUST_LEAVE);
         }
         if (!stayingIds.contains(replacementPrimaryTenantProfileId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Replacement primary tenant must be in stayingProfileIds.");
+            throw new AppException(ApiErrorCode.REPLACEMENT_PRIMARY_TENANT_MUST_STAY);
         }
 
         Set<Long> overlap = new HashSet<>(leavingIds);
         overlap.retainAll(stayingIds);
         if (!overlap.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Leaving and staying occupants must not overlap.");
+            throw new AppException(ApiErrorCode.HOLDER_REPLACEMENT_OCCUPANTS_OVERLAP);
         }
 
         Set<Long> classifiedIds = new LinkedHashSet<>(leavingIds);
         classifiedIds.addAll(stayingIds);
         if (activeProfileIds == null || !activeProfileIds.equals(classifiedIds)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "All active occupants must be classified as leaving or staying.");
+            throw new AppException(ApiErrorCode.HOLDER_REPLACEMENT_OCCUPANTS_UNCLASSIFIED);
         }
         if (!activeProfileIds.contains(replacementPrimaryTenantProfileId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Replacement primary tenant must be an active occupant.");
+            throw new AppException(ApiErrorCode.REPLACEMENT_PRIMARY_TENANT_NOT_ACTIVE);
         }
 
         return new HolderReplacementProfilePlan(leavingIds, stayingIds, replacementPrimaryTenantProfileId);
@@ -994,7 +983,7 @@ public class LeaseContractManagementService {
         return plan.activeOccupants().stream()
                 .filter(occupant -> Objects.equals(profileId(occupant), profileId))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Occupant is not active in contract."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_NGUOI_O_KHONG_CON_HOAT_ONG_TRONG_HOP_ONG));
     }
 
     private Long profileId(ContractOccupantEntity occupant) {
@@ -1025,18 +1014,18 @@ public class LeaseContractManagementService {
             List<LiquidationChargeInput> charges
     ) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y há»£p Ä‘á»“ng thuÃª."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHA_NG_TA_M_THA_Y_HA_P_A_A_NG_THUA));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "KhÃ´ng tÃ¬m tháº¥y há»£p Ä‘á»“ng thuÃª.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHA_NG_TA_M_THA_Y_HA_P_A_A_NG_THUA);
         }
         if (contract.getStatus() == LeaseStatus.LIQUIDATED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Há»£p Ä‘á»“ng Ä‘Ã£ Ä‘Æ°á»£c thanh lÃ½.");
+            throw new AppException(ApiErrorCode.MIGRATED_HA_P_A_A_NG_A_A_A_A_C_THANH_LA);
         }
         if (contract.getStatus() != LeaseStatus.TERMINATION_PENDING
                 && contract.getStatus() != LeaseStatus.ACTIVE
                 && contract.getStatus() != LeaseStatus.EXPIRING_SOON
                 && contract.getStatus() != LeaseStatus.EXPIRED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Há»£p Ä‘á»“ng chÆ°a thá»ƒ láº­p há»“ sÆ¡ thanh lÃ½.");
+            throw new AppException(ApiErrorCode.MIGRATED_HA_P_A_A_NG_CH_A_THA_LA_P_HA_S_THANH_LA);
         }
 
         Long depositAmount = resolveLiquidationDepositAmount(contract);
@@ -1047,7 +1036,7 @@ public class LeaseContractManagementService {
                         .status(LiquidationStatus.DRAFT)
                         .build());
         if (liquidation.getStatus() == LiquidationStatus.CONFIRMED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Há»“ sÆ¡ thanh lÃ½ Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n.");
+            throw new AppException(ApiErrorCode.MIGRATED_HA_S_THANH_LA_A_A_A_A_C_XA_C_NHA_N);
         }
 
         LocalDate finalLiquidationDate = liquidationDate != null
@@ -1156,10 +1145,7 @@ public class LeaseContractManagementService {
         LocalDateTime now = LocalDateTime.now();
         if (invoice != null && invoice.getStatus() != InvoiceStatus.DRAFT) {
             if (safe(invoice.getPaidAmount()) > 0 || invoice.getStatus() == InvoiceStatus.PAID || invoice.getStatus() == InvoiceStatus.PARTIALLY_PAID) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Khong the cap nhat hoa don thanh ly da co thanh toan."
-                );
+                throw new AppException(ApiErrorCode.MIGRATED_KHONG_THE_CAP_NHAT_HOA_DON_THANH_LY_DA_CO_THANH_TOAN);
             }
             invoice.setStatus(InvoiceStatus.VOIDED);
             invoice.setVoidedAt(now);
@@ -1255,10 +1241,7 @@ public class LeaseContractManagementService {
                 contractId
         );
         if (count != null && count > 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Khach thue can thanh toan het hoa don con no truoc khi hoan tat thanh ly."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_KHACH_THUE_CAN_THANH_TOAN_HET_HOA_DON_CON_NO_TRUOC_KHI_H_4B2B98);
         }
     }
 
@@ -1290,26 +1273,17 @@ public class LeaseContractManagementService {
         ExpenseRequestService.LiquidationDepositRefundLink refundLink =
                 ensureLiquidationDepositRefundRequest(contract, liquidation);
         if (!"TENANT_CONFIRMED".equals(refundLink.status())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Vui lòng hoàn tất hoàn cọc và chờ khách thuê xác nhận đã nhận tiền trước khi thanh lý hợp đồng."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_HOAN_TAT_HOAN_COC_VA_CHO_KHACH_THUE_XAC_NHAN_A__01EA02);
         }
     }
 
     private void requireConfirmedMoveOutHandover(Long contractId) {
         ContractHandoverRecordEntity handover = handoverRecordRepository
                 .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, HandoverType.MOVE_OUT)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "Vui long hoan tat ban giao tra phong truoc khi thanh ly hop dong."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_VUI_LONG_HOAN_TAT_BAN_GIAO_TRA_PHONG_TRUOC_KHI_THANH_LY__A12F7C));
         if (handover.getStatus() != HandoverStatus.CONFIRMED
                 || handover.getElectricityReading() == null) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Vui long hoan tat ban giao tra phong truoc khi thanh ly hop dong."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_HOAN_TAT_BAN_GIAO_TRA_PHONG_TRUOC_KHI_THANH_LY__A12F7C);
         }
     }
 
@@ -1408,7 +1382,7 @@ public class LeaseContractManagementService {
             return null;
         }
         if (charge.currentValue().compareTo(charge.previousValue()) < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi so moi khong duoc nho hon chi so cu.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_SO_MOI_KHONG_DUOC_NHO_HON_CHI_SO_CU);
         }
         MeterType meterType = MeterType.ELECTRICITY;
         RoomEntity room = contract.getRoom();
@@ -1518,28 +1492,25 @@ public class LeaseContractManagementService {
     ) {
         assertOwnerOrManagerCanRenew();
         LeaseContractEntity oldContract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE));
         if (oldContract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE);
         }
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
                 .contains(oldContract.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chi duoc tai ky hop dong ACTIVE, EXPIRING_SOON hoac EXPIRED."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_DUOC_TAI_KY_HOP_DONG_ACTIVE_EXPIRING_SOON_HOAC_EXPIRED);
         }
         if (leaseContractRepository.existsByPreviousContract_IdAndDeletedAtIsNull(oldContract.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hop dong nay da co hop dong tai ky.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_NAY_DA_CO_HOP_DONG_TAI_KY);
         }
 
         validateContractTerms(newStartDate, paymentCycleMonths, monthlyRent, depositAmount);
         RoomEntity room = oldContract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_CHUA_GAN_PHONG);
         }
         if (hasOtherActiveContract(room.getId(), oldContract.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong dang co hop dong hieu luc khac.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_DANG_CO_HOP_DONG_HIEU_LUC_KHAC);
         }
 
         RoomStatus previousRoomStatus = room.getCurrentStatus();
@@ -1627,19 +1598,19 @@ public class LeaseContractManagementService {
             Long approvedBy
     ) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE);
         }
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong khong the them nguoi o cung.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_KHONG_THE_THEM_NGUOI_O_CUNG);
         }
         if (tenantProfileId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ho so nguoi o cung la bat buoc.");
+            throw new AppException(ApiErrorCode.MIGRATED_HO_SO_NGUOI_O_CUNG_LA_BAT_BUOC);
         }
         if (contract.getPrimaryTenantProfile() != null
                 && Objects.equals(contract.getPrimaryTenantProfile().getId(), tenantProfileId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Nguoi nay da la nguoi dung ten hop dong.");
+            throw new AppException(ApiErrorCode.MIGRATED_NGUOI_NAY_DA_LA_NGUOI_DUNG_TEN_HOP_DONG);
         }
         Integer profileExists = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -1651,7 +1622,7 @@ public class LeaseContractManagementService {
                 tenantProfileId
         );
         if (profileExists == null || profileExists == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay ho so nguoi o cung.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HO_SO_NGUOI_O_CUNG);
         }
 
         Integer activeDuplicate = jdbcTemplate.queryForObject("""
@@ -1671,7 +1642,7 @@ public class LeaseContractManagementService {
 
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_CHUA_GAN_PHONG);
         }
         Integer activeOccupants = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -1684,7 +1655,7 @@ public class LeaseContractManagementService {
         );
         int maxOccupants = room.getMaxOccupants() != null ? room.getMaxOccupants() : 3;
         if (activeOccupants != null && activeOccupants >= maxOccupants) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong da dat so nguoi o toi da.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_DA_DAT_SO_NGUOI_O_TOI_DA);
         }
 
         Long propertyId = room.getProperty() == null ? null : room.getProperty().getId();
@@ -1742,54 +1713,39 @@ public class LeaseContractManagementService {
     ) {
         lockContractAndRoom(leaseContractId);
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE);
         }
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chi ghi nhan y dinh cho hop dong ACTIVE hoac EXPIRING_SOON."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_GHI_NHAN_Y_DINH_CHO_HOP_DONG_ACTIVE_HOAC_EXPIRING_SOON);
         }
 
         String normalizedIntention = normalizeTenantIntention(intention);
         log.info(normalizedIntention);
         if (!TENANT_INTENTIONS.contains(normalizedIntention)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Y dinh khach khong hop le.");
+            throw new AppException(ApiErrorCode.MIGRATED_Y_DINH_KHACH_KHONG_HOP_LE);
         }
         LocalDate today = LocalDate.now();
         boolean withinThreeMonths = isWithinThreeMonths(contract, today);
         if (List.of("MOVE_OUT", "TRANSFER").contains(normalizedIntention)) {
             if (!withinThreeMonths) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "INTENTION_TOO_EARLY: Chi ghi nhan MOVE_OUT/TRANSFER khi hop dong con 3 thang tro xuong."
-                );
+                throw new AppException(ApiErrorCode.MIGRATED_CHI_GHI_NHAN_MOVE_OUT_TRANSFER_KHI_HOP_DONG_CON_3_THANG__7864D6);
             }
             if (expectedMoveOutDate == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_MOVE_OUT_DATE_REQUIRED: Can co ngay du kien ban giao phong."
-                );
+                throw new AppException(ApiErrorCode.MIGRATED_CAN_CO_NGAY_DU_KIEN_BAN_GIAO_PHONG);
             }
             if (expectedMoveOutDate.isBefore(today)) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_MOVE_OUT_DATE_IN_PAST: Ngay du kien ban giao khong duoc truoc hom nay."
-                );
+                throw new AppException(ApiErrorCode.MIGRATED_NGAY_DU_KIEN_BAN_GIAO_KHONG_DUOC_TRUOC_HOM_NAY);
             }
             if (contract.getEndDate() != null && expectedMoveOutDate.isAfter(contract.getEndDate())) {
-                throw new ResponseStatusException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_MOVE_OUT_DATE_AFTER_CONTRACT_END: Ngay du kien ban giao khong duoc sau ngay ket thuc hop dong."
-                );
+                throw new AppException(ApiErrorCode.MIGRATED_NGAY_DU_KIEN_BAN_GIAO_KHONG_DUOC_SAU_NGAY_KET_THUC_HOP_DONG);
             }
         }
 
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_CHUA_GAN_PHONG);
         }
         LocalDateTime now = LocalDateTime.now();
         contract.setTenantIntention(normalizedIntention);
@@ -1861,7 +1817,7 @@ public class LeaseContractManagementService {
                 leaseContractId
         );
         if (locked.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE);
         }
     }
 
@@ -1885,7 +1841,7 @@ public class LeaseContractManagementService {
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         if (userId == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED");
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         Integer contractExists = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -1897,7 +1853,7 @@ public class LeaseContractManagementService {
                 leaseContractId
         );
         if (contractExists == null || contractExists == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE);
         }
 
         Integer isPrimarySigner = jdbcTemplate.queryForObject("""
@@ -1926,10 +1882,7 @@ public class LeaseContractManagementService {
                 userId
         );
         if (isPrimarySigner == null || isPrimarySigner == 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "CONTRACT_INTENTION_PRIMARY_ONLY: Chi nguoi ky chinh cua hop dong moi duoc ghi nhan y dinh."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_NGUOI_KY_CHINH_CUA_HOP_DONG_MOI_DUOC_GHI_NHAN_Y_DINH);
         }
         return recordTenantIntention(leaseContractId, intention, expectedMoveOutDate, note, "TENANT_MOBILE");
     }
@@ -1944,26 +1897,26 @@ public class LeaseContractManagementService {
 
     public LeaseContractManagementResponse activate(Long leaseContractId) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE));
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
             return findOne(leaseContractId);
         }
         ensureNotRoomTransferManagedContract(leaseContractId);
         if (contract.getStatus() != LeaseStatus.DRAFT && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi duoc kich hoat hop dong dang cho ky.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_DUOC_KICH_HOAT_HOP_DONG_DANG_CHO_KY);
         }
         if (contract.getSignedFile() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can upload file hop dong da ky truoc khi kich hoat.");
+            throw new AppException(ApiErrorCode.MIGRATED_CAN_UPLOAD_FILE_HOP_DONG_DA_KY_TRUOC_KHI_KICH_HOAT);
         }
         if (contract.getPrimaryTenantProfile() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua co nguoi ky chinh.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_CHUA_CO_NGUOI_KY_CHINH);
         }
         if (contract.getStartDate() == null || contract.getEndDate() == null || contract.getEndDate().isBefore(contract.getStartDate())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngay bat dau/ket thuc hop dong khong hop le.");
+            throw new AppException(ApiErrorCode.MIGRATED_NGAY_BAT_DAU_KET_THUC_HOP_DONG_KHONG_HOP_LE);
         }
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua gan phong.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_CHUA_GAN_PHONG);
         }
 
         // Bắt buộc phải có bản ghi bàn giao MOVE_IN kèm chỉ số điện và bản ký trước khi kích hoạt
@@ -1981,10 +1934,7 @@ public class LeaseContractManagementService {
                     leaseContractId
             );
             if (handoverCount == null || handoverCount == 0) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Cần hoàn thành bàn giao phòng, nhập số điện và upload biên bản bàn giao đã ký trước khi kích hoạt hợp đồng."
-                );
+                throw new AppException(ApiErrorCode.MIGRATED_CAN_HOAN_THANH_BAN_GIAO_PHONG_NHAP_SO_IEN_VA_UPLOAD_BIEN_6ACA66);
             }
         }
 
@@ -1995,22 +1945,19 @@ public class LeaseContractManagementService {
                 && room.getCurrentStatus() != RoomStatus.RESERVED
                 && room.getCurrentStatus() != RoomStatus.VACANT
                 && room.getCurrentStatus() != RoomStatus.ON_HOLD) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phong phai o trang thai trong hoac da dat coc truoc khi kich hoat hop dong.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_PHAI_O_TRANG_THAI_TRONG_HOAC_DA_DAT_COC_TRUOC_KHI__C99780);
         }
         Long previousContractId = contract.getPreviousContract() != null
                 ? contract.getPreviousContract().getId()
                 : null;
         if (hasOtherActiveContract(room.getId(), contract.getId(), previousContractId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phong da co hop dong dang hieu luc.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_DA_CO_HOP_DONG_DANG_HIEU_LUC);
         }
 
         ensureContractOccupants(contract);
         LeaseContractEntity previousContract = contract.getPreviousContract();
         if (previousContract != null && isHolderReplacementLiquidation(previousContract.getId())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Finish the liquidation flow to activate this replacement contract."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_HOAN_TAT_QUY_TRINH_THANH_LY_E_KICH_HOAT_HOP_ONG_AE7B70);
         }
         if (previousContract != null) {
             copyContractOccupants(previousContract, contract);
@@ -2021,10 +1968,7 @@ public class LeaseContractManagementService {
             if (!legacyPrematureRenewal
                     && !List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
                     .contains(previousContract.getStatus())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Hop dong truoc khong con o trang thai cho phep kich hoat gia han."
-                );
+                throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_TRUOC_KHONG_CON_O_TRANG_THAI_CHO_PHEP_KICH_HOAT_011D46);
             }
             previousContract.setStatus(LeaseStatus.RENEWED);
             leaseContractRepository.saveAndFlush(previousContract);
@@ -2060,19 +2004,16 @@ public class LeaseContractManagementService {
             Long depositAmount
     ) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE));
         if (contract.getDeletedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE);
         }
         if (List.of(
                 LeaseStatus.LIQUIDATED,
                 LeaseStatus.AUTO_TERMINATED,
                 LeaseStatus.CANCELLED
         ).contains(contract.getStatus())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Khong the cap nhat thoi han cua hop dong da ket thuc."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_KHONG_THE_CAP_NHAT_THOI_HAN_CUA_HOP_DONG_DA_KET_THUC);
         }
 
         validateContractTerms(startDate, paymentCycleMonths, monthlyRent, depositAmount);
@@ -2080,7 +2021,7 @@ public class LeaseContractManagementService {
         LocalDate currentEndDate = contract.getEndDate();
 //        if (extendsEndDate && room != null) {
 //            if (hasOtherActiveContract(room.getId(), contract.getId())) {
-//                throw new ResponseStatusException(HttpStatus.CONFLICT, "Phong dang co hop dong hieu luc khac.");
+//                throw new AppException(ApiErrorCode.MIGRATED_PHONG_DANG_CO_HOP_DONG_HIEU_LUC_KHAC);
 //            }
 //            RoomCommitmentChecker.Blocker blocker =
 //                    roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
@@ -2320,7 +2261,7 @@ public class LeaseContractManagementService {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay hop dong thue.");
+                        throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOP_DONG_THUE);
                     }
                     return toResponse(rs);
                 },
@@ -2339,38 +2280,38 @@ public class LeaseContractManagementService {
             int occupantsCount
     ) {
         if (room == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong phai gan voi phong.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_PHAI_GAN_VOI_PHONG);
         }
         if (primaryTenantProfileId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong phai co nguoi ky chinh.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_PHAI_CO_NGUOI_KY_CHINH);
         }
         if (startDate == null || endDate == null || !endDate.isAfter(startDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngay bat dau va ngay ket thuc hop dong khong hop le.");
+            throw new AppException(ApiErrorCode.MIGRATED_NGAY_BAT_DAU_VA_NGAY_KET_THUC_HOP_DONG_KHONG_HOP_LE);
         }
         if (!Objects.equals(paymentCycleMonths, 1) && !Objects.equals(paymentCycleMonths, 3)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chu ky thanh toan chi duoc la 1 hoac 3 thang.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHU_KY_THANH_TOAN_CHI_DUOC_LA_1_HOAC_3_THANG);
         }
         if (monthlyRent == null || monthlyRent <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gia thue hang thang phai lon hon 0.");
+            throw new AppException(ApiErrorCode.MIGRATED_GIA_THUE_HANG_THANG_PHAI_LON_HON_0);
         }
         if (depositAmount == null || depositAmount < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tien coc khong hop le.");
+            throw new AppException(ApiErrorCode.MIGRATED_TIEN_COC_KHONG_HOP_LE);
         }
         boolean soonVacantDraft = room.getCurrentStatus() == RoomStatus.SOON_VACANT;
         if (room.getCurrentStatus() != RoomStatus.RESERVED
                 && room.getCurrentStatus() != RoomStatus.VACANT
                 && !soonVacantDraft) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chi duoc tao hop dong cho phong trong, sap trong hoac phong da dat coc.");
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_DUOC_TAO_HOP_DONG_CHO_PHONG_TRONG_SAP_TRONG_HOAC_PHO_8105F2);
         }
         if (soonVacantDraft) {
             validateSoonVacantMoveInDate(room.getId(), startDate);
         } else if (leaseContractRepository.existsByRoom_IdAndStatusInAndDeletedAtIsNull(room.getId(), BLOCKING_ACTIVE_CONTRACT_STATUSES)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phong da co hop dong dang hieu luc.");
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_DA_CO_HOP_DONG_DANG_HIEU_LUC);
         }
         assertRoomHasNoPendingContract(room);
         Integer maxOccupants = room.getMaxOccupants() != null ? room.getMaxOccupants() : 3;
         if (occupantsCount > maxOccupants) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "So nguoi o vuot qua so nguoi toi da cua phong.");
+            throw new AppException(ApiErrorCode.MIGRATED_SO_NGUOI_O_VUOT_QUA_SO_NGUOI_TOI_DA_CUA_PHONG);
         }
     }
 
@@ -2385,27 +2326,20 @@ public class LeaseContractManagementService {
                     String contractCode = contract.getContractCode() != null
                             ? contract.getContractCode()
                             : "#" + contract.getId();
-                    throw new ResponseStatusException(
-                            HttpStatus.CONFLICT,
-                            "FUTURE_CONTRACT_EXISTS: Phòng " + roomCode
-                                    + " đã có hợp đồng " + contractCode
-                                    + " ở trạng thái " + contract.getStatus()
-                                    + ". Vui lòng xử lý hợp đồng này trước."
+                    throw new AppException(
+                            ApiErrorCode.PENDING_CONTRACT_EXISTS,
+                            roomCode,
+                            contractCode,
+                            contract.getStatus()
                     );
                 });
     }
 
     private void validateSoonVacantMoveInDate(Long roomId, LocalDate expectedMoveInDate) {
         LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(roomId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "EXPECTED_VACANT_DATE_MISSING: Phong sap trong chua co ngay du kien ban giao."
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_PHONG_SAP_TRONG_CHUA_CO_NGAY_DU_KIEN_BAN_GIAO));
         if (expectedMoveInDate.isBefore(expectedVacantDate)) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNPROCESSABLE_ENTITY,
-                    "EXPECTED_MOVE_IN_BEFORE_VACANT_DATE: Ngay du kien vao o phai sau hoac bang ngay phong du kien trong."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_NGAY_DU_KIEN_VAO_O_PHAI_SAU_HOAC_BANG_NGAY_PHONG_DU_KIEN_TRONG);
         }
     }
 
@@ -2416,19 +2350,16 @@ public class LeaseContractManagementService {
             Long depositAmount
     ) {
         if (startDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngay bat dau hop dong la bat buoc.");
+            throw new AppException(ApiErrorCode.MIGRATED_NGAY_BAT_DAU_HOP_DONG_LA_BAT_BUOC);
         }
         if (!Objects.equals(paymentCycleMonths, 1) && !Objects.equals(paymentCycleMonths, 3)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Chu ky thanh toan chi duoc la 1 hoac 3 thang."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_CHU_KY_THANH_TOAN_CHI_DUOC_LA_1_HOAC_3_THANG);
         }
         if (monthlyRent == null || monthlyRent <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Gia thue hang thang phai lon hon 0.");
+            throw new AppException(ApiErrorCode.MIGRATED_GIA_THUE_HANG_THANG_PHAI_LON_HON_0);
         }
         if (depositAmount == null || depositAmount < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tien coc phai lon hon hoac bang 0.");
+            throw new AppException(ApiErrorCode.MIGRATED_TIEN_COC_PHAI_LON_HON_HOAC_BANG_0);
         }
     }
 
@@ -2441,7 +2372,7 @@ public class LeaseContractManagementService {
 
     private void ensureContractOccupants(LeaseContractEntity contract) {
         if (contract == null || contract.getPrimaryTenantProfile() == null || contract.getRoom() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hop dong chua du thong tin nguoi o.");
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_CHUA_DU_THONG_TIN_NGUOI_O);
         }
         LocalDate moveInDate = contract.getStartDate();
         Long propertyId = contract.getRoom().getProperty() != null ? contract.getRoom().getProperty().getId() : null;
@@ -2572,10 +2503,10 @@ public class LeaseContractManagementService {
             contractCode = generateRenewalContractCode(oldContract);
         }
         if (contractCode.length() > 80) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ma hop dong moi khong duoc vuot qua 80 ky tu.");
+            throw new AppException(ApiErrorCode.MIGRATED_MA_HOP_DONG_MOI_KHONG_DUOC_VUOT_QUA_80_KY_TU);
         }
         if (leaseContractRepository.existsByContractCodeAndDeletedAtIsNull(contractCode)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ma hop dong moi da ton tai.");
+            throw new AppException(ApiErrorCode.MIGRATED_MA_HOP_DONG_MOI_DA_TON_TAI);
         }
         return contractCode;
     }
@@ -2646,15 +2577,9 @@ public class LeaseContractManagementService {
 
     private void throwRenewBlocked(RoomCommitmentChecker.Blocker blocker) {
         if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "ROOM_RESERVED: Phong dang duoc dat truoc cho nguoi khac. Vui long thu lai sau."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_DANG_DUOC_DAT_TRUOC_CHO_NGUOI_KHAC_VUI_LONG_THU_LAI_SAU);
         }
-        throw new ResponseStatusException(
-                HttpStatus.CONFLICT,
-                "ROOM_ALREADY_RESERVED_FOR_FUTURE: Phong da co khach khac dat coc/giu cho, khong the gia han. Vui long lien he quan ly."
-        );
+        throw new AppException(ApiErrorCode.MIGRATED_PHONG_DA_CO_KHACH_KHAC_DAT_COC_GIU_CHO_KHONG_THE_GIA_HAN_BEF683);
     }
 
     private void assertOwnerOrManagerCanRenew() {
@@ -2665,10 +2590,7 @@ public class LeaseContractManagementService {
                 .anyMatch(authority -> "ROLE_OWNER".equals(authority.getAuthority())
                         || "ROLE_MANAGER".equals(authority.getAuthority()));
         if (!canRenew) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "RENEWAL_APPROVAL_REQUIRED: Chi chu tro hoac quan ly moi co quyen xac nhan tai ky hop dong."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_CHU_TRO_HOAC_QUAN_LY_MOI_CO_QUYEN_XAC_NHAN_TAI_KY_HOP_DONG);
         }
     }
 
@@ -2887,10 +2809,7 @@ public class LeaseContractManagementService {
                 leaseContractId
         );
         if (count != null && count > 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Hop dong thuoc yeu cau chuyen phong; vui long xu ly ban giao/kich hoat trong luong chuyen phong."
-            );
+            throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_THUOC_YEU_CAU_CHUYEN_PHONG_VUI_LONG_XU_LY_BAN_G_91B4CB);
         }
     }
 

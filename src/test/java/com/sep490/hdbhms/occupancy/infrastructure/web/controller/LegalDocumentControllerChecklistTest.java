@@ -29,19 +29,18 @@ import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRe
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
+import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.LeaseContractWebMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.Set;
@@ -137,9 +136,9 @@ class LegalDocumentControllerChecklistTest {
                 .thenReturn(700L);
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(77L), eq(700L))).thenReturn(0);
 
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> controller.getDraftPdf(9L));
+        AppException exception = assertThrows(AppException.class, () -> controller.getDraftPdf(9L));
 
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals("FORBIDDEN_OPERATION", exception.getApiErrorCode().name());
         verify(documentService, never()).generateDraftPdf(9L);
     }
 
@@ -149,19 +148,19 @@ class LegalDocumentControllerChecklistTest {
         var file = new MockMultipartFile("file", "signed.pdf", "application/pdf", new byte[]{1, 2, 3});
 
         var leaseUploadException = assertThrows(
-                ResponseStatusException.class,
+                AppException.class,
                 () -> leaseController(mock(GetLeaseContractManagementUseCase.class), mock(LeaseContractDocumentService.class), mock(DownloadFileUseCase.class), mock(JdbcTemplate.class))
                         .uploadSignedFile(9L, file, false)
         );
         var handoverUploadException = assertThrows(
-                ResponseStatusException.class,
+                AppException.class,
                 () -> handoverController(mock(HandoverDocumentService.class), mock(DownloadFileUseCase.class), mock(JdbcTemplate.class))
                         .uploadHandoverDocument(9L, HandoverType.MOVE_IN, file)
         );
 
 
-        assertEquals(HttpStatus.FORBIDDEN, leaseUploadException.getStatusCode());
-        assertEquals(HttpStatus.FORBIDDEN, handoverUploadException.getStatusCode());
+        assertEquals("FORBIDDEN_OPERATION", leaseUploadException.getApiErrorCode().name());
+        assertEquals("FORBIDDEN_OPERATION", handoverUploadException.getApiErrorCode().name());
     }
 
     private static LeaseContractController leaseController(

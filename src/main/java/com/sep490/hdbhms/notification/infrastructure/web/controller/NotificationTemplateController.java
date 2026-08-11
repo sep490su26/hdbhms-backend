@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.notification.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.notification.application.service.NotificationTemplateDefaults;
 import com.sep490.hdbhms.notification.application.service.NotificationTemplateManagementService;
 import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
@@ -16,7 +19,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Locale;
@@ -62,7 +64,7 @@ public class NotificationTemplateController {
             @RequestBody UpdateNotificationTemplateRequest request
     ) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(400), "Request body is required");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         NotificationTemplateManagementService.EffectiveTemplate template =
@@ -75,6 +77,8 @@ public class NotificationTemplateController {
                 );
 
         return ApiResponse.<NotificationTemplateResponse>builder()
+                .message("Lưu mẫu thông báo thành công")
+                .details("Đã lưu mẫu cho kênh đã chọn.")
                 .data(toTemplateResponse(template))
                 .build();
     }
@@ -111,12 +115,10 @@ public class NotificationTemplateController {
                         safeRequest.getBodyTemplate(),
                         safeRequest.getData()
                 )
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatusCode.valueOf(404),
-                        "Notification template definition not found"
-                ));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
         return ApiResponse.<PreviewNotificationTemplateResponse>builder()
+                .message("Tạo bản xem trước thành công")
                 .data(PreviewNotificationTemplateResponse.builder()
                         .title(preview.title())
                         .body(preview.body())
@@ -171,7 +173,7 @@ public class NotificationTemplateController {
         try {
             return NotificationChannel.valueOf(channel.trim().toUpperCase(Locale.ROOT));
         } catch (Exception exception) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(400), "Invalid notification channel");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 }

@@ -37,11 +37,12 @@ public class AuthenticationController {
     @PostMapping("/login")
     ApiResponse<AuthenticationResponse> login(
             @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
-            @RequestBody AuthenticationRequest authenticationRequest,
+            @Valid @RequestBody AuthenticationRequest authenticationRequest,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
         return ApiResponse.<AuthenticationResponse>builder()
+                .message("Đăng nhập thành công")
                 .data(
                         authenticationWebMapper.toResponse(
                                 loginUseCase.execute(
@@ -102,11 +103,14 @@ public class AuthenticationController {
     }
 
     @PostMapping("/forgot-password")
-    ApiResponse<Void> forgotPassword(@RequestBody AccountPasswordResetRequest request) {
+    ApiResponse<Void> forgotPassword(@Valid @RequestBody AccountPasswordResetRequest request) {
         resetPasswordUseCase.requestResetPassword(
                 authenticationWebMapper.toCommand(request)
         );
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder()
+                .message("Mã đặt lại mật khẩu đã được gửi đến email của bạn.")
+                .details("Gửi mã OTP thành công")
+                .build();
     }
 
     @PostMapping("/reset-password")
@@ -114,7 +118,10 @@ public class AuthenticationController {
         resetPasswordUseCase.resetPassword(
                 authenticationWebMapper.toCommand(request)
         );
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder()
+                .message("Đặt lại mật khẩu thành công.")
+                .details("Đặt lại mật khẩu thành công. Đang chuyển về đăng nhập..")
+                .build();
     }
 
     @GetMapping("/onboarding")

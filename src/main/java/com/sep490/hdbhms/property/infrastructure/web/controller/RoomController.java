@@ -35,6 +35,8 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorReposit
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +45,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -93,6 +94,7 @@ public class RoomController {
         );
         response.setExpectedVacantDate(expectedVacantDate(room));
         return ApiResponse.<RoomDetailsResponse>builder()
+                .message("Thêm phòng mới thành công")
                 .data(
                         response
                 )
@@ -107,20 +109,20 @@ public class RoomController {
     ) {
         RoomEntity room = roomRepository.findById(roomId)
                 .filter(item -> item.getDeletedAt() == null)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         FloorEntity floor = floorRepository.findById(request.getFloorId())
                 .filter(item -> item.getDeletedAt() == null)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Floor not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.FLOOR_NOT_FOUND));
 
         Long propertyId = room.getProperty().getId();
         if (!floor.getProperty().getId().equals(propertyId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Floor does not belong to room property");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         String nextRoomCode = request.getRoomCode().trim();
         if (!nextRoomCode.equals(room.getRoomCode())
                 && roomRepository.existsByProperty_IdAndRoomCodeAndDeletedAtIsNull(propertyId, nextRoomCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room code already exists");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         boolean movedFloor = !floor.getId().equals(room.getFloor().getId());
@@ -164,6 +166,7 @@ public class RoomController {
         response.setExpectedVacantDate(expectedVacantDate(updatedRoom));
         return ApiResponse.<RoomDetailsResponse>builder()
                 .code(0)
+                .message("Cập nhật phòng thành công")
                 .data(response)
                 .build();
     }

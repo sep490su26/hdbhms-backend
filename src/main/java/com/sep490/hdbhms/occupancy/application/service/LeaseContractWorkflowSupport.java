@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
@@ -12,7 +15,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -39,16 +41,16 @@ public class LeaseContractWorkflowSupport {
             Long depositAmount
     ) {
         if (startDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract start date is required.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (!Objects.equals(paymentCycleMonths, 1) && !Objects.equals(paymentCycleMonths, 3)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment cycle must be 1 or 3 months.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (monthlyRent == null || monthlyRent <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Monthly rent must be greater than zero.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (depositAmount == null || depositAmount < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Deposit amount cannot be negative.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 
@@ -58,7 +60,7 @@ public class LeaseContractWorkflowSupport {
 
     void ensureContractOccupants(LeaseContractEntity contract) {
         if (contract == null || contract.getPrimaryTenantProfile() == null || contract.getRoom() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract tenant information is incomplete.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         Long propertyId = contract.getRoom().getProperty() == null ? null : contract.getRoom().getProperty().getId();
         Long tenantId = resolveTenantIdForProfile(contract.getPrimaryTenantProfile().getId(), propertyId);
@@ -121,7 +123,7 @@ public class LeaseContractWorkflowSupport {
                           AND status NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED', 'COMPLETED')
                         """, Integer.class, leaseContractId, leaseContractId);
         if (count != null && count > 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Contract is managed by a room transfer request.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
     }
 

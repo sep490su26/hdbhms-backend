@@ -3,6 +3,8 @@ package com.sep490.hdbhms.notification.infrastructure.messaging;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.notification.application.port.in.usecase.SendNotificationUseCase;
 import com.sep490.hdbhms.shared.event.NotificationEvent;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -27,7 +29,7 @@ public class NotificationEventConsumer {
             sendNotificationUseCase.queueNotification(event);
         } catch (Exception exception) {
             log.error("Failed to consume notification event payload={}", payload, exception);
-            throw new IllegalArgumentException("Invalid notification event payload", exception);
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
     }
 }

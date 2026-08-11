@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.identityandaccess.infrastructure.web.controller;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.file.application.port.in.query.GetFileMetadataFromIdQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.GetFileMetadataFromIdUseCase;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
@@ -18,7 +21,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -40,7 +42,7 @@ public class PersonProfileController {
     public ApiResponse<PersonProfileLookupResponse> lookupPersonProfile(@RequestParam String phone) {
         String normalizedPhone = normalizePhone(phone);
         if (!normalizedPhone.matches("^0\\d{9}$")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại không hợp lệ.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
         Integer count = jdbcTemplate.queryForObject("""

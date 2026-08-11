@@ -4,6 +4,8 @@ import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDet
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractDetailsUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +22,6 @@ public class GetLeaseContractDetailsService implements GetLeaseContractDetailsUs
     @Override
     public LeaseContract execute(GetLeaseContractDetailsQuery query) {
         return leaseContractRepository.findById(query.leaseContractId())
-                .orElseThrow(() -> new IllegalArgumentException("Lease contract not found"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
     }
 }

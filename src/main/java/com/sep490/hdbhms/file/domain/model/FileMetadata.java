@@ -2,6 +2,8 @@ package com.sep490.hdbhms.file.domain.model;
 
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.shared.utils.StringUtils;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -51,7 +53,7 @@ public class FileMetadata {
 
     public void setStorageKey(String storageKey) {
         if (StringUtils.isEmpty(storageKey)) {
-            throw new IllegalArgumentException("path is empty");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         this.storageKey = storageKey;
     }

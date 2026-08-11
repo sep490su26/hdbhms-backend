@@ -57,6 +57,7 @@ public class RoomTransferController {
 
         Long id = roomTransferUseCase.createTransferRequest(finalCommand);
         return ApiResponse.<Long>builder()
+                .message("Gửi yêu cầu chuyển phòng thành công")
                 .data(id)
                 .build();
     }
@@ -73,7 +74,7 @@ public class RoomTransferController {
                 request.nominatedHolderProfileId()
         );
         roomTransferUseCase.nominateHolder(command);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder().message("Đề cử người đứng tên hợp đồng thành công").build();
     }
 
     @PostMapping("/{id}/accept-holder-nomination")
@@ -86,7 +87,7 @@ public class RoomTransferController {
                 principal.getId()
         );
         roomTransferUseCase.acceptHolderNomination(command);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder().message("Cập nhật người được đề cử thành công").build();
     }
 
     @PostMapping("/{id}/reject-holder-nomination")
@@ -109,7 +110,7 @@ public class RoomTransferController {
                 request.settlementType()
         );
         roomTransferUseCase.approveTransfer(command);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder().message("Phê duyệt yêu cầu chuyển phòng thành công").build();
     }
 
     @PostMapping("/{id}/confirm")
@@ -125,7 +126,7 @@ public class RoomTransferController {
                 request.nominatedHolderProfileId()
         );
         roomTransferUseCase.confirmTenantTransfer(command);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder().message("Hoàn tất chuyển phòng thành công").build();
     }
 
     @PostMapping("/{id}/target-holder/approve")
@@ -199,7 +200,7 @@ public class RoomTransferController {
                 request != null ? request.oldRoomCompensationNote() : null
         );
         roomTransferUseCase.executeTransfer(command);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder().message("Hoàn tất chuyển phòng thành công").build();
     }
 
     @PostMapping("/{id}/transfer-out-utility-estimate")
@@ -234,7 +235,7 @@ public class RoomTransferController {
                 null
         );
         roomTransferUseCase.completeTransfer(command);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder().message("Hoàn tất chuyển phòng thành công").build();
     }
 
     @PostMapping("/{id}/complete-with-handover")
@@ -250,7 +251,7 @@ public class RoomTransferController {
                 request != null ? request.positiveDifferenceSettlementType() : null
         );
         roomTransferUseCase.completeTransfer(command);
-        return ApiResponse.<Void>builder().build();
+        return ApiResponse.<Void>builder().message("Hoàn tất chuyển phòng thành công").build();
     }
 
     // ── GET Endpoints ──────────────────────────────────────────────────────

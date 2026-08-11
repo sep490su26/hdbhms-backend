@@ -44,16 +44,16 @@ import com.sep490.hdbhms.booking.infrastructure.web.dto.response.BatchDepositSta
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.HttpStatus;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -251,11 +251,7 @@ public class DepositBatchCheckoutService {
                     holdExpiresAt
             ));
         } catch (RuntimeException ex) {
-            throw new BatchDepositRequestException(
-                    HttpStatus.BAD_GATEWAY,
-                    "PAYMENT_INIT_FAILED",
-                    "Không thể khởi tạo thanh toán. Vui lòng thử lại."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_PAYMENT_INIT_FAILED);
         }
         paymentIntent.setProviderOrderCode(checkout.providerOrderCode());
         paymentIntent.setQrPayload(toCheckoutPayload(checkout, paymentIntent));
@@ -290,7 +286,7 @@ public class DepositBatchCheckoutService {
     @Transactional(readOnly = true)
     public BatchDepositStatusResponse getStatus(Long batchId) {
         DepositBatchEntity batch = depositBatchRepository.findById(batchId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy batch đặt cọc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_BATCH_NOT_FOUND));
         PaymentIntentEntity paymentIntent = batch.getPaymentIntentId() == null
                 ? null
                 : paymentIntentRepository.findById(batch.getPaymentIntentId()).orElse(null);
@@ -317,18 +313,15 @@ public class DepositBatchCheckoutService {
     public Long getPaymentIntentId(Long batchId) {
         return depositBatchRepository.findById(batchId)
                 .map(DepositBatchEntity::getPaymentIntentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy batch đặt cọc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_BATCH_NOT_FOUND));
     }
 
     @Transactional
     public BatchDepositStatusResponse cancel(Long batchId) {
         DepositBatchEntity batch = depositBatchRepository.findById(batchId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy batch đặt cọc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_BATCH_NOT_FOUND));
         if (batch.getStatus() == DepositBatchStatus.CONFIRMED || batch.getStatus() == DepositBatchStatus.PAID) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Batch đã thanh toán thành công, không thể hủy giữ chỗ."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_BATCH_ALREADY_PAID);
         }
         if (batch.getStatus() == DepositBatchStatus.CANCELLED) {
             return getStatus(batchId);
@@ -390,7 +383,7 @@ public class DepositBatchCheckoutService {
     @Transactional
     public BatchDepositStatusResponse expire(Long batchId) {
         DepositBatchEntity batch = depositBatchRepository.findById(batchId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay batch dat coc."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.DEPOSIT_BATCH_NOT_FOUND));
         if (isTerminalBatch(batch.getStatus())) {
             return getStatus(batchId);
         }
@@ -480,36 +473,20 @@ public class DepositBatchCheckoutService {
 
     private void validateRequest(BatchDepositCheckoutRequest request) {
         if (request.getRooms() == null || request.getRooms().isEmpty()) {
-            throw new BatchDepositRequestException(
-                    HttpStatus.BAD_REQUEST,
-                    "VALIDATION_ERROR",
-                    "Phải có ít nhất 1 phòng để đặt cọc."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_ROOM_LIST_EMPTY);
         }
         Set<Long> uniqueIds = new HashSet<>();
         for (BatchDepositCheckoutRequest.RoomRequest room : request.getRooms()) {
             if (room.getRoomId() == null || !uniqueIds.add(room.getRoomId())) {
-                throw new BatchDepositRequestException(
-                        HttpStatus.BAD_REQUEST,
-                        "DUPLICATE_ROOM",
-                        "Danh sách phòng có roomId trùng lặp."
-                );
+                throw new AppException(ApiErrorCode.DEPOSIT_ROOM_LIST_DUPLICATED);
             }
         }
         if (request.getExpectedMoveInDate().isBefore(LocalDate.now())
                 || request.getExpectedLeaseSignDate().isBefore(LocalDate.now())) {
-            throw new BatchDepositRequestException(
-                    HttpStatus.BAD_REQUEST,
-                    "VALIDATION_ERROR",
-                    "Ngày dự kiến không được trước ngày hiện tại."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_EXPECTED_DATE_IN_PAST);
         }
         if (!List.of(1, 3).contains(request.getPaymentCycleMonths())) {
-            throw new BatchDepositRequestException(
-                    HttpStatus.BAD_REQUEST,
-                    "VALIDATION_ERROR",
-                    "Chu kỳ thanh toán chỉ được là 1 hoặc 3 tháng."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_PAYMENT_CYCLE_INVALID);
         }
     }
 
@@ -532,11 +509,7 @@ public class DepositBatchCheckoutService {
                 continue;
             }
             if (!Objects.equals(propertyId, room.getProperty().getId())) {
-                throw new BatchDepositRequestException(
-                        HttpStatus.BAD_REQUEST,
-                        "DIFFERENT_PROPERTY_NOT_ALLOWED",
-                        "Các phòng trong batch phải cùng một cơ sở."
-                );
+                throw new AppException(ApiErrorCode.DEPOSIT_ROOMS_DIFFERENT_PROPERTY);
             }
 
             BatchDepositCheckoutRequest.RoomRequest roomRequest = request.getRooms().stream()
@@ -548,11 +521,7 @@ public class DepositBatchCheckoutService {
                     : roomRequest.getCoOccupants().size();
             if (roomRequest.getOccupantCount() > room.getMaxOccupants()
                     || coOccupantCount != roomRequest.getOccupantCount() - 1) {
-                throw new BatchDepositRequestException(
-                        HttpStatus.BAD_REQUEST,
-                        "OCCUPANT_COUNT_EXCEEDED",
-                        "Số người ở phòng " + room.getRoomCode() + " không hợp lệ."
-                );
+                throw new AppException(ApiErrorCode.DEPOSIT_OCCUPANT_LIMIT_EXCEEDED);
             }
 
             String reason = unavailableReason(room, request.getExpectedMoveInDate(), request.getExpectedLeaseSignDate());
@@ -579,11 +548,7 @@ public class DepositBatchCheckoutService {
         if (expectedMoveInDate != null
                 && expectedLeaseSignDate != null
                 && expectedMoveInDate.isBefore(expectedLeaseSignDate)) {
-            throw new BatchDepositRequestException(
-                    HttpStatus.UNPROCESSABLE_ENTITY,
-                    "EXPECTED_MOVE_IN_BEFORE_SIGN_DATE",
-                    "Ngày dự kiến vào ở không được trước ngày hẹn ký hợp đồng."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_EXPECTED_MOVE_IN_BEFORE_SIGN_DATE);
         }
         if (soonVacant) {
             LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId())
@@ -592,18 +557,10 @@ public class DepositBatchCheckoutService {
                 return "EXPECTED_VACANT_DATE_MISSING";
             }
             if (expectedLeaseSignDate.isBefore(expectedVacantDate)) {
-                throw new BatchDepositRequestException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE",
-                        "Ngay den ky hop dong phai sau hoac bang ngay phong du kien trong."
-                );
+                throw new AppException(ApiErrorCode.DEPOSIT_EXPECTED_SIGN_DATE_BEFORE_VACANT_DATE);
             }
             if (expectedMoveInDate.isBefore(expectedVacantDate)) {
-                throw new BatchDepositRequestException(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "EXPECTED_MOVE_IN_BEFORE_VACANT_DATE",
-                        "Ngay du kien vao o phai sau hoac bang ngay phong du kien trong."
-                );
+                throw new AppException(ApiErrorCode.DEPOSIT_EXPECTED_MOVE_IN_BEFORE_VACANT_DATE);
             }
         }
         if (!soonVacant && room.getCurrentStatus() != RoomStatus.VACANT) {
@@ -686,20 +643,12 @@ public class DepositBatchCheckoutService {
 
     private FileMetadata upload(MultipartFile file, FileCategory category) {
         if (file == null || file.isEmpty()) {
-            throw new BatchDepositRequestException(
-                    HttpStatus.BAD_REQUEST,
-                    "FILE_UPLOAD_INVALID",
-                    "Thiếu file CCCD hoặc ảnh chân dung."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_FILE_UPLOAD_REQUIRED);
         }
         try {
             return uploadIdentityFilePort.execute(file, category);
         } catch (IOException ex) {
-            throw new BatchDepositRequestException(
-                    HttpStatus.BAD_REQUEST,
-                    "FILE_UPLOAD_INVALID",
-                    "Không thể upload file định danh."
-            );
+            throw new AppException(ApiErrorCode.DEPOSIT_FILE_UPLOAD_FAILED);
         }
     }
 
@@ -738,7 +687,7 @@ public class DepositBatchCheckoutService {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
-            throw new IllegalStateException("Không thể lưu dữ liệu checkout PayOS.", ex);
+            throw new AppException(ApiErrorCode.UNDEFINED, ex);
         }
     }
 

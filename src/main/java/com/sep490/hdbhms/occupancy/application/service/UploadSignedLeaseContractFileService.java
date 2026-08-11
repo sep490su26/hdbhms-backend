@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.service.UploadFileService;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
@@ -18,7 +21,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @Transactional
@@ -33,12 +35,12 @@ public class UploadSignedLeaseContractFileService implements UploadSignedLeaseCo
     @Override
     public LeaseContractManagementResponse execute(Long leaseContractId, MultipartFile file, boolean replace) {
         var contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hợp đồng thuê."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hợp đồng đã ACTIVE, không upload thay file trong luồng này.");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (contract.getSignedFile() != null && !replace) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Hợp đồng thuê đã có file đã ký. Gửi replace=true nếu muốn thay thế.");
+            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }
         Long currentUserId = AuthUtils.getCurrentAuthenticationId();
         var metadata = uploadFileService.execute(new UploadFileCommand(
@@ -48,7 +50,7 @@ public class UploadSignedLeaseContractFileService implements UploadSignedLeaseCo
                 true
         ));
         var signedFile = fileMetadataRepository.findById(metadata.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không lưu được file hợp đồng."));
+                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         signedFile.setCategory(FileCategory.CONTRACT);
         signedFile.setSensitive(true);
         contract.setSignedFile(fileMetadataRepository.save(signedFile));

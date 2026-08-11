@@ -37,7 +37,7 @@ public class RoomAssetQueryService implements RoomAssetQueryUseCase {
     public RoomAssetResponse getRoomAsset(Long roomId, Long assetId) {
         RoomAsset domain = jpaRoomAssetRepository.findByIdAndRoom_IdAndDeletedAtIsNull(assetId, roomId)
                 .map(roomAssetPersistenceMapper::toDomain)
-                .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_ASSET_NOT_FOUND));
         return toResponse(domain);
     }
 

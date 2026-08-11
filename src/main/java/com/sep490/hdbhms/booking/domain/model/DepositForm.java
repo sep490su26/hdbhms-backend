@@ -3,6 +3,8 @@ package com.sep490.hdbhms.booking.domain.model;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositFormStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -114,7 +116,7 @@ public class DepositForm {
 
     public void approveDepositForm() {
         if (depositExpiresAt != null && depositExpiresAt.isBefore(LocalDate.now())) {
-            throw new IllegalStateException("Deposit form is expired");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         status = DepositFormStatus.APPROVED;
         confirmedAt = LocalDateTime.now();

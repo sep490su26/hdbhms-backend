@@ -13,6 +13,7 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ApiResponse<T> {
     int code = ApiErrorCode.UNDEFINED.getCode();
+    String errorCode;
     String message;
     String details;
     T data;

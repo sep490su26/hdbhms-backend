@@ -18,33 +18,39 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class BatchMeterReadingRequest {
 
-    @NotNull(message = "Property ID is required")
+    @NotNull(message = "Vui lòng chọn cơ sở")
     Long propertyId;
 
-    @NotBlank(message = "Reading period is required")
+    @NotBlank(message = "Vui lòng chọn kỳ ghi chỉ số")
     @Pattern(
             regexp = "^(?:(0?[1-9]|1[0-2])[-/]\\d{4}|\\d{4}-(0?[1-9]|1[0-2]))$",
-            message = "Reading period must be in MM-yyyy format"
+            message = "Kỳ ghi chỉ số phải có định dạng MM-yyyy"
     )
     String readingPeriod;
 
-    @NotNull(message = "Reading date is required")
+    @NotNull(message = "Vui lòng chọn ngày ghi chỉ số")
     LocalDate readingDate;
 
-    @NotEmpty(message = "Readings list cannot be empty")
+        @NotEmpty(message = "Danh sách chỉ số không được để trống")
     @Valid
     List<RoomReadingInput> readings;
 
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class RoomReadingInput {
-        @NotNull(message = "Room ID is required")
+        @NotNull(message = "Vui lòng chọn phòng")
         Long roomId;
 
-        @NotNull(message = "Electricity value is required")
-        @PositiveOrZero(message = "Electricity value cannot be negative")
+        @NotNull(message = "Vui lòng nhập chỉ số điện")
+        @PositiveOrZero(message = "Chỉ số điện không được âm")
         BigDecimal electricityValue;
 
         Long electricityPhotoId;
+
+        @NotNull(message = "Chỉ số nước là bắt buộc")
+        @PositiveOrZero(message = "Chỉ số nước không được âm")
+        BigDecimal waterValue;
+
+        Long waterPhotoId;
     }
 }

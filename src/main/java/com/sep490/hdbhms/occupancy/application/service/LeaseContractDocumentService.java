@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
@@ -56,6 +57,19 @@ public class LeaseContractDocumentService {
         Long roomId = toLong(input.get("roomId"));
         if (roomId == null) {
             throw new AppException(ApiErrorCode.ROOM_NOT_FOUND);
+        }
+        LocalDate today = LocalDate.now();
+        LocalDate dob = toDate(input.get("dob"));
+        LocalDate expectedMoveInDate = toDate(input.get("expectedMoveInDate"));
+        LocalDate expectedLeaseSignDate = toDate(input.get("expectedLeaseSignDate"));
+        if (dob != null && dob.isAfter(today)) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (expectedMoveInDate != null && expectedMoveInDate.isBefore(today)) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (expectedLeaseSignDate != null && expectedLeaseSignDate.isBefore(today)) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         ContractTemplateData data = jdbcTemplate.query(
                 """

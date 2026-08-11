@@ -53,6 +53,7 @@ public class RoomAssetController {
     ) {
         return ApiResponse.<RoomAssetResponse>builder()
                 .code(0)
+                .message("Thêm tài sản phòng thành công")
                 .data(manageRoomAssetUseCase.createRoomAsset(roomId, request))
                 .build();
     }
@@ -65,6 +66,7 @@ public class RoomAssetController {
     ) {
         return ApiResponse.<RoomAssetResponse>builder()
                 .code(0)
+                .message("Cập nhật tài sản thành công")
                 .data(manageRoomAssetUseCase.updateRoomAsset(roomId, assetId, request))
                 .build();
     }

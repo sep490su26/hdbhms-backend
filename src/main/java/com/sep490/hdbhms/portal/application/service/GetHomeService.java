@@ -13,7 +13,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -93,10 +92,7 @@ public class GetHomeService implements GetHomeUseCase {
             selectedContext = rentalContexts.stream()
                     .filter(context -> context.contractId().equals(query.contractId()))
                     .findFirst()
-                    .orElseThrow(() -> new ResponseStatusException(
-                            HttpStatus.FORBIDDEN,
-                            "Ban khong co quyen xem phong hoac hop dong nay."
-                    ));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.FORBIDDEN_OPERATION));
         } else if (!rentalContexts.isEmpty()) {
             selectedContext = rentalContexts.getFirst();
         }

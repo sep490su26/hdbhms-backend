@@ -1,6 +1,8 @@
 package com.sep490.hdbhms.booking.domain.model;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.DepositAgreementStatus;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -78,7 +80,7 @@ public class DepositAgreement {
 
     public void changeStatus(DepositAgreementStatus nextStatus) {
         if (nextStatus == null) {
-            throw new IllegalArgumentException("Deposit agreement status is required");
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         this.status = nextStatus;
         if ((nextStatus == DepositAgreementStatus.PAID || nextStatus == DepositAgreementStatus.CONVERTED_TO_LEASE)

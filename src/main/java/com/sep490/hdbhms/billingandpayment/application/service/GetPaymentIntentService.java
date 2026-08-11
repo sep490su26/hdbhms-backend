@@ -4,6 +4,8 @@ import com.sep490.hdbhms.billingandpayment.application.port.in.query.GetPaymentI
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.GetPaymentIntentUseCase;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -20,6 +22,6 @@ public class GetPaymentIntentService implements GetPaymentIntentUseCase {
     @Override
     public PaymentIntent execute(GetPaymentIntentQuery query) {
         return paymentIntentRepository.findByProviderOrderCode(String.valueOf(query.orderCode()))
-                .orElseThrow(() -> new IllegalArgumentException("Invalid payment intent"));
+                .orElseThrow(() -> new AppException(ApiErrorCode.PAYMENT_INTENT_NOT_FOUND));
     }
 }

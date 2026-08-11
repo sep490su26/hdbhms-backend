@@ -1,5 +1,8 @@
 package com.sep490.hdbhms.billingandpayment.infrastructure.persistence.mapper;
 
+import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

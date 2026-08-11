@@ -19,11 +19,9 @@ import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -162,15 +160,15 @@ class TenantHandoverServiceTest {
         LeaseContractEntity contract = LeaseContractEntity.builder().id(99L).room(room).contractCode("HD-201").build();
 
         when(leaseContractRepository.findByIdAndDeletedAtIsNull(99L)).thenReturn(Optional.of(contract));
-        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden"))
+        doThrow(new AppException(ApiErrorCode.FORBIDDEN_OPERATION))
                 .when(leaseContractQueryService).assertCurrentUserCanReadRoom(15L);
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
+        AppException exception = assertThrows(
+                AppException.class,
                 () -> service.getHandoverItems(99L, HandoverType.MOVE_IN)
         );
 
-        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        assertEquals(ApiErrorCode.FORBIDDEN_OPERATION, exception.getApiErrorCode());
         verify(handoverRecordRepository, never())
                 .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(99L, HandoverType.MOVE_IN);
     }

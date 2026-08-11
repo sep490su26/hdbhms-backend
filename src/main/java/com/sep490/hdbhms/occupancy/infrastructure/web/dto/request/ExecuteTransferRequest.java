@@ -32,20 +32,24 @@ public record ExecuteTransferRequest(
 
     public record MeterReadingPayload(
             @NotNull(message = "Meter reading value is required")
-            @PositiveOrZero(message = "Meter reading value must not be negative")
+            @PositiveOrZero(message = "Chỉ số điện không được âm")
             BigDecimal currentValue,
             Long photoFileId,
-            LocalDate readingDate
+            LocalDate readingDate,
+            @NotNull(message = "Vui lòng nhập chỉ số nước")
+            @PositiveOrZero(message = "Chỉ số nước không được nhỏ hơn 0")
+            BigDecimal waterValue,
+            Long waterPhotoFileId
     ) {}
 
     public record AssetPayload(
             Long id,
-            @NotBlank(message = "Asset name is required")
+            @NotBlank(message = "Tên tài sản là bắt buộc")
             String assetName,
-            @NotBlank(message = "Asset category is required")
+            @NotBlank(message = "Danh mục tài sản là bắt buộc")
             String assetCategory,
-            @NotNull(message = "Asset quantity is required")
-            @Min(value = 1, message = "Asset quantity must be at least 1")
+            @NotNull(message = "Số lượng tài sản là bắt buộc")
+            @Min(value = 1, message = "Số lượng tài sản phải lớn hơn 0")
             Integer quantity,
             @NotNull(message = "Asset condition is required")
             AssetCondition currentCondition,

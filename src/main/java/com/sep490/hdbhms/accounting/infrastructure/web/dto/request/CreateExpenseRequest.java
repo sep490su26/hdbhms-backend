@@ -11,13 +11,14 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record CreateExpenseRequest(
-        @NotNull Long propertyId,
+        @NotNull(message = "Vui lòng chọn cơ sở") Long propertyId,
         Long roomId,
-        @NotNull ExpenseType expenseType,
-        @NotNull @Positive Long amount,
-        @NotBlank @Size(max = 1000) String reason,
-        @Size(max = 4000) String description,
-        @Size(max = 255) String vendorName,
+        @NotNull(message = "Vui lòng chọn loại chi phí") ExpenseType expenseType,
+        @NotNull(message = "Vui lòng nhập số tiền") @Positive(message = "Số tiền phải lớn hơn 0") Long amount,
+        @NotBlank(message = "Vui lòng nhập lý do chi phí")
+        @Size(max = 1000, message = "Lý do chi phí không được vượt quá 1000 ký tự") String reason,
+        @Size(max = 4000, message = "Mô tả không được vượt quá 4000 ký tự") String description,
+        @Size(max = 255, message = "Tên nhà cung cấp không được vượt quá 255 ký tự") String vendorName,
         LocalDate expectedPaymentDate,
         List<@Valid CreateExpenseAttachmentRequest> attachments
 ) {
