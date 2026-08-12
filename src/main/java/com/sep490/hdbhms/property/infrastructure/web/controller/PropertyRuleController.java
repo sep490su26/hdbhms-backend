@@ -9,7 +9,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRule
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.UpsertPropertyRuleRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyRuleResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyRuleWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;

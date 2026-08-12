@@ -20,7 +20,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
 import com.sep490.hdbhms.occupancy.domain.model.Tenant;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.UpdateTenantProfileRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TenantProfileResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;

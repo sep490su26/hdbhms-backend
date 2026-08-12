@@ -50,8 +50,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContract
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomRentalHistoryResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.LeaseContractWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import jakarta.validation.Valid;
@@ -660,11 +660,10 @@ public class LeaseContractController {
     }
 
     private String leaseContractFilename(LeaseContractManagementResponse contract) {
-        String roomCode = withRoomPrefix(sanitizeFilenamePart(contract.getRoomCode(), "Phong-X"));
-        String date = contract.getStartDate() == null
-                ? "Chua-Ro-Ngay"
-                : DOCUMENT_FILENAME_DATE_FORMATTER.format(contract.getStartDate());
-        return "HDT_" + roomCode + "_" + date + ".pdf";
+        return DocumentFilenameBuilder.buildLeaseContractCode(
+                contract.getRoomCode(),
+                contract.getStartDate()
+        ) + ".pdf";
     }
 
     private String sanitizeFilenamePart(String value, String fallback) {
@@ -868,17 +867,17 @@ public class LeaseContractController {
     }
 
     public record LeaseContractLiquidationChargeRequest(
-            @NotNull(message = "Loai phi thanh ly khong duoc de trong.")
+    @NotNull(message = "Loại phí thanh lý không được để trống.")
             InvoiceLineType lineType,
-            @Size(max = 1000, message = "Mo ta phi thanh ly khong duoc vuot qua 1000 ky tu.")
+    @Size(max = 1000, message = "Mô tả phí thanh lý không được vượt quá 1000 ký tự.")
             String description,
-            @PositiveOrZero(message = "So luong khong duoc am.")
+    @PositiveOrZero(message = "Số lượng không được âm.")
             Integer quantity,
-            @PositiveOrZero(message = "Don gia khong duoc am.")
+    @PositiveOrZero(message = "Đơn giá không được âm.")
             Long unitPrice,
-            @PositiveOrZero(message = "Chi so cu khong duoc am.")
+    @PositiveOrZero(message = "Chỉ số cũ không được âm.")
             BigDecimal previousValue,
-            @PositiveOrZero(message = "Chi so moi khong duoc am.")
+    @PositiveOrZero(message = "Chỉ số mới không được âm.")
             BigDecimal currentValue,
             Long photoFileId
     ) {
@@ -903,19 +902,19 @@ public class LeaseContractController {
 
     public record AddCoOccupantRequest(
             Long tenantProfileId,
-            @Size(max = 255, message = "Ten nguoi o cung khong duoc vuot qua 255 ky tu.")
+    @Size(max = 255, message = "Tên người ở cùng không được vượt quá 255 ký tự.")
             String fullName,
             LocalDate dob,
             Gender gender,
-            @Size(max = 30, message = "So dien thoai khong duoc vuot qua 30 ky tu.")
+    @Size(max = 30, message = "Số điện thoại không được vượt quá 30 ký tự.")
             String phone,
-            @Email(message = "Email nguoi o cung khong hop le.")
-            @Size(max = 255, message = "Email nguoi o cung khong duoc vuot qua 255 ky tu.")
+    @Email(message = "Email người ở cùng không hợp lệ.")
+    @Size(max = 255, message = "Email người ở cùng không được vượt quá 255 ký tự.")
             String email,
-            @Size(max = 1000, message = "Dia chi thuong tru khong duoc vuot qua 1000 ky tu.")
+    @Size(max = 1000, message = "Địa chỉ thường trú không được vượt quá 1000 ký tự.")
             String permanentAddress,
             LocalDate moveInDate,
-            @Size(max = 1000, message = "Ghi chu khong duoc vuot qua 1000 ky tu.")
+    @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
             String note
     ) {
     }
@@ -964,7 +963,7 @@ public class LeaseContractController {
             LocalDate newStartDate,
             @NotNull(message = "Ngày kết thúc mới là bắt buộc.")
             LocalDate newEndDate,
-            @Min(value = 6, message = "Thoi han gia han toi thieu 6 thang.")
+    @Min(value = 6, message = "Thời hạn gia hạn tối thiểu là 6 tháng.")
             Integer renewalTermMonths,
             @NotNull(message = "Giá thuê mỗi tháng là bắt buộc.")
             @Positive(message = "Giá thuê mỗi tháng phải lớn hơn 0.")

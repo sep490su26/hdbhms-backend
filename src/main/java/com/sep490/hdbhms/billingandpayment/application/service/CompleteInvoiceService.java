@@ -91,7 +91,7 @@ public class CompleteInvoiceService implements CompleteInvoiceUseCase {
                 roomTransferUseCase.advanceTransferAfterDifferencePayment(transferRequestId, confirmerUserId);
                 return;
             } catch (RuntimeException exception) {
-                log.warn("Could not auto-confirm room transfer contract after payment. transferRequestId={}",
+                log.warn("Failed to automatically confirm the room transfer contract after payment. transferRequestId={}",
                         transferRequestId, exception);
             }
         }

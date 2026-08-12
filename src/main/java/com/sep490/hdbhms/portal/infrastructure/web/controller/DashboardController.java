@@ -6,7 +6,7 @@ import com.sep490.hdbhms.portal.application.service.RevenueReportService;
 import com.sep490.hdbhms.portal.infrastructure.web.dto.response.DashboardResponse;
 import com.sep490.hdbhms.portal.infrastructure.web.dto.response.RevenueReportResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;

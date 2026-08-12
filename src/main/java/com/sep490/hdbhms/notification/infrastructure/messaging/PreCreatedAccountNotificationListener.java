@@ -42,7 +42,7 @@ public class PreCreatedAccountNotificationListener {
             case EMAIL -> saveAndDispatch(buildEmailOutbox(event));
             case SMS -> saveAndDispatch(buildSmsOutbox(event));
             default -> log.warn(
-                    "Unsupported pre-created account notification channel. contractId={}, recipientProfileId={}, channel={}",
+                    "Pre-created account notification channel is unsupported. contractId={}, recipientProfileId={}, channel={}",
                     event.contractId(),
                     event.recipientProfileId(),
                     event.preferredChannel()
@@ -128,7 +128,7 @@ public class PreCreatedAccountNotificationListener {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
             log.warn(
-                    "Failed to serialize pre-created account payload. contractId={}, recipientProfileId={}",
+                    "Failed to serialize pre-created account notification data. contractId={}, recipientProfileId={}",
                     event.contractId(),
                     event.recipientProfileId(),
                     exception

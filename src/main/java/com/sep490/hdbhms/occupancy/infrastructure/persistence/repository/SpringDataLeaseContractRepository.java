@@ -8,7 +8,7 @@ import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.LeaseContractPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.LeaseContractSpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.LeaseContractSpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

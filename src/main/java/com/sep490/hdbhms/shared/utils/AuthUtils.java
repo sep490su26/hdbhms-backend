@@ -67,7 +67,7 @@ public class AuthUtils {
             String sub = signedJWT.getJWTClaimsSet().getSubject();
             return Long.parseLong(sub);
         } catch (ParseException | NumberFormatException e) {
-            log.error("Failed to parse JWT sessionId", e);
+            log.error("Failed to parse the JWT sessionId", e);
             return null;
         }
     }

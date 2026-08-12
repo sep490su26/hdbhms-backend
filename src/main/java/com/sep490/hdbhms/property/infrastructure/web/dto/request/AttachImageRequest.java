@@ -9,9 +9,9 @@ import lombok.experimental.FieldDefaults;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AttachImageRequest {
-    @NotNull(message = "fileId is required")
+    @NotNull(message = "Mã tệp là bắt buộc")
     Long fileId;
 
-    @Min(value = 0, message = "sortOrder must not be negative")
+    @Min(value = 0, message = "Thứ tự sắp xếp không được âm")
     Integer sortOrder;
 }

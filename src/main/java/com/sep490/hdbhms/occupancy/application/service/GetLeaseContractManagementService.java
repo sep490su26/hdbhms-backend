@@ -2,7 +2,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

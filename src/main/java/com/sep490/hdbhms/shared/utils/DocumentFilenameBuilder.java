@@ -25,6 +25,12 @@ public final class DocumentFilenameBuilder {
         return "%s_%s_%s.pdf".formatted(safeType, safeRoomCode, safeDate);
     }
 
+    public static String buildLeaseContractCode(String roomCode, LocalDate date) {
+        String safeRoomCode = withRoomPrefix(normalize(roomCode, "Phong-X"));
+        String safeDate = date == null ? "Chua-Ro-Ngay" : DATE_FORMATTER.format(date);
+        return "HDT_%s_%s".formatted(safeRoomCode, safeDate);
+    }
+
     public static String attachmentContentDisposition(String filename) {
         String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
         return "attachment; filename*=UTF-8''" + encoded;

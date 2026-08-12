@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.id;
+package com.sep490.hdbhms.shared.utils.id;
 
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;

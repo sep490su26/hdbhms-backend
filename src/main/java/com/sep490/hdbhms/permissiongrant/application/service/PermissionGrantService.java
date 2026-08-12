@@ -122,7 +122,7 @@ public class PermissionGrantService {
                     userAgent
             ));
         } catch (RuntimeException ex) {
-            log.warn("Could not record permission grant audit. grantId={}, targetType={}, targetId={}",
+            log.warn("Failed to record permission grant. grantId={}, targetType={}, targetId={}",
                     grant.getId(), targetType, targetId, ex);
         }
     }

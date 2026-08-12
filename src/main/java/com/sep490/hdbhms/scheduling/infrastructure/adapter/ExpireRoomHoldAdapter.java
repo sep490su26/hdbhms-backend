@@ -50,7 +50,7 @@ public class ExpireRoomHoldAdapter implements ExpireRoomHoldPort {
                 roomStatusAfterHoldRelease(roomHold.getRoomId())
         );
         if (updatedRows == 0) {
-            log.info("Skip releasing room hold because room status changed. roomHoldId={}, roomId={}",
+            log.info("Skipping room hold release because the room status has changed. roomHoldId={}, roomId={}",
                     roomHoldId,
                     roomHold.getRoomId());
         }

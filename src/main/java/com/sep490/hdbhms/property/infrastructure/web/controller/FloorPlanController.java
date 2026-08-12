@@ -20,7 +20,7 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.request.SaveFloorPlanLa
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.FloorPlanItemResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.FloorPlanLayoutResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PublicPropertyFloorPlanResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;

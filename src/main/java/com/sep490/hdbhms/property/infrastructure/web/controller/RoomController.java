@@ -34,7 +34,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;

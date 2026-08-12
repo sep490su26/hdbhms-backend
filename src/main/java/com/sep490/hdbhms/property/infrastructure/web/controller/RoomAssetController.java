@@ -4,7 +4,7 @@ import com.sep490.hdbhms.property.application.port.in.query.RoomAssetQueryUseCas
 import com.sep490.hdbhms.property.application.port.in.usecase.ManageRoomAssetUseCase;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.RoomAssetRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomAssetResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

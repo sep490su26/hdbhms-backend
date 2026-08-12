@@ -86,7 +86,7 @@ public class ServerInfoUtils implements ApplicationListener<WebServerInitialized
      * Returns the application context path (e.g., "/api"), or an empty string if none.
      */
     public String getContextPath() {
-        log.info("what {}", environment.toString());
+        log.debug("Application environment: {}", environment);
         return environment.getProperty("server.servlet.context-path", "");
     }
 

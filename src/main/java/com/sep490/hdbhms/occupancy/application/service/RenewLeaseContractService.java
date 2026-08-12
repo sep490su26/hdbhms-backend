@@ -12,6 +12,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractRenewalResponse;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -96,11 +97,15 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
             workflowSupport.appendContractEvent(
                     oldContract.getId(),
                     "RENEWAL_AFTER_MOVE_OUT_INTENT",
-                    "Owner xác nhận tái ký sau khi khách đã báo chuyển đi"
+                    "Chủ trọ xác nhận tái ký sau khi khách đã báo chuyển đi"
             );
         }
 
-        String newContractCode = resolveRenewalContractCode(oldContract, command.newContractCode());
+        String newContractCode = resolveRenewalContractCode(
+                oldContract,
+                command.newContractCode(),
+                command.newStartDate()
+        );
         LeaseContractEntity newContract = LeaseContractEntity.builder()
                 .contractCode(newContractCode)
                 .room(room)
@@ -133,7 +138,7 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
         workflowSupport.appendContractEvent(
                 newContract.getId(),
                 "CREATED",
-                "Tái ký từ hợp đồng " + oldContract.getContractCode() + "; note=" + eventNote
+                "Tái ký từ hợp đồng " + oldContract.getContractCode() + "; ghi chú=" + eventNote
         );
 
         List<LeaseContractRenewalResponse.OccupantInfo> occupants = findRenewalOccupants(newContract.getId());
@@ -175,10 +180,14 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
         );
     }
 
-    private String resolveRenewalContractCode(LeaseContractEntity oldContract, String requestedContractCode) {
+    private String resolveRenewalContractCode(
+            LeaseContractEntity oldContract,
+            String requestedContractCode,
+            java.time.LocalDate newStartDate
+    ) {
         String contractCode = requestedContractCode == null ? "" : requestedContractCode.trim();
         if (contractCode.isBlank()) {
-            contractCode = generateRenewalContractCode(oldContract);
+            contractCode = generateRenewalContractCode(oldContract, newStartDate);
         }
         if (contractCode.length() > 80) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
@@ -189,7 +198,7 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
         return contractCode;
     }
 
-    private String generateRenewalContractCode(LeaseContractEntity oldContract) {
+    private String generateRenewalContractCode(LeaseContractEntity oldContract, java.time.LocalDate newStartDate) {
         LeaseContractEntity rootContract = oldContract;
         int renewalNumber = 1;
         while (rootContract.getPreviousContract() != null) {
@@ -197,7 +206,13 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
             renewalNumber++;
         }
 
-        return rootContract.getContractCode() + "-R" + renewalNumber;
+        String roomCode = rootContract.getRoom() == null ? null : rootContract.getRoom().getRoomCode();
+        String baseCode = DocumentFilenameBuilder.buildLeaseContractCode(roomCode, newStartDate);
+        String contractCode = baseCode;
+        while (leaseContractRepository.existsByContractCodeAndDeletedAtIsNull(contractCode)) {
+            contractCode = baseCode + "-R" + renewalNumber++;
+        }
+        return contractCode;
     }
 
     private void assertOwnerOrManagerCanRenew() {

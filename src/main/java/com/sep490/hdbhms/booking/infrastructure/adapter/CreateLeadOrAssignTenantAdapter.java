@@ -141,7 +141,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
             return;
         }
         if (identityDocumentRepository.existsByDocTypeAndDocNumber(DocumentType.CCCD, depositForm.getIdNumber())) {
-            log.warn("Skip creating duplicate CCCD document for deposit profile {}", personProfile.getId());
+            log.warn("Skipping duplicate identity document creation for deposit profile {}", personProfile.getId());
             return;
         }
         IdentityDocument identityDocument = IdentityDocument.create(

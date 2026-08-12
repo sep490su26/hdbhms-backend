@@ -96,7 +96,7 @@ public class TokenProvider {
             CookieUtils.addCookie(response, ACCESS_TOKEN_COOKIE_NAME, accessToken, Math.toIntExact(ttl / 1000));
             return accessToken;
         } catch (JOSEException e) {
-            log.error("Can not create sessionId", e);
+            log.error("Failed to create sessionId", e);
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN, e);
         }
     }
@@ -182,7 +182,7 @@ public class TokenProvider {
             CookieUtils.addCookie(response, SESSION_ID_COOKIE_NAME, sessionId, Math.toIntExact(ttl / 1000));
             return sessionId;
         } catch (Exception e) {
-            log.error("Can not create sessionId", e);
+            log.error("Failed to create sessionId", e);
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN, e);
         }
     }
@@ -251,12 +251,12 @@ public class TokenProvider {
 
         var verified = signedJWT.verify(jwsVerifier);
         if (!verified || !expiryTime.after(new Date())) {
-            log.info("Token: {} expired", token);
+            log.info("Token {} has expired", token);
             throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
         if (invalidatedTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID())) {
-            log.info("Token: {} is found in invalidated", token);
+            log.info("Token {} has been invalidated", token);
             throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
         return signedJWT;
@@ -280,7 +280,7 @@ public class TokenProvider {
                     .expiryTime(expiryTime)
                     .build();
             invalidatedTokenRepository.save(invalidatedToken);
-            log.info("Moved sessionId: {} with id: {} to the invalidated sessionId repository", token, invalidatedToken.getId());
+            log.info("Moved sessionId {} with invalidation record {} to the invalidated session store", token, invalidatedToken.getId());
         } catch (JOSEException | ParseException | AppException e) {
             log.error(e.getMessage());
         }
@@ -291,7 +291,7 @@ public class TokenProvider {
         log.info(key);
         if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             redisTemplate.delete(key);
-            log.info("Cleared session data from Redis for sessionId={}", sessionId);
+            log.info("Removed session data from Redis for sessionId={}", sessionId);
         }
 
         redisTemplate.opsForZSet().remove(String.format("device_sessions:%s:%s", userId, deviceId), sessionId);
@@ -312,7 +312,7 @@ public class TokenProvider {
                 // Fallback: just delete the key if we can't get the ids
                 if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
                     redisTemplate.delete(key);
-                    log.info("Cleared session data from Redis for sessionId={} (without userId/deviceId)", sessionId);
+                    log.info("Removed session data from Redis for sessionId={} (no userId/deviceId)", sessionId);
                 }
             }
         }

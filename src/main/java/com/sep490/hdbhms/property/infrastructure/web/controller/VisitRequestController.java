@@ -24,8 +24,8 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.request.VisitRequestSta
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.VisitRequestDetailsResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.VisitRequestResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.VisitRequestWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;

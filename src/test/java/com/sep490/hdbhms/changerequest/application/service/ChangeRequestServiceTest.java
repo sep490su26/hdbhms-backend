@@ -8,8 +8,8 @@ import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
-import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -25,9 +26,33 @@ import static org.mockito.Mockito.when;
 class ChangeRequestServiceTest {
 
     @Test
+    void legacyTenantProfileAccessRequestCannotBeApproved() {
+        ChangeRequestRepository repository = mock(ChangeRequestRepository.class);
+        PermissionGrantService permissionGrantService = mock(PermissionGrantService.class);
+        ChangeRequest request = ChangeRequest.builder()
+                .id(9L)
+                .requestType(RequestType.TENANT_PROFILE_ACCESS)
+                .requesterId(20L)
+                .targetType(TargetType.TENANT_PROFILE)
+                .targetId(30L)
+                .build();
+        when(repository.findById(9L)).thenReturn(Optional.of(request));
+
+        ChangeRequestService service = new ChangeRequestService(
+                repository,
+                List.of(),
+                permissionGrantService,
+                new ObjectMapper()
+        );
+
+        assertThrows(AppException.class, () -> service.approveRequest(
+                new ApproveRequestCommand(9L, 40L, null)
+        ));
+    }
+
+    @Test
     void approvedPermissionAccessCreatesGrant() {
         ChangeRequestRepository repository = mock(ChangeRequestRepository.class);
-        BusinessNotificationPublisher notificationPublisher = mock(BusinessNotificationPublisher.class);
         PermissionGrantService permissionGrantService = mock(PermissionGrantService.class);
         ChangeRequest request = ChangeRequest.builder()
                 .id(10L)
@@ -41,7 +66,6 @@ class ChangeRequestServiceTest {
         ChangeRequestService service = new ChangeRequestService(
                 repository,
                 List.of(),
-                notificationPublisher,
                 permissionGrantService,
                 new ObjectMapper()
         );
@@ -56,7 +80,6 @@ class ChangeRequestServiceTest {
     void approvedLiquidationRequestStartsProcessingInsteadOfCompletingApproval() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         ChangeRequestRepository repository = mock(ChangeRequestRepository.class);
-        BusinessNotificationPublisher notificationPublisher = mock(BusinessNotificationPublisher.class);
         PermissionGrantService permissionGrantService = mock(PermissionGrantService.class);
         ChangeRequestDecisionHandler handler = mock(ChangeRequestDecisionHandler.class);
         ChangeRequest request = ChangeRequest.builder()
@@ -72,7 +95,6 @@ class ChangeRequestServiceTest {
         ChangeRequestService service = new ChangeRequestService(
                 repository,
                 List.of(handler),
-                notificationPublisher,
                 permissionGrantService,
                 objectMapper
         );
@@ -91,14 +113,14 @@ class ChangeRequestServiceTest {
     void tenantCanConfirmRecordedLiquidationDepositRefund() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         ChangeRequestRepository repository = mock(ChangeRequestRepository.class);
-        BusinessNotificationPublisher notificationPublisher = mock(BusinessNotificationPublisher.class);
         PermissionGrantService permissionGrantService = mock(PermissionGrantService.class);
         ChangeRequest request = ChangeRequest.builder()
                 .id(12L)
                 .requestType(RequestType.CONTRACT_LIQUIDATION)
-                .requesterId(20L)
+                .requesterId(40L)
                 .requestPayload("""
                         {
+                          "primaryTenantUserId":20,
                           "liquidationStage":"WAITING_DEPOSIT_REFUND",
                           "depositRefundStatus":"RECORDED_BY_MANAGER",
                           "finalInvoicePaid":true,
@@ -114,7 +136,6 @@ class ChangeRequestServiceTest {
         ChangeRequestService service = new ChangeRequestService(
                 repository,
                 List.of(),
-                notificationPublisher,
                 permissionGrantService,
                 objectMapper
         );

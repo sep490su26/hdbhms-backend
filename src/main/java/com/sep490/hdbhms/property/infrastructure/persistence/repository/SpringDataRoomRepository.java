@@ -6,7 +6,7 @@ import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.mapper.RoomPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.RoomSpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.RoomSpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

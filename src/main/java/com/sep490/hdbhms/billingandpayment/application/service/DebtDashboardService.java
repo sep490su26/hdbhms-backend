@@ -81,7 +81,7 @@ public class DebtDashboardService {
             }
         }
         if (taskCount > 0) {
-            log.info("Debt dashboard scheduler created or reminded {} manager tasks", taskCount);
+            log.info("The debt scheduler created or reminded managers about {} tasks", taskCount);
         }
     }
 

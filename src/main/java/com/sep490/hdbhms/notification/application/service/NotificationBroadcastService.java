@@ -220,7 +220,7 @@ public class NotificationBroadcastService {
             data.put("senderUserId", senderUserId);
             return objectMapper.writeValueAsString(data);
         } catch (Exception exception) {
-            log.warn("Failed to serialize broadcast notification payload", exception);
+            log.warn("Failed to serialize broadcast notification data", exception);
             return null;
         }
     }

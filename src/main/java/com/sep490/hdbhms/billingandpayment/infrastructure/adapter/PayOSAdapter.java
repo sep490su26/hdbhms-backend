@@ -6,7 +6,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.config.PayOSProperties;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.PaymentRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;

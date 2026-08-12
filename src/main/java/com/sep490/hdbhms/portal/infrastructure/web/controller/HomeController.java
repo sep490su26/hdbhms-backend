@@ -3,7 +3,7 @@ package com.sep490.hdbhms.portal.infrastructure.web.controller;
 import com.sep490.hdbhms.portal.application.port.in.query.GetHomeQuery;
 import com.sep490.hdbhms.portal.application.port.in.usecase.GetHomeUseCase;
 import com.sep490.hdbhms.portal.infrastructure.web.dto.response.HomeResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;

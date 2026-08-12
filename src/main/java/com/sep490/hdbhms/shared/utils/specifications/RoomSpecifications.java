@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.specifications;
+package com.sep490.hdbhms.shared.utils.specifications;
 
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;

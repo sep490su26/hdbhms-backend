@@ -7,7 +7,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.UserPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.AccountSpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.AccountSpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

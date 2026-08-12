@@ -90,7 +90,7 @@ public class PasswordResetEmailVerifierSenderAdapter implements PasswordResetEma
                 .payload(buildPayload(userId, email, phone, finalChannel, resetLink))
                 .status(channel == null ? OutboxStatus.DEAD_LETTER : OutboxStatus.PENDING)
                 .maxRetries(finalChannel == NotificationChannel.SMS ? 1 : 3)
-                .lastError(channel == null ? "Account has no email or phone for password reset" : null)
+                .lastError(channel == null ? "Tài khoản không có email hoặc số điện thoại để đặt lại mật khẩu" : null)
                 .isRead(false)
                 .scheduledAt(now)
                 .nextRetryAt(channel == null ? null : now)
@@ -101,7 +101,7 @@ public class PasswordResetEmailVerifierSenderAdapter implements PasswordResetEma
     private String buildBody(NotificationChannel channel, String passwordResetCode, String resetLink) {
         if (channel == NotificationChannel.SMS) {
             return String.format(
-                    "Ma dat lai mat khau Nha Tro Hai Dang: %s. Link: %s. Hieu luc 15 phut.",
+                    "Mã đặt lại mật khẩu Nhà trọ Hải Đăng: %s. Liên kết: %s. Có hiệu lực 15 phút.",
                     passwordResetCode,
                     resetLink
             );
@@ -135,7 +135,7 @@ public class PasswordResetEmailVerifierSenderAdapter implements PasswordResetEma
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException exception) {
-            log.warn("Failed to serialize password reset notification payload. userId={}", userId, exception);
+            log.warn("Failed to serialize password reset notification data. userId={}", userId, exception);
             return null;
         }
     }

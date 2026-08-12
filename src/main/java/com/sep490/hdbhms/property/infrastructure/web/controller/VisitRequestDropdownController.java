@@ -5,7 +5,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepo
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomSimpleResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

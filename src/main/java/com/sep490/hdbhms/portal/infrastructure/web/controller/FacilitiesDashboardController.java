@@ -4,7 +4,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPr
 import com.sep490.hdbhms.property.application.service.GetFacilitiesDashboardService;
 import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.FacilitiesDashboardResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

@@ -1,31 +1,15 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
-import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
-import com.sep490.hdbhms.changerequest.domain.value_objects.AssignedRole;
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
-import com.sep490.hdbhms.changerequest.domain.value_objects.RequesterRole;
-import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
-import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
-import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
-import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
-import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -47,19 +31,14 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -109,10 +88,6 @@ public class TenantProfileManagementController {
     );
 
     JdbcTemplate jdbcTemplate;
-    ChangeRequestRepository changeRequestRepository;
-    BusinessNotificationPublisher notificationPublisher;
-    ObjectMapper objectMapper;
-    PermissionGrantService permissionGrantService;
     DownloadFileUseCase downloadFileUseCase;
 
     @GetMapping
@@ -122,7 +97,6 @@ public class TenantProfileManagementController {
             @PageableDefault(size = 10) Pageable pageable
     ) {
         UserPrincipal principal = requireCurrentPrincipal();
-        boolean isOwner = principal.getRole() == Role.OWNER;
         boolean isManager = principal.getRole() == Role.MANAGER;
 
         List<TenantProfileRow> rows = jdbcTemplate.query("""
@@ -241,32 +215,15 @@ public class TenantProfileManagementController {
         List<TenantProfileSummaryResponse> response = new ArrayList<>();
         for (TenantProfileRow row : rows) {
             List<TenantProfileRow> roomRows = rowsByContract.getOrDefault(row.contractId(), List.of());
-            ProfileAccessDecision accessDecision = resolveProfileAccess(row.profileId(), principal, isOwner);
-            boolean canViewSensitiveProfile = accessDecision.canViewSensitiveProfile();
-            if (canViewSensitiveProfile && isManager && accessDecision.grantId() != null) {
-                permissionGrantService.recordAccess(
-                        PermissionGrant.builder().id(accessDecision.grantId()).build(),
-                        principal.getId(),
-                        TargetType.TENANT_PROFILE,
-                        row.profileId(),
-                        PermissionAccessAction.VIEW_TENANT_PROFILE
-                );
-            }
-            IdentityDocumentResponse identityDocument = canViewSensitiveProfile ? getIdentityDocument(row.profileId()) : null;
-            List<VehicleResponse> vehicles = canViewSensitiveProfile ? getVehicles(row.profileId()) : List.of();
-            List<EmergencyContactResponse> emergencyContacts = canViewSensitiveProfile
-                    ? getEmergencyContacts(row.profileId())
-                    : List.of();
-            ProfileStatus profileStatus = canViewSensitiveProfile
-                    ? resolveProfileStatus(row, identityDocument)
-                    : restrictedProfileStatus(accessDecision);
-            List<RoommateResponse> roommates = canViewSensitiveProfile
-                    ? roomRows.stream()
+            IdentityDocumentResponse identityDocument = getIdentityDocument(row.profileId());
+            List<VehicleResponse> vehicles = getVehicles(row.profileId());
+            List<EmergencyContactResponse> emergencyContacts = getEmergencyContacts(row.profileId());
+            ProfileStatus profileStatus = resolveProfileStatus(row, identityDocument);
+            List<RoommateResponse> roommates = roomRows.stream()
                     .filter(roommate -> !Objects.equals(roommate.profileId(), row.profileId())
                             || !Objects.equals(roommate.phone(), row.phone()))
                     .map(this::toRoommateResponse)
-                    .toList()
-                    : List.of();
+                    .toList();
 
             response.add(new TenantProfileSummaryResponse(
                     row.profileId(),
@@ -274,11 +231,11 @@ public class TenantProfileManagementController {
                     row.fullName(),
                     row.dob(),
                     row.gender(),
-                    canViewSensitiveProfile ? row.phone() : maskPhone(row.phone()),
-                    canViewSensitiveProfile ? row.email() : maskEmail(row.email()),
-                    canViewSensitiveProfile ? row.permanentAddress() : null,
-                    canViewSensitiveProfile ? fileUrl(row.portraitFileId()) : null,
-                    canViewSensitiveProfile ? row.portraitFileId() : null,
+                    row.phone(),
+                    row.email(),
+                    row.permanentAddress(),
+                    fileUrl(row.portraitFileId()),
+                    row.portraitFileId(),
                     identityDocument,
                     row.propertyId(),
                     row.propertyName(),
@@ -304,12 +261,12 @@ public class TenantProfileManagementController {
                     vehicles,
                     emergencyContacts,
                     roommates,
-                    accessDecision.status(),
-                    accessDecision.requestId(),
-                    accessDecision.canViewSensitiveProfile(),
-                    accessDecision.grantId(),
-                    accessDecision.expiresAt(),
-                    accessDecision.durationCode()
+                    "APPROVED",
+                    null,
+                    true,
+                    null,
+                    null,
+                    null
             ));
         }
 
@@ -331,12 +288,13 @@ public class TenantProfileManagementController {
 
     @GetMapping("/police-report/export")
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER')")
     public ResponseEntity<Resource> exportPoliceReport(
             @RequestParam(name = "columns", required = false) List<String> columns
     ) {
         List<PoliceReportColumn> selectedColumns = resolvePoliceReportColumns(columns);
-        List<PoliceReportRow> rows = fetchPoliceReportRows();
+        UserPrincipal principal = requireCurrentPrincipal();
+        List<PoliceReportRow> rows = fetchPoliceReportRows(principal);
         if (rows.isEmpty()) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
@@ -351,131 +309,23 @@ public class TenantProfileManagementController {
 
     @GetMapping("/police-report/export-package")
     @Transactional(readOnly = true)
-    @PreAuthorize("hasRole('OWNER')")
+    @PreAuthorize("hasAnyRole('OWNER', 'MANAGER')")
     public ResponseEntity<Resource> exportPoliceReportPackage(
             @RequestParam(name = "columns", required = false) List<String> columns
     ) {
         List<PoliceReportColumn> selectedColumns = resolvePoliceReportColumns(columns);
-        List<PoliceReportRow> rows = fetchPoliceReportRows();
+        UserPrincipal principal = requireCurrentPrincipal();
+        List<PoliceReportRow> rows = fetchPoliceReportRows(principal);
         if (rows.isEmpty()) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
-        byte[] bytes = generatePoliceReportPackage(rows, selectedColumns);
-        String filename = "Ho so bao cong an " + LocalDate.now() + ".zip";
+        byte[] bytes = generatePoliceReportPackage(rows, selectedColumns, principal);
+        String filename = "Hồ sơ báo công an " + LocalDate.now() + ".zip";
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
                 .contentType(MediaType.parseMediaType(ZIP_CONTENT_TYPE))
                 .body(new ByteArrayResource(bytes));
-    }
-
-    @PostMapping("/{profileId}/access-requests")
-    @Transactional(isolation = Isolation.READ_COMMITTED)
-    @PreAuthorize("hasRole('MANAGER')")
-    public ApiResponse<TenantProfileAccessRequestResponse> requestTenantProfileAccess(
-            @PathVariable Long profileId,
-            @Valid @RequestBody(required = false) TenantProfileAccessRequest request
-    ) {
-        UserPrincipal principal = requireCurrentPrincipal();
-        TenantProfileAccessContext context = getTenantProfileAccessContext(profileId);
-        if (!isAssignedManager(principal.getId(), context.propertyId())) {
-            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
-        }
-
-        ProfileAccessDecision existingAccess = resolveProfileAccess(profileId, principal, false);
-        if (existingAccess.canViewSensitiveProfile() || "PENDING".equals(existingAccess.status())) {
-            return ApiResponse.<TenantProfileAccessRequestResponse>builder()
-                    .data(new TenantProfileAccessRequestResponse(
-                            existingAccess.requestId(),
-                            existingAccess.status(),
-                            existingAccess.canViewSensitiveProfile()
-                    ))
-                    .build();
-        }
-
-        String reason = trimToNull(request == null ? null : request.reason());
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("tenantProfileId", context.profileId());
-        payload.put("contractId", context.contractId());
-        payload.put("contractCode", context.contractCode());
-        payload.put("propertyId", context.propertyId());
-        payload.put("roomCode", context.roomCode());
-        payload.put("propertyName", context.propertyName());
-        payload.put("fullName", context.fullName());
-        payload.put("reason", reason);
-
-        ChangeRequest changeRequest = ChangeRequest.builder()
-                .requestCode(RequestCodeBuilder.nextAvailable(
-                        RequestType.TENANT_PROFILE_ACCESS,
-                        context.roomCode(),
-                        LocalDate.now(),
-                        changeRequestRepository::existsByRequestCode
-                ))
-                .requestType(RequestType.TENANT_PROFILE_ACCESS)
-                .requesterId(principal.getId())
-                .requesterRole(RequesterRole.MANAGER)
-                .targetType(TargetType.TENANT_PROFILE)
-                .targetId(profileId)
-                .title("Yêu cầu xem hồ sơ " + context.fullName())
-                .description(reason == null ? "Manager yêu cầu xem hồ sơ khách thuê." : reason)
-                .requestPayload(toJson(payload))
-                .assignedRole(AssignedRole.OWNER)
-                .status(RequestStatus.PENDING)
-                .build();
-        ChangeRequest savedRequest = changeRequestRepository.save(changeRequest);
-        notifyOwnersProfileAccessRequested(savedRequest, context, reason);
-
-        return ApiResponse.<TenantProfileAccessRequestResponse>builder()
-                .data(new TenantProfileAccessRequestResponse(savedRequest.getId(), savedRequest.getStatus().name(), false))
-                .build();
-    }
-
-    private void notifyOwnersProfileAccessRequested(
-            ChangeRequest request,
-            TenantProfileAccessContext context,
-            String reason
-    ) {
-        List<Long> ownerIds = jdbcTemplate.queryForList("""
-                        SELECT user_id
-                        FROM users
-                        WHERE role = 'OWNER'
-                          AND status = 'ACTIVE'
-                          AND deleted_at IS NULL
-                        """,
-                Long.class
-        );
-        if (ownerIds.isEmpty()) {
-            return;
-        }
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("changeRequestId", request.getId());
-        payload.put("requestId", request.getId());
-        payload.put("requestCode", request.getRequestCode());
-        payload.put("tenantProfileId", context.profileId());
-        payload.put("profileId", context.profileId());
-        payload.put("contractId", context.contractId());
-        payload.put("contractCode", context.contractCode());
-        payload.put("propertyId", context.propertyId());
-        payload.put("roomCode", context.roomCode());
-        payload.put("roomName", context.roomCode());
-        payload.put("propertyName", context.propertyName());
-        payload.put("fullName", context.fullName());
-        payload.put("tenantName", context.fullName());
-        payload.put("managerId", request.getRequesterId());
-        payload.put("managerName", "Quản lý");
-        payload.put("reason", reason);
-        payload.put("targetRoute", "/dashboard/change-requests/" + request.getId());
-
-        for (Long ownerId : ownerIds) {
-            notificationPublisher.publish(
-                    "TENANT_PROFILE_ACCESS_REQUESTED",
-                    ownerId,
-                    "CHANGE_REQUEST",
-                    request.getId(),
-                    payload
-            );
-        }
     }
 
     private List<PoliceReportColumn> resolvePoliceReportColumns(List<String> requestedColumns) {
@@ -504,9 +354,10 @@ public class TenantProfileManagementController {
         return selectedColumns;
     }
 
-    private List<PoliceReportRow> fetchPoliceReportRows() {
+    private List<PoliceReportRow> fetchPoliceReportRows(UserPrincipal principal) {
         return jdbcTemplate.query("""
-                        SELECT resident_profiles.property_name,
+                        SELECT resident_profiles.property_id,
+                               resident_profiles.property_name,
                                resident_profiles.room_code,
                                resident_profiles.contract_code,
                                resident_profiles.full_name,
@@ -525,7 +376,8 @@ public class TenantProfileManagementController {
                             SELECT lc.lease_contract_id AS contract_id,
                                    lc.contract_code,
                                    r.room_code,
-                                   p.name AS property_name,
+                                    p.property_id,
+                                    p.name AS property_name,
                                    pp.person_profile_id AS profile_id,
                                    pp.full_name,
                                    pp.dob,
@@ -553,6 +405,7 @@ public class TenantProfileManagementController {
                             SELECT lc.lease_contract_id AS contract_id,
                                    lc.contract_code,
                                    r.room_code,
+                                   p.property_id,
                                    p.name AS property_name,
                                    pp.person_profile_id AS profile_id,
                                    pp.full_name,
@@ -598,6 +451,7 @@ public class TenantProfileManagementController {
                                  resident_profiles.full_name
                         """,
                 (rs, rowNum) -> new PoliceReportRow(
+                        nullableLong(rs, "property_id"),
                         rs.getString("property_name"),
                         rs.getString("room_code"),
                         rs.getString("contract_code"),
@@ -616,7 +470,10 @@ public class TenantProfileManagementController {
                                 nullableLong(rs, "back_file_id")
                         )
                 )
-        );
+        ).stream()
+                .filter(row -> principal.getRole() == Role.OWNER
+                        || isAssignedManager(principal.getId(), row.propertyId()))
+                .toList();
     }
 
     private byte[] generatePoliceReportWorkbook(
@@ -662,9 +519,10 @@ public class TenantProfileManagementController {
 
     private byte[] generatePoliceReportPackage(
             List<PoliceReportRow> rows,
-            List<PoliceReportColumn> selectedColumns
+            List<PoliceReportColumn> selectedColumns,
+            UserPrincipal principal
     ) {
-        List<PoliceReportRoomPackage> rooms = fetchPoliceReportRoomPackages();
+        List<PoliceReportRoomPackage> rooms = fetchPoliceReportRoomPackages(principal);
         List<String> missingFiles = new ArrayList<>();
         Set<String> usedEntries = new LinkedHashSet<>();
 
@@ -832,11 +690,12 @@ public class TenantProfileManagementController {
         return "application/pdf".equals(defaultContentType) ? ".pdf" : ".jpg";
     }
 
-    private List<PoliceReportRoomPackage> fetchPoliceReportRoomPackages() {
+    private List<PoliceReportRoomPackage> fetchPoliceReportRoomPackages(UserPrincipal principal) {
         List<PoliceReportPackageRow> rows = jdbcTemplate.query("""
                         SELECT resident_profiles.contract_id,
                                resident_profiles.contract_code,
                                resident_profiles.room_code,
+                               resident_profiles.property_id,
                                resident_profiles.property_name,
                                resident_profiles.profile_id,
                                resident_profiles.full_name,
@@ -849,7 +708,8 @@ public class TenantProfileManagementController {
                             SELECT lc.lease_contract_id AS contract_id,
                                    lc.contract_code,
                                    r.room_code,
-                                   p.name AS property_name,
+                                    p.property_id,
+                                    p.name AS property_name,
                                    pp.person_profile_id AS profile_id,
                                    pp.full_name,
                                    co.occupant_role AS room_role
@@ -873,7 +733,8 @@ public class TenantProfileManagementController {
                             SELECT lc.lease_contract_id AS contract_id,
                                    lc.contract_code,
                                    r.room_code,
-                                   p.name AS property_name,
+                                    p.property_id,
+                                    p.name AS property_name,
                                    pp.person_profile_id AS profile_id,
                                    pp.full_name,
                                    'PRIMARY' AS room_role
@@ -915,10 +776,11 @@ public class TenantProfileManagementController {
                                  resident_profiles.full_name
                         """,
                 (rs, rowNum) -> new PoliceReportPackageRow(
-                        nullableLong(rs, "contract_id"),
-                        rs.getString("contract_code"),
-                        rs.getString("room_code"),
-                        rs.getString("property_name"),
+                         nullableLong(rs, "contract_id"),
+                         rs.getString("contract_code"),
+                         rs.getString("room_code"),
+                         nullableLong(rs, "property_id"),
+                         rs.getString("property_name"),
                         nullableLong(rs, "profile_id"),
                         rs.getString("full_name"),
                         rs.getString("room_role"),
@@ -927,7 +789,10 @@ public class TenantProfileManagementController {
                         nullableLong(rs, "lease_contract_file_id"),
                          nullableLong(rs, "lease_signed_file_id")
                 )
-        );
+        ).stream()
+                .filter(row -> principal.getRole() == Role.OWNER
+                        || isAssignedManager(principal.getId(), row.propertyId()))
+                .toList();
 
         Map<Long, List<PoliceReportPackageRow>> rowsByContract = new LinkedHashMap<>();
         for (PoliceReportPackageRow row : rows) {
@@ -1042,59 +907,6 @@ public class TenantProfileManagementController {
         return principal;
     }
 
-    private TenantProfileAccessContext getTenantProfileAccessContext(Long profileId) {
-        List<TenantProfileAccessContext> contexts = jdbcTemplate.query("""
-                        SELECT pp.person_profile_id AS profile_id,
-                               pp.full_name,
-                               lc.lease_contract_id AS contract_id,
-                               lc.contract_code,
-                               r.room_code,
-                               p.property_id,
-                               p.name AS property_name
-                        FROM person_profiles pp
-                        JOIN lease_contracts lc
-                          ON lc.deleted_at IS NULL
-                         AND lc.status IN ('ACTIVE','EXPIRING_SOON','TERMINATION_PENDING')
-                         AND NOT EXISTS (
-                             SELECT 1
-                             FROM room_transfer_requests completed_transfer
-                             WHERE completed_transfer.old_contract_id = lc.lease_contract_id
-                               AND completed_transfer.status IN ('EXECUTED','COMPLETED')
-                         )
-                         AND (
-                             lc.primary_tenant_profile_id = pp.person_profile_id
-                             OR EXISTS (
-                                 SELECT 1
-                                 FROM contract_occupants co
-                                 WHERE co.contract_id = lc.lease_contract_id
-                                   AND co.tenant_profile_id = pp.person_profile_id
-                                   AND co.status = 'ACTIVE'
-                             )
-                         )
-                        JOIN rooms r ON r.room_id = lc.room_id
-                        JOIN properties p ON p.property_id = r.property_id
-                        WHERE pp.person_profile_id = ?
-                          AND pp.deleted_at IS NULL
-                        ORDER BY lc.start_date DESC, lc.lease_contract_id DESC
-                        LIMIT 1
-                        """,
-                (rs, rowNum) -> new TenantProfileAccessContext(
-                        nullableLong(rs, "profile_id"),
-                        rs.getString("full_name"),
-                        nullableLong(rs, "contract_id"),
-                        rs.getString("contract_code"),
-                        rs.getString("room_code"),
-                        nullableLong(rs, "property_id"),
-                        rs.getString("property_name")
-                ),
-                profileId
-        );
-        if (contexts.isEmpty()) {
-            throw new AppException(ApiErrorCode.RESOURCE_NOT_FOUND);
-        }
-        return contexts.getFirst();
-    }
-
     private boolean isAssignedManager(Long managerId, Long propertyId) {
         if (managerId == null || propertyId == null) {
             return false;
@@ -1113,119 +925,6 @@ public class TenantProfileManagementController {
                 propertyId
         );
         return count != null && count > 0;
-    }
-
-    private ProfileAccessDecision resolveProfileAccess(Long profileId, UserPrincipal principal, boolean isOwner) {
-        if (isOwner) {
-            return new ProfileAccessDecision("APPROVED", null, true, null, null, null);
-        }
-        if (profileId == null || principal == null || principal.getRole() != Role.MANAGER) {
-            return new ProfileAccessDecision("NONE", null, false, null, null, null);
-        }
-
-        var activeGrant = permissionGrantService.findActiveTenantProfileGrant(principal.getId(), profileId);
-        if (activeGrant.isPresent()) {
-            PermissionGrant grant = activeGrant.get();
-            return new ProfileAccessDecision(
-                    "APPROVED",
-                    grant.getSourceChangeRequestId(),
-                    true,
-                    grant.getId(),
-                    grant.getExpiresAt(),
-                    grant.getDurationCode() == null ? null : grant.getDurationCode().name()
-            );
-        }
-
-        List<ProfileAccessDecision> decisions = jdbcTemplate.query("""
-                        SELECT change_request_id AS request_id,
-                               status
-                        FROM change_requests
-                        WHERE request_type = 'TENANT_PROFILE_ACCESS'
-                          AND target_type = 'TENANT_PROFILE'
-                          AND target_id = ?
-                          AND requester_id = ?
-                        ORDER BY created_at DESC,
-                                 change_request_id DESC
-                        LIMIT 1
-                        """,
-                (rs, rowNum) -> {
-                    String status = rs.getString("status");
-                    return new ProfileAccessDecision(
-                            status,
-                            nullableLong(rs, "request_id"),
-                            false,
-                            null,
-                            null,
-                            null
-                    );
-                },
-                profileId,
-                principal.getId()
-        );
-        ProfileAccessDecision latestRequest = decisions.isEmpty() ? null : decisions.getFirst();
-        if (latestRequest != null && ("PENDING".equals(latestRequest.status()) || "REJECTED".equals(latestRequest.status()))) {
-            return latestRequest;
-        }
-
-        return permissionGrantService.findLatestTenantProfileGrant(principal.getId(), profileId)
-                .map(grant -> new ProfileAccessDecision(
-                        permissionGrantService.statusOf(grant),
-                        grant.getSourceChangeRequestId(),
-                        false,
-                        grant.getId(),
-                        grant.getExpiresAt(),
-                        grant.getDurationCode() == null ? null : grant.getDurationCode().name()
-                ))
-                .orElseGet(() -> latestRequest == null
-                        ? new ProfileAccessDecision("NONE", null, false, null, null, null)
-                        : latestRequest);
-    }
-
-    private ProfileStatus restrictedProfileStatus(ProfileAccessDecision accessDecision) {
-        return switch (accessDecision.status()) {
-            case "EXPIRED" -> new ProfileStatus("ACCESS_EXPIRED", "Quyền xem đã hết hạn");
-            case "REVOKED" -> new ProfileStatus("ACCESS_REVOKED", "Quyền xem đã bị thu hồi");
-            case "PENDING" -> new ProfileStatus("ACCESS_PENDING", "Chờ chủ trọ duyệt");
-            case "REJECTED" -> new ProfileStatus("ACCESS_REJECTED", "Yêu cầu bị từ chối");
-            default -> new ProfileStatus("ACCESS_REQUIRED", "Cần gửi yêu cầu");
-        };
-    }
-
-    private String maskPhone(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String digits = value.replaceAll("\\D", "");
-        if (digits.length() < 4) {
-            return "***";
-        }
-        return "*** *** " + digits.substring(digits.length() - 3);
-    }
-
-    private String maskEmail(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        int atIndex = value.indexOf('@');
-        if (atIndex <= 1) {
-            return "***";
-        }
-        return value.charAt(0) + "***" + value.substring(atIndex);
-    }
-
-    private String trimToNull(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value.trim();
-    }
-
-    private String toJson(Map<String, Object> payload) {
-        try {
-            return objectMapper.writeValueAsString(payload);
-        } catch (JsonProcessingException exception) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
-        }
     }
 
     private TenantProfileRow mapTenantProfileRow(ResultSet rs) throws SQLException {
@@ -1440,40 +1139,6 @@ public class TenantProfileManagementController {
     private record ProfileStatus(String code, String label) {
     }
 
-    private record ProfileAccessDecision(
-            String status,
-            Long requestId,
-            boolean canViewSensitiveProfile,
-            Long grantId,
-            LocalDateTime expiresAt,
-            String durationCode
-    ) {
-    }
-
-    private record TenantProfileAccessContext(
-            Long profileId,
-            String fullName,
-            Long contractId,
-            String contractCode,
-            String roomCode,
-            Long propertyId,
-            String propertyName
-    ) {
-    }
-
-    public record TenantProfileAccessRequest(
-            @Size(max = 1000, message = "Lý do không được vượt quá 1000 ký tự.")
-            String reason
-    ) {
-    }
-
-    public record TenantProfileAccessRequestResponse(
-            Long requestId,
-            String status,
-            Boolean canViewSensitiveProfile
-    ) {
-    }
-
     public record TenantProfileSummaryResponse(
             Long id,
             Long userId,
@@ -1562,6 +1227,7 @@ public class TenantProfileManagementController {
     }
 
     private record PoliceReportRow(
+            Long propertyId,
             String propertyName,
             String roomCode,
             String contractCode,
@@ -1583,6 +1249,7 @@ public class TenantProfileManagementController {
             Long contractId,
             String contractCode,
             String roomCode,
+            Long propertyId,
             String propertyName,
             Long profileId,
             String fullName,

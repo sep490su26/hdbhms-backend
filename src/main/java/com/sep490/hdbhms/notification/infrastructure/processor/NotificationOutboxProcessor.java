@@ -53,7 +53,7 @@ public class NotificationOutboxProcessor {
         // Step 1: Atomic lock - only one instance succeeds
         boolean locked = notificationOutboxRepository.markAsProcessing(outboxId);
         if (!locked) {
-            log.debug("Outbox {} grabbed by another instance or not PENDING, skipping", outboxId);
+            log.debug("Outbox {} is locked by another process or is no longer pending; skipping", outboxId);
             return;
         }
 
@@ -77,8 +77,8 @@ public class NotificationOutboxProcessor {
                 .findActiveTokenByUserId(outbox.getRecipientUserId());
 
         if (tokens.isEmpty()) {
-            log.warn("No active device tokens for user {}, outbox {}", outbox.getRecipientUserId(), outbox.getId());
-            outbox.markRetry("No active device tokens");
+            log.warn("User {} has no active device token, outbox {}", outbox.getRecipientUserId(), outbox.getId());
+            outbox.markRetry("Không có thiết bị đang hoạt động để nhận thông báo");
             return;
         }
 
@@ -94,7 +94,7 @@ public class NotificationOutboxProcessor {
                     if (v != null) data.put(k, v.toString());
                 });
             } catch (Exception e) {
-                log.warn("Failed to parse outbox {} payload JSON: {}", outbox.getId(), e.getMessage());
+                log.warn("Failed to parse JSON payload for outbox {}: {}", outbox.getId(), e.getMessage());
             }
         }
         data.put("notificationId", outbox.getId() == null ? "" : outbox.getId().toString());
@@ -114,9 +114,9 @@ public class NotificationOutboxProcessor {
                 outbox.setSent();
                 createDeliveryRecord(outbox, messageIds);
                 syncProvisioningOnSuccess(outbox);
-                log.info("Push sent for outbox {}: success", outbox.getId());
+            log.info("Push notification sent successfully for outbox {}", outbox.getId());
             } else {
-                outbox.markRetry("Failed to send push notification via FCM");
+                outbox.markRetry("Không thể gửi thông báo đẩy qua FCM");
             }
 
         } catch (FirebaseMessagingException e) {
@@ -129,7 +129,7 @@ public class NotificationOutboxProcessor {
         String recipientEmail = resolveRecipientEmail(outbox);
         if (StringUtils.isEmpty(recipientEmail)) {
             log.warn("No email address found for outbox {}", outbox.getId());
-            outbox.markDeadLetter("Recipient has no email address");
+            outbox.markDeadLetter("Người nhận không có địa chỉ email");
             return;
         }
 
@@ -142,7 +142,7 @@ public class NotificationOutboxProcessor {
             syncProvisioningOnSuccess(outbox);
 
         } catch (Exception e) {
-            log.error("Email failed for outbox {}: {}", outbox.getId(), e.getMessage());
+            log.error("Email delivery failed for outbox {}: {}", outbox.getId(), e.getMessage());
             outbox.markRetry(e.getMessage());
         }
     }
@@ -151,7 +151,7 @@ public class NotificationOutboxProcessor {
         String recipientPhone = resolveRecipientPhone(outbox);
         if (StringUtils.isEmpty(recipientPhone)) {
             log.warn("No phone number found for outbox {}", outbox.getId());
-            outbox.markDeadLetter("Recipient has no phone number");
+            outbox.markDeadLetter("Người nhận không có số điện thoại");
             return;
         }
 
@@ -164,7 +164,7 @@ public class NotificationOutboxProcessor {
             syncProvisioningOnSuccess(outbox);
 
         } catch (Exception e) {
-            log.error("SMS failed for outbox {}: {}", outbox.getId(), e.getMessage());
+            log.error("SMS delivery failed for outbox {}: {}", outbox.getId(), e.getMessage());
             outbox.markRetry(e.getMessage());
         }
     }
@@ -172,13 +172,13 @@ public class NotificationOutboxProcessor {
     private void processInApp(NotificationOutbox outbox) {
         outbox.setSent();
         createDeliveryRecord(outbox, null);
-        log.debug("IN_APP outbox {} marked sent", outbox.getId());
+        log.debug("Marked IN_APP outbox {} as sent", outbox.getId());
     }
 
     private void processWeb(NotificationOutbox outbox) {
         outbox.setSent();
         createDeliveryRecord(outbox, null);
-        log.debug("WEB outbox {} marked sent", outbox.getId());
+        log.debug("Marked WEB outbox {} as sent", outbox.getId());
     }
 
     private String resolveRecipientEmail(NotificationOutbox outbox) {

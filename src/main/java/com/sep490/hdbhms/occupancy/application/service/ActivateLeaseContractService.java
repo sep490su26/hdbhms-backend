@@ -106,10 +106,10 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         RoomStatus fromStatus = room.getCurrentStatus();
         room.setCurrentStatus(RoomStatus.OCCUPIED);
         roomRepository.save(room);
-        workflowSupport.appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.OCCUPIED, "Lease contract activated: " + contract.getContractCode());
-        workflowSupport.appendContractEvent(contract.getId(), "SIGNED", "Lease contract activated");
+        workflowSupport.appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.OCCUPIED, "Kích hoạt hợp đồng thuê: " + contract.getContractCode());
+        workflowSupport.appendContractEvent(contract.getId(), "SIGNED", "Kích hoạt hợp đồng thuê");
         if (previousContract != null) {
-            workflowSupport.appendContractEvent(previousContract.getId(), "RENEWED", "Lease contract renewed; newContractId=" + contract.getId());
+            workflowSupport.appendContractEvent(previousContract.getId(), "RENEWED", "Đã tái ký hợp đồng; mã hợp đồng mới=" + contract.getId());
         }
         return getLeaseContractManagementUseCase.findOne(contract.getId());
     }

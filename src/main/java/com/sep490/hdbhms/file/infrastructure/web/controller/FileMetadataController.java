@@ -20,7 +20,7 @@ import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
 import com.sep490.hdbhms.permissiongrant.domain.value_objects.PermissionAccessAction;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -213,7 +213,8 @@ public class FileMetadataController {
 
     private boolean canDownloadTenantLinkedFile(Long fileId) {
         return canReadAnyLinkedContract(findLinkedHandoverContractIds(fileId))
-                || canReadAnyLinkedRoom(findLinkedRoomAssetRoomIds(fileId));
+                || canReadAnyLinkedRoom(findLinkedRoomAssetRoomIds(fileId))
+                || canReadAnyLinkedRoom(findLinkedMaintenanceTicketRoomIds(fileId));
     }
 
     private List<Long> findLinkedHandoverContractIds(Long fileId) {
@@ -257,6 +258,20 @@ public class FileMetadataController {
         );
     }
 
+    private List<Long> findLinkedMaintenanceTicketRoomIds(Long fileId) {
+        return jdbcTemplate.queryForList("""
+                        SELECT DISTINCT mt.room_id
+                        FROM maintenance_ticket_attachments mta
+                        JOIN maintenance_tickets mt
+                          ON mt.maintenance_ticket_id = mta.ticket_id
+                        WHERE mta.file_id = ?
+                          AND mt.room_id IS NOT NULL
+                        """,
+                Long.class,
+                fileId
+        );
+    }
+
     private boolean canReadAnyLinkedContract(List<Long> contractIds) {
         for (Long contractId : contractIds) {
             if (contractId == null) {
@@ -266,7 +281,7 @@ public class FileMetadataController {
                 leaseContractQueryService.assertCurrentUserCanReadContract(contractId);
                 return true;
             } catch (AppException exception) {
-                log.debug("Tenant cannot read contract {} linked to sensitive file", contractId, exception);
+                log.debug("Tenant could not read contract {} linked to the sensitive file", contractId, exception);
             }
         }
         return false;
@@ -281,7 +296,7 @@ public class FileMetadataController {
                 leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
                 return true;
             } catch (AppException exception) {
-                log.debug("Tenant cannot read room {} linked to sensitive file", roomId, exception);
+                log.debug("Tenant could not read room {} linked to the sensitive file", roomId, exception);
             }
         }
         return false;

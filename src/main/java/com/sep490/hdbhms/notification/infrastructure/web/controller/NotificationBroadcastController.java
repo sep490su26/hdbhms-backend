@@ -3,7 +3,7 @@ package com.sep490.hdbhms.notification.infrastructure.web.controller;
 import com.sep490.hdbhms.notification.application.service.NotificationBroadcastService;
 import com.sep490.hdbhms.notification.infrastructure.web.dto.request.SendNotificationBroadcastRequest;
 import com.sep490.hdbhms.notification.infrastructure.web.dto.response.NotificationBroadcastResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

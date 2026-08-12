@@ -6,7 +6,7 @@ import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.mapper.PropertyPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.PropertySpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.PropertySpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

@@ -8,7 +8,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.Authe
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.IntrospectResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.OnboardingStatusResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.AuthenticationWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

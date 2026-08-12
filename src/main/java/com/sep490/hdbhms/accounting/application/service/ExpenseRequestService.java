@@ -49,8 +49,8 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEnti
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +60,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -209,7 +210,7 @@ public class ExpenseRequestService {
         operatingExpenseRepository.save(updateExpenseStatus(expense, ExpenseStatus.READY_FOR_PAYMENT, owner, now));
         changeRequestRepository.save(changeRequest);
         recordChangeEvent(changeRequest, RequestStatus.PENDING, RequestStatus.APPROVED,
-                "Owner duyệt yêu cầu chi, chờ thanh toán", ownerId);
+                "Chủ trọ đã duyệt yêu cầu chi, đang chờ thanh toán", ownerId);
         notifyRequester(expense, changeRequest, "EXPENSE_APPROVED");
         syncLinkedLiquidationRefund(expense, changeRequest);
         return toResponse(expense);
@@ -282,17 +283,83 @@ public class ExpenseRequestService {
             LocalDate liquidationDate,
             Long currentUserId
     ) {
-        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
-        if (sourceRequest == null) {
-            return LiquidationDepositRefundLink.empty();
-        }
+        return ensureLiquidationDepositRefundRequest(
+                contractId,
+                contractCode,
+                propertyId,
+                roomId,
+                roomCode,
+                amount,
+                liquidationDate,
+                currentUserId,
+                null
+        );
+    }
 
-        Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
+    @Transactional
+    public LiquidationDepositRefundLink ensureLiquidationDepositRefundRequest(
+            Long contractId,
+            String contractCode,
+            Long propertyId,
+            Long roomId,
+            String roomCode,
+            Long amount,
+            LocalDate liquidationDate,
+            Long currentUserId,
+            Long tenantUserId
+    ) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
         long refundAmount = safeAmount(amount);
         if (refundAmount <= 0) {
+            if (sourceRequest == null) {
+                return LiquidationDepositRefundLink.empty();
+            }
+            Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
             markRefundNotRequired(sourceRequest, sourcePayload);
             return toLiquidationDepositRefundLink(sourceRequest, sourcePayload);
         }
+
+        if (sourceRequest == null) {
+            UserEntity requester = requireUser(currentUserId);
+            PropertyEntity property = propertyRepository.findById(propertyId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không tìm thấy cơ sở."));
+            RoomEntity room = resolveRoom(roomId, property.getId());
+            String roomLabel = roomCode == null || roomCode.isBlank() ? "" : " phòng " + roomCode;
+            String reason = "Hoàn cọc thanh lý hợp đồng " + defaultText(contractCode, "#" + contractId);
+            sourceRequest = changeRequestRepository.save(ChangeRequestEntity.builder()
+                    .requestCode(nextRequestCode(
+                            RequestType.CONTRACT_LIQUIDATION,
+                            room == null ? roomCode : room.getRoomCode()
+                    ))
+                    .requestType(RequestType.CONTRACT_LIQUIDATION)
+                    .requester(requester)
+                    .requesterRole(toRequesterRole(requester.getRole()))
+                    .targetType(TargetType.CONTRACT)
+                    .targetId(contractId)
+                    .title("Yêu cầu thanh lý hợp đồng " + defaultText(contractCode, "#" + contractId))
+                    .description(reason + roomLabel)
+                    .requestPayload(toJson(payload(
+                            "requestKind", SOURCE_REQUEST_TYPE_CONTRACT_LIQUIDATION,
+                            "contractId", contractId,
+                            "contractCode", contractCode,
+                            "roomId", room == null ? null : room.getId(),
+                            "roomCode", roomCode,
+                            "primaryTenantUserId", tenantUserId,
+                            "liquidationDate", liquidationDate,
+                            "liquidationStage", "WAITING_DEPOSIT_REFUND",
+                            "depositRefundStatus", "PENDING",
+                            "depositRefundAmount", refundAmount
+                    )))
+                    .assignedRole(AssignedRole.OWNER)
+                    .status(RequestStatus.PENDING)
+                    .build());
+            sourceRequest.setStatus(RequestStatus.PROCESSING);
+            sourceRequest = changeRequestRepository.save(sourceRequest);
+            recordChangeEvent(sourceRequest, null, RequestStatus.PROCESSING,
+                    "Tạo yêu cầu thanh lý để theo dõi hoàn cọc", currentUserId);
+        }
+
+        Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
 
         Long existingExpenseId = toLong(sourcePayload.get("depositRefundExpenseId"));
         OperatingExpenseEntity existingExpense = existingExpenseId == null
@@ -387,6 +454,12 @@ public class ExpenseRequestService {
     public ExpenseRequestResponse markPaid(Long id, MarkExpensePaidRequest request, Long currentUserId, Role currentRole) {
         OperatingExpenseEntity expense = requireExpense(id);
         ExpenseApprovalRequestEntity approval = requireApproval(expense.getId());
+        if (isLinkedLiquidationRefund(approval.getChangeRequest())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Khoản hoàn cọc thanh lý chỉ cần khách thuê xác nhận đã nhận tiền; không dùng thao tác ghi nhận đã thanh toán."
+            );
+        }
         if (approval.getChangeRequest().getStatus() != RequestStatus.APPROVED
                 || expense.getStatus() != ExpenseStatus.READY_FOR_PAYMENT) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
@@ -537,6 +610,10 @@ public class ExpenseRequestService {
         payload.put("liquidationStage", liquidationStageAfterRefundSync(finalInvoicePaid, nextStatus));
         sourceRequest.setRequestPayload(toJson(payload));
         changeRequestRepository.save(sourceRequest);
+        if (!Objects.equals(currentStatus, nextStatus)
+                && "APPROVED_WAITING_TENANT_CONFIRMATION".equals(nextStatus)) {
+            notifyTenantRefundApproved(sourceRequest, expense);
+        }
     }
 
     @Transactional
@@ -641,6 +718,40 @@ public class ExpenseRequestService {
         );
     }
 
+    private void notifyTenantRefundApproved(
+            ChangeRequestEntity sourceRequest,
+            OperatingExpenseEntity expense
+    ) {
+        if (sourceRequest == null || expense == null) {
+            return;
+        }
+        Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
+        Long tenantUserId = toLong(sourcePayload.get("primaryTenantUserId"));
+        if (tenantUserId == null && sourceRequest.getRequester() != null) {
+            tenantUserId = sourceRequest.getRequester().getId();
+        }
+        if (tenantUserId == null) {
+            return;
+        }
+        Map<String, Object> data = payload(
+                "requestId", sourceRequest.getId(),
+                "requestCode", sourceRequest.getRequestCode(),
+                "contractId", sourcePayload.get("contractId"),
+                "contractCode", sourcePayload.get("contractCode"),
+                "roomCode", sourcePayload.get("roomCode"),
+                "amount", expense.getAmount(),
+                "depositRefundAmount", expense.getAmount(),
+                "targetRoute", "/requests"
+        );
+        notificationPublisher.publish(
+                "LIQUIDATION_DEPOSIT_REFUND_RECORDED",
+                tenantUserId,
+                "CHANGE_REQUEST",
+                sourceRequest.getId(),
+                data
+        );
+    }
+
     private boolean isLinkedLiquidationRefund(ChangeRequestEntity changeRequest) {
         if (changeRequest == null) {
             return false;
@@ -662,7 +773,7 @@ public class ExpenseRequestService {
             return "RECORDED_BY_MANAGER";
         }
         if (expenseStatus == ExpenseStatus.READY_FOR_PAYMENT) {
-            return "APPROVED_WAITING_REFUND";
+            return "APPROVED_WAITING_TENANT_CONFIRMATION";
         }
         if (expenseStatus == ExpenseStatus.REJECTED) {
             return "OWNER_REJECTED";

@@ -72,7 +72,7 @@ public class UploadFileService implements UploadFileUseCase {
             try (var is = multipartFile.getInputStream()) {
                 Files.copy(is, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
             }
-            log.info("Getting user id: {} who uploaded file name: {}", ownerId, multipartFile.getOriginalFilename());
+            log.info("Recording file upload by user {}: {}", ownerId, multipartFile.getOriginalFilename());
 
             Path fileDirectory = Path.of(fileProperties.getStorage().getDirectory());
             Files.createDirectories(fileDirectory);
@@ -95,7 +95,7 @@ public class UploadFileService implements UploadFileUseCase {
 
             fileMetadata = fileMetadataRepository.save(fileMetadata);
             log.info("{}", fileMetadata);
-            log.info("Successfully uploaded file: {}", multipartFile.getOriginalFilename());
+            log.info("File uploaded successfully: {}", multipartFile.getOriginalFilename());
             return fileMetadata;
 
         } catch (IOException | AppException | NumberFormatException ex) {

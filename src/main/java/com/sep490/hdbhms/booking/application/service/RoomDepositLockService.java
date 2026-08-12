@@ -95,9 +95,9 @@ public class RoomDepositLockService {
     }
 
     public String buildLockMessage(long remainingSeconds) {
-        return "Phong tam khoa dat coc do co 3 luot dat coc that bai trong duoi 16 phut. Vui long thu lai sau "
+        return "Phòng tạm khóa đặt cọc do có 3 lượt đặt cọc thất bại trong dưới 16 phút. Vui lòng thử lại sau "
                 + remainingSeconds
-                + " giay.";
+                + " giây.";
     }
 
     public record RoomDepositLock(LocalDateTime lockedUntil, long remainingSeconds) {

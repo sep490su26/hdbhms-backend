@@ -28,7 +28,7 @@ public class NotificationOutboxDispatcher {
 
         if (pending.isEmpty()) return;
 
-        log.info("Dispatching {} pending notification outbox entries", pending.size());
+        log.info("Processing {} pending notification outbox records", pending.size());
 
         for (NotificationOutbox outbox : pending) {
             try {

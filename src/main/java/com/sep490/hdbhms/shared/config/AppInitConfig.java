@@ -33,6 +33,6 @@ public class AppInitConfig {
 
     @PostConstruct
     public void checkControllers() {
-        System.out.println("Controllers: " + ctx.getBeanNamesForAnnotation(Controller.class).length);
+        System.out.println("Số lượng controller: " + ctx.getBeanNamesForAnnotation(Controller.class).length);
     }
 }

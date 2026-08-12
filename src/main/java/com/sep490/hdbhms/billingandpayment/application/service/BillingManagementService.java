@@ -183,20 +183,27 @@ public class BillingManagementService {
     private List<InvoiceExcelRow> buildInvoiceExcelRows(List<InvoiceEntity> invoices) {
         Map<Long, InvoiceExcelRowBuilder> grouped = new LinkedHashMap<>();
         Map<Long, Integer> occupantCounts = new LinkedHashMap<>();
+        Map<Long, LeaseContractEntity> exportContracts = new LinkedHashMap<>();
 
         for (InvoiceEntity invoice : invoices) {
             if (invoice.getRoom() == null) {
                 continue;
             }
             Long roomId = invoice.getRoom().getId();
+            LeaseContractEntity exportContract = resolveExportContract(invoice, occupantCounts, exportContracts);
+            int occupantCount = activeOccupantCount(exportContract, occupantCounts);
+            if (occupantCount <= 0) {
+                continue;
+            }
             InvoiceExcelRowBuilder builder = grouped.computeIfAbsent(
                     roomId,
                     ignored -> new InvoiceExcelRowBuilder(
                             invoice,
-                            activeOccupantCount(invoice.getLeastContract(), occupantCounts)
+                            exportContract,
+                            occupantCount
                     )
             );
-            builder.merge(invoice);
+            builder.merge(invoice, exportContract);
         }
 
         return grouped.values().stream()
@@ -205,6 +212,34 @@ public class BillingManagementService {
                         .comparingInt((InvoiceExcelRow row) -> floorNumber(row.floorCode()))
                         .thenComparingInt(row -> roomNumber(row.roomCode())))
                 .toList();
+    }
+
+    private LeaseContractEntity resolveExportContract(
+            InvoiceEntity invoice,
+            Map<Long, Integer> occupantCounts,
+            Map<Long, LeaseContractEntity> exportContracts
+    ) {
+        LeaseContractEntity linkedContract = invoice.getLeastContract();
+        if (activeOccupantCount(linkedContract, occupantCounts) > 0) {
+            return linkedContract;
+        }
+
+        Long roomId = invoice.getRoom().getId();
+        LeaseContractEntity cachedContract = exportContracts.get(roomId);
+        if (cachedContract != null) {
+            return cachedContract;
+        }
+
+        LeaseContractEntity currentContract = leaseContractRepository
+                .findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(
+                        roomId,
+                        BILLABLE_CONTRACT_STATUSES
+                )
+                .orElse(null);
+        if (currentContract != null) {
+            exportContracts.put(roomId, currentContract);
+        }
+        return currentContract;
     }
 
     private int activeOccupantCount(LeaseContractEntity contract, Map<Long, Integer> cache) {
@@ -233,20 +268,11 @@ public class BillingManagementService {
                 setText(sheet, 5, 0, invoiceExcelTitle(billingPeriod));
             }
 
-            long totalOccupants = 0L;
-            long totalListedPrice = 0L;
-            long totalRent = 0L;
-            long totalService = 0L;
-            long totalElectricity = 0L;
-            long totalDebt = 0L;
-            long totalDiscount = 0L;
-            long totalAmount = 0L;
-
             Map<String, List<InvoiceExcelRow>> rowsByFloor = new LinkedHashMap<>();
             for (InvoiceExcelRow item : rows) {
                 String floorCode = normalizeFloorCode(item.floorCode());
                 if (!INVOICE_EXCEL_MAX_ROWS_BY_FLOOR.containsKey(floorCode)) {
-                    throw new IOException("Khong co block tang trong template cho phong " + item.roomCode());
+                    throw new IOException("Không có khu vực tầng tương ứng trong mẫu cho phòng " + item.roomCode());
                 }
                 rowsByFloor.computeIfAbsent(floorCode, ignored -> new ArrayList<>()).add(item);
             }
@@ -260,7 +286,7 @@ public class BillingManagementService {
                 List<InvoiceExcelRow> floorRows = rowsByFloor.getOrDefault(floorCode, List.of());
                 CellStyle[] dataStyles = styles.dataStyles();
                 if (floorRows.size() > INVOICE_EXCEL_MAX_ROWS_BY_FLOOR.get(floorCode)) {
-                    throw new IOException("So phong cua tang " + floorCode + " vuot qua so dong trong template");
+                    throw new IOException("Số phòng của tầng " + floorCode + " vượt quá số dòng trong mẫu");
                 }
                 if (floorRows.isEmpty()) {
                     continue;
@@ -281,14 +307,6 @@ public class BillingManagementService {
                     Row dataRow = createStyledRow(sheet, outputRowIndex++, dataStyles, styles.dataHeight());
                     writeInvoiceExcelRow(dataRow, item, sequence++);
 
-                    totalOccupants += item.occupantCount();
-                    totalListedPrice += item.listedPrice();
-                    totalRent += item.rentAmount();
-                    totalService += item.serviceAmount();
-                    totalElectricity += item.electricityAmount();
-                    totalDebt += item.previousDebt();
-                    totalDiscount += item.discountAmount();
-                    totalAmount += item.totalAmount();
                 }
             }
 
@@ -302,14 +320,17 @@ public class BillingManagementService {
                     totalRow.getRowNum(), totalRow.getRowNum(), 0, 1
             ));
             setText(totalRow, 0, "Tổng");
-            setNumber(totalRow, 2, totalOccupants);
-            setNumber(totalRow, 3, totalListedPrice);
-            setNumber(totalRow, 9, totalRent);
-            setNumber(totalRow, 10, totalService);
-            setNumber(totalRow, 14, totalElectricity);
-            setNumber(totalRow, 15, totalDebt);
-            setNumber(totalRow, 16, totalDiscount);
-            setNumber(totalRow, 17, totalAmount);
+            int firstContentRow = INVOICE_EXCEL_CONTENT_START_ROW + 1;
+            int lastDataRow = totalRow.getRowNum();
+            setFormula(totalRow, 2, sumFormula("C", firstContentRow, lastDataRow));
+            setFormula(totalRow, 3, sumFormula("D", firstContentRow, lastDataRow));
+            setFormula(totalRow, 9, sumFormula("J", firstContentRow, lastDataRow));
+            setFormula(totalRow, 10, sumFormula("K", firstContentRow, lastDataRow));
+            setFormula(totalRow, 13, sumFormula("N", firstContentRow, lastDataRow));
+            setFormula(totalRow, 14, sumFormula("O", firstContentRow, lastDataRow));
+            setFormula(totalRow, 15, sumFormula("P", firstContentRow, lastDataRow));
+            setFormula(totalRow, 16, sumFormula("Q", firstContentRow, lastDataRow));
+            setFormula(totalRow, 17, sumFormula("R", firstContentRow, lastDataRow));
 
             workbook.setPrintArea(
                     workbook.getSheetIndex(sheet),
@@ -318,6 +339,9 @@ public class BillingManagementService {
                     0,
                     totalRow.getRowNum()
             );
+            // Keep formulas in the workbook while also caching their values for web/mobile viewers.
+            workbook.getCreationHelper().createFormulaEvaluator().evaluateAll();
+            workbook.setForceFormulaRecalculation(true);
             workbook.write(outputStream);
             return outputStream.toByteArray();
         }
@@ -371,6 +395,7 @@ public class BillingManagementService {
     }
 
     private void writeInvoiceExcelRow(Row row, InvoiceExcelRow item, int sequence) {
+        int excelRow = row.getRowNum() + 1;
         setNumber(row, 0, sequence);
         setText(row, 1, item.roomCode());
         setNumber(row, 2, item.occupantCount());
@@ -380,16 +405,20 @@ public class BillingManagementService {
         setDate(row, 6, item.contractStartDate());
         setDate(row, 7, item.contractEndDate());
         setNumber(row, 8, item.paymentCycleMonths());
-        setNumber(row, 9, item.rentAmount());
-        setNumber(row, 10, item.serviceAmount());
+        setFormula(row, 9, "D" + excelRow + "*I" + excelRow);
+        setFormula(row, 10, "C" + excelRow + "*E" + excelRow + "*I" + excelRow);
         setNumber(row, 11, item.electricityPrevious());
         setNumber(row, 12, item.electricityCurrent());
-        setNumber(row, 13, item.electricityUsage());
-        setNumber(row, 14, item.electricityAmount());
+        setFormula(row, 13, "M" + excelRow + "-L" + excelRow);
+        setFormula(row, 14, "N" + excelRow + "*3500");
         setNumber(row, 15, item.previousDebt());
         setNumber(row, 16, item.discountAmount());
-        setNumber(row, 17, item.totalAmount());
+        setFormula(row, 17, "J" + excelRow + "+K" + excelRow + "+O" + excelRow + "+P" + excelRow + "-Q" + excelRow);
         setText(row, 18, item.note());
+    }
+
+    private String sumFormula(String column, int firstRow, int lastRow) {
+        return "SUM(" + column + firstRow + ":" + column + lastRow + ")";
     }
 
     private String invoiceExcelTitle(String billingPeriod) {
@@ -442,6 +471,13 @@ public class BillingManagementService {
         }
     }
 
+    private void setFormula(Row row, int column, String formula) {
+        if (row != null) {
+            row.getCell(column, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK)
+                    .setCellFormula(formula);
+        }
+    }
+
     private void setDate(Row row, int column, LocalDate value) {
         if (row != null) {
             Cell cell = row.getCell(column, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
@@ -466,7 +502,7 @@ public class BillingManagementService {
         Map<String, Object> result = processOverdueWarnings(null);
         if (((Number) result.get("outboxCount")).intValue() > 0) {
             // ponytail: one daily overdue reminder; later move cadence to property billing settings.
-            log.info("Queued overdue invoice warnings: {}", result);
+            log.info("Queued overdue invoice notifications: {}", result);
         }
     }
 
@@ -971,7 +1007,7 @@ public class BillingManagementService {
                         """,
                 contractId,
                 ContractEventType.PRICE_CHANGED.name(),
-                ("Monthly rent override " + billingPeriod + ": " + oldRent + " -> " + newRent)
+                ("Điều chỉnh tiền thuê tháng " + billingPeriod + ": " + oldRent + " -> " + newRent)
                         .getBytes(StandardCharsets.UTF_8),
                 currentUserId
         );
@@ -1077,9 +1113,12 @@ public class BillingManagementService {
         private LocalDate contractEndDate;
         private Integer paymentCycleMonths = 1;
         private LocalDateTime latestIssueDate;
-        private final List<String> invoiceCodes = new ArrayList<>();
 
-        private InvoiceExcelRowBuilder(InvoiceEntity invoice, int occupantCount) {
+        private InvoiceExcelRowBuilder(
+                InvoiceEntity invoice,
+                LeaseContractEntity exportContract,
+                int occupantCount
+        ) {
             this.roomId = invoice.getRoom().getId();
             this.roomCode = invoice.getRoom().getRoomCode();
             this.floorCode = invoice.getRoom().getFloor() == null
@@ -1090,13 +1129,10 @@ public class BillingManagementService {
                     : invoice.getRoom().getFloor().getName();
             this.occupantCount = occupantCount;
             this.listedPrice = safe(invoice.getRoom().getListedPrice());
-            updateContract(invoice.getLeastContract());
+            updateContract(exportContract);
         }
 
-        private void merge(InvoiceEntity invoice) {
-            if (invoice.getInvoiceCode() != null && !invoiceCodes.contains(invoice.getInvoiceCode())) {
-                invoiceCodes.add(invoice.getInvoiceCode());
-            }
+        private void merge(InvoiceEntity invoice, LeaseContractEntity exportContract) {
             rentAmount += sumLines(invoice, InvoiceLineType.ROOM_RENT);
             serviceAmount += sumLines(invoice, InvoiceLineType.SERVICE_FEE);
             electricityAmount += sumLines(invoice, InvoiceLineType.ELECTRICITY);
@@ -1104,9 +1140,9 @@ public class BillingManagementService {
             totalAmount += safe(invoice.getTotalAmount());
 
             if (latestIssueDate == null
-                    || (invoice.getIssueDate() != null && invoice.getIssueDate().isAfter(latestIssueDate))) {
+                || (invoice.getIssueDate() != null && invoice.getIssueDate().isAfter(latestIssueDate))) {
                 latestIssueDate = invoice.getIssueDate();
-                updateContract(invoice.getLeastContract());
+                updateContract(exportContract);
                 InvoiceLineEntity electricityLine = invoiceLineRepository
                         .findByInvoice_IdOrderByIdAsc(invoice.getId())
                         .stream()
@@ -1137,7 +1173,8 @@ public class BillingManagementService {
             }
             contractStartDate = contract.getStartDate();
             contractEndDate = contract.getEndDate();
-            paymentCycleMonths = contract.getPaymentCycleMonths() == null ? 1 : contract.getPaymentCycleMonths();
+            int configuredCycle = contract.getPaymentCycleMonths() == null ? 1 : contract.getPaymentCycleMonths();
+            paymentCycleMonths = occupantCount <= 0 ? 0 : configuredCycle;
         }
 
         private InvoiceExcelRow toRow() {
@@ -1149,7 +1186,6 @@ public class BillingManagementService {
                     : (int) ChronoUnit.MONTHS.between(
                     contractStartDate.withDayOfMonth(1), contractEndDate.withDayOfMonth(1)
             ) + 1;
-            String note = invoiceCodes.isEmpty() ? "" : String.join(", ", invoiceCodes);
             return new InvoiceExcelRow(
                     roomId,
                     roomCode,
@@ -1171,7 +1207,7 @@ public class BillingManagementService {
                     0L,
                     discountAmount,
                     totalAmount,
-                    note
+                    ""
             );
         }
     }

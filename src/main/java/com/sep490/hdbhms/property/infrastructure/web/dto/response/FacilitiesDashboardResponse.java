@@ -3,7 +3,7 @@ package com.sep490.hdbhms.property.infrastructure.web.dto.response;
 import com.sep490.hdbhms.property.domain.value_objects.FloorStatus;
 import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import lombok.Builder;
 import lombok.Value;
 

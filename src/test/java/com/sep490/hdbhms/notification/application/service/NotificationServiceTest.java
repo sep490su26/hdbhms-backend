@@ -76,8 +76,8 @@ class NotificationServiceTest {
                 new FixedTemplateRepository(List.of(NotificationTemplate.builder()
                         .templateKey("ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED")
                         .channel(NotificationChannel.WEB)
-                        .titleTemplate("Xac nhan holder moi")
-                        .bodyTemplate("Ban duoc de cu lam holder moi cho phong [[${oldRoomName}]].")
+                        .titleTemplate("Xác nhận người đại diện mới")
+                        .bodyTemplate("Bạn được đề cử làm người đại diện mới cho phòng [[${oldRoomName}]].")
                         .status(TemplateStatus.ACTIVE)
                 .build())),
                 outboxRepository,

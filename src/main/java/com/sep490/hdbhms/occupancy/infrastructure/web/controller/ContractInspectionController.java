@@ -4,7 +4,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.SubmitTransferIns
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ContractInspectionUseCase;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.TransferInspectionRequest;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

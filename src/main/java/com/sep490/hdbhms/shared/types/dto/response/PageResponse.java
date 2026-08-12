@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.dto.response;
+package com.sep490.hdbhms.shared.types.dto.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

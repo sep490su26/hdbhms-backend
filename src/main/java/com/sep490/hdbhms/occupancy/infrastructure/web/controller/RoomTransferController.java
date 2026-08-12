@@ -16,8 +16,8 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ExecuteTransfe
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.HolderReplacementRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomTransferResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.TransferOutUtilityEstimateResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomTransferWebMapper;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import jakarta.validation.Valid;

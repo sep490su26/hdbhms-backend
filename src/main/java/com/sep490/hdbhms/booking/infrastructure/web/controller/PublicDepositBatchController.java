@@ -13,7 +13,7 @@ import com.sep490.hdbhms.booking.application.service.DepositBatchCheckoutService
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.BatchDepositCheckoutRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.BatchDepositCheckoutResponse;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.BatchDepositStatusResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

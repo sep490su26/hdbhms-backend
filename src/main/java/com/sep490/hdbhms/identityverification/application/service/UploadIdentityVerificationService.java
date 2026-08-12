@@ -38,17 +38,17 @@ public class UploadIdentityVerificationService implements UploadIdentityVerifica
         CccdExtractedIdentity data = cccdOcrExtractionPort.extract(command.frontImage(), command.backImage())
                 .orElse(null);
         if (data == null) {
-            log.debug("CCCD extraction failed: vision service returned empty data.");
+            log.debug("Identity document extraction failed: the recognition service returned empty data.");
             return IdentityVerificationResponse.builder()
                     .success(false)
                     .code("CCCD_EXTRACTION_FAILED")
-                    .message("Không thể trích xuất dữ liệu CCCD từ ảnh đã upload")
+                    .message("Không thể trích xuất dữ liệu CCCD từ ảnh đã tải lên")
                     .qrExtracted(false)
                     .ocrExtracted(false)
                     .build();
         }
 
-        log.debug("CCCD extraction completed by vision service.");
+        log.debug("The recognition service completed identity document extraction.");
         return IdentityVerificationResponse.builder()
                 .success(true)
                 .code("CCCD_VISION_EXTRACTED")

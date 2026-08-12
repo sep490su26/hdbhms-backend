@@ -18,6 +18,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomReposito
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,7 +68,7 @@ public class CreateDraftLeaseContractForDepositService implements CreateDraftLea
         long depositAmount = deposit.getAmount() == null ? 0L : deposit.getAmount();
         workflowSupport.validateContractTerms(startDate, paymentCycleMonths, monthlyRent, depositAmount);
 
-        String contractCode = "HD-" + startDate.getYear() + "-H" + room.getRoomCode() + "-" + depositFormId;
+        String contractCode = DocumentFilenameBuilder.buildLeaseContractCode(room.getRoomCode(), startDate);
         LeaseContractEntity contract = LeaseContractEntity.builder()
                 .contractCode(contractCode)
                 .room(room)

@@ -21,10 +21,10 @@ public class OtpEmailSenderAdapter implements OtpEmailSender {
     public void sendOTPEmail(String email, String otpCode) {
         var message = new SimpleMailMessage();
         message.setTo(email);
-        message.setSubject("Account Verification");
+        message.setSubject("Xác minh tài khoản");
         message.setText(String.format(
-                "To confirm verification, copy this code: %s then paste to confirm the verification code" +
-                        "\nThis code expires in 3 minutes.",
+                "Để xác minh tài khoản, hãy sao chép mã này: %s rồi nhập vào ô xác nhận mã." +
+                        "\nMã có hiệu lực trong 3 phút.",
                 otpCode
         ));
         mailSender.send(message);

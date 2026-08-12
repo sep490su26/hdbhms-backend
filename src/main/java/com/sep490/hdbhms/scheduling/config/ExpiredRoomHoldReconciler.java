@@ -64,7 +64,7 @@ public class ExpiredRoomHoldReconciler {
                     roomStatusAfterHoldRelease(roomHold.getRoomId())
             );
             if (updatedRows > 0) {
-                log.info("Released stale room hold. roomHoldId={}, roomId={}",
+                log.info("Expired room hold released. roomHoldId={}, roomId={}",
                         roomHold.getId(),
                         roomHold.getRoomId());
             }

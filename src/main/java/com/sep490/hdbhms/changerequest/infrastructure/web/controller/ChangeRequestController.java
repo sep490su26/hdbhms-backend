@@ -15,8 +15,8 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPr
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.RejectRequestRequest;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestResponse;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.response.ChangeRequestStatsResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -152,8 +152,10 @@ public class ChangeRequestController {
     }
 
     private void assertCanResolve(ChangeRequest request) {
-        if (request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS
-                && request.getRequestType() != RequestType.PERMISSION_ACCESS
+        if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (request.getRequestType() != RequestType.PERMISSION_ACCESS
                 && request.getRequestType() != RequestType.CONTRACT_LIQUIDATION
                 && request.getRequestType() != RequestType.CONTRACT_RENEWAL
                 && request.getRequestType() != RequestType.ADD_CO_OCCUPANT) {

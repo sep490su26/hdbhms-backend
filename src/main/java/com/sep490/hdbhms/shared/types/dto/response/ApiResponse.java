@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.dto.response;
+package com.sep490.hdbhms.shared.types.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;

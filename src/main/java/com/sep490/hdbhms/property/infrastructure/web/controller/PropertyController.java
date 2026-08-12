@@ -11,7 +11,6 @@ import com.sep490.hdbhms.property.application.port.in.command.DeletePropertyImag
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListPropertiesQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetPropertyImagesByPropertyIdQuery;
 import com.sep490.hdbhms.property.application.port.in.usecase.AttachPropertyImageUseCase;
-import com.sep490.hdbhms.property.application.port.in.query.GetPropertyDetailsQuery;
 import com.sep490.hdbhms.property.application.port.in.usecase.CreatePropertyUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.DeletePropertyImageUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListPropertiesUseCase;
@@ -40,8 +39,8 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyRespon
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomSimpleResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyImageWebMapper;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.PropertyWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;

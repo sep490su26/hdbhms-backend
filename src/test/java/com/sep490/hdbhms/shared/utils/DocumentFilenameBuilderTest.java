@@ -46,6 +46,14 @@ class DocumentFilenameBuilderTest {
     }
 
     @Test
+    void buildsLeaseContractCodeFromRoomAndStartDate() {
+        assertEquals(
+                "HDT_P304_22_08_2026",
+                DocumentFilenameBuilder.buildLeaseContractCode("304", LocalDate.of(2026, 8, 22))
+        );
+    }
+
+    @Test
     void buildsRfc5987AttachmentHeader() {
         assertEquals(
                 "attachment; filename*=UTF-8''HDC_P101_29_06_2026.pdf",

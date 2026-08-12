@@ -21,7 +21,7 @@ class ExpenseRequestServiceTest {
                 ExpenseRequestService.liquidationRefundStatus(ExpenseStatus.PENDING_APPROVAL, pendingApproval, null)
         );
         assertEquals(
-                "APPROVED_WAITING_REFUND",
+                "APPROVED_WAITING_TENANT_CONFIRMATION",
                 ExpenseRequestService.liquidationRefundStatus(ExpenseStatus.READY_FOR_PAYMENT, pendingApproval, null)
         );
         assertEquals(

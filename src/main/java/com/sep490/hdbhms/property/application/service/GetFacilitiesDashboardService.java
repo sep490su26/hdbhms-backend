@@ -16,7 +16,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepo
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.FacilitiesDashboardResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.PropertyImageResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

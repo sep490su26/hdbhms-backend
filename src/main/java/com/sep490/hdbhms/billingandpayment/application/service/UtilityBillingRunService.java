@@ -38,7 +38,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReading
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaUtilityTariffRepository;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -117,11 +117,11 @@ public class UtilityBillingRunService {
                     created++;
                 }
             } catch (RuntimeException exception) {
-                log.warn("Failed to create utility billing run for property {}", property.getId(), exception);
+                log.warn("Failed to create a utility billing period for property {}", property.getId(), exception);
             }
         }
         if (created > 0) {
-            log.info("Created {} monthly utility billing runs for {}", created, period);
+            log.info("Created {} monthly utility billing periods for {}", created, period);
         }
     }
 
@@ -389,8 +389,8 @@ public class UtilityBillingRunService {
 
         Charge electricityCharge = buildCharge(electricity, UtilityType.ELECTRICITY);
         StringJoiner warnings = new StringJoiner("; ");
-        if (contract == null) warnings.add("No billable contract in this period");
-        if (electricity == null) warnings.add("Missing electricity reading");
+        if (contract == null) warnings.add("Không có hợp đồng đủ điều kiện tính tiền trong kỳ này");
+        if (electricity == null) warnings.add("Thiếu chỉ số điện");
         if (electricityCharge.warning() != null) warnings.add(electricityCharge.warning());
         if (anomalyMessage != null && !anomalyMessage.isBlank()) warnings.add(anomalyMessage);
 
@@ -469,7 +469,7 @@ public class UtilityBillingRunService {
         BigDecimal current = safe(reading.getCurrentValue());
         BigDecimal usage = current.subtract(previous);
         if (usage.compareTo(BigDecimal.ZERO) < 0) {
-            return new Charge(previous, current, usage, 0, 0L, 0L, "Current reading is lower than billing baseline");
+            return new Charge(previous, current, usage, 0, 0L, 0L, "Chỉ số mới thấp hơn chỉ số gốc tính tiền");
         }
 
         UtilityTariffSnapshot tariff = readTariff(
@@ -568,7 +568,7 @@ public class UtilityBillingRunService {
         }
         String description = item.getServiceFeeWaiveReason() != null && !item.getServiceFeeWaiveReason().isBlank()
                 ? item.getServiceFeeWaiveReason()
-                : "Service fee " + invoice.getBillingPeriod();
+                : "Phí dịch vụ " + invoice.getBillingPeriod();
         invoiceLineRepository.save(InvoiceLineEntity.builder()
                 .invoice(invoice)
                 .lineType(InvoiceLineType.SERVICE_FEE)
@@ -709,7 +709,7 @@ public class UtilityBillingRunService {
         String billingPeriod = period.toString();
         if (hasServiceFeeLineForContractAndPeriod(contract.getId(), billingPeriod)
                 || hasServiceFeeSettledByRoomTransfer(contract.getId(), billingPeriod)) {
-            return new ServiceFeeCharge(0L, 0L, true, "Service fee already settled in transfer month.", false);
+            return new ServiceFeeCharge(0L, 0L, true, "Phí dịch vụ đã được quyết toán trong tháng chuyển phòng.", false);
         }
 
         int occupantCount = activeOccupantCount(contract.getId());

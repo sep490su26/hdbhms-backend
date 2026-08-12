@@ -9,14 +9,12 @@ import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisio
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
-import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +31,6 @@ public class ChangeRequestService implements ChangeRequestUseCase {
 
     ChangeRequestRepository repository;
     List<ChangeRequestDecisionHandler> decisionHandlers;
-    BusinessNotificationPublisher notificationPublisher;
     PermissionGrantService permissionGrantService;
     ObjectMapper objectMapper;
 
@@ -42,19 +39,20 @@ public class ChangeRequestService implements ChangeRequestUseCase {
     public void approveRequest(ApproveRequestCommand command) {
         ChangeRequest request = repository.findById(command.requestId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+        if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
         if (request.getRequestType() == RequestType.CONTRACT_LIQUIDATION) {
             request.startProcessing(command.managerId());
             request.updateRequestPayload(withLiquidationStage(request.getRequestPayload()));
         } else {
             request.approve(command.managerId());
         }
-        if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS
-                || request.getRequestType() == RequestType.PERMISSION_ACCESS) {
+        if (request.getRequestType() == RequestType.PERMISSION_ACCESS) {
             permissionGrantService.grantAccess(request, command.managerId(), command.durationCode());
         }
         repository.save(request);
         dispatchApproved(request, command.managerId());
-        notifyTenantProfileAccessResolved(request, true);
     }
 
     @Override
@@ -62,10 +60,12 @@ public class ChangeRequestService implements ChangeRequestUseCase {
     public void rejectRequest(RejectRequestCommand command) {
         ChangeRequest request = repository.findById(command.requestId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
+        if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
         request.reject(command.managerId(), command.resolutionNote());
         repository.save(request);
         dispatchRejected(request, command.managerId(), command.resolutionNote());
-        notifyTenantProfileAccessResolved(request, false);
     }
 
     @Override
@@ -73,6 +73,9 @@ public class ChangeRequestService implements ChangeRequestUseCase {
     public ChangeRequest confirmLiquidationDepositReceipt(Long requestId, Long tenantId) {
         ChangeRequest request = liquidationRequestForTenant(requestId, tenantId);
         Map<String, Object> payload = payloadMap(request.getRequestPayload());
+        if ("TENANT_CONFIRMED".equals(payload.get("depositRefundStatus"))) {
+            return request;
+        }
         assertRefundRecordedByManager(payload);
         payload.put("depositRefundStatus", "TENANT_CONFIRMED");
         payload.put("depositRefundConfirmedBy", tenantId);
@@ -118,47 +121,6 @@ public class ChangeRequestService implements ChangeRequestUseCase {
                 .forEach(handler -> handler.onRejected(request, managerId, resolutionNote));
     }
 
-    private void notifyTenantProfileAccessResolved(ChangeRequest request, boolean approved) {
-        if (request.getRequestType() != RequestType.TENANT_PROFILE_ACCESS || request.getRequesterId() == null) {
-            return;
-        }
-        Map<String, Object> data = notificationData(request);
-        notificationPublisher.publish(
-                approved ? "TENANT_PROFILE_ACCESS_APPROVED" : "TENANT_PROFILE_ACCESS_REJECTED",
-                request.getRequesterId(),
-                "TENANT_PROFILE",
-                request.getTargetId(),
-                data
-        );
-    }
-
-    private Map<String, Object> notificationData(ChangeRequest request) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        if (request.getRequestPayload() != null && !request.getRequestPayload().isBlank()) {
-            try {
-                data.putAll(objectMapper.readValue(
-                        request.getRequestPayload(),
-                        new TypeReference<Map<String, Object>>() {
-                        }
-                ));
-            } catch (Exception ignored) {
-            }
-        }
-        data.put("requestId", request.getId());
-        data.put("changeRequestId", request.getId());
-        data.put("requestCode", request.getRequestCode());
-        data.put("requestType", request.getRequestType() == null ? null : request.getRequestType().name());
-        data.put("profileId", request.getTargetId());
-        data.put("tenantProfileId", request.getTargetId());
-        data.put("managerId", request.getRequesterId());
-        data.put("resolutionNote", request.getResolutionNote());
-        data.put("status", request.getStatus() == null ? null : request.getStatus().name());
-        data.put("targetRoute", "/dashboard/tenant-profiles?profileId=" + request.getTargetId());
-        data.putIfAbsent("tenantName", firstNonNull(data.get("fullName"), data.get("tenantName")));
-        data.putIfAbsent("roomName", firstNonNull(data.get("roomCode"), data.get("roomName")));
-        return data;
-    }
-
     private String withLiquidationStage(String payloadJson) {
         Map<String, Object> data = payloadMap(payloadJson);
         Object liquidationMode = data.get("liquidationMode");
@@ -187,7 +149,12 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         if (request.getRequestType() != RequestType.CONTRACT_LIQUIDATION) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
-        if (tenantId == null || !tenantId.equals(request.getRequesterId())) {
+        Map<String, Object> payload = payloadMap(request.getRequestPayload());
+        Long contractTenantUserId = toLong(payload.get("primaryTenantUserId"));
+        Long expectedTenantUserId = contractTenantUserId == null
+                ? request.getRequesterId()
+                : contractTenantUserId;
+        if (tenantId == null || !tenantId.equals(expectedTenantUserId)) {
             throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return request;
@@ -211,9 +178,25 @@ public class ChangeRequestService implements ChangeRequestUseCase {
     }
 
     private void assertRefundRecordedByManager(Map<String, Object> payload) {
-        if (!"RECORDED_BY_MANAGER".equals(payload.get("depositRefundStatus"))) {
+        Object status = payload.get("depositRefundStatus");
+        if (!"APPROVED_WAITING_TENANT_CONFIRMATION".equals(status)
+                && !"RECORDED_BY_MANAGER".equals(status)) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
+    }
+
+    private Long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

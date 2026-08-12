@@ -25,7 +25,8 @@ public class ScheduledTaskFailureClassifier {
         }
         if (exception instanceof IllegalStateException
                 && exception.getMessage() != null
-                && exception.getMessage().startsWith("No scheduled task handler registered")) {
+                && (exception.getMessage().startsWith("Chưa đăng ký bộ xử lý tác vụ đã lên lịch")
+                || exception.getMessage().startsWith("No scheduled task handler registered"))) {
             return false;
         }
         return true;

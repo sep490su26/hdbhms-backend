@@ -47,7 +47,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
             actions.add(
                     OnboardingAction.builder()
                             .actionKey("CHANGE_PASSWORD")
-                            .label("Change temporary password")
+                            .label("Đổi mật khẩu tạm thời")
                             .completed(false)
                             .priority(priority++)
                             .actionUrl("/change-temporary-password")
@@ -57,7 +57,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
             actions.add(
                     OnboardingAction.builder()
                             .actionKey("CHANGE_PASSWORD")
-                            .label("Change password")
+                            .label("Đổi mật khẩu")
                             .completed(true)
                             .priority(priority++)
                             .build()
@@ -68,7 +68,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
             actions.add(
                     OnboardingAction.builder()
                             .actionKey("IDENTITY_VERIFICATION")
-                            .label("Upload identity documents")
+                            .label("Tải giấy tờ định danh")
                             .completed(hasCompleted)
                             .priority(priority++)
                             .actionUrl(hasCompleted ? null : "/identity-upload")
@@ -95,7 +95,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
             actions.add(
                     OnboardingAction.builder()
                             .actionKey("CHANGE_PASSWORD")
-                            .label("Change temporary password")
+                            .label("Đổi mật khẩu tạm thời")
                             .completed(false)
                             .priority(priority++)
                             .actionUrl("/change-temporary-password")
@@ -105,7 +105,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
             actions.add(
                     OnboardingAction.builder()
                             .actionKey("CHANGE_PASSWORD")
-                            .label("Change password")
+                            .label("Đổi mật khẩu")
                             .completed(true)
                             .priority(priority++)
                             .build()

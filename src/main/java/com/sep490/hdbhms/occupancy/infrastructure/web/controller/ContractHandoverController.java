@@ -12,7 +12,7 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.request.HandoverMeterRe
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.SubmitHandoverRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.HandoverMeterReadingsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;

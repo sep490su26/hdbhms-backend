@@ -2,7 +2,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.web.controller;
 
 import com.sep490.hdbhms.billingandpayment.application.service.DebtDashboardService;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.DebtSummaryResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

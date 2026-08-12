@@ -8,8 +8,8 @@ import com.sep490.hdbhms.accounting.infrastructure.web.dto.request.MarkExpensePa
 import com.sep490.hdbhms.accounting.infrastructure.web.dto.request.RejectExpenseRequest;
 import com.sep490.hdbhms.accounting.infrastructure.web.dto.response.ExpenseRequestResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

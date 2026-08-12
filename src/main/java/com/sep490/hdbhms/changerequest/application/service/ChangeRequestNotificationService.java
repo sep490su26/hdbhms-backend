@@ -175,7 +175,7 @@ public class ChangeRequestNotificationService {
             return objectMapper.readValue(payload, new TypeReference<>() {
             });
         } catch (Exception exception) {
-            log.warn("Could not parse change request payload for notification: {}", exception.getMessage());
+            log.warn("Failed to parse change request data for notification creation: {}", exception.getMessage());
             return Map.of();
         }
     }

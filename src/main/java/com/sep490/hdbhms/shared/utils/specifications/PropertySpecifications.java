@@ -1,7 +1,7 @@
-package com.sep490.hdbhms.shared.specifications;
+package com.sep490.hdbhms.shared.utils.specifications;
 
-import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionRequestStatus;
-import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PermissionRequestEntity;
+import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
@@ -9,8 +9,8 @@ import org.springframework.data.jpa.domain.Specification;
 import java.util.List;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class PermissionRequestSpecifications {
-    public static Specification<PermissionRequestEntity> idIn(List<Long> ids) {
+public class PropertySpecifications {
+    public static Specification<PropertyEntity> idIn(List<Long> ids) {
         return (root, query, criteriaBuilder) -> {
             if (ids == null || ids.isEmpty()) {
                 return criteriaBuilder.conjunction();
@@ -19,7 +19,7 @@ public class PermissionRequestSpecifications {
         };
     }
 
-    public static Specification<PermissionRequestEntity> statusIn(PermissionRequestStatus status) {
+    public static Specification<PropertyEntity> statusIn(PropertyStatus status) {
         return (root, query, criteriaBuilder) ->
                 status == null ? criteriaBuilder.conjunction()
                         : criteriaBuilder.equal(root.get("status"), status);

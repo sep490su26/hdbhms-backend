@@ -65,10 +65,10 @@ public class ESmsSmsAdapter implements SmsPort {
                 throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
             }
 
-            log.info("eSMS request accepted. phoneNumber={}, smsId={}, codeResult={}",
+            log.info("eSMS accepted the request. phoneNumber={}, smsId={}, codeResult={}",
                     normalizeVietnamPhoneNumber(phoneNumber), smsId, codeResult);
         } catch (Exception ex) {
-            log.error("Failed to send SMS via eSMS. phoneNumber={}", phoneNumber, ex);
+            log.error("Failed to send SMS through eSMS. phoneNumber={}", phoneNumber, ex);
             throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, ex);
         }
     }

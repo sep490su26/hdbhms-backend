@@ -143,7 +143,7 @@ public class ManageContractHandoverService {
             nextRevision = existingPeriodReading.getRevisionNo() + 1;
             if (existingPeriodReading.getStatus() != ReadingStatus.VOIDED) {
                 existingPeriodReading.setStatus(ReadingStatus.VOIDED);
-                existingPeriodReading.setVoidReason("Superseded by handover reading revision " + nextRevision);
+                existingPeriodReading.setVoidReason("Bị thay thế bởi phiên bản chốt chỉ số bàn giao số " + nextRevision);
                 meterReadingRepository.saveAndFlush(existingPeriodReading);
             }
         }
@@ -202,7 +202,7 @@ public class ManageContractHandoverService {
         if (handoverType == HandoverType.MOVE_OUT) {
             requireNoUnpaidLeaseInvoices(
                     contractId,
-                    "Khach thue can thanh toan het hoa don con no truoc khi ban giao tra phong."
+                    "Khách thuê cần thanh toán hết hóa đơn còn nợ trước khi bàn giao trả phòng."
             );
         }
 
@@ -422,7 +422,7 @@ public class ManageContractHandoverService {
 
     private String buildDamageDescription(ContractHandoverItemEntity item) {
         String suffix = hasText(item.getNote()) ? ": " + item.getNote().trim() : "";
-        String description = "Boi thuong thiet hai khi ban giao tra phong - " + item.getAssetName() + suffix;
+        String description = "Bồi thường thiệt hại khi bàn giao trả phòng - " + item.getAssetName() + suffix;
         return description.length() <= 1000 ? description : description.substring(0, 1000);
     }
 

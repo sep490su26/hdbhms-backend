@@ -3,7 +3,7 @@ package com.sep490.hdbhms.identityverification.infrastructure.web.controller;
 import com.sep490.hdbhms.identityverification.application.port.in.command.UploadIdentityVerificationCommand;
 import com.sep490.hdbhms.identityverification.application.port.in.usecase.UploadIdentityVerificationUseCase;
 import com.sep490.hdbhms.identityverification.infrastructure.web.dto.response.IdentityVerificationResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;

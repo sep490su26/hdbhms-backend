@@ -4,11 +4,11 @@ import lombok.Getter;
 
 @Getter
 public enum ModificationType {
-    PASSWORD_CHANGE("Password change"),
-    PASSWORD_RESET("Password reset"),
-    ROLE("Role"),
+    PASSWORD_CHANGE("Đổi mật khẩu"),
+    PASSWORD_RESET("Đặt lại mật khẩu"),
+    ROLE("Vai trò"),
     EMAIL("Email"),
-    STATUS("Status");
+    STATUS("Trạng thái");
 
     private final String displayName;
 

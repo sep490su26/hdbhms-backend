@@ -7,7 +7,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaLog
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.LoginHistoryPersistenceMapper;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
-import com.sep490.hdbhms.shared.specifications.LoginHistorySpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.LoginHistorySpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

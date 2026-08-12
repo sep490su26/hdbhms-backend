@@ -37,11 +37,11 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
         }
 
         var refreshToken = tokenProvider.getRefreshToken(request, true);
-        log.info("Refresh sessionId: {}", refreshToken);
+        log.info("Refreshing sessionId: {}", refreshToken);
         try {
             tokenProvider.verifyToken(refreshToken, true);
         } catch (AppException ignored) {
-            log.info("Refresh sessionId expired: {}", refreshToken);
+            log.info("Refresh sessionId has expired: {}", refreshToken);
             throw new AppException(ApiErrorCode.REFRESH_TOKEN_EXPIRED);
         } catch (ParseException | JOSEException e) {
             throw new AppException(ApiErrorCode.INVALID_JWT_TOKEN);

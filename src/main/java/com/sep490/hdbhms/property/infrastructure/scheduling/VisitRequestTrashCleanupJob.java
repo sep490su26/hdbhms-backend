@@ -22,7 +22,7 @@ public class VisitRequestTrashCleanupJob {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(7);
         long deletedCount = visitRequestRepository.deleteByDeletedAtIsNotNullAndDeletedAtLessThanEqual(cutoff);
         if (deletedCount > 0) {
-            log.info("Permanently deleted {} visit requests from trash", deletedCount);
+            log.info("Permanently deleted {} visit requests from the trash", deletedCount);
         }
     }
 }

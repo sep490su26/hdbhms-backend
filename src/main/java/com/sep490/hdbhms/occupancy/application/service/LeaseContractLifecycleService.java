@@ -64,7 +64,7 @@ public class LeaseContractLifecycleService {
         if (today.isAfter(contract.getEndDate()) && hasActivatedRenewal) {
             leaseExpiryReminderService.processContract(contract, today, true);
             log.info(
-                    "Skip contract expiry because active renewed contract exists. contractId={}, status={}",
+                "Skipping lease expiry because an active renewal contract already exists. contractId={}, status={}",
                     contract.getId(),
                     contract.getStatus()
             );
@@ -104,7 +104,7 @@ public class LeaseContractLifecycleService {
     }
 
     private void transitionToExpired(LeaseContract contract) {
-        transitionContractStatus(contract, LeaseStatus.EXPIRED, "Contract end date has passed");
+        transitionContractStatus(contract, LeaseStatus.EXPIRED, "Ngày kết thúc hợp đồng đã qua");
         if (contract.getRoomId() == null) {
             return;
         }
@@ -124,7 +124,7 @@ public class LeaseContractLifecycleService {
                         VALUES (?, 'OCCUPIED', 'EXPIRED', ?, NULL, NOW(6))
                         """,
                 contract.getRoomId(),
-                "Hop dong " + contract.getContractCode() + " da het han"
+                "Hợp đồng " + contract.getContractCode() + " đã hết hạn"
         );
     }
 
@@ -154,7 +154,7 @@ public class LeaseContractLifecycleService {
                 reason.getBytes(StandardCharsets.UTF_8)
         );
         log.info(
-                "Contract lifecycle status changed. contractId={}, oldStatus={}, newStatus={}, reason={}",
+                "Lease lifecycle status changed. contractId={}, oldStatus={}, newStatus={}, reason={}",
                 contract.getId(),
                 oldStatus,
                 newStatus,

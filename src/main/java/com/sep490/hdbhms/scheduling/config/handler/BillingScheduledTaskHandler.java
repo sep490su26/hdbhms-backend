@@ -53,6 +53,6 @@ public class BillingScheduledTaskHandler implements ScheduledTaskHandler {
     }
 
     private IllegalStateException unsupported(TaskType taskType) {
-        return new IllegalStateException("Unsupported billing scheduled task type: " + taskType);
+        return new IllegalStateException("Loại tác vụ tính tiền đã lên lịch không được hỗ trợ: " + taskType);
     }
 }

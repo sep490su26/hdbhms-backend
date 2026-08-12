@@ -10,7 +10,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class DebugInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull Object handler) {
-        log.info("Before controller: {}", request.getRequestURI());
+        log.info("Before controller invocation: {}", request.getRequestURI());
         return true;
     }
 }

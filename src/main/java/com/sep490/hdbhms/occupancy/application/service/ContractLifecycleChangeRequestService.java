@@ -205,6 +205,13 @@ public class ContractLifecycleChangeRequestService {
         payload.put("contractCode", contract.getContractCode());
         payload.put("roomId", contract.getRoom() == null ? null : contract.getRoom().getId());
         payload.put("roomCode", contract.getRoom() == null ? null : contract.getRoom().getRoomCode());
+        payload.put("primaryTenantProfileId", contract.getPrimaryTenantProfile() == null
+                ? null
+                : contract.getPrimaryTenantProfile().getId());
+        payload.put("primaryTenantUserId", contract.getPrimaryTenantProfile() == null
+                || contract.getPrimaryTenantProfile().getUser() == null
+                ? null
+                : contract.getPrimaryTenantProfile().getUser().getId());
         payload.put("startDate", contract.getStartDate());
         payload.put("endDate", contract.getEndDate());
         return payload;

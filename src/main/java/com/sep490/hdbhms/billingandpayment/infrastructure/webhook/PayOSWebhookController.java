@@ -51,7 +51,7 @@ public class PayOSWebhookController {
         try {
             paymentIntent = getPaymentIntentUseCase.execute(new GetPaymentIntentQuery(orderCode));
         } catch (RuntimeException ex) {
-            log.warn("PayOS webhook references unknown payment intent. orderCode={}, paymentLinkId={}",
+            log.warn("PayOS webhook references an unknown payment session. orderCode={}, paymentLinkId={}",
                     orderCode,
                     webhookData.getPaymentLinkId());
             return ResponseEntity.ok().build();
@@ -61,7 +61,7 @@ public class PayOSWebhookController {
             return ResponseEntity.ok().build();
         }
         if (StringUtils.hasText(webhookData.getCode()) && !"00".equals(webhookData.getCode())) {
-            log.info("Ignore non-success PayOS webhook. orderCode={}, code={}, desc={}",
+            log.info("Ignoring unsuccessful PayOS webhook. orderCode={}, code={}, desc={}",
                     orderCode,
                     webhookData.getCode(),
                     webhookData.getDesc());

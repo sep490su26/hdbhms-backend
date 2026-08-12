@@ -29,6 +29,10 @@ public interface JpaChangeRequestRepository extends JpaRepository<ChangeRequestE
 
     @Query("SELECT c FROM ChangeRequestEntity c " +
            "WHERE (c.requester.id = :requesterId " +
+           "OR (c.requestType = com.sep490.hdbhms.changerequest.domain.value_objects.RequestType.CONTRACT_LIQUIDATION " +
+           "AND EXISTS (SELECT contract.id FROM LeaseContractEntity contract " +
+           "WHERE contract.id = c.targetId " +
+           "AND contract.primaryTenantProfile.user.id = :requesterId)) " +
            "OR (c.requestType = :roomTransferType " +
            "AND EXISTS (SELECT r.id FROM RoomTransferRequestEntity r " +
            "WHERE r.id = c.targetId " +

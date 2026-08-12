@@ -3,7 +3,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.controller;
 import com.sep490.hdbhms.occupancy.application.port.in.command.RecordTenantIntentionCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -43,7 +43,7 @@ public class TenantLeaseContractController {
             @NotNull(message = "Vui lòng chọn ý định")
             String intention,
             LocalDate expectedMoveOutDate,
-            @Size(max = 1000, message = "Ghi chu khong duoc vuot qua 1000 ky tu.")
+            @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
             String note
     ) {
     }

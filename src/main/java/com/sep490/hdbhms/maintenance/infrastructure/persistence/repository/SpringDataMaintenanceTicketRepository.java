@@ -6,7 +6,7 @@ import com.sep490.hdbhms.maintenance.domain.value_objects.MaintenanceTicketStatu
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.MaintenanceTicketEntity;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.jpa.JpaMaintenanceTicketRepository;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.mapper.MaintenanceTicketPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.MaintenanceTicketSpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.MaintenanceTicketSpecifications;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

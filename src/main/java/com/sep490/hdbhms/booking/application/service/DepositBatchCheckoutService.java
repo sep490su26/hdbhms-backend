@@ -703,7 +703,7 @@ public class DepositBatchCheckoutService {
             case CONFIRMED -> "Thanh toán đặt cọc nhiều phòng thành công.";
             case REFUND_REQUIRED -> "Thanh toán đến sau khi giữ chỗ hết hạn. Vui lòng liên hệ để hoàn tiền.";
             case EXPIRED -> "Phiên giữ chỗ đã hết hạn.";
-            case CANCELLED -> "Batch đặt cọc đã bị hủy.";
+            case CANCELLED -> "Lô đặt cọc đã bị hủy.";
             default -> "Đang chờ thanh toán.";
         };
     }

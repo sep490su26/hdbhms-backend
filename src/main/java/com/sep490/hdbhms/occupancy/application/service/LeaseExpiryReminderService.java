@@ -112,7 +112,7 @@ public class LeaseExpiryReminderService {
 
         Long recipientUserId = primaryTenantUserId(contract);
         if (recipientUserId == null) {
-            log.warn("Skip lease expiry reminder because primary tenant has no user. contractId={}", contract.getId());
+            log.warn("Skipping lease expiry reminder because the primary tenant has no account. contractId={}", contract.getId());
             return;
         }
 

@@ -174,7 +174,7 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
 
     private void sendDepositReceiptEmail(DepositForm depositForm, Room room, Long depositAmount) {
         if (!StringUtils.hasText(depositForm.getEmail())) {
-            log.info("Skip deposit receipt email because customer email is empty. depositFormId={}", depositForm.getId());
+            log.info("Skipping deposit receipt email because the customer did not provide an email. depositFormId={}", depositForm.getId());
             return;
         }
 
@@ -186,21 +186,21 @@ public class SendDepositPaymentAdapter implements SendDepositPaymentPort {
             helper.setText(generateDepositPaymentHtml(depositForm, room, depositAmount), true);
             mailSender.send(message);
         } catch (Exception e) {
-            log.warn("Could not send deposit receipt email. depositFormId={}, email={}", depositForm.getId(), depositForm.getEmail(), e);
+            log.warn("Failed to send deposit receipt email. depositFormId={}, email={}", depositForm.getId(), depositForm.getEmail(), e);
         }
     }
 
     private String generateDepositPaymentHtml(DepositForm depositForm, Room room, Long depositAmount) {
-        return "<p>Deposit payment checkout has been created.</p>"
-                + "<p>Customer: " + valueOrDefault(depositForm.getFullName(), "Customer") + "</p>"
-                + "<p>Room: " + valueOrDefault(room.getRoomCode(), "Room") + "</p>"
-                + "<p>Amount: " + formatMoney(depositAmount) + "</p>"
-                + "<p>Amount in words: " + amountText(depositAmount) + "</p>"
-                + "<p>Please complete the payment using the provided checkout link or QR code.</p>";
+        return "<p>Đã tạo thông tin thanh toán tiền cọc.</p>"
+                + "<p>Khách hàng: " + valueOrDefault(depositForm.getFullName(), "Khách hàng") + "</p>"
+                + "<p>Phòng: " + valueOrDefault(room.getRoomCode(), "Chưa xác định") + "</p>"
+                + "<p>Số tiền: " + formatMoney(depositAmount) + "</p>"
+                + "<p>Bằng chữ: " + amountText(depositAmount) + "</p>"
+                + "<p>Vui lòng hoàn tất thanh toán bằng liên kết hoặc mã QR được cung cấp.</p>";
     }
 
     private String formatMoney(Long amount) {
-        return MONEY_FORMATTER.format(amount == null ? 0L : amount) + " VND";
+        return MONEY_FORMATTER.format(amount == null ? 0L : amount) + " VNĐ";
     }
 
     private String amountText(Long amount) {

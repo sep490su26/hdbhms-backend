@@ -17,7 +17,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.RandomPasswordUtils;
@@ -123,7 +123,7 @@ public class TenantAccountProvisioningService {
             Integer sentCount = transactionTemplate().execute(status ->
                     createAccountsAndSend(contractId, preparedProfileIds));
             log.info(
-                    "Provisioned tenant accounts from lease contract. contractId={}, sentCount={}",
+                    "Tenant accounts provisioned from lease contract. contractId={}, sentCount={}",
                     contractId,
                     sentCount == null ? 0 : sentCount
             );
@@ -411,7 +411,7 @@ public class TenantAccountProvisioningService {
                 );
             }
             log.info(
-                    "Tenant account notifications accepted by sender. contractId={}, accountCount={}",
+                    "Notification sender accepted tenant account notifications. contractId={}, accountCount={}",
                     contractId,
                     credentials.size()
             );
@@ -616,7 +616,7 @@ public class TenantAccountProvisioningService {
         if (existingUserProfile != null
                 && !Objects.equals(existingUserProfile.getId(), profileId)) {
             log.info(
-                    "Skip duplicate person profile link during tenant account provisioning. "
+                    "Skipping duplicate user profile link during tenant account provisioning. "
                             + "profileId={}, existingProfileId={}, userId={}",
                     profileId,
                     existingUserProfile.getId(),

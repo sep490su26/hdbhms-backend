@@ -5,7 +5,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRep
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.permissiongrant.domain.model.PermissionGrant;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;

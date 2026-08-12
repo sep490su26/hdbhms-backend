@@ -46,8 +46,9 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReposit
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractRenewalResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -56,8 +57,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,7 +66,6 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -448,7 +446,7 @@ public class LeaseContractManagementService {
             RoomStatus fromStatus = room.getCurrentStatus();
             room.setCurrentStatus(RoomStatus.VACANT);
             roomRepository.saveAndFlush(room);
-            appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.VACANT, "Thanh ly hop dong thue " + contract.getContractCode());
+            appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.VACANT, "Thanh lý hợp đồng thuê " + contract.getContractCode());
         }
         appendContractEvent(contract.getId(), "LIQUIDATED", finalReason);
         expenseRequestService.completeLiquidationRequest(contract.getId());
@@ -602,7 +600,7 @@ public class LeaseContractManagementService {
                         room.getId(),
                         holderFromStatus,
                         RoomStatus.OCCUPIED,
-                        "Nguoi o cung tiep tuc thue sau thanh ly hop dong " + contract.getContractCode()
+                        "Người ở cùng tiếp tục thuê sau thanh lý hợp đồng " + contract.getContractCode()
                 );
             }
         } else {
@@ -704,7 +702,7 @@ public class LeaseContractManagementService {
         }
 
         ContractOccupantEntity replacementPrimary = occupantByProfile(plan, plan.replacementPrimaryTenantProfileId());
-        String contractCode = generateHolderReplacementContractCode(oldContract);
+        String contractCode = generateHolderReplacementContractCode(oldContract, effectiveDate);
         replacement = leaseContractRepository.saveAndFlush(LeaseContractEntity.builder()
                 .contractCode(contractCode)
                 .room(room)
@@ -722,7 +720,7 @@ public class LeaseContractManagementService {
         appendContractEvent(
                 replacement.getId(),
                 "CREATED",
-                "Holder replacement liquidation from contract " + oldContract.getContractCode()
+                "Thanh lý do thay thế người đại diện từ hợp đồng " + oldContract.getContractCode()
         );
         return replacement;
     }
@@ -834,7 +832,7 @@ public class LeaseContractManagementService {
                 replacementContract.setSignedAt(LocalDateTime.now());
             }
             replacementContract = leaseContractRepository.saveAndFlush(replacementContract);
-            appendContractEvent(replacementContract.getId(), "SIGNED", "Activate holder replacement contract.");
+            appendContractEvent(replacementContract.getId(), "SIGNED", "Kích hoạt hợp đồng thay thế người đại diện.");
         }
 
         RoomEntity room = replacementContract.getRoom();
@@ -846,7 +844,7 @@ public class LeaseContractManagementService {
                     room.getId(),
                     fromStatus,
                     RoomStatus.OCCUPIED,
-                    "Kich hoat hop dong thay the " + replacementContract.getContractCode()
+                    "Kích hoạt hợp đồng thay thế " + replacementContract.getContractCode()
             );
         }
         updateTenantProvisioningLatestContract(replacementContract.getId());
@@ -906,19 +904,18 @@ public class LeaseContractManagementService {
                         && contract.getStatus() != LeaseStatus.LIQUIDATED);
     }
 
-    private String generateHolderReplacementContractCode(LeaseContractEntity oldContract) {
+    private String generateHolderReplacementContractCode(LeaseContractEntity oldContract, LocalDate effectiveDate) {
+        String roomCode = oldContract.getRoom() == null ? null : oldContract.getRoom().getRoomCode();
+        String baseCode = DocumentFilenameBuilder.buildLeaseContractCode(roomCode, effectiveDate);
+        if (!leaseContractRepository.existsByContractCodeAndDeletedAtIsNull(baseCode)) {
+            return baseCode;
+        }
+
         int revision = 1;
         String contractCode;
         do {
             String suffix = "-LIQ-" + oldContract.getId() + (revision == 1 ? "" : "-" + revision);
-            String prefix = oldContract.getContractCode() == null
-                    ? "HD"
-                    : oldContract.getContractCode();
-            int maxPrefixLength = Math.max(1, 80 - suffix.length());
-            if (prefix.length() > maxPrefixLength) {
-                prefix = prefix.substring(0, maxPrefixLength);
-            }
-            contractCode = prefix + suffix;
+            contractCode = baseCode + suffix;
             revision++;
         } while (leaseContractRepository.existsByContractCodeAndDeletedAtIsNull(contractCode));
         return contractCode;
@@ -1045,7 +1042,7 @@ public class LeaseContractManagementService {
         String finalReason = reason == null || reason.isBlank()
                 ? liquidation.getReason() != null && !liquidation.getReason().isBlank()
                 ? liquidation.getReason().trim()
-                : "KhÃ¡ch khÃ´ng tiáº¿p tá»¥c thuÃª phÃ²ng."
+                : "Khách không tiếp tục thuê phòng."
                 : reason.trim();
         boolean holderReplacement = isHolderReplacementLiquidation(contract.getId());
         applyLiquidationDraftValues(
@@ -1149,7 +1146,7 @@ public class LeaseContractManagementService {
             }
             invoice.setStatus(InvoiceStatus.VOIDED);
             invoice.setVoidedAt(now);
-            invoice.setVoidReason("Thay the bang hoa don thanh ly moi sau khi cap nhat ho so.");
+            invoice.setVoidReason("Thay thế bằng hóa đơn thanh lý mới sau khi cập nhật hồ sơ.");
             invoiceRepository.saveAndFlush(invoice);
             invoice = null;
         }
@@ -1258,7 +1255,10 @@ public class LeaseContractManagementService {
                 room == null ? null : room.getRoomCode(),
                 liquidation.getDepositRefundAmount(),
                 liquidation.getLiquidationDate(),
-                AuthUtils.getCurrentAuthenticationId()
+                AuthUtils.getCurrentAuthenticationId(),
+                contract.getPrimaryTenantProfile() == null || contract.getPrimaryTenantProfile().getUser() == null
+                        ? null
+                        : contract.getPrimaryTenantProfile().getUser().getId()
         );
     }
 
@@ -1360,7 +1360,7 @@ public class LeaseContractManagementService {
         List<LiquidationChargeInput> withRoomRent = new ArrayList<>(normalized);
         withRoomRent.add(new LiquidationChargeInput(
                 InvoiceLineType.ROOM_RENT,
-                "Tien phong thang " + YearMonth.from(liquidationDate) + " den ngay " + liquidationDate,
+                "Tiền phòng tháng " + YearMonth.from(liquidationDate) + " đến ngày " + liquidationDate,
                 1,
                 proratedRoomRent,
                 null,
@@ -1405,7 +1405,7 @@ public class LeaseContractManagementService {
             nextRevision = safeInt(existing.getRevisionNo()) + 1;
             if (existing.getStatus() != ReadingStatus.VOIDED) {
                 existing.setStatus(ReadingStatus.VOIDED);
-                existing.setVoidReason("Superseded by liquidation reading revision " + nextRevision);
+                existing.setVoidReason("Bị thay thế bởi phiên bản chốt thanh lý số " + nextRevision);
                 meterReadingRepository.saveAndFlush(existing);
             }
         }
@@ -1459,16 +1459,16 @@ public class LeaseContractManagementService {
 
     private String defaultLiquidationChargeLabel(InvoiceLineType lineType) {
         return switch (lineType) {
-            case ELECTRICITY -> "Tien dien chot phong";
-            case WATER -> "Tien nuoc chot phong";
-            case SERVICE_FEE -> "Phi dich vu chot phong";
-            case ROOM_RENT -> "Tien phong chot";
-            case MAINTENANCE_COMPENSATION -> "Boi thuong sua chua";
-            case VIOLATION_FINE -> "Phat vi pham";
-            case TRANSFER_DIFFERENCE -> "Chenh lech chuyen phong";
-            case DEPOSIT_DEDUCTION -> "Khau tru coc";
-            case MANUAL_ADJUSTMENT -> "Dieu chinh thu cong";
-            case OTHER -> "Phi phat sinh";
+            case ELECTRICITY -> "Tiền điện chốt phòng";
+            case WATER -> "Tiền nước chốt phòng";
+            case SERVICE_FEE -> "Phí dịch vụ chốt phòng";
+            case ROOM_RENT -> "Tiền phòng chốt";
+            case MAINTENANCE_COMPENSATION -> "Bồi thường sửa chữa";
+            case VIOLATION_FINE -> "Phạt vi phạm";
+            case TRANSFER_DIFFERENCE -> "Chênh lệch chuyển phòng";
+            case DEPOSIT_DEDUCTION -> "Khấu trừ cọc";
+            case MANUAL_ADJUSTMENT -> "Điều chỉnh thủ công";
+            case OTHER -> "Phí phát sinh";
         };
     }
 
@@ -1530,16 +1530,16 @@ public class LeaseContractManagementService {
                     room.getId(),
                     previousRoomStatus,
                     RoomStatus.OCCUPIED,
-                    "Khach cu doi y tai ky hop dong " + oldContract.getContractCode()
+                    "Khách cũ đổi ý tái ký hợp đồng " + oldContract.getContractCode()
             );
             appendContractEvent(
                     oldContract.getId(),
                     "RENEWAL_AFTER_MOVE_OUT_INTENT",
-                    "Owner xac nhan tai ky sau khi khach da bao chuyen di"
+                    "Chủ trọ xác nhận tái ký sau khi khách đã báo chuyển đi"
             );
         }
 
-        String newContractCode = resolveRenewalContractCode(oldContract, requestedContractCode);
+        String newContractCode = resolveRenewalContractCode(oldContract, requestedContractCode, newStartDate);
         LeaseContractEntity newContract = LeaseContractEntity.builder()
                 .contractCode(newContractCode)
                 .room(room)
@@ -1564,15 +1564,15 @@ public class LeaseContractManagementService {
                     room.getId(),
                     currentRoomStatus,
                     RoomStatus.OCCUPIED,
-                    "Tao hop dong tai ky " + newContractCode
+                    "Tạo hợp đồng tái ký " + newContractCode
             );
         }
 
-        String eventNote = note == null || note.isBlank() ? "Tao hop dong tai ky" : note.trim();
+        String eventNote = note == null || note.isBlank() ? "Tạo hợp đồng tái ký" : note.trim();
         appendContractEvent(
                 newContract.getId(),
                 "CREATED",
-                "Tai ky tu hop dong " + oldContract.getContractCode() + "; note=" + eventNote
+                "Tái ký từ hợp đồng " + oldContract.getContractCode() + "; ghi chú=" + eventNote
         );
 
         List<LeaseContractRenewalResponse.OccupantInfo> occupants = findRenewalOccupants(newContract.getId());
@@ -1690,7 +1690,7 @@ public class LeaseContractManagementService {
         appendContractEvent(
                 contract.getId(),
                 "OCCUPANT_CHANGED",
-                "Them nguoi o cung profileId=" + tenantProfileId + "; approvedBy=" + approvedBy
+                "Thêm người ở cùng profileId=" + tenantProfileId + "; approvedBy=" + approvedBy
         );
         return findOne(contract.getId());
     }
@@ -1790,7 +1790,7 @@ public class LeaseContractManagementService {
                     appendContractEvent(
                             contract.getId(),
                             "RENEWAL_AFTER_MOVE_OUT_INTENT",
-                            "Khách đổi ý tiếp tuc thue sau khi da bao chuyen di"
+                            "Khách đổi ý tiếp tục thuê sau khi đã báo chuyển đi"
                     );
                 }
             }
@@ -1983,14 +1983,14 @@ public class LeaseContractManagementService {
         RoomStatus fromStatus = room.getCurrentStatus();
         room.setCurrentStatus(RoomStatus.OCCUPIED);
         roomRepository.save(room);
-        appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.OCCUPIED, "Kich hoat hop dong thue " + contract.getContractCode());
+        appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.OCCUPIED, "Kích hoạt hợp đồng thuê " + contract.getContractCode());
 
-        appendContractEvent(contract.getId(), "SIGNED", "Kich hoat hop dong thue");
+        appendContractEvent(contract.getId(), "SIGNED", "Kích hoạt hợp đồng thuê");
         if (previousContract != null) {
             appendContractEvent(
                     previousContract.getId(),
                     "RENEWED",
-                    "Kich hoat hop dong tai ky; newContractId=" + contract.getId()
+                    "Kích hoạt hợp đồng tái ký; newContractId=" + contract.getId()
             );
         }
         return findOne(contract.getId());
@@ -2039,12 +2039,12 @@ public class LeaseContractManagementService {
 //                        room.getId(),
 //                        fromStatus,
 //                        RoomStatus.OCCUPIED,
-//                        "Gia han hop dong thue " + contract.getContractCode()
+//                        "Gia hạn hợp đồng thuê " + contract.getContractCode()
 //                );
 //                appendContractEvent(
 //                        contract.getId(),
 //                        "RENEWAL_AFTER_MOVE_OUT_INTENT",
-//                        "Gia han hop dong sau khi khach da bao chuyen di"
+//                        "Gia hạn hợp đồng sau khi khách đã báo chuyển đi"
 //                );
 //            }
 //        }
@@ -2062,7 +2062,7 @@ public class LeaseContractManagementService {
             appendContractEvent(
                     contract.getId(),
                     "PRICE_CHANGED",
-                    "Cap nhat gia thue hang thang thanh " + monthlyRent
+                    "Cập nhật giá thuê hằng tháng thành " + monthlyRent
             );
         }
         return findOne(contract.getId());
@@ -2100,7 +2100,7 @@ public class LeaseContractManagementService {
                         room.getId(),
                         fromStatus,
                         RoomStatus.OCCUPIED,
-                        "Gia han hop dong thue " + contract.getContractCode()
+                        "Gia hạn hợp đồng thuê " + contract.getContractCode()
                 );
             }
         }
@@ -2108,7 +2108,7 @@ public class LeaseContractManagementService {
             appendContractEvent(
                     contract.getId(),
                     "NOTICE_SENT",
-                    "Cap nhat thoi han hop dong con duoi hoac bang 3 thang"
+                    "Cập nhật thời hạn hợp đồng còn dưới hoặc bằng 3 tháng"
             );
             return;
         }
@@ -2116,7 +2116,7 @@ public class LeaseContractManagementService {
             appendContractEvent(
                     contract.getId(),
                     "EXPIRED",
-                    "Cap nhat thoi han hop dong da qua ngay ket thuc"
+                    "Cập nhật thời hạn hợp đồng đã qua ngày kết thúc"
             );
             RoomEntity room = contract.getRoom();
             if (room != null && room.getCurrentStatus() == RoomStatus.OCCUPIED) {
@@ -2127,7 +2127,7 @@ public class LeaseContractManagementService {
                         room.getId(),
                         fromStatus,
                         RoomStatus.EXPIRED,
-                        "Hop dong " + contract.getContractCode() + " da het han"
+                        "Hợp đồng " + contract.getContractCode() + " đã hết hạn"
                 );
             }
         }
@@ -2497,10 +2497,14 @@ public class LeaseContractManagementService {
         );
     }
 
-    private String resolveRenewalContractCode(LeaseContractEntity oldContract, String requestedContractCode) {
+    private String resolveRenewalContractCode(
+            LeaseContractEntity oldContract,
+            String requestedContractCode,
+            LocalDate newStartDate
+    ) {
         String contractCode = requestedContractCode == null ? "" : requestedContractCode.trim();
         if (contractCode.isBlank()) {
-            contractCode = generateRenewalContractCode(oldContract);
+            contractCode = generateRenewalContractCode(oldContract, newStartDate);
         }
         if (contractCode.length() > 80) {
             throw new AppException(ApiErrorCode.MIGRATED_MA_HOP_DONG_MOI_KHONG_DUOC_VUOT_QUA_80_KY_TU);
@@ -2511,7 +2515,7 @@ public class LeaseContractManagementService {
         return contractCode;
     }
 
-    private String generateRenewalContractCode(LeaseContractEntity oldContract) {
+    private String generateRenewalContractCode(LeaseContractEntity oldContract, LocalDate newStartDate) {
         LeaseContractEntity rootContract = oldContract;
         int renewalNumber = 1;
         while (rootContract.getPreviousContract() != null) {
@@ -2519,7 +2523,13 @@ public class LeaseContractManagementService {
             renewalNumber++;
         }
 
-        return rootContract.getContractCode() + "-R" + renewalNumber;
+        String roomCode = rootContract.getRoom() == null ? null : rootContract.getRoom().getRoomCode();
+        String baseCode = DocumentFilenameBuilder.buildLeaseContractCode(roomCode, newStartDate);
+        String contractCode = baseCode;
+        while (leaseContractRepository.existsByContractCodeAndDeletedAtIsNull(contractCode)) {
+            contractCode = baseCode + "-R" + renewalNumber++;
+        }
+        return contractCode;
     }
 
     private Long resolveTenantIdForProfile(Long profileId, Long propertyId) {
@@ -2793,9 +2803,9 @@ public class LeaseContractManagementService {
 
     private String renewBlockedReason(RoomCommitmentChecker.Blocker blocker) {
         if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
-            return "Phong dang duoc giu cho cho khach khac.";
+            return "Phòng đang được giữ chỗ cho khách khác.";
         }
-        return "Phong da co khach khac dat coc/giu cho, khong the tai ky.";
+        return "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể tái ký.";
     }
 
     private void ensureNotRoomTransferManagedContract(Long leaseContractId) {

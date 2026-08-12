@@ -54,15 +54,16 @@ SET @r504 := (SELECT room_id FROM hdbhms.rooms WHERE property_id = @property_id 
 SET @r505 := (SELECT room_id FROM hdbhms.rooms WHERE property_id = @property_id AND room_code = '505' LIMIT 1);
 SET @r506 := (SELECT room_id FROM hdbhms.rooms WHERE property_id = @property_id AND room_code = '506' LIMIT 1);
 
-SET @c402 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-402-2026' LIMIT 1);
-SET @c403 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-403-2026' LIMIT 1);
-SET @c501 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-501-2026' LIMIT 1);
-SET @c502 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-502-2026' LIMIT 1);
-SET @c503 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-503-2026' LIMIT 1);
-SET @c504 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-504-2026' LIMIT 1);
-SET @c505 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-505-2026' LIMIT 1);
-SET @c506 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-506-2026' LIMIT 1);
-SET @c301 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HD-HDD1-301-2026' LIMIT 1);
+SET @c402 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P402_01_09_2025' LIMIT 1);
+SET @c403 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P403_01_10_2025' LIMIT 1);
+SET @c405 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P405_01_11_2025' LIMIT 1);
+SET @c501 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P501_01_01_2026' LIMIT 1);
+SET @c502 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P502_10_08_2026' LIMIT 1);
+SET @c503 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P503_01_01_2026' LIMIT 1);
+SET @c504 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P504_08_08_2026' LIMIT 1);
+SET @c505 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P505_01_01_2026' LIMIT 1);
+SET @c506 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P506_20_07_2026' LIMIT 1);
+SET @c301 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contract_code = 'HDT_P301_01_01_2026' LIMIT 1);
 
 UPDATE hdbhms.rooms
 SET current_status = CASE room_code
@@ -95,6 +96,17 @@ SET status = 'TERMINATION_PENDING',
     intention_recorded_at = '2026-07-30 08:00:00',
     updated_at = '2026-07-30 09:00:00'
 WHERE lease_contract_id = @c403;
+
+-- Room 405 is occupied and its 31/10/2026 contract is within the expiry
+-- window used by the lifecycle flow, so it must receive the tenant reminder.
+UPDATE hdbhms.lease_contracts
+SET tenant_intention = NULL,
+    expected_vacant_date = NULL,
+    intention_recorded_at = NULL,
+    status = 'EXPIRING_SOON',
+    updated_at = '2026-08-01 09:00:00'
+WHERE lease_contract_id = @c405
+  AND end_date = '2026-10-31';
 
 -- A completed transfer keeps the source contract detached from expiry intention tracking.
 UPDATE hdbhms.lease_contracts
@@ -210,7 +222,7 @@ SET electricity_reading_id = @mr401e,
 WHERE contract_id = (
         SELECT lease_contract_id
         FROM hdbhms.lease_contracts
-        WHERE contract_code = 'HD-HDD1-401-2026'
+        WHERE contract_code = 'HDT_P401_01_01_2026'
         LIMIT 1
     )
   AND handover_type = 'MOVE_IN';
@@ -320,9 +332,9 @@ INSERT INTO hdbhms.notification_outbox
      retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
 VALUES
     ('LEASE_EXPIRY_REMINDER_FIRST', 'CONTRACT', @c402, @tenant_user_id, 'PUSH',
-     'Hợp đồng HD-HDD1-402-2026 sắp hết hạn',
+     'Hợp đồng HDT_P402_01_09_2025 sắp hết hạn',
      'Phòng 402 tại Nhà trọ Hải Đăng 1 sẽ hết hạn vào 2026-08-15. Bạn muốn gia hạn, chuyển phòng hay chuyển đi?',
-     JSON_OBJECT('contractId', @c402, 'contractCode', 'HD-HDD1-402-2026', 'roomId', @r402,
+     JSON_OBJECT('contractId', @c402, 'contractCode', 'HDT_P402_01_09_2025', 'roomId', @r402,
                   'roomName', 'Phòng 402', 'roomCode', '402', 'propertyName', 'Nhà trọ Hải Đăng 1', 'endDate', '2026-08-15',
                  'daysRemaining', 16, 'stage', 'FIRST', 'targetRoute', '/contract'),
       'SENT', 0, 3, '2026-07-30 09:00:00', '2026-07-30 09:00:00', '2026-07-30 09:00:00', FALSE);

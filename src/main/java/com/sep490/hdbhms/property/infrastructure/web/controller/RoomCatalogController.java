@@ -9,8 +9,8 @@ import com.sep490.hdbhms.property.infrastructure.persistence.mapper.RoomImagePer
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomImageResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.RoomResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.RoomImageWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import lombok.AccessLevel;

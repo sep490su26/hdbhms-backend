@@ -25,19 +25,19 @@ public record ExecuteTransferRequest(
             String note,
             @Valid MeterReadingPayload electricity,
             @Valid List<AssetPayload> assets,
-            @PositiveOrZero(message = "Incidental charge amount must not be negative")
+            @PositiveOrZero(message = "Khoản phát sinh không được âm")
             Long incidentalChargeAmount,
             String incidentalChargeNote
     ) {}
 
     public record MeterReadingPayload(
-            @NotNull(message = "Meter reading value is required")
+            @NotNull(message = "Chỉ số điện là bắt buộc")
             @PositiveOrZero(message = "Chỉ số điện không được âm")
             BigDecimal currentValue,
             Long photoFileId,
             LocalDate readingDate,
-            @NotNull(message = "Vui lòng nhập chỉ số nước")
-            @PositiveOrZero(message = "Chỉ số nước không được nhỏ hơn 0")
+            @NotNull(message = "Chỉ số nước là bắt buộc")
+            @PositiveOrZero(message = "Chỉ số nước không được âm")
             BigDecimal waterValue,
             Long waterPhotoFileId
     ) {}
@@ -51,7 +51,7 @@ public record ExecuteTransferRequest(
             @NotNull(message = "Số lượng tài sản là bắt buộc")
             @Min(value = 1, message = "Số lượng tài sản phải lớn hơn 0")
             Integer quantity,
-            @NotNull(message = "Asset condition is required")
+            @NotNull(message = "Tình trạng tài sản là bắt buộc")
             AssetCondition currentCondition,
             String description,
             Long fileImageId

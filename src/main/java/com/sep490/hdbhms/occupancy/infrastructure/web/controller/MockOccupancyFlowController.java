@@ -25,7 +25,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ExecuteTransfe
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomTransferResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.mapper.RoomTransferWebMapper;
 import com.sep490.hdbhms.scheduling.config.ScheduledTaskProcessor;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -160,7 +160,7 @@ public class MockOccupancyFlowController {
                 contractId,
                 intention,
                 expectedMoveOutDate,
-                note == null || note.isBlank() ? "Mock renewal intention" : note
+                note == null || note.isBlank() ? "Ghi nhận ý định gia hạn mẫu" : note
         ));
         return ApiResponse.<MockLeaseRenewalStateResponse>builder()
                 .data(buildLeaseRenewalState(contractId))
@@ -356,7 +356,7 @@ public class MockOccupancyFlowController {
                 targetRoomId,
                 requestedTransferDate == null ? nextAllowedRoomTransferDate() : requestedTransferDate,
                 transferredTenantProfileIds == null ? List.of() : transferredTenantProfileIds,
-                reason == null || reason.isBlank() ? "Mock room transfer" : reason
+                reason == null || reason.isBlank() ? "Tạo yêu cầu chuyển phòng mẫu" : reason
         ));
         return ApiResponse.<MockRoomTransferStateResponse>builder()
                 .data(buildRoomTransferState(requestId))
@@ -384,7 +384,7 @@ public class MockOccupancyFlowController {
                 resolvedTargetRoomId,
                 requestedTransferDate == null ? nextAllowedRoomTransferDate() : requestedTransferDate,
                 List.of(),
-                reason == null || reason.isBlank() ? "Mock room transfer" : reason
+                reason == null || reason.isBlank() ? "Tạo yêu cầu chuyển phòng mẫu" : reason
         ));
         return ApiResponse.<MockRoomTransferStateResponse>builder()
                 .data(buildRoomTransferState(requestId))
@@ -409,7 +409,7 @@ public class MockOccupancyFlowController {
             @RequestParam Long managerUserId,
             @RequestParam(required = false) String note
     ) {
-        roomTransferUseCase.rejectTransferRequest(requestId, managerUserId, note == null ? "Mock reject" : note);
+        roomTransferUseCase.rejectTransferRequest(requestId, managerUserId, note == null ? "Từ chối yêu cầu chuyển phòng mẫu" : note);
         return ApiResponse.<MockRoomTransferStateResponse>builder()
                 .data(buildRoomTransferState(requestId))
                 .build();

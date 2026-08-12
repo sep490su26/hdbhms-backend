@@ -93,7 +93,7 @@ public class ScheduledTaskProcessor {
             lastPollError = null;
         } catch (RuntimeException exception) {
             lastPollError = exception.getClass().getSimpleName() + ": " + exception.getMessage();
-            log.error("Scheduled task poll failed: {}", exception.getMessage(), exception);
+            log.error("Scheduled task scan failed: {}", exception.getMessage(), exception);
             throw exception;
         } finally {
             lastPollFinishedAt = LocalDateTime.now();
@@ -125,7 +125,7 @@ public class ScheduledTaskProcessor {
             return true;
         } catch (RuntimeException e) {
             releaseExecutionLocks(executionLocks);
-            log.error("Failed to submit scheduled task to worker pool. taskId={}, taskType={}: {}",
+            log.error("Failed to submit scheduled task to the worker pool. taskId={}, taskType={}: {}",
                     candidate.getId(),
                     candidate.getTaskType(),
                     e.getMessage(),
@@ -152,7 +152,7 @@ public class ScheduledTaskProcessor {
         try {
             scheduledTaskRepository.findById(taskId)
                     .ifPresentOrElse(this::processClaimedTask, () -> log.warn(
-                            "Claimed scheduled task disappeared before execution. taskId={}",
+                            "Scheduled task was claimed but disappeared before execution. taskId={}",
                             taskId
                     ));
         } finally {
@@ -176,7 +176,7 @@ public class ScheduledTaskProcessor {
 
         boolean saved = scheduledTaskRepository.saveClaimedResult(scheduledTask, workerId);
         if (!saved) {
-            log.warn("Skipped saving scheduled task result because claim moved. taskId={}, taskType={}, workerId={}",
+            log.warn("Skipping scheduled task result persistence because ownership moved to another worker. taskId={}, taskType={}, workerId={}",
                     scheduledTask.getId(),
                     scheduledTask.getTaskType(),
                     workerId);
@@ -316,7 +316,7 @@ public class ScheduledTaskProcessor {
             LocalDateTime lockUntil = now.plus(policy.lockDuration());
             boolean taskLockExtended = scheduledTaskRepository.extendClaimLock(taskId, lockUntil, workerId);
             if (!taskLockExtended) {
-                log.warn("Failed to extend scheduled task lock. taskId={}, workerId={}", taskId, workerId);
+                log.warn("Failed to renew scheduled task lock. taskId={}, workerId={}", taskId, workerId);
                 return;
             }
             if (executionLocks.globalLockHeld()) {
@@ -327,7 +327,7 @@ public class ScheduledTaskProcessor {
                         workerId
                 );
                 if (!typeLockExtended) {
-                    log.warn("Failed to extend scheduled task type lock. taskId={}, taskType={}, workerId={}",
+                    log.warn("Failed to renew scheduled task type lock. taskId={}, taskType={}, workerId={}",
                             taskId,
                             executionLocks.taskType(),
                             workerId);

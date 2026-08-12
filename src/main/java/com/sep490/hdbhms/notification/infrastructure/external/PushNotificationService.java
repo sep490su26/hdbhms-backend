@@ -23,7 +23,7 @@ public class PushNotificationService {
 
     public String send(String title, String body, Map<String, String> data, List<String> tokens) throws FirebaseMessagingException {
         if (tokens.isEmpty()) {
-            log.debug("No device tokens to send push notification.");
+            log.debug("No device tokens available for push notification.");
             return null;
         }
         MulticastMessage message = MulticastMessage.builder()
@@ -46,7 +46,7 @@ public class PushNotificationService {
             if (!singleResponse.isSuccessful()) {
                 MessagingErrorCode errorCode = singleResponse.getException()
                         .getMessagingErrorCode();
-                log.warn("Push failed for token {}: {}", tokens.get(i), errorCode);
+            log.warn("Push notification failed for device token {}: {}", tokens.get(i), errorCode);
 
                 if (errorCode == MessagingErrorCode.UNREGISTERED
                         || errorCode == MessagingErrorCode.INVALID_ARGUMENT) {

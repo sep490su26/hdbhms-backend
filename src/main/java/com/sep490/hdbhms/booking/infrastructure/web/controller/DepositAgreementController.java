@@ -25,7 +25,7 @@ import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositContactRe
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositExtensionRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.request.DepositForfeitureRequest;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositAgreementDetailsResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -38,7 +38,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;

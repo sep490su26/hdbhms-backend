@@ -9,6 +9,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPay
 import com.sep490.hdbhms.booking.domain.value_objects.DepositBatchItemStatus;
 import com.sep490.hdbhms.booking.domain.value_objects.DepositBatchStatus;
 import com.sep490.hdbhms.booking.domain.value_objects.RoomHoldStatus;
+import com.sep490.hdbhms.booking.domain.event.DepositInformationNotificationRequestedEvent;
 import com.sep490.hdbhms.booking.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.application.port.out.EarlyCancelRoomHoldTaskPort;
@@ -28,10 +29,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -48,6 +52,7 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
     DepositAgreementRepository depositAgreementRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     CreateLeadOrAssignTenantPort createLeadOrAssignTenantPort;
+    ApplicationEventPublisher applicationEventPublisher;
 
     @Override
     public void execute(Invoice invoice) {
@@ -135,6 +140,74 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
 
         batch.setStatus(DepositBatchStatus.CONFIRMED);
         batchRepository.save(batch);
+        publishGuestDepositInformation(batch, items);
+    }
+
+    private void publishGuestDepositInformation(
+            DepositBatchEntity batch,
+            List<DepositBatchItemEntity> items
+    ) {
+        if (batch == null || items == null || items.isEmpty()) {
+            return;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("depositBatchId", batch.getId());
+        payload.put("batchCode", batch.getBatchCode());
+        payload.put("depositReference", batch.getBatchCode());
+        payload.put("status", batch.getStatus() == null ? null : batch.getStatus().name());
+        payload.put("confirmedAt", LocalDateTime.now());
+        payload.put("propertyId", batch.getProperty() == null ? null : batch.getProperty().getId());
+        payload.put("propertyName", batch.getProperty() == null ? "" : batch.getProperty().getName());
+        payload.put("totalDepositAmount", batch.getTotalDepositAmount());
+        payload.put("depositAmount", batch.getTotalDepositAmount());
+        payload.put("expectedMoveInDate", batch.getExpectedMoveInDate());
+        payload.put("expectedLeaseSignDate", batch.getExpectedLeaseSignDate());
+        payload.put("rooms", items.stream().map(item -> {
+            Map<String, Object> room = new LinkedHashMap<>();
+            room.put("roomId", item.getRoom() == null ? null : item.getRoom().getId());
+            room.put("roomCode", item.getRoom() == null ? "" : item.getRoom().getRoomCode());
+            room.put("depositAmount", item.getDepositAmount());
+            return room;
+        }).toList());
+
+        StringBuilder roomLines = new StringBuilder();
+        for (DepositBatchItemEntity item : items) {
+            if (roomLines.length() > 0) {
+                roomLines.append("\n");
+            }
+            roomLines.append("- Phòng ")
+                    .append(item.getRoom() == null ? "" : safeText(item.getRoom().getRoomCode()))
+                    .append(": ")
+                    .append(safeText(item.getDepositAmount()))
+                    .append(" VNĐ");
+        }
+        payload.put("depositDetails", roomLines.toString());
+
+        applicationEventPublisher.publishEvent(new DepositInformationNotificationRequestedEvent(
+                null,
+                batch.getId(),
+                null,
+                batch.getEmail(),
+                batch.getFullName(),
+                batch.getPhone(),
+                "Thông tin đặt cọc thành công",
+                String.format(
+                        "Kính gửi %s,\n\nĐặt cọc %s đã thành công.\nChi tiết phòng:\n%s\nTổng tiền: %s VNĐ\nCơ sở: %s\nNgày vào ở dự kiến: %s\nNgày ký hợp đồng dự kiến: %s\n\nTrân trọng.",
+                        safeText(batch.getFullName()),
+                        safeText(batch.getBatchCode()),
+                        roomLines,
+                        safeText(batch.getTotalDepositAmount()),
+                        batch.getProperty() == null ? "" : safeText(batch.getProperty().getName()),
+                        safeText(batch.getExpectedMoveInDate()),
+                        safeText(batch.getExpectedLeaseSignDate())
+                ),
+                payload
+        ));
+    }
+
+    private String safeText(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 
     private boolean hasAnotherActiveHold(
@@ -172,7 +245,7 @@ public class DepositBatchCompletionAdapter implements DepositBatchCompletionPort
                 paymentIntentRepository.save(paymentIntent);
             }
         }
-        log.warn("Late batch deposit payment requires refund. batchId={}, batchCode={}",
+        log.warn("Late batch deposit payment requires a refund. batchId={}, batchCode={}",
                 batch.getId(), batch.getBatchCode());
     }
 }

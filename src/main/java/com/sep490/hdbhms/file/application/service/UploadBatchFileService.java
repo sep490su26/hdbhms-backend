@@ -45,7 +45,7 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                     .totalFiles(0)
                     .successfulUploads(0)
                     .failedUploads(0)
-                    .message("No files provided")
+                    .message("Chưa cung cấp tệp nào")
                     .build();
         }
 
@@ -59,7 +59,7 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                 if (batchInterrupted.get()) {
                     // If interrupted, don't submit new tasks
                     futures.add(CompletableFuture.completedFuture(
-                            fileMetadataWebMapper.toFailedResponse(file, "Upload skipped due to batch interruption")));
+                            fileMetadataWebMapper.toFailedResponse(file, "Bỏ qua tải tệp do lô tải lên bị gián đoạn")));
                     continue;
                 }
 
@@ -68,7 +68,7 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                         semaphore.acquire();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        return fileMetadataWebMapper.toFailedResponse(file, "Upload interrupted while waiting for resources");
+                        return fileMetadataWebMapper.toFailedResponse(file, "Tải tệp bị gián đoạn trong khi chờ tài nguyên");
                     }
                     try {
                         return uploadWithRetries(file, ownerId, query.category(), query.isSensitive());
@@ -97,17 +97,17 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                         .successfulUploads((int) completedResponses.stream().filter(FileMetadataResponse::isUploaded).count())
                         .failedUploads((int) completedResponses.stream().filter(r -> !r.isUploaded()).count())
                         .fileMetadataResponse(completedResponses)
-                        .message("Batch upload timed out. Some files may not have been processed.")
+                        .message("Lô tải tệp đã hết thời gian chờ. Một số tệp có thể chưa được xử lý.")
                         .build();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.error("Batch upload interrupted", e);
+                log.error("Batch upload was interrupted", e);
                 futures.forEach(f -> f.cancel(true));
                 return BatchFileResponse.builder()
                         .totalFiles(multipartFiles.size())
                         .successfulUploads(0)
                         .failedUploads(multipartFiles.size())
-                        .message("Batch upload was interrupted.")
+                        .message("Lô tải tệp đã bị gián đoạn.")
                         .build();
             } catch (ExecutionException e) {
                 log.error("Batch upload failed", e);
@@ -125,7 +125,7 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
                 .successfulUploads((int) successCount)
                 .failedUploads(multipartFiles.size() - (int) successCount)
                 .fileMetadataResponse(responses)
-                .message("Upload completed.")
+                .message("Tải tệp hoàn tất.")
                 .build();
     }
 
@@ -136,7 +136,7 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
 
         while (attempts < maxAttempts) {
             if (Thread.currentThread().isInterrupted()) {
-                return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload interrupted before attempt " + attempts);
+                return fileMetadataWebMapper.toFailedResponse(multipartFile, "Tải tệp bị gián đoạn trước lần thử " + attempts);
             }
             try {
                 return fileMetadataWebMapper.toSuccessResponse(
@@ -151,24 +151,24 @@ public class UploadBatchFileService implements UploadBatchFileUseCase {
             } catch (AppException | IOException e) {
                 attempts++;
                 if (Thread.currentThread().isInterrupted()) {
-                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload interrupted before attempt " + attempts);
+                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Tải tệp bị gián đoạn trước lần thử " + attempts);
                 }
                 if (attempts >= maxAttempts) {
-                    log.warn("Failed to upload {} after {} attempts: {}",
+                    log.warn("Failed to upload file {} after {} attempts: {}",
                             multipartFile.getOriginalFilename(), maxAttempts, e.getMessage());
-                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Failed after " + maxAttempts + " attempts: " + e.getMessage());
+                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Tải tệp thất bại sau " + maxAttempts + " lần thử: " + e.getMessage());
                 }
-                log.info("Retrying upload for {} in {} ms (attempt {}/{})",
+                log.info("Retrying file {} in {} ms (attempt {}/{})",
                         multipartFile.getOriginalFilename(), retryDelayMs, attempts, maxAttempts);
                 try {
                     Thread.sleep(retryDelayMs);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload interrupted during retry delay");
+                    return fileMetadataWebMapper.toFailedResponse(multipartFile, "Tải tệp bị gián đoạn trong thời gian chờ thử lại");
                 }
                 retryDelayMs *= 2;
             }
         }
-        return fileMetadataWebMapper.toFailedResponse(multipartFile, "Upload failed after retries");
+        return fileMetadataWebMapper.toFailedResponse(multipartFile, "Tải tệp thất bại sau các lần thử lại");
     }
 }

@@ -40,8 +40,9 @@ import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
+import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -735,7 +736,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             releaseTargetCapacity(request);
             request.setStatus(TransferRequestStatus.EXPIRED);
             roomTransferRepository.save(request);
-            log.info("Expired room transfer request {} because target holder did not respond in {} days",
+            log.info("Room transfer request {} expired because the target room holder did not respond within {} days",
                     request.getId(), TARGET_HOLDER_APPROVAL_TIMEOUT_DAYS);
         }
         return expiredRequests.size();
@@ -754,7 +755,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             request.setStatus(TransferRequestStatus.MANAGER_APPROVED);
             roomTransferRepository.save(request);
             publishManagerActionRequired(request, ACTION_SOURCE_HOLDER_NOMINATION_EXPIRED);
-            log.info("Expired source holder nomination for room transfer request {} after {} days",
+        log.info("Source room holder nomination for room transfer request {} expired after {} days",
                     request.getId(), SOURCE_HOLDER_NOMINATION_TIMEOUT_DAYS);
         }
         return expiredRequests.size();
@@ -861,7 +862,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         request.setStatus(TransferRequestStatus.WAITING_EXECUTION);
         request.setExecutedAt(LocalDateTime.now());
         roomTransferRepository.save(request);
-        log.info("Submitted transfer-out handover for room transfer request {}", request.getId());
+        log.info("Sent old-room handover for room transfer request {}", request.getId());
     }
 
     @Override
@@ -873,7 +874,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (payload == null) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
-        validateTransferHandoverDate(payload, "transfer-out");
+        validateTransferHandoverDate(payload, "bàn giao phòng cũ");
         Room oldRoom = roomRepository.findById(request.getOldRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         LeaseContract oldContract = getContract(request.getOldContractId());
@@ -1322,7 +1323,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         PersonProfile targetHolderProfile = personProfileRepository.findById(targetContract.getPrimaryTenantProfileId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (targetHolderProfile.getUserId() == null) {
-            log.warn("Cannot notify target holder for room transfer {} because profile {} has no linked user",
+            log.warn("Cannot notify the target room holder for room transfer request {} because profile {} has no linked account",
                     request.getId(), targetHolderProfile.getId());
             return;
         }
@@ -1352,7 +1353,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         PersonProfile nominatedHolderProfile = personProfileRepository.findById(request.getNominatedHolderProfileId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (nominatedHolderProfile.getUserId() == null) {
-            log.warn("Cannot notify nominated holder for room transfer {} because profile {} has no linked user",
+            log.warn("Cannot notify the nominated holder for room transfer request {} because profile {} has no linked account",
                     request.getId(), nominatedHolderProfile.getId());
             return;
         }
@@ -1382,7 +1383,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         List<Long> managerUserIds = managerRecipientIds(oldRoom, targetRoom);
         if (managerUserIds.isEmpty()) {
-            log.warn("Cannot notify manager for room transfer {} because no active manager or owner was found",
+            log.warn("Cannot notify the manager for room transfer request {} because no active manager or landlord was found",
                     request.getId());
             return;
         }
@@ -1439,9 +1440,9 @@ public class RoomTransferService implements RoomTransferUseCase {
     private String managerActionLabel(String actionType) {
         return switch (actionType) {
             case ACTION_REVIEW_REQUEST -> "Duyệt yêu cầu chuyển phòng mới";
-            case ACTION_SOURCE_HOLDER_REJECTED -> "Holder mới đã từ chối đề cử, cần chọn lại người đại diện phòng cũ";
+            case ACTION_SOURCE_HOLDER_REJECTED -> "Người đại diện mới đã từ chối đề cử, cần chọn lại người đại diện phòng cũ";
             case ACTION_SOURCE_HOLDER_NOMINATION_EXPIRED ->
-                    "Đề cử holder mới đã hết hạn, cần chọn lại người đại diện phòng cũ";
+                    "Đề cử người đại diện mới đã hết hạn, cần chọn lại người đại diện phòng cũ";
             case ACTION_UPLOAD_SIGNED_CONTRACTS -> "Tải bản hợp đồng đã ký trực tiếp";
             case ACTION_READY_FOR_HANDOVER -> "Bắt đầu phiên chuyển phòng";
             default -> "Xử lý yêu cầu chuyển phòng";
@@ -1594,7 +1595,10 @@ public class RoomTransferService implements RoomTransferUseCase {
                 : request.getTransferringTenantProfileIds().getFirst();
 
         LeaseContract newContract = LeaseContract.builder()
-                .contractCode(oldContract.getContractCode() + "-TR-" + request.getId())
+                .contractCode(DocumentFilenameBuilder.buildLeaseContractCode(
+                        targetRoom.getRoomCode(),
+                        request.getRequestedTransferDate()
+                ) + "-TR-" + request.getId())
                 .roomId(targetRoom.getId())
                 .primaryTenantProfileId(newHolderProfileId)
                 .startDate(request.getRequestedTransferDate())
@@ -1620,8 +1624,14 @@ public class RoomTransferService implements RoomTransferUseCase {
             LeaseContract targetContract,
             Long createdById
     ) {
+        String targetRoomCode = roomRepository.findById(targetContract.getRoomId())
+                .map(Room::getRoomCode)
+                .orElse(null);
         LeaseContract agreement = LeaseContract.builder()
-                .contractCode(targetContract.getContractCode() + "-JOIN-" + request.getId())
+                .contractCode(DocumentFilenameBuilder.buildLeaseContractCode(
+                        targetRoomCode,
+                        request.getRequestedTransferDate()
+                ) + "-JOIN-" + request.getId())
                 .roomId(targetContract.getRoomId())
                 .primaryTenantProfileId(targetContract.getPrimaryTenantProfileId())
                 .startDate(request.getRequestedTransferDate())
@@ -1659,8 +1669,14 @@ public class RoomTransferService implements RoomTransferUseCase {
             throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
 
+        String oldRoomCode = roomRepository.findById(oldContract.getRoomId())
+                .map(Room::getRoomCode)
+                .orElse(null);
         LeaseContract replacementContract = LeaseContract.builder()
-                .contractCode(oldContract.getContractCode() + "-RE-" + request.getId())
+                .contractCode(DocumentFilenameBuilder.buildLeaseContractCode(
+                        oldRoomCode,
+                        request.getRequestedTransferDate()
+                ) + "-RE-" + request.getId())
                 .roomId(oldContract.getRoomId())
                 .primaryTenantProfileId(replacementHolderProfileId)
                 .startDate(request.getRequestedTransferDate())
@@ -2274,7 +2290,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             return requireConfirmedHandover(
                     oldContractId,
                     HandoverType.TRANSFER_OUT,
-                    "Transfer-out handover must be saved before executing transfer."
+                    "Cần lưu biên bản bàn giao phòng cũ trước khi thực hiện chuyển phòng."
             );
         }
         validateTransferHandoverDate(payload, "transfer-out");
@@ -2297,7 +2313,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 SubmitHandoverResponse handover = requireConfirmedHandover(
                         targetContractId,
                         HandoverType.TRANSFER_IN,
-                        "Transfer-in handover must be saved before completing transfer."
+                        "Cần lưu biên bản bàn giao phòng mới trước khi hoàn tất chuyển phòng."
                 );
                 return handover.getHandoverDate() == null ? LocalDate.now() : handover.getHandoverDate().toLocalDate();
             }
@@ -2418,7 +2434,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         return new ServiceFeeCharge(
                 tariff.unitPrice(),
                 tariff.unitPrice(),
-                "Service fee " + billingPeriod,
+                "Phí dịch vụ " + billingPeriod,
                 true
         );
     }
@@ -2616,8 +2632,8 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (handoverDate == null) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
-        validateDateNotFuture(handoverDate, handoverName + " handover");
-        validateMeterReadingDate(payload.electricity(), handoverName + " electricity reading");
+        validateDateNotFuture(handoverDate, handoverName + " - bàn giao");
+        validateMeterReadingDate(payload.electricity(), handoverName + " - chỉ số điện");
     }
 
     private void validateMeterReadingDate(
@@ -2735,7 +2751,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         invoiceLineRepository.save(InvoiceLine.builder()
                 .invoiceId(invoice.getId())
                 .lineType(InvoiceLineType.TRANSFER_DIFFERENCE)
-                .description("Room transfer rent difference: new rent " + newRent + " - old rent " + oldRent)
+                .description("Chênh lệch tiền thuê khi chuyển phòng: giá mới " + newRent + " - giá cũ " + oldRent)
                 .quantity(1)
                 .unitPrice(amount)
                 .sourceType("ROOM_TRANSFER")
@@ -2810,7 +2826,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         invoiceLineRepository.save(InvoiceLine.builder()
                 .invoiceId(invoice.getId())
                 .lineType(InvoiceLineType.ROOM_RENT)
-                .description("Room rent")
+                .description("Tiền thuê phòng")
                 .quantity(1)
                 .unitPrice(rentAmount)
                 .sourceType("ROOM_TRANSFER")
@@ -2819,7 +2835,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         invoiceLineRepository.save(InvoiceLine.builder()
                 .invoiceId(invoice.getId())
                 .lineType(InvoiceLineType.TRANSFER_DIFFERENCE)
-                .description("Room transfer rent difference added to next invoice")
+                .description("Chênh lệch tiền thuê chuyển phòng cộng vào hóa đơn kỳ sau")
                 .quantity(1)
                 .unitPrice(surchargeAmount)
                 .sourceType("ROOM_TRANSFER_SURCHARGE")
@@ -2834,7 +2850,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         invoiceLineRepository.save(InvoiceLine.builder()
                 .invoiceId(saved.getId())
                 .lineType(InvoiceLineType.TRANSFER_DIFFERENCE)
-                .description("Room transfer rent difference added to next invoice")
+                .description("Chênh lệch tiền thuê chuyển phòng cộng vào hóa đơn kỳ sau")
                 .quantity(1)
                 .unitPrice(surchargeAmount)
                 .sourceType("ROOM_TRANSFER_SURCHARGE")
@@ -2910,7 +2926,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         invoiceLineRepository.save(InvoiceLine.builder()
                 .invoiceId(invoice.getId())
                 .lineType(InvoiceLineType.ROOM_RENT)
-                .description("Room rent with transfer credit applied")
+                .description("Tiền thuê phòng đã áp dụng khoản bù trừ khi chuyển phòng")
                 .quantity(1)
                 .unitPrice(rentAmount)
                 .sourceType("ROOM_TRANSFER_CREDIT")
@@ -3059,7 +3075,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         try {
             return confirmTransferContractForTenant(request, settlement.getConfirmedById());
         } catch (RuntimeException exception) {
-            log.warn("Could not auto-confirm room transfer contract after paid difference. transferRequestId={}",
+            log.warn("Failed to automatically confirm the room transfer contract after the balance payment. transferRequestId={}",
                     request.getId(), exception);
             return request;
         }
@@ -3086,7 +3102,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     @Override
     @Transactional
     public RoomTransferRequest getTransferRequestById(Long requestId) {
-        log.info("Getting transfer request by ID: {}", requestId);
+        log.info("Fetching room transfer request by ID: {}", requestId);
         RoomTransferRequest request = roomTransferRepository.findById(requestId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_REQUEST_NOT_FOUND));
         return syncPaidTransferDifferenceStatus(request);
@@ -3095,7 +3111,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     @Override
     @Transactional
     public RoomTransferRequest getTransferRequestByCode(String requestCode) {
-        log.info("Getting transfer request by code: {}", requestCode);
+        log.info("Fetching room transfer request by request code: {}", requestCode);
         RoomTransferRequest request = roomTransferRepository.findByRequestCode(requestCode)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_REQUEST_NOT_FOUND));
         return syncPaidTransferDifferenceStatus(request);
@@ -3117,14 +3133,14 @@ public class RoomTransferService implements RoomTransferUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<RoomTransferRequest> getPendingHolderNominations(Long holderUserId) {
-        log.info("Getting pending holder nominations for user: {}", holderUserId);
+        log.info("Fetching pending holder nominations for user: {}", holderUserId);
         return roomTransferRepository.findPendingHolderNominations(holderUserId);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<RoomTransferRequest> getPendingTargetHolderApprovals(Long holderUserId) {
-        log.info("Getting pending target holder approvals for user: {}", holderUserId);
+        log.info("Fetching pending target-room holder approvals for user: {}", holderUserId);
         return roomTransferRepository.findPendingTargetHolderApprovals(holderUserId);
     }
 }

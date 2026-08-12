@@ -17,7 +17,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomReposito
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.CreateFloorRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.FloorResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.FloorWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

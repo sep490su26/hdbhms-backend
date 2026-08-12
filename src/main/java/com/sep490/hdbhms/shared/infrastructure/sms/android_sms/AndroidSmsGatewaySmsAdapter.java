@@ -65,14 +65,14 @@ public class AndroidSmsGatewaySmsAdapter implements SmsPort {
                 throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
             }
             String responseBody = responseEntity.getBody();
-            log.info("SMS sent successfully via sms-gate. phoneNumber={}, response={}", phoneNumber, responseBody);
+            log.info("SMS sent successfully through sms-gate. phoneNumber={}, response={}", phoneNumber, responseBody);
 
         } catch (HttpClientErrorException | HttpServerErrorException ex) {
-            log.error("Failed to send SMS via sms-gate. phoneNumber={}, status={}, body={}",
+            log.error("Failed to send SMS through sms-gate. phoneNumber={}, status={}, body={}",
                     phoneNumber, ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
             throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, ex);
         } catch (Exception ex) {
-            log.error("Failed to send SMS via sms-gate. phoneNumber={}", phoneNumber, ex);
+            log.error("Failed to send SMS through sms-gate. phoneNumber={}", phoneNumber, ex);
             throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, ex);
         }
     }

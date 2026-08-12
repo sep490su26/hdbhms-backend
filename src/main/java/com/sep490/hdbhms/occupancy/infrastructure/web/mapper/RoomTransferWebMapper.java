@@ -300,13 +300,13 @@ public abstract class RoomTransferWebMapper {
     ) {
         List<String> warnings = new ArrayList<>();
         if (debtSummary != null && Boolean.TRUE.equals(debtSummary.overLimit())) {
-            warnings.add("Debt is over the configured warning threshold.");
+            warnings.add("Khoản nợ đã vượt ngưỡng cảnh báo được cấu hình.");
         }
         if (violationSummary != null && violationSummary.totalCount() != null && violationSummary.totalCount() > 0) {
-            warnings.add("Tenant has recorded rule violations.");
+            warnings.add("Khách thuê đã phát sinh vi phạm nội quy.");
         }
         if (transferCountThisYear != null && transferCountThisYear > 0) {
-            warnings.add("Tenant already has room transfer history this year.");
+            warnings.add("Khách thuê đã có lịch sử chuyển phòng trong năm nay.");
         }
         return warnings;
     }
@@ -666,37 +666,37 @@ public abstract class RoomTransferWebMapper {
         }
 
         if (isSourceHolderNominationPending(request, remainingOccupantCountAfterTransfer)) {
-            reasons.add("Replacement holder must be nominated before continuing.");
+            reasons.add("Cần đề cử người đại diện thay thế trước khi tiếp tục.");
         }
 
         switch (status) {
-            case REQUESTED, WAITING_MANAGER_APPROVAL -> reasons.add("Waiting for manager approval.");
-            case WAITING_HOLDER_RESPONSE -> reasons.add("Waiting for nominated holder response.");
-            case WAITING_TARGET_HOLDER_APPROVAL -> reasons.add("Waiting for target room holder approval.");
+            case REQUESTED, WAITING_MANAGER_APPROVAL -> reasons.add("Đang chờ quản lý phê duyệt.");
+            case WAITING_HOLDER_RESPONSE -> reasons.add("Đang chờ người được đề cử phản hồi.");
+            case WAITING_TARGET_HOLDER_APPROVAL -> reasons.add("Đang chờ người đại diện phòng đích phê duyệt.");
             case WAITING_TENANT_CONFIRMATION -> {
                 if (isImmediateDifferencePaymentPending(request, priceDifferenceToPay)) {
-                    reasons.add("Transfer difference invoice must be paid before request confirmation.");
+                    reasons.add("Cần thanh toán hóa đơn chênh lệch chuyển phòng trước khi xác nhận yêu cầu.");
                 }
             }
             case WAITING_PAYMENT -> {
                 if (transferDifferenceInvoiceId == null) {
-                    reasons.add("Transfer difference invoice has not been created.");
+                    reasons.add("Chưa tạo hóa đơn chênh lệch chuyển phòng.");
                 } else {
-                    reasons.add("Transfer difference invoice must be paid.");
+                    reasons.add("Cần thanh toán hóa đơn chênh lệch chuyển phòng.");
                 }
             }
-            case WAITING_CONTRACT_CONFIRMATION -> reasons.add("Preparing transfer contracts for manager signing.");
+            case WAITING_CONTRACT_CONFIRMATION -> reasons.add("Đang chuẩn bị hợp đồng chuyển phòng để quản lý ký.");
             case WAITING_SIGNING, WAITING_CONTRACT_SIGNING -> {
                 if (hasAllRequiredSignedContractFiles(request)) {
-                    reasons.add("Waiting for manager to confirm signed transfer contracts.");
+                    reasons.add("Đang chờ quản lý xác nhận các hợp đồng chuyển phòng đã ký.");
                 } else {
-                    reasons.add("Manager must upload all signed transfer contract files before confirmation.");
+                    reasons.add("Quản lý phải tải lên đầy đủ tệp hợp đồng chuyển phòng đã ký trước khi xác nhận.");
                 }
             }
             case WAITING_TRANSFER_DATE, READY_FOR_HANDOVER -> {
-                reasons.add("Manager can start the transfer session.");
+                reasons.add("Quản lý có thể bắt đầu phiên chuyển phòng.");
                 if (Boolean.TRUE.equals(isRoomHandoverRequired(request, remainingOccupantCountAfterTransfer == null ? null : remainingOccupantCountAfterTransfer == 0))) {
-                    reasons.add("Room asset handover is required because source room will be empty.");
+                    reasons.add("Cần bàn giao tài sản phòng vì phòng cũ sẽ được trả trống.");
                 }
             }
             case WAITING_EXECUTION -> {
@@ -715,9 +715,9 @@ public abstract class RoomTransferWebMapper {
                     break;
                 }
                 if (Boolean.TRUE.equals(isTransferInHandoverRequired(request))) {
-                    reasons.add("Transfer-in baseline readings are required before final execution.");
+                    reasons.add("Cần nhập chỉ số ban đầu của phòng mới trước khi thực hiện bước cuối.");
                 } else {
-                    reasons.add("Waiting for final execution.");
+                    reasons.add("Đang chờ thực hiện bước cuối.");
                 }
             }
             default -> {

@@ -68,7 +68,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
         List<NotificationTemplate> templates = resolveTemplates(event.getEventType());
 
         if (templates.isEmpty()) {
-            log.warn("No active templates found for event type: {}", event.getEventType());
+            log.warn("No active notification template found for event type: {}", event.getEventType());
             return;
         }
 
@@ -142,7 +142,7 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
         try {
             return objectMapper.writeValueAsString(event.getData());
         } catch (Exception exception) {
-            log.warn("Failed to serialize notification payload for event type {}", event.getEventType(), exception);
+            log.warn("Failed to serialize notification data for event type {}", event.getEventType(), exception);
             return null;
         }
     }

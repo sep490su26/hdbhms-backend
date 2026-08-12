@@ -9,7 +9,6 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PendingBillingChargeStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
-import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.PendingBillingChargeEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPendingBillingChargeRepository;
@@ -79,8 +78,8 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -430,7 +429,7 @@ public class MaintenanceTicketController {
             collectMaintenanceCompensation(saved, request);
         }
         if (request != null && request.getAttachmentIds() != null && !request.getAttachmentIds().isEmpty()) {
-            attachFiles(saved, request.getAttachmentIds(), AttachmentPhase.AFTER, "Upload ảnh sau sửa");
+            attachFiles(saved, request.getAttachmentIds(), AttachmentPhase.AFTER, "Tải lên ảnh sau sửa");
         }
         recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(), MaintenanceTicketAction.REQUEST_CONFIRMATION,
                 firstNonBlank(request == null ? null : request.getCompletionNote(),
@@ -529,9 +528,9 @@ public class MaintenanceTicketController {
                 throw new AppException(ApiErrorCode.MIGRATED_CHI_BO_SUNG_ANH_TRUOC_SUA_KHI_PHIEU_ANG_CHO_TIEP_NHAN);
             }
         }
-        attachFiles(ticket, fileIds, phase, firstNonBlank(request == null ? null : request.getNote(), "Upload ảnh cho phiếu sự cố"));
+            attachFiles(ticket, fileIds, phase, firstNonBlank(request == null ? null : request.getNote(), "Tải ảnh lên cho phiếu sự cố"));
         recordEvent(ticket.getId(), ticket.getStatus(), ticket.getStatus(), MaintenanceTicketAction.ATTACH_FILE,
-                firstNonBlank(request == null ? null : request.getNote(), "Upload ảnh cho phiếu sự cố"));
+                    firstNonBlank(request == null ? null : request.getNote(), "Tải ảnh lên cho phiếu sự cố"));
         return response(findTicket(id));
     }
 
@@ -657,7 +656,7 @@ public class MaintenanceTicketController {
                 TicketScope.TENANT_ROOM,
                 request
         );
-        attachFiles(ticket, attachmentIds, AttachmentPhase.BEFORE, "Khách thuê upload ảnh trước sửa");
+        attachFiles(ticket, attachmentIds, AttachmentPhase.BEFORE, "Khách thuê tải lên ảnh trước sửa");
         recordEvent(ticket.getId(), null, ticket.getStatus(), MaintenanceTicketAction.CREATE,
                 "Khách thuê tạo phiếu sự cố từ app mobile");
         return findTicket(ticket.getId());
@@ -693,7 +692,7 @@ public class MaintenanceTicketController {
             throw new AppException(ApiErrorCode.MIGRATED_CHI_UOC_UPLOAD_TOI_A_3_ANH_TRUOC_SUA);
         }
         MaintenanceTicket ticket = saveNewTicket(propertyId, roomId, contractId, scope, request);
-        attachFiles(ticket, attachmentIds, AttachmentPhase.BEFORE, "Quản lý upload ảnh trước sửa");
+        attachFiles(ticket, attachmentIds, AttachmentPhase.BEFORE, "Quản lý tải lên ảnh trước sửa");
         recordEvent(ticket.getId(), null, ticket.getStatus(), MaintenanceTicketAction.CREATE,
                 scope == TicketScope.COMMON_AREA ? "Quản lý tạo phiếu sự cố khu vực chung" : "Quản lý tạo phiếu sự cố");
         return findTicket(ticket.getId());
@@ -858,7 +857,7 @@ public class MaintenanceTicketController {
                 .ifPresent(changeRequest -> {
                     if (changeRequest.getStatus() != RequestStatus.COMPLETED) {
                         changeRequest.setStatus(RequestStatus.CANCELLED);
-                        changeRequest.setResolutionNote("Tu dong huy vi chi phi khong con do chu tro chiu.");
+                        changeRequest.setResolutionNote("Tự động hủy vì chi phí không còn do chủ trọ chịu.");
                         changeRequest.setResolvedBy(actor);
                         changeRequest.setResolvedAt(LocalDateTime.now());
                         jpaChangeRequestRepository.save(changeRequest);
@@ -895,7 +894,7 @@ public class MaintenanceTicketController {
                     .requesterRole(toRequesterRole(actor.getRole()))
                     .targetType(TargetType.OPERATING_EXPENSE)
                     .targetId(expense.getId())
-                    .title("Khoan chi bao tri " + firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()))
+                    .title("Khoản chi bảo trì " + firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()))
                     .description(reason)
                     .assignedRole(AssignedRole.OWNER)
                     .status(RequestStatus.APPROVED)
@@ -911,7 +910,7 @@ public class MaintenanceTicketController {
             jpaChangeRequestEventRepository.save(ChangeRequestEventEntity.builder()
                     .changeRequest(changeRequest)
                     .toStatus(RequestStatus.APPROVED)
-                    .note("Tu dong ghi nhan khoan chi bao tri do chu tro chiu.")
+                    .note("Tự động ghi nhận khoản chi bảo trì do chủ trọ chịu.")
                     .actedBy(actor)
                     .build());
             return;
@@ -921,7 +920,7 @@ public class MaintenanceTicketController {
         approval.setExpectedPaymentDate(expense.getExpenseDate());
         ChangeRequestEntity changeRequest = approval.getChangeRequest();
         if (changeRequest != null) {
-            changeRequest.setTitle("Khoan chi bao tri " + firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()));
+            changeRequest.setTitle("Khoản chi bảo trì " + firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()));
             changeRequest.setDescription(reason);
             changeRequest.setStatus(RequestStatus.APPROVED);
             changeRequest.setResolvedBy(actor);
@@ -941,8 +940,8 @@ public class MaintenanceTicketController {
 
     private String buildMaintenanceExpenseDescription(MaintenanceTicket ticket, MaintenanceCostEntity cost) {
         String ticketLabel = firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId());
-        String detail = firstNonBlank(cost.getDescription(), ticket.getTitle(), ticket.getCategory(), "Chi phi bao tri");
-        return "Chi phi bao tri " + ticketLabel + ": " + detail;
+        String detail = firstNonBlank(cost.getDescription(), ticket.getTitle(), ticket.getCategory(), "Chi phí bảo trì");
+        return "Chi phí bảo trì " + ticketLabel + ": " + detail;
     }
 
     private String nextMaintenanceExpenseCode(Long ticketId) {
@@ -1084,7 +1083,7 @@ public class MaintenanceTicketController {
                 room,
                 contract,
                 InvoiceLineType.MAINTENANCE_COMPENSATION,
-                firstNonBlank(request.getCostDescription(), request.getCompletionNote(), "Boi thuong chi phi bao tri"),
+                firstNonBlank(request.getCostDescription(), request.getCompletionNote(), "Bồi thường chi phí bảo trì"),
                 amount,
                 IssuedInvoiceChargeService.SOURCE_MAINTENANCE_TICKET,
                 ticket.getId(),
@@ -1597,8 +1596,8 @@ public class MaintenanceTicketController {
                         return new BillingInfo(
                                 charge.getStatus() == PendingBillingChargeStatus.FAILED ? "SCHEDULE_FAILED" : "SCHEDULED",
                                 charge.getStatus() == PendingBillingChargeStatus.FAILED
-                                        ? "Loi len lich hoa don"
-                                        : "Da len lich gop hoa don dau thang",
+                                        ? "Lỗi lên lịch hóa đơn"
+                                        : "Đã lên lịch gộp hóa đơn đầu tháng",
                                 null,
                                 null,
                                 null,

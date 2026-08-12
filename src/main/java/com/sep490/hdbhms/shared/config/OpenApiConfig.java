@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "HDBHMS API",
                 version = "v1",
-                description = "Backend API documentation for HDBHMS"
+                description = "Tài liệu API backend của HDBHMS"
         )
 )
 @SecurityScheme(

@@ -5,7 +5,7 @@ import com.sep490.hdbhms.advisor.application.port.out.AdvisorFile;
 import com.sep490.hdbhms.advisor.application.service.AdvisorService;
 import com.sep490.hdbhms.advisor.infrastructure.web.dto.request.AdvisorAskRequest;
 import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

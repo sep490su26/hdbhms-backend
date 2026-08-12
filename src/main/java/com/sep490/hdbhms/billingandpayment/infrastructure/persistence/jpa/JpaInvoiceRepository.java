@@ -50,6 +50,8 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
             InvoiceStatus status
     );
 
+    boolean existsByIdAndLeastContract_PrimaryTenantProfile_User_Id(Long invoiceId, Long userId);
+
     @Query("""
             SELECT DISTINCT invoice
             FROM InvoiceEntity invoice
@@ -126,16 +128,7 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
             LEFT JOIN contract.primaryTenantProfile primaryProfile
             WHERE invoice.status IN :statuses
               AND contract IS NOT NULL
-              AND (
-                    primaryProfile.user.id = :userId
-                    OR EXISTS (
-                        SELECT occupant.id
-                        FROM ContractOccupantEntity occupant
-                        WHERE occupant.contract = contract
-                          AND occupant.status = com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus.ACTIVE
-                          AND occupant.tenantProfile.user.id = :userId
-                    )
-              )
+              AND primaryProfile.user.id = :userId
             ORDER BY invoice.dueDate ASC, invoice.id DESC
             """)
     List<InvoiceEntity> findTenantVisibleInvoices(

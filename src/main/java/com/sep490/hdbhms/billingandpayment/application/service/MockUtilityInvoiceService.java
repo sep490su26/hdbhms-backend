@@ -24,7 +24,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReading
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaUtilityTariffRepository;
-import com.sep490.hdbhms.shared.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -77,7 +77,7 @@ public class MockUtilityInvoiceService {
 
         LeaseContractEntity contract = findContract(room.getId(), period);
         if (contract == null) {
-            return skipped(room, period, "Phong khong co hop dong thue phat sinh trong ky.");
+            return skipped(room, period, "Phòng không có hợp đồng thuê phát sinh trong kỳ.");
         }
 
         InvoiceEntity existing = invoiceRepository
@@ -89,16 +89,16 @@ public class MockUtilityInvoiceService {
                 )
                 .orElse(null);
         if (existing != null) {
-            return toResponse(existing, false, "Hoa don dien nuoc da ton tai.");
+            return toResponse(existing, false, "Hóa đơn điện nước đã tồn tại.");
         }
 
         List<MeterCharge> charges = buildCharges(room, period);
         long totalAmount = charges.stream().mapToLong(MeterCharge::amount).sum();
         if (charges.isEmpty()) {
-            return skipped(room, period, "Phong chua co chi so dien/nuoc trong ky.");
+            return skipped(room, period, "Phòng chưa có chỉ số điện/nước trong kỳ.");
         }
         if (totalAmount <= 0) {
-            return skipped(room, period, "Ky nay khong phat sinh tien dien nuoc.");
+            return skipped(room, period, "Kỳ này không phát sinh tiền điện nước.");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -142,7 +142,7 @@ public class MockUtilityInvoiceService {
         invoice.setStatus(InvoiceStatus.ISSUED);
         invoice.setIssuedAt(now);
         invoice = invoiceRepository.saveAndFlush(invoice);
-        return toResponse(invoice, true, "Da tao mock hoa don dien nuoc.");
+        return toResponse(invoice, true, "Đã tạo hóa đơn điện nước mẫu.");
     }
 
     @Transactional
@@ -174,9 +174,9 @@ public class MockUtilityInvoiceService {
         for (MeterReadingEntity reading : meterReadingRepository.findLatestActiveByRoomAndPeriod(room.getId(), period.toString())) {
             MeterType meterType = reading.getMeter().getMeterType();
             if (meterType == MeterType.ELECTRICITY) {
-                charges.add(buildCharge(reading, InvoiceLineType.ELECTRICITY, UtilityType.ELECTRICITY, "Tien dien"));
+                charges.add(buildCharge(reading, InvoiceLineType.ELECTRICITY, UtilityType.ELECTRICITY, "Tiền điện"));
             } else if (meterType == MeterType.WATER) {
-                charges.add(buildCharge(reading, InvoiceLineType.WATER, UtilityType.WATER, "Tien nuoc"));
+                charges.add(buildCharge(reading, InvoiceLineType.WATER, UtilityType.WATER, "Tiền nước"));
             }
         }
         return charges;
@@ -202,7 +202,7 @@ public class MockUtilityInvoiceService {
         );
         int quantity = billableQuantity(usage, tariff.freeAllowance());
         long amount = quantity * tariff.unitPrice();
-        String description = "%s %s: %s -> %s, mien phi %d, tinh %d x %d".formatted(
+        String description = "%s %s: %s -> %s, miễn phí %d, tính %d x %d".formatted(
                 label,
                 reading.getReadingPeriod(),
                 previousValue.stripTrailingZeros().toPlainString(),

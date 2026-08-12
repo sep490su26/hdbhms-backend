@@ -18,8 +18,8 @@ import java.util.List;
 @ConfigurationProperties(prefix = "app.auth")
 @Validated
 public class AuthProperties {
-    @NotBlank(message = "app.auth.token-secret must not be blank")
-    @Size(min = 64, message = "app.auth.token-secret must be at least 64 characters for HS512")
+    @NotBlank(message = "app.auth.token-secret không được để trống")
+    @Size(min = 64, message = "app.auth.token-secret phải có ít nhất 64 ký tự để dùng HS512")
     String tokenSecret;
     long tokenExpirationSec;
     long tokenRefreshSec;

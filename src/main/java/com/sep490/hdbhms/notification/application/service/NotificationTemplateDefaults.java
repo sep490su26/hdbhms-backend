@@ -116,87 +116,6 @@ public class NotificationTemplateDefaults {
                     "Yêu cầu [[${requestCode}]] đang cần quản lý xử lý: [[${actionLabel}]]. Chuyển từ [[${oldRoomName}]] sang [[${targetRoomName}]], ngày dự kiến chuyển [[${expectedTransferDate}]]."
             ),
             definitionForChannels(
-                    "TENANT_PROFILE_ACCESS_REQUESTED",
-                    "Yêu cầu xem hồ sơ khách thuê",
-                    "Gửi cho chủ trọ khi quản lý yêu cầu quyền xem hồ sơ khách thuê.",
-                    "CHANGE_REQUEST",
-                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
-                    variables(
-                            "requestId",
-                            "profileId",
-                            "managerId",
-                            "managerName",
-                            "tenantName",
-                            "roomName",
-                            "propertyName",
-                            "reason"
-                    ),
-                    sampleData(
-                            "requestId", 680965088362753L,
-                            "profileId", 41L,
-                            "managerId", 9L,
-                            "managerName", "Trần Thị Quản Lý",
-                            "tenantName", "Nguyễn Văn A",
-                            "roomName", "Phòng 104",
-                            "propertyName", "Nhà trọ A",
-                            "reason", "Cần kiểm tra hồ sơ hợp đồng"
-                    ),
-                    "Yêu cầu xem hồ sơ khách thuê",
-                    "[[${managerName}]] yêu cầu xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]. Lý do: [[${reason}]]."
-            ),
-            definitionForChannels(
-                    "TENANT_PROFILE_ACCESS_APPROVED",
-                    "Đã được duyệt xem hồ sơ",
-                    "Gửi cho quản lý khi chủ trọ duyệt quyền xem hồ sơ khách thuê.",
-                    "TENANT_PROFILE",
-                    List.of(NotificationChannel.WEB),
-                    variables(
-                            "requestId",
-                            "profileId",
-                            "managerId",
-                            "tenantName",
-                            "roomName",
-                            "propertyName"
-                    ),
-                    sampleData(
-                            "requestId", 680965088362753L,
-                            "profileId", 41L,
-                            "managerId", 9L,
-                            "tenantName", "Nguyễn Văn A",
-                            "roomName", "Phòng 104",
-                            "propertyName", "Nhà trọ A"
-                    ),
-                    "Đã được duyệt xem hồ sơ",
-                    "Chủ trọ đã duyệt quyền xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]."
-            ),
-            definitionForChannels(
-                    "TENANT_PROFILE_ACCESS_REJECTED",
-                    "Yêu cầu xem hồ sơ bị từ chối",
-                    "Gửi cho quản lý khi chủ trọ từ chối quyền xem hồ sơ khách thuê.",
-                    "TENANT_PROFILE",
-                    List.of(NotificationChannel.WEB),
-                    variables(
-                            "requestId",
-                            "profileId",
-                            "managerId",
-                            "tenantName",
-                            "roomName",
-                            "propertyName",
-                            "resolutionNote"
-                    ),
-                    sampleData(
-                            "requestId", 680965088362753L,
-                            "profileId", 41L,
-                            "managerId", 9L,
-                            "tenantName", "Nguyễn Văn A",
-                            "roomName", "Phòng 104",
-                            "propertyName", "Nhà trọ A",
-                            "resolutionNote", "Chưa đủ điều kiện truy cập"
-                    ),
-                    "Yêu cầu xem hồ sơ bị từ chối",
-                    "Chủ trọ đã từ chối yêu cầu xem hồ sơ của [[${tenantName}]] tại [[${roomName}]] - [[${propertyName}]]. Ghi chú: [[${resolutionNote}]]."
-            ),
-            definitionForChannels(
                     "VISIT_REQUEST_CREATED",
                     "Khách đặt lịch xem phòng",
                     "Gửi cho chủ trọ và quản lý khi có khách đặt lịch xem phòng.",
@@ -270,7 +189,7 @@ public class NotificationTemplateDefaults {
                             "tenantProfileIds"
                     ),
                     sampleData(
-                            "contractCode", "HD-2026-001",
+                            "contractCode", "HDT_P104_01_01_2026",
                             "tenantName", "Nguyễn Văn A",
                             "propertyName", "Nhà trọ A",
                             "roomName", "Phòng 104",
@@ -284,6 +203,41 @@ public class NotificationTemplateDefaults {
                     ),
                     "Thông tin tài khoản thuê phòng",
                     "Tài khoản thuê phòng của [[${tenantName}]] cho hợp đồng [[${contractCode}]] tại [[${roomName}]] - [[${propertyName}]] đã được tạo. Tên đăng nhập: [[${loginIdentifier}]]. Cần hỗ trợ liên hệ [[${supportContact}]]."
+            ),
+            definitionForChannels(
+                    "DEPOSIT_INFORMATION_NOTIFICATION",
+                    "Thông báo đặt cọc thành công",
+                    "Gửi Email/SMS thông tin đặt cọc cho khách thuê sau khi thanh toán thành công.",
+                    "DEPOSIT_AGREEMENT",
+                    List.of(NotificationChannel.EMAIL, NotificationChannel.SMS),
+                    variables(
+                            "recipientFullName",
+                            "depositReference",
+                            "depositDetails",
+                            "depositAmount",
+                            "propertyName",
+                            "expectedMoveInDate",
+                            "expectedLeaseSignDate",
+                            "confirmedAt",
+                            "status",
+                            "depositAgreementId",
+                            "depositBatchId"
+                    ),
+                    sampleData(
+                            "recipientFullName", "Nguyễn Văn A",
+                            "depositReference", "COC_104_2026-08-12",
+                            "depositDetails", "Phòng 104",
+                            "depositAmount", 3000000L,
+                            "propertyName", "Nhà trọ A",
+                            "expectedMoveInDate", "2026-09-01",
+                            "expectedLeaseSignDate", "2026-08-25",
+                            "confirmedAt", "2026-08-12T10:30:00",
+                            "status", "PAID",
+                            "depositAgreementId", 91L,
+                            "depositBatchId", null
+                    ),
+                    "Đặt cọc thành công - [[${depositReference}]]",
+                    "Kính gửi [[${recipientFullName}]],\n\nĐặt cọc [[${depositReference}]] đã được xác nhận thành công.\nChi tiết: [[${depositDetails}]]\nSố tiền: [[${depositAmount}]] VND\nCơ sở: [[${propertyName}]]\nNgày vào ở dự kiến: [[${expectedMoveInDate}]]\nNgày ký hợp đồng dự kiến: [[${expectedLeaseSignDate}]]\n\nTrân trọng."
             ),
             definitionForChannels(
                     "UTILITY_METER_READING_PERIOD_OPENED",
@@ -431,7 +385,7 @@ public class NotificationTemplateDefaults {
             definitionForChannels(
                     "LIQUIDATION_DEPOSIT_REFUND_RECORDED",
                     "Xác nhận nhận hoàn cọc",
-                    "Gửi cho khách thuê khi quản lý hoặc chủ trọ đã hoàn cọc ngoài hệ thống và upload minh chứng.",
+                    "Gửi cho khách thuê khi chủ trọ đã duyệt khoản hoàn cọc và khách thuê cần xác nhận đã nhận tiền.",
                     "CHANGE_REQUEST",
                     List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
                     variables(
@@ -442,22 +396,20 @@ public class NotificationTemplateDefaults {
                             "roomCode",
                             "amount",
                             "depositRefundAmount",
-                            "depositRefundProofFileId",
                             "targetRoute"
                     ),
                     sampleData(
                             "requestId", 680965088362757L,
                             "requestCode", "TLHD_P101_29_07_2026",
                             "contractId", 91L,
-                            "contractCode", "HD-001",
+                            "contractCode", "HDT_P101_29_07_2026",
                             "roomCode", "101",
                             "amount", 2000000L,
                             "depositRefundAmount", 2000000L,
-                            "depositRefundProofFileId", 901L,
                             "targetRoute", "/requests"
                     ),
-                    "Vui lòng xác nhận khoản hoàn cọc",
-                    "Khoản hoàn cọc [[${depositRefundAmount}]] VND cho hợp đồng [[${contractCode}]] phòng [[${roomCode}]] đã được ghi nhận. Vui lòng kiểm tra minh chứng và xác nhận đã nhận tiền."
+                    "Khoản hoàn cọc đã được duyệt",
+                    "Khoản hoàn cọc [[${depositRefundAmount}]] VND cho hợp đồng [[${contractCode}]] phòng [[${roomCode}]] đã được chủ trọ duyệt. Sau khi nhận tiền, vui lòng xác nhận đã nhận tiền."
             ),
             definitionForChannels(
                     "EXPENSE_APPROVAL_REQUESTED",
@@ -572,7 +524,7 @@ public class NotificationTemplateDefaults {
                             "requestCode", "GHHD_P101_29_07_2026",
                             "requestType", "CONTRACT_RENEWAL",
                             "requestTypeLabel", "Yêu cầu gia hạn hợp đồng",
-                            "title", "Yêu cầu gia hạn hợp đồng HD-001",
+                            "title", "Yêu cầu gia hạn hợp đồng HDT_P101_29_07_2026",
                             "description", "Khách muốn gia hạn hợp đồng.",
                             "requesterId", 12L,
                             "requesterRole", "TENANT",
@@ -757,7 +709,7 @@ public class NotificationTemplateDefaults {
     private Map<String, Object> leaseReminderSampleData(String stage) {
         return sampleData(
                 "contractId", 123L,
-                "contractCode", "HD-001",
+                "contractCode", "HDT_P101_01_01_2026",
                 "roomId", 10L,
                 "roomName", "Phòng 101",
                 "propertyName", "Nhà trọ Hải Đăng",
@@ -787,7 +739,7 @@ public class NotificationTemplateDefaults {
         return sampleData(
                 "taskId", 456L,
                 "contractId", 123L,
-                "contractCode", "HD-001",
+                "contractCode", "HDT_P101_01_01_2026",
                 "roomId", 10L,
                 "roomName", "Phòng 101",
                 "propertyName", "Nhà trọ Hải Đăng",

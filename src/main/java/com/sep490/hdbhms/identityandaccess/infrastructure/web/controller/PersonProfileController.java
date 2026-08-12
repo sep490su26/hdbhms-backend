@@ -10,7 +10,7 @@ import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetMyPers
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PersonProfileResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.PersonProfileWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.specifications;
+package com.sep490.hdbhms.shared.utils.specifications;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;

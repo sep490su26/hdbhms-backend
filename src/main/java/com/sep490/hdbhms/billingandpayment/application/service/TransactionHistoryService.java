@@ -5,7 +5,7 @@ import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.TransactionExportRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.TransactionHistoryResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.utils.PdfUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -209,7 +209,7 @@ public class TransactionHistoryService {
                         excelFilename(request)
                 );
                 case "pdf" -> new ExportedFile(
-                        PdfUtils.generatePdfTable(rows, pdfHeaders(), this::toPdfRow, "Transaction history"),
+                        PdfUtils.generatePdfTable(rows, pdfHeaders(), this::toPdfRow, "Lịch sử thanh toán"),
                         PDF_CONTENT_TYPE,
                         "lich-su-thanh-toan-" + LocalDate.now() + ".pdf"
                 );
@@ -375,7 +375,7 @@ public class TransactionHistoryService {
                 ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
         ) {
             if (workbook.getNumberOfSheets() == 0) {
-                throw new IOException("Excel template does not contain a worksheet");
+        throw new IOException("Mẫu Excel không có trang tính");
             }
             Sheet sheet = workbook.getSheetAt(0);
             ExcelDataStyles styles = createExcelDataStyles(workbook);
@@ -485,7 +485,7 @@ public class TransactionHistoryService {
     }
 
     private List<String> pdfHeaders() {
-        return List.of("Txn", "Date", "Room", "Tenant", "Amount", "Type", "Status");
+        return List.of("Mã giao dịch", "Ngày", "Phòng", "Khách thuê", "Số tiền", "Loại", "Trạng thái");
     }
 
     private List<String> toPdfRow(TransactionHistoryResponse item) {

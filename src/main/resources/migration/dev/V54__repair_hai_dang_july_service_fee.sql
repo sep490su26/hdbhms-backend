@@ -23,13 +23,39 @@ WHERE @property_id IS NOT NULL
       WHERE tariff.property_id = @property_id
         AND tariff.utility_type = 'SERVICE_FEE'
         AND tariff.effective_from <= '2026-07-31'
-        AND (tariff.effective_to IS NULL OR tariff.effective_to >= '2026-07-31')
+      AND (tariff.effective_to IS NULL OR tariff.effective_to >= '2026-07-31')
   );
+
+CREATE TEMPORARY TABLE tmp_hd_v54_invoice_state
+(
+    invoice_id BIGINT UNSIGNED PRIMARY KEY,
+    original_status VARCHAR(30) NOT NULL,
+    original_paid_amount BIGINT UNSIGNED NOT NULL
+);
+
+INSERT INTO tmp_hd_v54_invoice_state
+    (invoice_id, original_status, original_paid_amount)
+SELECT invoice.invoice_id, invoice.status, invoice.paid_amount
+FROM hdbhms.invoices invoice
+WHERE invoice.property_id = @property_id
+  AND invoice.invoice_type = 'UTILITY'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.status <> 'VOIDED';
+
+-- Invoice-line triggers intentionally allow edits only while the invoice is a
+-- draft. Restore each original status after the service fee is repaired.
+UPDATE hdbhms.invoices invoice
+JOIN tmp_hd_v54_invoice_state original_state
+  ON original_state.invoice_id = invoice.invoice_id
+SET invoice.status = 'DRAFT';
 
 DELETE line
 FROM hdbhms.invoice_lines line
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = line.invoice_id
+JOIN tmp_hd_v54_invoice_state target
+  ON target.invoice_id = invoice.invoice_id
 LEFT JOIN (
     SELECT contract_id, COUNT(*) AS active_count
     FROM hdbhms.contract_occupants
@@ -46,6 +72,8 @@ WHERE invoice.invoice_type = 'UTILITY'
 UPDATE hdbhms.invoice_lines line
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = line.invoice_id
+JOIN tmp_hd_v54_invoice_state target
+  ON target.invoice_id = invoice.invoice_id
 JOIN (
     SELECT contract_id, COUNT(*) AS active_count
     FROM hdbhms.contract_occupants
@@ -82,6 +110,8 @@ JOIN (
     GROUP BY contract_id
 ) occupant_count
   ON occupant_count.contract_id = invoice.lease_contract_id
+JOIN tmp_hd_v54_invoice_state target
+  ON target.invoice_id = invoice.invoice_id
 WHERE invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
@@ -100,16 +130,29 @@ JOIN (
     GROUP BY invoice_id
 ) line_totals
   ON line_totals.invoice_id = invoice.invoice_id
+JOIN tmp_hd_v54_invoice_state original_state
+  ON original_state.invoice_id = invoice.invoice_id
 SET invoice.subtotal_amount = line_totals.recalculated_subtotal,
     invoice.total_amount = GREATEST(line_totals.recalculated_subtotal - invoice.discount_amount, 0),
+    invoice.paid_amount = CASE
+        WHEN original_state.original_status = 'PAID'
+            THEN GREATEST(line_totals.recalculated_subtotal - invoice.discount_amount, 0)
+        ELSE LEAST(
+            original_state.original_paid_amount,
+            GREATEST(line_totals.recalculated_subtotal - invoice.discount_amount, 0)
+        )
+    END,
     invoice.remaining_amount = GREATEST(
         GREATEST(line_totals.recalculated_subtotal - invoice.discount_amount, 0) - invoice.paid_amount,
         0
     ),
+    invoice.status = original_state.original_status,
     invoice.updated_at = @now
 WHERE invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL';
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hd_v54_invoice_state;
 
 UPDATE hdbhms.notification_outbox notification
 JOIN hdbhms.invoices invoice

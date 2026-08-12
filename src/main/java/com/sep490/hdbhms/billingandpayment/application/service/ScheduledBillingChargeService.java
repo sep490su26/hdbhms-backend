@@ -85,7 +85,7 @@ public class ScheduledBillingChargeService {
     public void createMonthlyDraftInvoices() {
         int created = createDueDraftInvoices(LocalDateTime.now());
         if (created > 0) {
-            log.info("Created draft invoices for {} scheduled maintenance/violation charges", created);
+            log.info("Created {} draft invoices for scheduled maintenance/violation charges", created);
         }
     }
 
@@ -131,7 +131,7 @@ public class ScheduledBillingChargeService {
                 charge.setStatus(PendingBillingChargeStatus.FAILED);
                 charge.setFailureReason(exception.getMessage());
                 pendingBillingChargeRepository.save(charge);
-                log.warn("Failed to create draft invoice for pending billing charge {}", charge.getId(), exception);
+                log.warn("Failed to create a draft invoice for pending charge {}", charge.getId(), exception);
             }
         }
         return billed;

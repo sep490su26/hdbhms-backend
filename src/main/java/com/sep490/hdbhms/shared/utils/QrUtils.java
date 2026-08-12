@@ -24,7 +24,7 @@ public class QrUtils {
             ImageIO.write(image, "png", output);
             return output.toByteArray();
         } catch (WriterException e) {
-            throw new IOException("Error while generating QR code", e);
+            throw new IOException("Lỗi khi tạo mã QR", e);
         }
     }
 }

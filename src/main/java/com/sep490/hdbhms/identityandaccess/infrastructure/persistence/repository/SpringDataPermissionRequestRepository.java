@@ -6,7 +6,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.PermissionReques
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.PermissionRequestEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPermissionRequestRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.mapper.PermissionRequestPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.PermissionRequestSpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.PermissionRequestSpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

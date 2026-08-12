@@ -9,7 +9,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.Manua
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.MockUtilityInvoiceBatchResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.MockUtilityInvoiceResponse;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.RentOverrideResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.DocumentFilenameBuilder;
 import lombok.AccessLevel;

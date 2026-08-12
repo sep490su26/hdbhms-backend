@@ -34,7 +34,7 @@ public class AllowedFileTypeValidator implements ConstraintValidator<AllowedFile
         var mimeType = file.getContentType();
         if (mimeType != null && !allowedMimeTypes.contains(mimeType)) {
             context.disableDefaultConstraintViolation();
-            context.buildConstraintViolationWithTemplate("Unsupported MIME type: " + mimeType)
+                context.buildConstraintViolationWithTemplate("Loại MIME không được hỗ trợ: " + mimeType)
                     .addConstraintViolation();
             return false;
         }
@@ -43,14 +43,14 @@ public class AllowedFileTypeValidator implements ConstraintValidator<AllowedFile
             var extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
             if (!allowedExtensions.contains(extension)) {
                 context.disableDefaultConstraintViolation();
-                context.buildConstraintViolationWithTemplate("Unsupported file extension: " + extension)
+                context.buildConstraintViolationWithTemplate("Phần mở rộng tệp không được hỗ trợ: " + extension)
                         .addConstraintViolation();
                 return false;
             }
         } else {
             if (!allowedExtensions.isEmpty()) {
                 context.disableDefaultConstraintViolation();
-                context.buildConstraintViolationWithTemplate("File has no extension")
+                context.buildConstraintViolationWithTemplate("Tệp không có phần mở rộng")
                         .addConstraintViolation();
                 return false;
             }
@@ -59,13 +59,13 @@ public class AllowedFileTypeValidator implements ConstraintValidator<AllowedFile
             var detectedType = tika.detect(is);
             if (!allowedMimeTypes.contains(detectedType.toLowerCase())) {
                 context.disableDefaultConstraintViolation();
-                context.buildConstraintViolationWithTemplate("Unsupported MIME type in file content: " + detectedType)
+                context.buildConstraintViolationWithTemplate("Nội dung tệp có loại MIME không được hỗ trợ: " + detectedType)
                         .addConstraintViolation();
                 return false;
             }
         } catch (IOException e) {
             context.disableDefaultConstraintViolation();
-            context.buildConstraintViolationWithTemplate("Could not read the file content")
+            context.buildConstraintViolationWithTemplate("Không thể đọc nội dung tệp")
                     .addConstraintViolation();
             return false;
         }

@@ -282,7 +282,8 @@ public class NotificationTemplateManagementService {
 
     private boolean isLegacyRoomTransferTemplate(NotificationTemplate template) {
         return "ROOM_TRANSFER_HOLDER_NOMINATION_REQUESTED".equals(template.getTemplateKey())
-                && "Xac nhan holder moi".equals(template.getTitleTemplate());
+                && ("Xác nhận người đại diện mới".equals(template.getTitleTemplate())
+                || "Xac nhan holder moi".equals(template.getTitleTemplate()));
     }
 
     private String render(String template, Map<String, Object> data) {

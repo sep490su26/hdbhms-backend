@@ -10,10 +10,13 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRol
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
+import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
 import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.booking.application.port.out.RoomHoldRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
+import com.sep490.hdbhms.booking.domain.model.DepositForm;
+import com.sep490.hdbhms.booking.domain.event.DepositInformationNotificationRequestedEvent;
 import com.sep490.hdbhms.property.domain.model.Property;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.booking.domain.model.RoomHold;
@@ -21,6 +24,8 @@ import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.booking.domain.value_objects.RoomHoldStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.event.NotificationEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 class DepositCompletionAdapterTest {
 
@@ -44,6 +50,7 @@ class DepositCompletionAdapterTest {
                 .id(7L)
                 .depositCode("DC-TEST-007")
                 .roomId(101L)
+                .depositFormId(88L)
                 .roomHoldId(55L)
                 .amount(1_000_000L)
                 .status(DepositAgreementStatus.PENDING_PAYMENT)
@@ -66,6 +73,14 @@ class DepositCompletionAdapterTest {
         AtomicReference<DepositAgreement> assignedAgreement = new AtomicReference<>();
         JpaUserRepository userRepository = mock(JpaUserRepository.class);
         JpaRolePromotionRepository rolePromotionRepository = mock(JpaRolePromotionRepository.class);
+        DepositFormRepository depositFormRepository = mock(DepositFormRepository.class);
+        ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
+        when(depositFormRepository.findById(88L)).thenReturn(Optional.of(DepositForm.builder()
+                .id(88L)
+                .fullName("Guest Test")
+                .email("guest@example.com")
+                .phone("0900000000")
+                .build()));
         List<NotificationEvent> notifications = new ArrayList<>();
         BusinessNotificationPublisher notificationPublisher = new BusinessNotificationPublisher(notifications::add);
 
@@ -83,11 +98,13 @@ class DepositCompletionAdapterTest {
                 new FakeRoomHoldRepository(roomHold),
                 new FakePropertyRepository(property),
                 new FakeDepositAgreementRepository(agreement),
+                depositFormRepository,
                 cancelledHoldId::set,
                 assignedAgreement::set,
                 userRepository,
                 rolePromotionRepository,
-                notificationPublisher
+                notificationPublisher,
+                applicationEventPublisher
         );
 
         adapter.execute(Invoice.builder().depositAgreementId(7L).build());
@@ -102,6 +119,12 @@ class DepositCompletionAdapterTest {
         assertEquals("DEPOSIT_AGREEMENT", notifications.get(0).getTargetType());
         assertEquals(7L, notifications.get(0).getTargetId());
         assertEquals("/dashboard/rooms", notifications.get(0).getData().get("targetRoute"));
+        ArgumentCaptor<DepositInformationNotificationRequestedEvent> eventCaptor =
+                ArgumentCaptor.forClass(DepositInformationNotificationRequestedEvent.class);
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+        assertEquals(7L, eventCaptor.getValue().depositAgreementId());
+        assertEquals("guest@example.com", eventCaptor.getValue().recipientEmail());
+        assertEquals("PAID", eventCaptor.getValue().payload().get("status"));
     }
 
     private static final class FakeDepositAgreementRepository implements DepositAgreementRepository {

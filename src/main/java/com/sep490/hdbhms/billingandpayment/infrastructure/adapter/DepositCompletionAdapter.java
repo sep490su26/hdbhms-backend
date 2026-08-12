@@ -12,9 +12,12 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUse
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.booking.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
+import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
 import com.sep490.hdbhms.booking.application.port.out.EarlyCancelRoomHoldTaskPort;
 import com.sep490.hdbhms.booking.application.port.out.RoomHoldRepository;
+import com.sep490.hdbhms.booking.domain.event.DepositInformationNotificationRequestedEvent;
 import com.sep490.hdbhms.booking.domain.model.DepositAgreement;
+import com.sep490.hdbhms.booking.domain.model.DepositForm;
 import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.property.domain.model.Property;
@@ -29,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
@@ -49,11 +53,13 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
     RoomHoldRepository roomHoldRepository;
     PropertyRepository propertyRepository;
     DepositAgreementRepository depositAgreementRepository;
+    DepositFormRepository depositFormRepository;
     EarlyCancelRoomHoldTaskPort earlyCancelRoomHoldTaskPort;
     CreateLeadOrAssignTenantPort createLeadOrAssignTenantPort;
     JpaUserRepository userRepository;
     JpaRolePromotionRepository rolePromotionRepository;
     BusinessNotificationPublisher notificationPublisher;
+    ApplicationEventPublisher applicationEventPublisher;
 
 
     @Override
@@ -87,7 +93,66 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
         createLeadOrAssignTenantPort.execute(depositAgreement);
         depositAgreement.markPaid();
         depositAgreement = depositAgreementRepository.save(depositAgreement);
+        publishGuestDepositInformation(depositAgreement);
         publishDepositCreated(depositAgreement);
+    }
+
+    private void publishGuestDepositInformation(DepositAgreement depositAgreement) {
+        if (depositAgreement == null || depositAgreement.getDepositFormId() == null) {
+            return;
+        }
+
+        DepositForm form = depositFormRepository.findById(depositAgreement.getDepositFormId()).orElse(null);
+        Room room = depositAgreement.getRoomId() == null
+                ? null
+                : roomRepository.findById(depositAgreement.getRoomId()).orElse(null);
+        if (form == null || room == null) {
+            return;
+        }
+
+        Property property = room.getPropertyId() == null
+                ? null
+                : propertyRepository.findById(room.getPropertyId()).orElse(null);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("depositAgreementId", depositAgreement.getId());
+        payload.put("depositCode", depositAgreement.getDepositCode());
+        payload.put("depositReference", depositAgreement.getDepositCode());
+        payload.put("depositDetails", "Phòng " + safeText(room.getRoomCode()));
+        payload.put("amount", depositAgreement.getAmount());
+        payload.put("depositAmount", depositAgreement.getAmount());
+        payload.put("status", depositAgreement.getStatus() == null ? null : depositAgreement.getStatus().name());
+        payload.put("confirmedAt", depositAgreement.getConfirmedAt());
+        payload.put("roomId", room.getId());
+        payload.put("roomCode", room.getRoomCode());
+        payload.put("propertyId", room.getPropertyId());
+        payload.put("propertyName", property == null ? "" : property.getName());
+        payload.put("expectedMoveInDate", depositAgreement.getExpectedMoveInDate());
+        payload.put("expectedLeaseSignDate", depositAgreement.getExpectedLeaseSignDate());
+
+        applicationEventPublisher.publishEvent(new DepositInformationNotificationRequestedEvent(
+                depositAgreement.getId(),
+                null,
+                null,
+                form.getEmail(),
+                form.getFullName(),
+                form.getPhone(),
+                "Thông tin đặt cọc thành công",
+                String.format(
+                        "Kính gửi %s,\n\nĐặt cọc %s đã thành công.\nSố tiền: %s VNĐ\nPhòng: %s\nCơ sở: %s\nNgày vào ở dự kiến: %s\nNgày ký hợp đồng dự kiến: %s\n\nTrân trọng.",
+                        safeText(form.getFullName()),
+                        safeText(depositAgreement.getDepositCode()),
+                        safeText(depositAgreement.getAmount()),
+                        safeText(room.getRoomCode()),
+                        property == null ? "" : safeText(property.getName()),
+                        safeText(depositAgreement.getExpectedMoveInDate()),
+                        safeText(depositAgreement.getExpectedLeaseSignDate())
+                ),
+                payload
+        ));
+    }
+
+    private String safeText(Object value) {
+        return value == null ? "" : String.valueOf(value);
     }
 
     private void publishDepositCreated(DepositAgreement depositAgreement) {
@@ -156,7 +221,7 @@ public class DepositCompletionAdapter implements DepositCompletionPort {
             return "";
         }
         if (room.getRoomCode() != null && !room.getRoomCode().isBlank()) {
-            return "Phong " + room.getRoomCode();
+            return "Phòng " + room.getRoomCode();
         }
         return room.getName() == null ? "" : room.getName();
     }

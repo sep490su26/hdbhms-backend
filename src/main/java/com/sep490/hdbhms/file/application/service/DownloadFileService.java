@@ -57,6 +57,6 @@ public class DownloadFileService implements DownloadFileUseCase {
             }
         }
 
-        throw new IOException("Stored file does not exist: " + storageKey);
+        throw new IOException("Tệp đã lưu không tồn tại: " + storageKey);
     }
 }

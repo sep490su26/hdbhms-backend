@@ -1,4 +1,4 @@
-package com.sep490.hdbhms.shared.specifications;
+package com.sep490.hdbhms.shared.utils.specifications;
 
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginMethod;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.LoginStatus;

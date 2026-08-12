@@ -46,7 +46,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepo
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRuleRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRuleViolationRepository;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

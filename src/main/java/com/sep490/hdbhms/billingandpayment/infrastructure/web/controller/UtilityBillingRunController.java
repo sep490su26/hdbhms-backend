@@ -3,7 +3,7 @@ package com.sep490.hdbhms.billingandpayment.infrastructure.web.controller;
 import com.sep490.hdbhms.billingandpayment.application.service.UtilityBillingRunService;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.UtilityBillingItemAdjustmentRequest;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.UtilityBillingRunResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

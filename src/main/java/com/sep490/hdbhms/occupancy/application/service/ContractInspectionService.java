@@ -15,7 +15,7 @@ public class ContractInspectionService implements ContractInspectionUseCase {
     @Override
     @Transactional
     public void submitTransferInspection(SubmitTransferInspectionCommand command) {
-        log.info("Submitting transfer inspection for contract {} and transfer request {}", 
+        log.info("Sending the room transfer inspection record for contract {} and transfer request {}",
                 command.contractId(), command.transferRequestId());
         // TODO: Implement actual inspection logic, asset condition updates, and compensation charges
     }

@@ -1,6 +1,6 @@
 package com.sep490.hdbhms.shared.exception;
 
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
     <T> ResponseEntity<ApiResponse<T>> handlingDataAccessException(
             final DataAccessException e
     ) {
-        log.error("Database error occurred", e);
+        log.error("A database error occurred", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ApiResponse.<T>builder()
                         .code(ApiErrorCode.UNDEFINED.getCode())
@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     <T> ResponseEntity<ApiResponse<T>> handlingHttpMessageNotReadableException(
             final HttpMessageNotReadableException e
     ) {
-        log.warn("Invalid request payload", e);
+        log.warn("Invalid request data", e);
         return badRequestWithFieldError(ApiErrorCode.INVALID_REQUEST_PAYLOAD, "metadata");
     }
 
@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
     <T> ResponseEntity<ApiResponse<T>> handlingMaxUploadSizeExceededException(
             final MaxUploadSizeExceededException e
     ) {
-        log.warn("Multipart upload exceeds configured size limit", e);
+        log.warn("Uploaded file exceeds the configured size limit", e);
         return badRequestWithFieldError(ApiErrorCode.INVALID_REQUEST, "files");
     }
 
@@ -73,7 +73,7 @@ public class GlobalExceptionHandler {
     <T> ResponseEntity<ApiResponse<T>> handlingRuntimeException(
             final RuntimeException e
     ) {
-        log.error("Unexpected runtime error", e);
+        log.error("An unexpected runtime error occurred", e);
         return ResponseEntity.status(ApiErrorCode.UNDEFINED.getStatusCode()).body(
                 ApiResponse.<T>builder()
                         .code(ApiErrorCode.UNDEFINED.getCode())
@@ -146,8 +146,6 @@ public class GlobalExceptionHandler {
             e.getBindingResult().getGlobalErrors().forEach(error ->
                     fieldErrors.putIfAbsent(error.getObjectName(), error.getDefaultMessage())
             );
-            fieldErrors.replaceAll((field, message) -> ApiErrorCode.INVALID_REQUEST.getDetails());
-
             @SuppressWarnings("unchecked")
             T validationData = (T) Map.of("fieldErrors", fieldErrors);
             String localizedMessage = ApiErrorCode.INVALID_REQUEST.getDetails();

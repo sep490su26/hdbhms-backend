@@ -15,7 +15,7 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.response.MeterReadingBa
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.MeterReadingListResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.UtilityDashboardResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.MeterReadingExcelImportResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -177,7 +177,7 @@ public class MeterReadingController {
         Long batchId = submitMeterReadingUseCase.startBatch(period, propertyId);
         return ApiResponse.<Long>builder()
                 .data(batchId)
-                .message("Batch started successfully")
+                .message("Đã bắt đầu lô nhập chỉ số")
                 .build();
     }
 
@@ -204,7 +204,7 @@ public class MeterReadingController {
             @PathVariable Long roomId) {
         submitMeterReadingUseCase.resolveRoomReadingAnomalies(batchId, roomId);
         return ApiResponse.<Void>builder()
-                .message("Room reading anomalies resolved successfully")
+                .message("Đã xử lý các cảnh báo chỉ số của phòng")
                 .build();
     }
 
@@ -244,7 +244,7 @@ public class MeterReadingController {
             @RequestPart("file") MultipartFile file) {
         return ApiResponse.<MeterReadingExcelImportResponse>builder()
                 .data(submitMeterReadingUseCase.importExcel(batchId, file))
-                .message("Excel meter readings imported successfully")
+                .message("Đã nhập chỉ số điện từ Excel")
                 .build();
     }
 

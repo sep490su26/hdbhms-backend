@@ -78,13 +78,13 @@ public class OccupancyScheduledTaskHandler implements ScheduledTaskHandler {
         int expiredCount = roomTransferUseCase.expireTargetHolderApprovals();
         int nominationExpiredCount = roomTransferUseCase.expireSourceHolderNominations();
         if (expiredCount > 0 || nominationExpiredCount > 0) {
-            log.info("Expired room transfer approvals. targetHolder={}, sourceHolderNomination={}",
+            log.info("Room transfer approvals expired. targetHolder={}, sourceHolderNomination={}",
                     expiredCount,
                     nominationExpiredCount);
         }
     }
 
     private IllegalStateException unsupported(TaskType taskType) {
-        return new IllegalStateException("Unsupported occupancy scheduled task type: " + taskType);
+        return new IllegalStateException("Loại tác vụ quản lý lưu trú đã lên lịch không được hỗ trợ: " + taskType);
     }
 }

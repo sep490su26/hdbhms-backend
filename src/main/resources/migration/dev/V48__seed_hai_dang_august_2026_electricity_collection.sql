@@ -176,7 +176,7 @@ FROM (
     UNION ALL SELECT '301', 3061, 3545
     UNION ALL SELECT '302', 2854, 3093
     UNION ALL SELECT '303', 2516, 2772
-    UNION ALL SELECT '304', 1945, 1955
+    UNION ALL SELECT '304', 1945, 1945
     UNION ALL SELECT '305', 1309, 1447
     UNION ALL SELECT '306', 2053, 2305
     UNION ALL SELECT '307', 2051, 2338
@@ -187,7 +187,7 @@ FROM (
     UNION ALL SELECT '404', 2471, 2490
     UNION ALL SELECT '405', 1463, 1661
     UNION ALL SELECT '406', 1362, 1446
-    UNION ALL SELECT '407', 867, 869
+    UNION ALL SELECT '407', 867, 867
     UNION ALL SELECT '408', 2493, 2614
     UNION ALL SELECT '501', 2691, 2970
     UNION ALL SELECT '502', 3736, 3945
@@ -396,7 +396,7 @@ INSERT INTO hdbhms.invoice_lines
 SELECT
     i.invoice_id,
     'ELECTRICITY',
-    CONCAT('Dien phong ', r.room_code, ' thang 07/2026 (Excel import)'),
+CONCAT('Điện phòng ', r.room_code, ' tháng 07/2026 (nhập từ Excel)'),
     CAST(CEILING(GREATEST(mr.current_value - mr.previous_value, 0)) AS UNSIGNED),
     3500,
     mr.meter_reading_id,
@@ -663,9 +663,7 @@ CREATE TEMPORARY TABLE tmp_hdd1_excel_occupants (
     phone VARCHAR(30) NOT NULL,
     dob DATE NOT NULL,
     gender VARCHAR(20) NOT NULL,
-    PRIMARY KEY (room_code, occupant_no),
-    UNIQUE KEY uq_tmp_hdd1_occupant_email (email),
-    UNIQUE KEY uq_tmp_hdd1_occupant_phone (phone)
+    PRIMARY KEY (room_code, occupant_no)
 );
 
 INSERT INTO tmp_hdd1_excel_occupants
@@ -726,52 +724,66 @@ VALUES
     ('507', 1, 'Nguyễn Minh Khôi', 'nguyen.minh.khoi.507@haidang1.local', '0901507001', '1998-01-28', 'MALE'),
     ('507', 2, 'Trần Diệu Linh', 'tran.dieu.linh.507@haidang1.local', '0901507002', '2000-05-12', 'FEMALE');
 
+-- One tenant account intentionally holds three rooms so account-level room
+-- filtering and contract visibility can be exercised with realistic data.
+UPDATE tmp_hdd1_excel_occupants
+SET full_name = 'Nguyen Van Khai',
+    email = 'nguyen.van.khai@haidang1.local',
+    phone = '0901309001',
+    dob = '1995-07-17',
+    gender = 'MALE'
+WHERE (room_code = '301' AND occupant_no = 1)
+   OR (room_code = '302' AND occupant_no = 1)
+   OR (room_code = '303' AND occupant_no = 1);
+
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_excel_rooms;
 CREATE TEMPORARY TABLE tmp_hdd1_excel_rooms (
     room_code VARCHAR(10) NOT NULL PRIMARY KEY,
     occupant_count TINYINT UNSIGNED NOT NULL,
-    current_contract_code VARCHAR(80) NULL
+    current_contract_code VARCHAR(80) NULL,
+    payment_cycle_months TINYINT UNSIGNED NOT NULL
 );
 
-INSERT INTO tmp_hdd1_excel_rooms (room_code, occupant_count, current_contract_code)
+INSERT INTO tmp_hdd1_excel_rooms
+    (room_code, occupant_count, current_contract_code, payment_cycle_months)
 VALUES
-    ('101', 2, 'HD-HDD1-101-2026'),
-    ('102', 1, 'HD-HDD1-102-2026'),
-    ('103', 1, 'HD-HDD1-103-2026'),
-    ('104', 2, 'HD-HDD1-104-2026'),
-    ('105', 2, 'HD-HDD1-105-2026'),
-    ('106', 1, 'HD-HDD1-106-2026'),
-    ('201', 1, 'HD-HDD1-201-2026'),
-    ('202', 3, 'HD-HDD1-202-2026'),
-    ('203', 1, 'HD-HDD1-203-2026'),
-    ('204', 1, 'HD-HDD1-204-2026'),
-    ('205', 1, 'HD-HDD1-205-2026'),
-    ('206', 2, 'HD-HDD1-206-2026'),
-    ('207', 2, 'HD-HDD1-207-2026'),
-    ('208', 2, 'HD-HDD1-208-2026'),
-    ('301', 3, 'HD-HDD1-301-2026-02'),
-    ('302', 3, 'HD-HDD1-302-2026'),
-    ('303', 1, 'HD-HDD1-303-2026'),
-    ('304', 0, NULL),
-    ('305', 1, 'HD-HDD1-305-2026'),
-    ('306', 2, 'HD-HDD1-306-2026'),
-    ('307', 2, 'HD-HDD1-307-2026'),
-    ('308', 1, 'HD-HDD1-308-2026'),
-    ('401', 3, 'HD-HDD1-401-2026'),
-    ('402', 3, 'HD-HDD1-402-2026'),
-    ('403', 0, NULL),
-    ('404', 0, NULL),
-    ('405', 1, 'HD-HDD1-405-2026'),
-    ('406', 1, 'HD-HDD1-406-2026'),
-    ('407', 0, NULL),
-    ('408', 1, 'HD-HDD1-408-2026'),
-    ('501', 2, 'HD-HDD1-501-2026'),
-    ('502', 2, 'HD-HDD1-502-2026'),
-    ('503', 1, 'HD-HDD1-503-2026'),
-    ('504', 1, 'HD-HDD1-504-2026'),
-    ('505', 1, 'HD-HDD1-505-2026-02'),
-    ('506', 1, 'HD-HDD1-506-2026'),
-    ('507', 2, 'HD-HDD1-507-2026');
+    ('101', 2, 'HD-HDD1-101-2026', 3),
+    ('102', 1, 'HD-HDD1-102-2026', 1),
+    ('103', 1, 'HD-HDD1-103-2026', 1),
+    ('104', 2, 'HD-HDD1-104-2026', 1),
+    ('105', 2, 'HD-HDD1-105-2026', 3),
+    ('106', 1, 'HD-HDD1-106-2026', 1),
+    ('201', 1, 'HD-HDD1-201-2026', 1),
+    ('202', 3, 'HD-HDD1-202-2026', 3),
+    ('203', 1, 'HD-HDD1-203-2026', 3),
+    ('204', 1, 'HD-HDD1-204-2026', 3),
+    ('205', 1, 'HD-HDD1-205-2026', 1),
+    ('206', 2, 'HD-HDD1-206-2026', 3),
+    ('207', 2, 'HD-HDD1-207-2026', 1),
+    ('208', 2, 'HD-HDD1-208-2026', 3),
+    ('301', 3, 'HD-HDD1-301-2026-02', 1),
+    ('302', 3, 'HD-HDD1-302-2026', 1),
+    ('303', 1, 'HD-HDD1-303-2026', 3),
+    ('304', 0, NULL, 0),
+    ('305', 1, 'HD-HDD1-305-2026', 1),
+    ('306', 2, 'HD-HDD1-306-2026', 1),
+    ('307', 2, 'HD-HDD1-307-2026', 1),
+    ('308', 1, 'HD-HDD1-308-2026', 1),
+    ('401', 3, 'HD-HDD1-401-2026', 3),
+    ('402', 3, 'HD-HDD1-402-2026', 1),
+    ('403', 0, NULL, 0),
+    ('404', 0, NULL, 0),
+    ('405', 1, 'HD-HDD1-405-2026', 1),
+    ('406', 1, 'HD-HDD1-406-2026', 1),
+    ('407', 0, NULL, 0),
+    ('408', 1, 'HD-HDD1-408-2026', 1),
+    ('501', 2, 'HD-HDD1-501-2026', 1),
+    ('502', 2, 'HD-HDD1-502-2026', 1),
+    ('503', 1, 'HD-HDD1-503-2026', 3),
+    ('504', 1, 'HD-HDD1-504-2026', 3),
+    ('505', 1, 'HD-HDD1-505-2026-02', 1),
+    ('506', 1, 'HD-HDD1-506-2026', 1),
+    ('507', 2, 'HD-HDD1-507-2026', 1);
 
 -- Keep the old demo accounts usable, but make every displayed tenant profile realistic.
 UPDATE hdbhms.person_profiles
@@ -808,7 +820,7 @@ WHERE profile.email IN (
 INSERT INTO hdbhms.users
     (phone, email, password_hash, role, status, last_login_at, email_verified,
      must_change_password, created_at, updated_at, deleted_at)
-SELECT phone, email, @password_hash, 'TENANT', 'ACTIVE', @now, TRUE, FALSE, @now, @now, NULL
+SELECT DISTINCT phone, email, @password_hash, 'TENANT', 'ACTIVE', @now, TRUE, FALSE, @now, @now, NULL
 FROM tmp_hdd1_excel_occupants
 ON DUPLICATE KEY UPDATE
     phone = VALUES(phone),
@@ -820,7 +832,7 @@ ON DUPLICATE KEY UPDATE
 
 INSERT INTO hdbhms.tenants
     (user_id, property_id, created_at, updated_at, deleted_at)
-SELECT u.user_id, @property_id, @now, @now, NULL
+SELECT DISTINCT u.user_id, @property_id, @now, @now, NULL
 FROM hdbhms.users u
 JOIN tmp_hdd1_excel_occupants occupant
   ON occupant.email = u.email
@@ -833,7 +845,7 @@ WHERE existing_tenant.tenant_id IS NULL;
 INSERT INTO hdbhms.person_profiles
     (user_id, full_name, dob, gender, phone, email, permanent_address,
      portrait_file_id, created_at, updated_at, deleted_at)
-SELECT u.user_id, occupant.full_name, occupant.dob, occupant.gender, occupant.phone,
+SELECT DISTINCT u.user_id, occupant.full_name, occupant.dob, occupant.gender, occupant.phone,
        occupant.email, 'Hà Nội', NULL, @now, @now, NULL
 FROM tmp_hdd1_excel_occupants occupant
 JOIN hdbhms.users u
@@ -847,7 +859,8 @@ ON DUPLICATE KEY UPDATE
     deleted_at = NULL,
     updated_at = VALUES(updated_at);
 
--- Replace demo contract codes with codes that look like real Hai Dang 1 contracts.
+-- Replace demo contract codes with temporary Hai Dang 1 aliases. The final
+-- block below converts these aliases to the filename-compatible HDT_P format.
 -- Use a direct code map so this update does not lock rooms and contracts in
 -- opposite order to the room-status updater running in the application.
 UPDATE hdbhms.lease_contracts
@@ -900,7 +913,7 @@ SELECT
     '2026-12-31',
     '2026-07-01',
     room.listed_price,
-    1,
+    excel_room.payment_cycle_months,
     room.listed_price,
     'ACTIVE',
     NULL,
@@ -943,6 +956,7 @@ JOIN hdbhms.person_profiles primary_profile
 SET contract.primary_tenant_profile_id = primary_profile.person_profile_id,
     contract.monthly_rent = room.listed_price,
     contract.deposit_amount = room.listed_price,
+    contract.payment_cycle_months = excel_room.payment_cycle_months,
     contract.updated_at = @now;
 
 -- The source contracts for rooms 301 and 505 remain historical; their current
@@ -1038,8 +1052,8 @@ INSERT INTO hdbhms.tenant_account_provisionings
 SELECT
     profile.person_profile_id,
     user_account.user_id,
-    contract.lease_contract_id,
-    contract.lease_contract_id,
+    MIN(contract.lease_contract_id),
+    MAX(contract.lease_contract_id),
     'ACTIVE',
     user_account.email,
     @now,
@@ -1056,6 +1070,7 @@ JOIN hdbhms.person_profiles profile
   ON profile.email = occupant.email
 JOIN hdbhms.users user_account
   ON user_account.user_id = profile.user_id
+GROUP BY profile.person_profile_id, user_account.user_id, user_account.email
 ON DUPLICATE KEY UPDATE
     user_id = VALUES(user_id),
     first_contract_id = VALUES(first_contract_id),
@@ -1179,5 +1194,759 @@ WHERE title LIKE '%HD-SEED-%'
    OR description LIKE '%HD-SEED-%'
    OR request_payload LIKE '%HD-SEED-%';
 
+-- V48 is the complete Hai Dang seed. Remove obsolete May and June billing
+-- history created by the earlier lifecycle demo before keeping July only.
+SET @manager_id := (
+    SELECT user_id
+    FROM hdbhms.users
+    WHERE email = 'seed.manager@hdbhms.local'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+
+CREATE TEMPORARY TABLE tmp_hdd1_old_invoices
+(
+    invoice_id BIGINT UNSIGNED PRIMARY KEY
+);
+
+INSERT INTO tmp_hdd1_old_invoices (invoice_id)
+SELECT invoice_id
+FROM hdbhms.invoices
+WHERE property_id = @property_id
+  AND billing_period IN ('2026-05', '2026-06');
+
+CREATE TEMPORARY TABLE tmp_hdd1_old_payment_transactions
+(
+    payment_transaction_id BIGINT UNSIGNED PRIMARY KEY
+);
+
+INSERT INTO tmp_hdd1_old_payment_transactions (payment_transaction_id)
+SELECT DISTINCT transaction.payment_transaction_id
+FROM hdbhms.payment_transactions transaction
+LEFT JOIN hdbhms.payment_allocations allocation
+  ON allocation.payment_transaction_id = transaction.payment_transaction_id
+LEFT JOIN tmp_hdd1_old_invoices old_invoice
+  ON old_invoice.invoice_id = allocation.invoice_id
+WHERE old_invoice.invoice_id IS NOT NULL
+   OR transaction.provider_transaction_id LIKE 'SEED-TXN-%202605'
+   OR transaction.provider_transaction_id LIKE 'SEED-TXN-%202606';
+
+CREATE TEMPORARY TABLE tmp_hdd1_old_readings
+(
+    meter_reading_id BIGINT UNSIGNED PRIMARY KEY
+);
+
+INSERT INTO tmp_hdd1_old_readings (meter_reading_id)
+SELECT reading.meter_reading_id
+FROM hdbhms.meter_readings reading
+JOIN hdbhms.rooms room
+  ON room.room_id = reading.room_id
+WHERE room.property_id = @property_id
+  AND reading.reading_period IN ('2026-05', '2026-06');
+
+CREATE TEMPORARY TABLE tmp_hdd1_old_batches
+(
+    meter_reading_batch_id BIGINT UNSIGNED PRIMARY KEY
+);
+
+INSERT INTO tmp_hdd1_old_batches (meter_reading_batch_id)
+SELECT batch.meter_reading_batch_id
+FROM hdbhms.meter_reading_batches batch
+WHERE batch.property_id = @property_id
+  AND batch.reading_period IN ('2026-05', '2026-06');
+
+UPDATE hdbhms.contract_handover_records handover
+SET handover.electricity_reading_id = NULL
+WHERE handover.electricity_reading_id IN (
+    SELECT meter_reading_id FROM tmp_hdd1_old_readings
+);
+
+UPDATE hdbhms.contract_handover_records handover
+SET handover.water_reading_id = NULL
+WHERE handover.water_reading_id IN (
+    SELECT meter_reading_id FROM tmp_hdd1_old_readings
+);
+
+UPDATE hdbhms.room_utility_baselines baseline
+SET baseline.last_invoice_id = NULL
+WHERE baseline.last_invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.utility_billing_run_items item
+SET item.invoice_id = NULL
+WHERE item.invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.utility_billing_run_items item
+JOIN tmp_hdd1_old_readings old_reading
+  ON old_reading.meter_reading_id = item.electricity_reading_id
+  OR old_reading.meter_reading_id = item.water_reading_id
+SET item.electricity_reading_id = NULL,
+    item.water_reading_id = NULL;
+
+UPDATE hdbhms.pending_billing_charges charge
+SET charge.invoice_id = NULL
+WHERE charge.invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.rule_violations violation
+SET violation.invoice_id = NULL
+WHERE violation.invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.maintenance_costs cost
+SET cost.charge_invoice_id = NULL
+WHERE cost.charge_invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.transfer_settlements settlement
+SET settlement.old_room_final_invoice_id = NULL
+WHERE settlement.old_room_final_invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.transfer_settlements settlement
+SET settlement.transfer_difference_invoice_id = NULL
+WHERE settlement.transfer_difference_invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.contract_liquidations liquidation
+SET liquidation.final_invoice_id = NULL
+WHERE liquidation.final_invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.contract_handover_items item
+SET item.compensation_invoice_id = NULL
+WHERE item.compensation_invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.deposit_batches deposit_batch
+SET deposit_batch.invoice_id = NULL
+WHERE deposit_batch.invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.deposit_batches deposit_batch
+JOIN hdbhms.payment_intents intent
+  ON intent.deposit_batch_id = deposit_batch.deposit_batch_id
+SET deposit_batch.payment_intent_id = NULL
+WHERE intent.invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.room_deposit_failures failure
+JOIN hdbhms.payment_intents intent
+  ON intent.payment_intent_id = failure.payment_intent_id
+SET failure.payment_intent_id = NULL
+WHERE intent.invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+DELETE delivery
+FROM hdbhms.notification_deliveries delivery
+JOIN hdbhms.notification_outbox notification
+  ON notification.notification_outbox_id = delivery.outbox_id
+WHERE notification.target_type = 'INVOICE'
+  AND notification.target_id IN (
+      SELECT invoice_id FROM tmp_hdd1_old_invoices
+  );
+
+DELETE FROM hdbhms.notification_outbox
+WHERE target_type = 'INVOICE'
+  AND target_id IN (
+      SELECT invoice_id FROM tmp_hdd1_old_invoices
+  );
+
+DELETE FROM hdbhms.payment_allocations
+WHERE invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+DELETE FROM hdbhms.payment_intents
+WHERE invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+UPDATE hdbhms.invoices invoice
+SET invoice.status = 'DRAFT',
+    invoice.paid_amount = 0,
+    invoice.remaining_amount = 0
+WHERE invoice.invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+DELETE line
+FROM hdbhms.invoice_lines line
+JOIN tmp_hdd1_old_invoices old_invoice
+  ON old_invoice.invoice_id = line.invoice_id;
+
+DELETE FROM hdbhms.invoices
+WHERE invoice_id IN (
+    SELECT invoice_id FROM tmp_hdd1_old_invoices
+);
+
+DELETE anomaly
+FROM hdbhms.meter_reading_anomalies anomaly
+WHERE anomaly.meter_reading_id IN (
+    SELECT meter_reading_id FROM tmp_hdd1_old_readings
+)
+   OR anomaly.batch_id IN (
+       SELECT meter_reading_batch_id FROM tmp_hdd1_old_batches
+   );
+
+DELETE FROM hdbhms.meter_readings
+WHERE meter_reading_id IN (
+    SELECT meter_reading_id FROM tmp_hdd1_old_readings
+);
+
+DELETE FROM hdbhms.meter_reading_batches
+WHERE meter_reading_batch_id IN (
+    SELECT meter_reading_batch_id FROM tmp_hdd1_old_batches
+);
+
+DELETE FROM hdbhms.payment_transactions
+WHERE payment_transaction_id IN (
+    SELECT payment_transaction_id FROM tmp_hdd1_old_payment_transactions
+);
+
+-- Keep the July workbook as the final source of truth after the lifecycle
+-- seed has created its historical contracts and settlement invoices.
+UPDATE hdbhms.meter_readings reading
+JOIN hdbhms.rooms room
+  ON room.room_id = reading.room_id
+SET reading.current_value = reading.previous_value
+WHERE room.property_id = @property_id
+  AND room.room_code IN ('304', '407')
+  AND reading.reading_period = '2026-07'
+  AND reading.status = 'CONFIRMED';
+
+UPDATE hdbhms.lease_contracts contract
+JOIN tmp_hdd1_excel_rooms excel_room
+  ON excel_room.current_contract_code = contract.contract_code
+SET contract.payment_cycle_months = excel_room.payment_cycle_months,
+    contract.updated_at = @now;
+
+-- The July settlement belongs to the historical contract, while the room
+-- snapshot belongs to the current contract created above. Link monthly seed
+-- invoices to that current contract before the export reads occupants.
+UPDATE hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN tmp_hdd1_excel_rooms excel_room
+  ON excel_room.room_code = room.room_code
+JOIN hdbhms.lease_contracts contract
+  ON contract.contract_code = excel_room.current_contract_code
+ AND contract.deleted_at IS NULL
+SET invoice.lease_contract_id = contract.lease_contract_id,
+    invoice.updated_at = @now
+WHERE invoice.property_id = @property_id
+  AND invoice.invoice_type = 'UTILITY'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.status <> 'VOIDED'
+  AND excel_room.current_contract_code IS NOT NULL;
+
+-- The first invoice insert runs before the current contracts are seeded. Fill
+-- in the occupied rooms whose contracts were created later in this migration.
+INSERT INTO hdbhms.invoices
+    (invoice_code, property_id, room_id, lease_contract_id, invoice_type, revision_no, billing_period,
+     issue_date, due_date, status, subtotal_amount, discount_amount, total_amount, paid_amount,
+     remaining_amount, collection_account_id, created_by, issued_at, created_at, updated_at)
+SELECT
+    CONCAT('SEED-INV-', room.room_code, '-2026-07-UTILITY-EXCEL'),
+    @property_id,
+    room.room_id,
+    contract.lease_contract_id,
+    'UTILITY',
+    1,
+    '2026-07',
+    '2026-08-01 08:00:00',
+    '2026-08-10 23:59:59',
+    'ISSUED',
+    CAST(CEILING(GREATEST(reading.current_value - reading.previous_value, 0)) AS UNSIGNED) * 3500,
+    0,
+    CAST(CEILING(GREATEST(reading.current_value - reading.previous_value, 0)) AS UNSIGNED) * 3500,
+    0,
+    CAST(CEILING(GREATEST(reading.current_value - reading.previous_value, 0)) AS UNSIGNED) * 3500,
+    @utility_account,
+    (SELECT user_id
+     FROM hdbhms.users
+     WHERE email = 'seed.manager@hdbhms.local'
+       AND deleted_at IS NULL
+     LIMIT 1),
+    '2026-08-01 08:00:00',
+    '2026-08-01 08:00:00',
+    '2026-08-01 08:00:00'
+FROM tmp_hdd1_excel_rooms excel_room
+JOIN hdbhms.rooms room
+  ON room.property_id = @property_id
+ AND room.room_code = excel_room.room_code
+JOIN hdbhms.lease_contracts contract
+  ON contract.contract_code = excel_room.current_contract_code
+ AND contract.deleted_at IS NULL
+JOIN hdbhms.meters meter
+  ON meter.room_id = room.room_id
+ AND meter.meter_type = 'ELECTRICITY'
+ AND meter.status = 'ACTIVE'
+JOIN hdbhms.meter_readings reading
+  ON reading.meter_id = meter.meter_id
+ AND reading.room_id = room.room_id
+ AND reading.reading_period = '2026-07'
+ AND reading.status = 'CONFIRMED'
+WHERE excel_room.occupant_count > 0
+  AND excel_room.payment_cycle_months > 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.invoices final_invoice
+      WHERE final_invoice.room_id = room.room_id
+        AND final_invoice.invoice_type = 'FINAL_SETTLEMENT'
+        AND final_invoice.billing_period = '2026-07'
+        AND final_invoice.status <> 'VOIDED'
+  )
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.invoices existing_utility
+      WHERE existing_utility.lease_contract_id = contract.lease_contract_id
+        AND existing_utility.invoice_type = 'UTILITY'
+        AND existing_utility.billing_period = '2026-07'
+        AND existing_utility.revision_no = 1
+  );
+
+INSERT INTO hdbhms.invoice_lines
+    (invoice_id, line_type, description, quantity, unit_price, meter_reading_id,
+     source_type, source_id, collection_account_id, created_at)
+SELECT
+    invoice.invoice_id,
+    'ELECTRICITY',
+CONCAT('Điện phòng ', room.room_code, ' tháng 07/2026 (nhập từ Excel)'),
+    CAST(CEILING(GREATEST(reading.current_value - reading.previous_value, 0)) AS UNSIGNED),
+    3500,
+    reading.meter_reading_id,
+    'EXCEL_IMPORT',
+    reading.meter_reading_id,
+    @utility_account,
+    '2026-08-01 08:00:00'
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.meters meter
+  ON meter.room_id = room.room_id
+ AND meter.meter_type = 'ELECTRICITY'
+ AND meter.status = 'ACTIVE'
+JOIN hdbhms.meter_readings reading
+  ON reading.meter_id = meter.meter_id
+ AND reading.room_id = room.room_id
+ AND reading.reading_period = '2026-07'
+ AND reading.status = 'CONFIRMED'
+WHERE invoice.property_id = @property_id
+  AND invoice.invoice_type = 'UTILITY'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.status <> 'VOIDED'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.invoice_lines existing_line
+      WHERE existing_line.invoice_id = invoice.invoice_id
+        AND existing_line.line_type = 'ELECTRICITY'
+  );
+
+-- Utility seed invoices include the per-person service fee from the sheet.
+INSERT INTO hdbhms.invoice_lines
+    (invoice_id, line_type, description, quantity, unit_price,
+     meter_reading_id, source_type, source_id, collection_account_id, created_at)
+SELECT
+    invoice.invoice_id,
+    'SERVICE_FEE',
+    CONCAT('Phi dich vu thang 07/2026 (',
+           excel_room.occupant_count * excel_room.payment_cycle_months,
+           ' nguoi-thang)'),
+    excel_room.occupant_count * excel_room.payment_cycle_months,
+    50000,
+    NULL,
+    'EXCEL_IMPORT',
+    invoice.invoice_id,
+    @utility_account,
+    '2026-08-01 08:00:00'
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN tmp_hdd1_excel_rooms excel_room
+  ON excel_room.room_code = room.room_code
+WHERE invoice.property_id = @property_id
+  AND invoice.invoice_type = 'UTILITY'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.status <> 'VOIDED'
+  AND excel_room.occupant_count > 0
+  AND excel_room.payment_cycle_months > 0
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.invoice_lines existing_line
+      WHERE existing_line.invoice_id = invoice.invoice_id
+        AND existing_line.line_type = 'SERVICE_FEE'
+  );
+
+UPDATE hdbhms.invoices invoice
+JOIN (
+    SELECT invoice_id, COALESCE(SUM(amount), 0) AS subtotal_amount
+    FROM hdbhms.invoice_lines
+    GROUP BY invoice_id
+) line_total
+  ON line_total.invoice_id = invoice.invoice_id
+SET invoice.subtotal_amount = line_total.subtotal_amount,
+    invoice.total_amount = line_total.subtotal_amount,
+    invoice.remaining_amount = GREATEST(
+        line_total.subtotal_amount - invoice.paid_amount,
+        0
+    ),
+    invoice.updated_at = @now
+WHERE invoice.property_id = @property_id
+  AND invoice.invoice_type = 'UTILITY'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.status <> 'VOIDED';
+
+-- Backfill notifications for invoices created after the initial notification
+-- insert, once their current contracts and tenant accounts exist.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'INVOICE_ISSUED',
+    'INVOICE',
+    invoice.invoice_id,
+    tenant.user_id,
+    notification_channel.channel,
+    CONCAT('Có hóa đơn mới ', invoice.invoice_code),
+    CONCAT('Hóa đơn ', invoice.invoice_code, ' của phòng ', room.room_code,
+           ' kỳ 2026-07 đã phát hành. Số tiền cần thanh toán: ',
+           invoice.remaining_amount, ' VND. Hạn thanh toán: 2026-08-10.'),
+    JSON_OBJECT(
+        'invoiceId', invoice.invoice_id,
+        'invoiceCode', invoice.invoice_code,
+        'invoiceType', 'UTILITY',
+        'roomCode', room.room_code,
+        'propertyName', 'Nhà trọ Hải Đăng 1',
+        'billingPeriod', '2026-07',
+        'amount', invoice.total_amount,
+        'totalAmount', invoice.total_amount,
+        'remainingAmount', invoice.remaining_amount,
+        'dueDate', '2026-08-10',
+        'targetRoute', '/payment'
+    ),
+    'SENT',
+    0,
+    3,
+    '2026-08-01 08:00:00',
+    '2026-08-01 08:00:00',
+    '2026-08-01 08:00:00',
+    FALSE
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = invoice.lease_contract_id
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = contract.primary_tenant_profile_id
+JOIN hdbhms.users tenant
+  ON tenant.user_id = profile.user_id
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH' AS channel
+) notification_channel
+WHERE invoice.property_id = @property_id
+  AND invoice.invoice_type = 'UTILITY'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.status <> 'VOIDED'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = 'INVOICE_ISSUED'
+        AND existing_notification.target_type = 'INVOICE'
+        AND existing_notification.target_id = invoice.invoice_id
+        AND existing_notification.recipient_user_id = tenant.user_id
+        AND existing_notification.channel = notification_channel.channel
+  );
+
+-- Vacant rooms and rooms already settled must not leave a second monthly
+-- utility invoice in the seed. Keep the invoice record as a voided audit row.
+CREATE TEMPORARY TABLE tmp_hdd1_void_utility_invoices
+(
+    invoice_id BIGINT UNSIGNED PRIMARY KEY
+);
+
+INSERT INTO tmp_hdd1_void_utility_invoices (invoice_id)
+SELECT invoice.invoice_id
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN tmp_hdd1_excel_rooms excel_room
+  ON excel_room.room_code = room.room_code
+WHERE invoice.property_id = @property_id
+  AND invoice.invoice_type = 'UTILITY'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.status <> 'VOIDED'
+  AND (
+      excel_room.occupant_count = 0
+      OR EXISTS (
+          SELECT 1
+          FROM hdbhms.invoices final_invoice
+          WHERE final_invoice.room_id = room.room_id
+            AND final_invoice.invoice_type = 'FINAL_SETTLEMENT'
+            AND final_invoice.billing_period = '2026-07'
+            AND final_invoice.status <> 'VOIDED'
+      )
+  );
+
+DELETE delivery
+FROM hdbhms.notification_deliveries delivery
+JOIN hdbhms.notification_outbox notification
+  ON notification.notification_outbox_id = delivery.outbox_id
+JOIN tmp_hdd1_void_utility_invoices target
+  ON target.invoice_id = notification.target_id
+WHERE notification.target_type = 'INVOICE';
+
+DELETE notification
+FROM hdbhms.notification_outbox notification
+JOIN tmp_hdd1_void_utility_invoices target
+  ON target.invoice_id = notification.target_id
+WHERE notification.target_type = 'INVOICE';
+
+UPDATE hdbhms.invoices invoice
+JOIN tmp_hdd1_void_utility_invoices target
+  ON target.invoice_id = invoice.invoice_id
+SET invoice.status = 'DRAFT',
+    invoice.paid_amount = 0,
+    invoice.remaining_amount = 0,
+    invoice.updated_at = @now;
+
+DELETE line
+FROM hdbhms.invoice_lines line
+JOIN tmp_hdd1_void_utility_invoices target
+  ON target.invoice_id = line.invoice_id;
+
+UPDATE hdbhms.invoices invoice
+JOIN tmp_hdd1_void_utility_invoices target
+  ON target.invoice_id = invoice.invoice_id
+SET invoice.status = 'VOIDED',
+    invoice.subtotal_amount = 0,
+    invoice.discount_amount = 0,
+    invoice.total_amount = 0,
+    invoice.paid_amount = 0,
+    invoice.remaining_amount = 0,
+    invoice.voided_at = @now,
+invoice.void_reason = 'Phòng trống hoặc đã có hóa đơn chốt kỳ 07/2026.',
+    invoice.updated_at = @now;
+
+-- Sync the two settlement invoices whose electricity belongs to the July
+-- workbook. Water and compensation lines remain available for handover flow.
+CREATE TEMPORARY TABLE tmp_hdd1_final_invoices
+(
+    invoice_id BIGINT UNSIGNED PRIMARY KEY
+);
+
+INSERT INTO tmp_hdd1_final_invoices (invoice_id)
+SELECT invoice.invoice_id
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+WHERE invoice.property_id = @property_id
+  AND room.room_code IN ('301', '505')
+  AND invoice.invoice_type = 'FINAL_SETTLEMENT'
+  AND invoice.billing_period = '2026-07'
+  AND invoice.status <> 'VOIDED';
+
+CREATE TEMPORARY TABLE tmp_hdd1_final_state
+(
+    invoice_id BIGINT UNSIGNED PRIMARY KEY,
+    original_status VARCHAR(30) NOT NULL,
+    original_paid_amount BIGINT UNSIGNED NOT NULL
+);
+
+INSERT INTO tmp_hdd1_final_state
+    (invoice_id, original_status, original_paid_amount)
+SELECT invoice.invoice_id, invoice.status, invoice.paid_amount
+FROM hdbhms.invoices invoice
+JOIN tmp_hdd1_final_invoices target
+  ON target.invoice_id = invoice.invoice_id;
+
+UPDATE hdbhms.invoices invoice
+JOIN tmp_hdd1_final_invoices target
+  ON target.invoice_id = invoice.invoice_id
+SET invoice.status = 'DRAFT';
+
+DELETE line
+FROM hdbhms.invoice_lines line
+JOIN tmp_hdd1_final_invoices target
+  ON target.invoice_id = line.invoice_id
+WHERE line.line_type IN ('ELECTRICITY', 'SERVICE_FEE');
+
+INSERT INTO hdbhms.invoice_lines
+    (invoice_id, line_type, description, quantity, unit_price, meter_reading_id,
+     source_type, source_id, created_at)
+SELECT
+    invoice.invoice_id,
+    'ELECTRICITY',
+CONCAT('Điện phòng ', room.room_code, ' tháng 07/2026 (Excel)'),
+    reading.current_value - reading.previous_value,
+    3500,
+    reading.meter_reading_id,
+    'EXCEL_IMPORT',
+    reading.meter_reading_id,
+    '2026-08-01 08:00:00'
+FROM hdbhms.invoices invoice
+JOIN tmp_hdd1_final_invoices target
+  ON target.invoice_id = invoice.invoice_id
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.meters meter
+  ON meter.room_id = room.room_id
+ AND meter.meter_type = 'ELECTRICITY'
+ AND meter.status = 'ACTIVE'
+JOIN hdbhms.meter_readings reading
+  ON reading.meter_id = meter.meter_id
+ AND reading.room_id = room.room_id
+ AND reading.reading_period = '2026-07'
+ AND reading.status = 'CONFIRMED';
+
+INSERT INTO hdbhms.invoice_lines
+    (invoice_id, line_type, description, quantity, unit_price,
+     source_type, source_id, created_at)
+SELECT
+    invoice.invoice_id,
+    'SERVICE_FEE',
+    CONCAT('Phi dich vu thang 07/2026 (',
+           excel_room.occupant_count * excel_room.payment_cycle_months,
+           ' nguoi-thang)'),
+    excel_room.occupant_count * excel_room.payment_cycle_months,
+    50000,
+    'EXCEL_IMPORT',
+    invoice.invoice_id,
+    '2026-08-01 08:00:00'
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN tmp_hdd1_final_invoices target
+  ON target.invoice_id = invoice.invoice_id
+JOIN tmp_hdd1_excel_rooms excel_room
+  ON excel_room.room_code = room.room_code
+WHERE excel_room.occupant_count > 0
+  AND excel_room.payment_cycle_months > 0;
+
+UPDATE hdbhms.invoices invoice
+JOIN (
+    SELECT invoice_id, COALESCE(SUM(amount), 0) AS subtotal_amount
+    FROM hdbhms.invoice_lines
+    GROUP BY invoice_id
+) line_total
+  ON line_total.invoice_id = invoice.invoice_id
+JOIN tmp_hdd1_final_state original_state
+  ON original_state.invoice_id = invoice.invoice_id
+SET invoice.subtotal_amount = line_total.subtotal_amount,
+    invoice.total_amount = line_total.subtotal_amount,
+    invoice.paid_amount = CASE
+        WHEN original_state.original_status = 'PAID' THEN line_total.subtotal_amount
+        ELSE LEAST(original_state.original_paid_amount, line_total.subtotal_amount)
+    END,
+    invoice.remaining_amount = GREATEST(
+        line_total.subtotal_amount - CASE
+            WHEN original_state.original_status = 'PAID' THEN line_total.subtotal_amount
+            ELSE LEAST(original_state.original_paid_amount, line_total.subtotal_amount)
+        END,
+        0
+    ),
+    invoice.status = original_state.original_status,
+    invoice.updated_at = @now;
+
+UPDATE hdbhms.payment_allocations allocation
+JOIN tmp_hdd1_final_state original_state
+  ON original_state.invoice_id = allocation.invoice_id
+JOIN hdbhms.invoices invoice
+  ON invoice.invoice_id = allocation.invoice_id
+SET allocation.amount = invoice.total_amount
+WHERE original_state.original_status = 'PAID';
+
+UPDATE hdbhms.payment_transactions transaction
+JOIN hdbhms.payment_allocations allocation
+  ON allocation.payment_transaction_id = transaction.payment_transaction_id
+JOIN tmp_hdd1_final_state original_state
+  ON original_state.invoice_id = allocation.invoice_id
+SET transaction.amount = allocation.amount
+WHERE original_state.original_status = 'PAID';
+
+-- Match seeded contract codes with the PDF filename format used by the
+-- contract document flow, for example HDT_P401_01_01_2026.
+CREATE TEMPORARY TABLE tmp_hdd1_contract_code_map
+(
+    old_code VARCHAR(80) NOT NULL PRIMARY KEY,
+    new_code VARCHAR(80) NOT NULL UNIQUE
+);
+
+INSERT INTO tmp_hdd1_contract_code_map (old_code, new_code)
+SELECT contract.contract_code,
+       CONCAT(
+           'HDT_P',
+           room.room_code,
+           '_',
+           DATE_FORMAT(contract.start_date, '%d_%m_%Y')
+       )
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+WHERE contract.contract_code LIKE 'HD-HDD1-%'
+  AND contract.deleted_at IS NULL;
+
+UPDATE hdbhms.lease_contracts contract
+JOIN tmp_hdd1_contract_code_map code_map
+  ON code_map.old_code = contract.contract_code
+SET contract.contract_code = code_map.new_code,
+    contract.updated_at = @now;
+
+UPDATE hdbhms.manager_tasks task
+JOIN tmp_hdd1_contract_code_map code_map
+  ON LOCATE(code_map.old_code, task.title) > 0
+  OR LOCATE(code_map.old_code, task.description) > 0
+  OR LOCATE(code_map.old_code, task.idempotency_key) > 0
+SET task.title = REPLACE(task.title, code_map.old_code, code_map.new_code),
+    task.description = REPLACE(task.description, code_map.old_code, code_map.new_code),
+    task.idempotency_key = REPLACE(task.idempotency_key, code_map.old_code, code_map.new_code);
+
+UPDATE hdbhms.notification_outbox notification
+JOIN tmp_hdd1_contract_code_map code_map
+  ON LOCATE(code_map.old_code, notification.title) > 0
+  OR LOCATE(code_map.old_code, notification.body) > 0
+  OR LOCATE(code_map.old_code, notification.payload) > 0
+SET notification.title = REPLACE(notification.title, code_map.old_code, code_map.new_code),
+    notification.body = REPLACE(notification.body, code_map.old_code, code_map.new_code),
+    notification.payload = REPLACE(notification.payload, code_map.old_code, code_map.new_code);
+
+UPDATE hdbhms.change_requests request
+JOIN tmp_hdd1_contract_code_map code_map
+  ON LOCATE(code_map.old_code, request.title) > 0
+  OR LOCATE(code_map.old_code, request.description) > 0
+  OR LOCATE(code_map.old_code, request.request_payload) > 0
+SET request.title = REPLACE(request.title, code_map.old_code, code_map.new_code),
+    request.description = REPLACE(request.description, code_map.old_code, code_map.new_code),
+    request.request_payload = REPLACE(request.request_payload, code_map.old_code, code_map.new_code);
+
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_excel_occupants;
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_excel_rooms;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_void_utility_invoices;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_invoices;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_state;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_old_invoices;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_old_payment_transactions;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_old_readings;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_old_batches;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_contract_code_map;

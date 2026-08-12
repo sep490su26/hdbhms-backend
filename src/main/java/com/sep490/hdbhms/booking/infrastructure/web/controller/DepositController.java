@@ -31,7 +31,7 @@ import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositCheckout
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositPaymentStatusResponse;
 import com.sep490.hdbhms.booking.infrastructure.web.dto.response.DepositRoomHoldStatusResponse;
 import com.sep490.hdbhms.property.infrastructure.web.mapper.RoomWebMapper;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import jakarta.validation.Valid;
@@ -332,7 +332,7 @@ public class DepositController {
                     null,
                     null,
                     0,
-                    "EXPECTED_SIGN_DATE_REQUIRED: Can co ngay du kien ky hop dong."
+                    "EXPECTED_SIGN_DATE_REQUIRED: Cần có ngày dự kiến ký hợp đồng."
             );
         }
         LocalDate minAllowedDate = expectedVacantDate.plusDays(1);
@@ -401,7 +401,7 @@ public class DepositController {
             paymentIntent.failPayment();
             paymentIntentRepository.save(paymentIntent);
         } catch (RuntimeException ex) {
-            log.warn("Skip failing payment intent during hold cancel. providerOrderCode={}",
+            log.warn("Skipping failed-payment status update while cancelling the room hold. providerOrderCode={}",
                     paymentIntent.getProviderOrderCode(), ex);
         }
     }
@@ -492,7 +492,7 @@ public class DepositController {
 
             return paymentIntentRepository.findById(paymentIntent.getId()).orElse(paymentIntent);
         } catch (Exception ex) {
-            log.warn("Could not sync PayOS payment status. providerOrderCode={}",
+            log.warn("Failed to synchronize PayOS payment status. providerOrderCode={}",
                     paymentIntent.getProviderOrderCode(), ex);
             return paymentIntent;
         }

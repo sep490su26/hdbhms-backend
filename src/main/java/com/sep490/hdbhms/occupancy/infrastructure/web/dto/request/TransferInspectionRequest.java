@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record TransferInspectionRequest(
-        @NotNull(message = "Transfer request ID is required")
+        @NotNull(message = "Mã yêu cầu chuyển phòng là bắt buộc")
         Long transferRequestId,
         
         List<AssetInspectionItem> assetInspections,

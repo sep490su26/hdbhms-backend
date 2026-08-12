@@ -12,7 +12,7 @@ import com.sep490.hdbhms.notification.infrastructure.web.dto.response.Notificati
 import com.sep490.hdbhms.notification.infrastructure.web.dto.response.NotificationTemplateResponse;
 import com.sep490.hdbhms.notification.infrastructure.web.dto.response.NotificationTemplateVariableResponse;
 import com.sep490.hdbhms.notification.infrastructure.web.dto.response.PreviewNotificationTemplateResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

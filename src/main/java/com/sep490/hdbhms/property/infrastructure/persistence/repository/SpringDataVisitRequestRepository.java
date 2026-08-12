@@ -6,7 +6,7 @@ import com.sep490.hdbhms.property.domain.value_objects.VisitRequestStatus;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.VisitRequestEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaVisitRequestRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.mapper.VisitRequestPersistenceMapper;
-import com.sep490.hdbhms.shared.specifications.VisitRequestSpecifications;
+import com.sep490.hdbhms.shared.utils.specifications.VisitRequestSpecifications;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;

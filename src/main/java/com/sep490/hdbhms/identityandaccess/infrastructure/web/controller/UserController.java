@@ -21,8 +21,8 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.UserR
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.UserWebMapper;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -251,7 +251,7 @@ public class UserController {
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         return ApiResponse.<UserResponse>builder()
-                .message("Your password has been changed successfully.")
+                .message("Đổi mật khẩu thành công")
                 .details("Đổi mật khẩu thành công")
                 .data(userWebMapper.toAccountResponse(
                         updateUserUseCase.updateUserPassword(new UpdateUserPasswordCommand(

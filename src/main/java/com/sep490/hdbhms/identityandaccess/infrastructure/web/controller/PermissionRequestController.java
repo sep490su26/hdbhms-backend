@@ -23,8 +23,8 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.Reject
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestApprovalResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestRejectionResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PermissionRequestResponse;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
-import com.sep490.hdbhms.shared.dto.response.PageResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.PageResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
@@ -83,6 +83,9 @@ public class PermissionRequestController {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (request.getTargetId() == null) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (request.getTargetType() == PermissionTargetType.TENANT_PROFILE) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         Long requesterUserId = AuthUtils.getCurrentAuthenticationId();

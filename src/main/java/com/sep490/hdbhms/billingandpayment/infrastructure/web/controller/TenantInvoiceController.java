@@ -46,7 +46,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReading
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
-import com.sep490.hdbhms.shared.dto.response.ApiResponse;
+import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import lombok.AccessLevel;
@@ -60,6 +60,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.util.StringUtils;
 import vn.payos.model.v2.paymentRequests.PaymentLink;
@@ -120,6 +121,34 @@ public class TenantInvoiceController {
         }
         return ApiResponse.<List<TenantInvoiceResponse>>builder()
                 .data(invoices.stream().map(this::toResponse).toList())
+                .build();
+    }
+
+    @GetMapping("/electricity-history")
+    @Transactional(readOnly = true)
+    public ApiResponse<List<TenantInvoiceResponse>> getMyElectricityHistory(
+            @RequestParam(required = false) Long contractId
+    ) {
+        Long userId = AuthUtils.getCurrentAuthenticationId();
+        EnumSet<InvoiceStatus> visibleStatuses = EnumSet.of(
+                InvoiceStatus.ISSUED,
+                InvoiceStatus.PARTIALLY_PAID,
+                InvoiceStatus.PAID,
+                InvoiceStatus.OVERDUE
+        );
+
+        List<TenantInvoiceResponse> history = jpaInvoiceRepository
+                .findTenantVisibleInvoices(userId, visibleStatuses)
+                .stream()
+                .filter(invoice -> contractId == null
+                        || invoice.getLeastContract() != null
+                        && contractId.equals(invoice.getLeastContract().getId()))
+                .map(this::toElectricityHistoryResponse)
+                .filter(response -> response.getLines() != null && !response.getLines().isEmpty())
+                .toList();
+
+        return ApiResponse.<List<TenantInvoiceResponse>>builder()
+                .data(history)
                 .build();
     }
 
@@ -260,7 +289,7 @@ public class TenantInvoiceController {
                 refreshPayOSCheckout(invoice, paymentIntent);
                 refreshed = true;
             } catch (RuntimeException exception) {
-                log.warn("Could not create PayOS checkout for tenant invoice. invoiceId={}, paymentIntentId={}, message={}",
+                log.warn("Failed to create a PayOS payment session for the tenant invoice. invoiceId={}, paymentIntentId={}, message={}",
                         invoice.getId(),
                         paymentIntent.getId(),
                         exception.getMessage());
@@ -395,11 +424,11 @@ public class TenantInvoiceController {
                     .build());
             return true;
         } catch (vn.payos.exception.APIException exception) {
-            log.debug("PayOS payment link not available for tenant invoice sync. paymentIntentId={}, providerOrderCode={}, message={}",
+            log.debug("No PayOS payment link is available to synchronize the tenant invoice. paymentIntentId={}, providerOrderCode={}, message={}",
                     paymentIntent.getId(), paymentIntent.getProviderOrderCode(), exception.getMessage());
             return false;
         } catch (Exception exception) {
-            log.warn("Could not sync tenant invoice PayOS payment. paymentIntentId={}, providerOrderCode={}, message={}",
+            log.warn("Failed to synchronize the tenant invoice PayOS payment. paymentIntentId={}, providerOrderCode={}, message={}",
                     paymentIntent.getId(), paymentIntent.getProviderOrderCode(), exception.getMessage(), exception);
             return false;
         }
@@ -447,6 +476,27 @@ public class TenantInvoiceController {
                 .stream()
                 .map(this::toLineResponse)
                 .toList();
+        return toInvoiceResponse(invoice, lines);
+    }
+
+    private TenantInvoiceResponse toElectricityHistoryResponse(InvoiceEntity invoice) {
+        List<TenantInvoiceLineResponse> lines = jpaInvoiceLineRepository
+                .findByInvoice_IdOrderByIdAsc(invoice.getId())
+                .stream()
+                .filter(this::isElectricityMeterLine)
+                .map(this::toLineResponse)
+                .toList();
+        TenantInvoiceResponse response = toInvoiceResponse(invoice, lines);
+        return response;
+    }
+
+    private TenantInvoiceResponse toInvoiceResponse(
+            InvoiceEntity invoice,
+            List<TenantInvoiceLineResponse> lines
+    ) {
+        RoomEntity room = invoice.getRoom();
+        PropertyEntity property = room == null ? invoice.getProperty() : room.getProperty();
+        LeaseContractEntity contract = invoice.getLeastContract();
         PaymentInfo paymentInfo = paymentInfo(invoice);
 
         return TenantInvoiceResponse.builder()
@@ -610,6 +660,10 @@ public class TenantInvoiceController {
 
     private boolean isUtilityMeterLine(InvoiceLineEntity line) {
         return line != null && (line.getLineType() == InvoiceLineType.ELECTRICITY || line.getLineType() == InvoiceLineType.WATER);
+    }
+
+    private boolean isElectricityMeterLine(InvoiceLineEntity line) {
+        return line != null && line.getLineType() == InvoiceLineType.ELECTRICITY;
     }
 
     private ChangeRequestEntity findOpenReview(Long meterReadingId) {
