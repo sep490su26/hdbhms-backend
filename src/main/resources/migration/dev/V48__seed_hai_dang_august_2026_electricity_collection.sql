@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- Align the Hai Dang 1 room master with the August 2026 collection sheet.
 SET @property_id := (
@@ -255,7 +255,7 @@ WHERE lease_contract_id = @c402;
 
 UPDATE hdbhms.rooms
 SET current_status = 'OCCUPIED',
-    public_note = 'Seed: hợp đồng sắp hết hạn ngày 2026-08-15, đang chờ khách phản hồi ý định.',
+    public_note = 'Hợp đồng sắp hết hạn ngày 15/08/2026, đang chờ khách phản hồi ý định.',
     internal_note = 'Chưa ghi nhận ý định gia hạn, chuyển phòng hoặc chuyển đi.',
     updated_at = '2026-07-30 09:00:00'
 WHERE room_id = @r402;
@@ -332,7 +332,7 @@ INSERT INTO hdbhms.invoices
      issue_date, due_date, status, subtotal_amount, discount_amount, total_amount, paid_amount,
      remaining_amount, collection_account_id, created_by, issued_at, created_at, updated_at)
 SELECT
-    CONCAT('SEED-INV-', r.room_code, '-2026-07-UTILITY-EXCEL'),
+    CONCAT('HD_P', r.room_code, '_01_08_2026_DV'),
     @property_id,
     r.room_id,
     lc.lease_contract_id,
@@ -420,7 +420,7 @@ JOIN hdbhms.meter_readings mr
    AND mr.status = 'CONFIRMED'
 WHERE i.invoice_type = 'UTILITY'
   AND i.billing_period = '2026-07'
-  AND i.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND i.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND NOT EXISTS (
       SELECT 1
       FROM hdbhms.invoice_lines existing_line
@@ -464,7 +464,7 @@ CROSS JOIN (
 ) notification_channel
 WHERE i.invoice_type = 'UTILITY'
   AND i.billing_period = '2026-07'
-  AND i.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND i.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND NOT EXISTS (
       SELECT 1
       FROM hdbhms.notification_outbox existing_notification
@@ -573,7 +573,7 @@ SET
 WHERE n.event_type = 'INVOICE_ISSUED'
   AND n.target_type = 'INVOICE'
   AND n.channel IN ('WEB', 'PUSH')
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL';
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV';
 
 -- Backfill PUSH when an earlier seed only created the WEB notification copy.
 INSERT INTO hdbhms.notification_outbox
@@ -608,7 +608,7 @@ WHERE existing_notification.channel = 'WEB'
   AND (
       (
           existing_notification.event_type = 'INVOICE_ISSUED'
-          AND seed_invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+          AND seed_invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
       )
       OR (
           existing_notification.event_type IN ('LEASE_HANDOVER_CONFIRMATION_DUE', 'LEASE_RENEWAL_TERMS_CONFIRMATION_DUE')
@@ -625,7 +625,7 @@ WHERE existing_notification.channel = 'WEB'
         AND existing_push.channel = 'PUSH'
   );
 
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- Align the Hai Dang 1 occupancy snapshot with the July 2026 collection workbook.
 -- The workbook has one snapshot used to collect August rent and July electricity,
@@ -727,7 +727,7 @@ VALUES
 -- One tenant account intentionally holds three rooms so account-level room
 -- filtering and contract visibility can be exercised with realistic data.
 UPDATE tmp_hdd1_excel_occupants
-SET full_name = 'Nguyen Van Khai',
+SET full_name = 'Nguyễn Văn Khải',
     email = 'nguyen.van.khai@haidang1.local',
     phone = '0901309001',
     dob = '1995-07-17',
@@ -1227,9 +1227,7 @@ LEFT JOIN hdbhms.payment_allocations allocation
   ON allocation.payment_transaction_id = transaction.payment_transaction_id
 LEFT JOIN tmp_hdd1_old_invoices old_invoice
   ON old_invoice.invoice_id = allocation.invoice_id
-WHERE old_invoice.invoice_id IS NOT NULL
-   OR transaction.provider_transaction_id LIKE 'SEED-TXN-%202605'
-   OR transaction.provider_transaction_id LIKE 'SEED-TXN-%202606';
+WHERE old_invoice.invoice_id IS NOT NULL;
 
 CREATE TEMPORARY TABLE tmp_hdd1_old_readings
 (
@@ -1450,7 +1448,7 @@ SET invoice.lease_contract_id = contract.lease_contract_id,
 WHERE invoice.property_id = @property_id
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND invoice.status <> 'VOIDED'
   AND excel_room.current_contract_code IS NOT NULL;
 
@@ -1461,7 +1459,7 @@ INSERT INTO hdbhms.invoices
      issue_date, due_date, status, subtotal_amount, discount_amount, total_amount, paid_amount,
      remaining_amount, collection_account_id, created_by, issued_at, created_at, updated_at)
 SELECT
-    CONCAT('SEED-INV-', room.room_code, '-2026-07-UTILITY-EXCEL'),
+    CONCAT('HD_P', room.room_code, '_01_08_2026_DV'),
     @property_id,
     room.room_id,
     contract.lease_contract_id,
@@ -1549,7 +1547,7 @@ JOIN hdbhms.meter_readings reading
 WHERE invoice.property_id = @property_id
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND invoice.status <> 'VOIDED'
   AND NOT EXISTS (
       SELECT 1
@@ -1565,9 +1563,9 @@ INSERT INTO hdbhms.invoice_lines
 SELECT
     invoice.invoice_id,
     'SERVICE_FEE',
-    CONCAT('Phi dich vu thang 07/2026 (',
+    CONCAT('Phí dịch vụ tháng 07/2026 (',
            excel_room.occupant_count * excel_room.payment_cycle_months,
-           ' nguoi-thang)'),
+           ' người-tháng)'),
     excel_room.occupant_count * excel_room.payment_cycle_months,
     50000,
     NULL,
@@ -1583,7 +1581,7 @@ JOIN tmp_hdd1_excel_rooms excel_room
 WHERE invoice.property_id = @property_id
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND invoice.status <> 'VOIDED'
   AND excel_room.occupant_count > 0
   AND excel_room.payment_cycle_months > 0
@@ -1611,7 +1609,7 @@ SET invoice.subtotal_amount = line_total.subtotal_amount,
 WHERE invoice.property_id = @property_id
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND invoice.status <> 'VOIDED';
 
 -- Backfill notifications for invoices created after the initial notification
@@ -1666,7 +1664,7 @@ CROSS JOIN (
 WHERE invoice.property_id = @property_id
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND invoice.status <> 'VOIDED'
   AND NOT EXISTS (
       SELECT 1
@@ -1695,7 +1693,7 @@ JOIN tmp_hdd1_excel_rooms excel_room
 WHERE invoice.property_id = @property_id
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND invoice.status <> 'VOIDED'
   AND (
       excel_room.occupant_count = 0
@@ -1826,9 +1824,9 @@ INSERT INTO hdbhms.invoice_lines
 SELECT
     invoice.invoice_id,
     'SERVICE_FEE',
-    CONCAT('Phi dich vu thang 07/2026 (',
+    CONCAT('Phí dịch vụ tháng 07/2026 (',
            excel_room.occupant_count * excel_room.payment_cycle_months,
-           ' nguoi-thang)'),
+           ' người-tháng)'),
     excel_room.occupant_count * excel_room.payment_cycle_months,
     50000,
     'EXCEL_IMPORT',

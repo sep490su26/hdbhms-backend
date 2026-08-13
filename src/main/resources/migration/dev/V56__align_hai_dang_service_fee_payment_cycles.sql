@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- The workbook charges service fee for the whole rent-payment cycle. Keep the
 -- contract cycle and the seeded service lines aligned with that rule.
@@ -61,9 +61,9 @@ INSERT INTO hdbhms.invoice_lines
 SELECT
     invoice.invoice_id,
     'SERVICE_FEE',
-    CONCAT('Phi dich vu bo sung thang 07/2026 (',
+    CONCAT('Phí dịch vụ bổ sung tháng 07/2026 (',
            occupant_count.active_count * GREATEST(contract.payment_cycle_months, 1),
-           ' nguoi-thang)'),
+           ' người-tháng)'),
     CEILING((
         occupant_count.active_count * GREATEST(contract.payment_cycle_months, 1) * 50000
         - existing_service.service_amount
@@ -93,7 +93,7 @@ JOIN (
 WHERE invoice.property_id = @property_id
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_type IN ('UTILITY', 'FINAL_SETTLEMENT')
-  AND invoice.invoice_code LIKE 'SEED-INV-%'
+  AND invoice.invoice_code LIKE 'HD_P%'
   AND occupant_count.active_count * GREATEST(contract.payment_cycle_months, 1) * 50000
       > existing_service.service_amount;
 
@@ -103,9 +103,9 @@ INSERT INTO hdbhms.invoice_lines
 SELECT
     invoice.invoice_id,
     'SERVICE_FEE',
-    CONCAT('Phi dich vu thang 07/2026 (',
+    CONCAT('Phí dịch vụ tháng 07/2026 (',
            occupant_count.active_count * GREATEST(contract.payment_cycle_months, 1),
-           ' nguoi-thang)'),
+           ' người-tháng)'),
     occupant_count.active_count * GREATEST(contract.payment_cycle_months, 1),
     50000,
     NULL,
@@ -132,7 +132,7 @@ LEFT JOIN (
 WHERE invoice.property_id = @property_id
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_type IN ('UTILITY', 'FINAL_SETTLEMENT')
-  AND invoice.invoice_code LIKE 'SEED-INV-%'
+  AND invoice.invoice_code LIKE 'HD_P%'
   AND occupant_count.active_count > 0
   AND existing_service.invoice_id IS NULL;
 
@@ -153,7 +153,7 @@ SET invoice.subtotal_amount = line_totals.recalculated_subtotal,
 WHERE invoice.property_id = @property_id
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_type IN ('UTILITY', 'FINAL_SETTLEMENT')
-  AND invoice.invoice_code LIKE 'SEED-INV-%';
+  AND invoice.invoice_code LIKE 'HD_P%';
 
 UPDATE hdbhms.notification_outbox notification
 JOIN hdbhms.invoices invoice
@@ -178,4 +178,4 @@ WHERE notification.event_type = 'INVOICE_ISSUED'
   AND invoice.property_id = @property_id
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_type IN ('UTILITY', 'FINAL_SETTLEMENT')
-  AND invoice.invoice_code LIKE 'SEED-INV-%';
+  AND invoice.invoice_code LIKE 'HD_P%';

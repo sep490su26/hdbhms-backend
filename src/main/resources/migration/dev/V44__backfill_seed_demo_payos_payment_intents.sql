@@ -27,17 +27,17 @@ SELECT i.invoice_id,
        NOW(6)
 FROM hdbhms.invoices i
 JOIN (
-    SELECT 'SEED-INV-302-2026-06-RENT-OVERDUE' AS invoice_code,
-           'SEED INV 302 RENT 202606' AS payment_content
+    SELECT 'HD_P302_01_06_2026_TP' AS invoice_code,
+           'HD_P302_01_06_2026_TP' AS payment_content
     UNION ALL
-    SELECT 'SEED-INV-302-2026-06-UTILITY-OVERDUE',
-           'SEED INV 302 UTL 202606'
+    SELECT 'HD_P302_01_06_2026_DV',
+           'HD_P302_01_06_2026_DV'
     UNION ALL
-    SELECT 'SEED-INV-403-2026-07-FINAL-ISSUED',
-           'SEED INV 403 FINAL 202607'
+    SELECT 'HD_P403_30_07_2026_QT',
+           'HD_P403_30_07_2026_QT'
     UNION ALL
-    SELECT 'SEED-INV-503-TRANSFER-OUT-ISSUED',
-           'SEED INV 503 TRANSFER OUT'
+    SELECT 'HD_P503_30_07_2026_QT',
+           'HD_P503_30_07_2026_QT'
 ) seed
   ON seed.invoice_code = i.invoice_code
 WHERE i.remaining_amount > 0

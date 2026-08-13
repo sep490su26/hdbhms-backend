@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- Repair databases that already applied V48 before the per-occupant service
 -- fee was added to the Hai Dang July utility invoices.
@@ -40,7 +40,7 @@ FROM hdbhms.invoices invoice
 WHERE invoice.property_id = @property_id
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND invoice.status <> 'VOIDED';
 
 -- Invoice-line triggers intentionally allow edits only while the invoice is a
@@ -65,7 +65,7 @@ LEFT JOIN (
   ON occupant_count.contract_id = invoice.lease_contract_id
 WHERE invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND line.line_type = 'SERVICE_FEE'
   AND COALESCE(occupant_count.active_count, 0) = 0;
 
@@ -83,10 +83,10 @@ JOIN (
   ON occupant_count.contract_id = invoice.lease_contract_id
 SET line.quantity = occupant_count.active_count,
     line.unit_price = 50000,
-    line.description = CONCAT('Phi dich vu thang 07/2026 (', occupant_count.active_count, ' nguoi)')
+    line.description = CONCAT('Phí dịch vụ tháng 07/2026 (', occupant_count.active_count, ' người)')
 WHERE invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND line.line_type = 'SERVICE_FEE';
 
 INSERT INTO hdbhms.invoice_lines
@@ -95,7 +95,7 @@ INSERT INTO hdbhms.invoice_lines
 SELECT
     invoice.invoice_id,
     'SERVICE_FEE',
-    CONCAT('Phi dich vu thang 07/2026 (', occupant_count.active_count, ' nguoi)'),
+    CONCAT('Phí dịch vụ tháng 07/2026 (', occupant_count.active_count, ' người)'),
     occupant_count.active_count,
     50000,
     NULL,
@@ -114,7 +114,7 @@ JOIN tmp_hd_v54_invoice_state target
   ON target.invoice_id = invoice.invoice_id
 WHERE invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL'
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV'
   AND occupant_count.active_count > 0
   AND NOT EXISTS (
       SELECT 1
@@ -150,7 +150,7 @@ SET invoice.subtotal_amount = line_totals.recalculated_subtotal,
     invoice.updated_at = @now
 WHERE invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL';
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV';
 
 DROP TEMPORARY TABLE IF EXISTS tmp_hd_v54_invoice_state;
 
@@ -176,4 +176,4 @@ WHERE notification.event_type = 'INVOICE_ISSUED'
   AND notification.target_type = 'INVOICE'
   AND invoice.invoice_type = 'UTILITY'
   AND invoice.billing_period = '2026-07'
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-UTILITY-EXCEL';
+  AND invoice.invoice_code LIKE 'HD_P%_01_08_2026_DV';

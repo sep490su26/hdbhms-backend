@@ -48,7 +48,7 @@ public class DownloadFileService implements DownloadFileUseCase {
             return Files.readAllBytes(storagePath);
         }
 
-        if (storageKey.startsWith("room-samples/")) {
+        if (storageKey.startsWith("room-samples/") || storageKey.startsWith("identity-samples/")) {
             var classpathResource = new ClassPathResource("static/" + storageKey);
             if (classpathResource.exists()) {
                 try (var inputStream = classpathResource.getInputStream()) {

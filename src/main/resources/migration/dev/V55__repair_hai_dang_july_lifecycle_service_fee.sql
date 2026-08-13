@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- Complete the July service-fee repair for lifecycle invoices created by the
 -- earlier demo seed (for example rooms 401 and 503).
@@ -17,7 +17,7 @@ INSERT INTO hdbhms.invoice_lines
 SELECT
     invoice.invoice_id,
     'SERVICE_FEE',
-    CONCAT('Phi dich vu thang 07/2026 (', occupant_count.active_count, ' nguoi)'),
+    CONCAT('Phí dịch vụ tháng 07/2026 (', occupant_count.active_count, ' người)'),
     occupant_count.active_count,
     50000,
     NULL,
@@ -35,7 +35,7 @@ JOIN (
 WHERE invoice.property_id = @property_id
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_type IN ('UTILITY', 'FINAL_SETTLEMENT')
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-%'
+  AND invoice.invoice_code LIKE 'HD_P%'
   AND occupant_count.active_count > 0
   AND NOT EXISTS (
       SELECT 1
@@ -61,7 +61,7 @@ SET invoice.subtotal_amount = line_totals.recalculated_subtotal,
 WHERE invoice.property_id = @property_id
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_type IN ('UTILITY', 'FINAL_SETTLEMENT')
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-%';
+  AND invoice.invoice_code LIKE 'HD_P%';
 
 UPDATE hdbhms.notification_outbox notification
 JOIN hdbhms.invoices invoice
@@ -86,4 +86,4 @@ WHERE notification.event_type = 'INVOICE_ISSUED'
   AND invoice.property_id = @property_id
   AND invoice.billing_period = '2026-07'
   AND invoice.invoice_type IN ('UTILITY', 'FINAL_SETTLEMENT')
-  AND invoice.invoice_code LIKE 'SEED-INV-%-2026-07-%';
+  AND invoice.invoice_code LIKE 'HD_P%';

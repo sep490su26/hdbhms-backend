@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- Every Hai Dang contract explicitly marked EXPIRING_SOON must have the
 -- tenant reminder seeded. Do not rely on one hard-coded room for this flow.
@@ -15,6 +15,27 @@ SET @hdd1_manager_id := (
     SELECT user_id
     FROM hdbhms.users
     WHERE email = 'seed.manager@hdbhms.local'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @hdd1_portrait_file_id := (
+    SELECT file_metadata_id
+    FROM hdbhms.file_metadata
+    WHERE storage_key = 'identity-samples/anh-chan-dung.webp'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @hdd1_cccd_front_file_id := (
+    SELECT file_metadata_id
+    FROM hdbhms.file_metadata
+    WHERE storage_key = 'identity-samples/cccd-mat-truoc.jpg'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @hdd1_cccd_back_file_id := (
+    SELECT file_metadata_id
+    FROM hdbhms.file_metadata
+    WHERE storage_key = 'identity-samples/cccd-mat-sau.jpg'
       AND deleted_at IS NULL
     LIMIT 1
 );
@@ -81,8 +102,8 @@ INSERT INTO hdbhms.person_profiles
     (user_id, full_name, dob, gender, phone, email, permanent_address,
      portrait_file_id, created_at, updated_at, deleted_at)
 VALUES
-    (@hdd1_shared_user_id, 'Nguyen Van Khai', '1995-07-17', 'MALE',
-     '0901309001', 'nguyen.van.khai@haidang1.local', 'Ha Noi', NULL,
+    (@hdd1_shared_user_id, 'Nguyễn Văn Khải', '1995-07-17', 'MALE',
+     '0901309001', 'nguyen.van.khai@haidang1.local', 'Hà Nội', @hdd1_portrait_file_id,
      @hdd1_seed_now, @hdd1_seed_now, NULL)
 ON DUPLICATE KEY UPDATE
     full_name = VALUES(full_name),
@@ -90,6 +111,8 @@ ON DUPLICATE KEY UPDATE
     gender = VALUES(gender),
     phone = VALUES(phone),
     email = VALUES(email),
+    permanent_address = VALUES(permanent_address),
+    portrait_file_id = VALUES(portrait_file_id),
     deleted_at = NULL,
     updated_at = VALUES(updated_at);
 
@@ -150,6 +173,76 @@ WHERE room.property_id = @hdd1_property_id
       WHERE existing_occupant.contract_id = contract.lease_contract_id
         AND existing_occupant.occupant_role = 'PRIMARY'
         AND existing_occupant.status = 'ACTIVE'
+  );
+
+-- Every existing primary signer must be able to complete the contract and
+-- identity-verification flows with a portrait and both CCCD sides.
+UPDATE hdbhms.person_profiles profile
+JOIN hdbhms.lease_contracts contract
+  ON contract.primary_tenant_profile_id = profile.person_profile_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+SET profile.portrait_file_id = @hdd1_portrait_file_id,
+    profile.updated_at = @hdd1_seed_now
+WHERE room.property_id = @hdd1_property_id
+  AND contract.deleted_at IS NULL
+  AND profile.deleted_at IS NULL
+  AND @hdd1_portrait_file_id IS NOT NULL;
+
+UPDATE hdbhms.identity_documents identity_document
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = identity_document.profile_id
+JOIN hdbhms.lease_contracts contract
+  ON contract.primary_tenant_profile_id = profile.person_profile_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+SET identity_document.front_file_id = @hdd1_cccd_front_file_id,
+    identity_document.back_file_id = @hdd1_cccd_back_file_id,
+    identity_document.updated_at = @hdd1_seed_now
+WHERE room.property_id = @hdd1_property_id
+  AND contract.deleted_at IS NULL
+  AND profile.deleted_at IS NULL
+  AND identity_document.doc_type = 'CCCD'
+  AND identity_document.status = 'ACTIVE'
+  AND @hdd1_cccd_front_file_id IS NOT NULL
+  AND @hdd1_cccd_back_file_id IS NOT NULL;
+
+INSERT INTO hdbhms.identity_documents
+    (profile_id, doc_type, doc_number, issued_date, issued_place, expiry_date,
+     raw_ocr_data, front_file_id, back_file_id, status, created_at, updated_at)
+SELECT
+    signer.person_profile_id,
+    'CCCD',
+    CONCAT('01', signer.phone),
+    '2025-03-18',
+    'Bộ Công an',
+    '2040-05-23',
+    CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY),
+    @hdd1_cccd_front_file_id,
+    @hdd1_cccd_back_file_id,
+    'ACTIVE',
+    @hdd1_seed_now,
+    @hdd1_seed_now
+FROM (
+    SELECT DISTINCT profile.person_profile_id, profile.phone
+    FROM hdbhms.person_profiles profile
+    JOIN hdbhms.lease_contracts contract
+      ON contract.primary_tenant_profile_id = profile.person_profile_id
+    JOIN hdbhms.rooms room
+      ON room.room_id = contract.room_id
+    WHERE room.property_id = @hdd1_property_id
+      AND contract.deleted_at IS NULL
+      AND profile.deleted_at IS NULL
+) signer
+WHERE signer.phone REGEXP '^0[0-9]{9}$'
+  AND @hdd1_cccd_front_file_id IS NOT NULL
+  AND @hdd1_cccd_back_file_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.identity_documents existing_document
+      WHERE existing_document.profile_id = signer.person_profile_id
+        AND existing_document.doc_type = 'CCCD'
+        AND existing_document.status = 'ACTIVE'
   );
 
 INSERT INTO hdbhms.tenant_account_provisionings

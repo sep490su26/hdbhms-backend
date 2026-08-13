@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- Backfill lifecycle relationships for the Hai Dang demo after V42/V48.
 SET @property_id := (
@@ -72,8 +72,8 @@ SET current_status = CASE room_code
         ELSE current_status
     END,
     public_note = CASE room_code
-        WHEN '402' THEN 'Seed: Hợp đồng sắp hết hạn ngày 2026-08-15, đang chờ khách phản hồi ý định.'
-        WHEN '403' THEN 'Seed: Đang xử lý thanh lý, phòng sẽ trống sau khi hoàn tất bàn giao.'
+        WHEN '402' THEN 'Hợp đồng sắp hết hạn ngày 15/08/2026, đang chờ khách phản hồi ý định.'
+        WHEN '403' THEN 'Đang xử lý thanh lý; phòng sẽ trống sau khi hoàn tất bàn giao.'
         ELSE public_note
     END,
     updated_at = '2026-07-30 09:00:00'
@@ -174,7 +174,7 @@ INSERT INTO hdbhms.contract_handover_records
      note, status, confirmed_by, confirmed_at, created_at, signed_document_id)
 SELECT
     @c301, @r301, 'MOVE_OUT', '2026-07-25 09:30:00', @mr301e, @mr301w,
-    'Seed completed move-out handover.', 'CONFIRMED', @manager_id,
+    'Đã hoàn tất bàn giao trả phòng.', 'CONFIRMED', @manager_id,
     '2026-07-25 09:35:00', '2026-07-25 09:30:00', @receipt_file
 WHERE @c301 IS NOT NULL
   AND @mr301e IS NOT NULL

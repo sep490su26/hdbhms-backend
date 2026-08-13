@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 -- V48/V51 could create expiry rows for the old demo profile before the
 -- workbook occupants were linked to their final tenant accounts. Reconcile

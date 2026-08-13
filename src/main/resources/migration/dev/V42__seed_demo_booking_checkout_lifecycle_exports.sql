@@ -1,4 +1,4 @@
-SET NAMES utf8mb4;
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 DROP PROCEDURE IF EXISTS hdbhms.seed_demo_booking_checkout_lifecycle_exports_v42;
 
@@ -44,9 +44,9 @@ BEGIN
         INSERT INTO hdbhms.collection_accounts
             (property_id, account_type, bank_name, account_number, account_holder, provider, status, created_at)
         VALUES
-            (@property_id, 'RENT', 'Seed Bank', 'SEED-RENT-001', 'HDBHMS SEED', 'BANK', 'ACTIVE', '2026-01-01 08:00:00'),
-            (@property_id, 'UTILITY', 'Seed Bank', 'SEED-UTILITY-001', 'HDBHMS SEED', 'BANK', 'ACTIVE', '2026-01-01 08:00:00'),
-            (@property_id, 'OPERATING', 'Seed Cash', 'SEED-OPERATING-001', 'HDBHMS SEED', 'CASH', 'ACTIVE', '2026-01-01 08:00:00') AS new_account
+            (@property_id, 'RENT', 'Ngân hàng mô phỏng', 'SEED-RENT-001', 'NHÀ TRỌ HẢI ĐĂNG', 'BANK', 'ACTIVE', '2026-01-01 08:00:00'),
+            (@property_id, 'UTILITY', 'Ngân hàng mô phỏng', 'SEED-UTILITY-001', 'NHÀ TRỌ HẢI ĐĂNG', 'BANK', 'ACTIVE', '2026-01-01 08:00:00'),
+            (@property_id, 'OPERATING', 'Tiền mặt', 'SEED-OPERATING-001', 'NHÀ TRỌ HẢI ĐĂNG', 'CASH', 'ACTIVE', '2026-01-01 08:00:00') AS new_account
         ON DUPLICATE KEY UPDATE
             property_id = new_account.property_id,
             bank_name = new_account.bank_name,
@@ -77,31 +77,31 @@ BEGIN
                 ELSE current_status
             END,
             public_note = CASE room_code
-                WHEN '301' THEN 'Seed: thanh lý đã hoàn tất.'
-                WHEN '302' THEN 'Seed: yêu cầu thanh lý bị từ chối.'
-                WHEN '401' THEN 'Seed: phòng đang ở, đủ hóa đơn và file xuất.'
-                WHEN '402' THEN 'Seed: phòng sắp trống từ 2026-08-15.'
-                WHEN '403' THEN 'Seed: thanh lý đang xử lý, có hóa đơn tất toán.'
-                WHEN '404' THEN 'Seed: phòng sắp hết hạn, demo gia hạn hợp đồng.'
-                WHEN '405' THEN 'Seed: nguồn chuyển phòng, người đứng tên chọn người ở cùng chuyển cùng.'
-                WHEN '406' THEN 'Seed: phòng đích cho yêu cầu chuyển phòng mới tạo.'
-                WHEN '407' THEN 'Seed: phòng trống có thể đặt lịch xem.'
-                WHEN '408' THEN 'Seed: phòng đang thuê, theo dõi phiếu bảo trì.'
-                WHEN '501' THEN 'Seed: nguồn chuyển phòng đang chờ ký hợp đồng mới.'
-                WHEN '502' THEN 'Seed: phòng đích chuyển phòng chờ ký hợp đồng.'
-                WHEN '503' THEN 'Seed: chuyển phòng đã bàn giao, còn hóa đơn chốt.'
-                WHEN '504' THEN 'Seed: phòng đích chờ hoàn tất chuyển phòng.'
-                WHEN '505' THEN 'Seed: phòng nguồn đã chuyển đi xong.'
-                WHEN '506' THEN 'Seed: phòng đích chuyển phòng đã hoàn tất.'
-                WHEN '507' THEN 'Seed: người đứng tên rời đi, người ở cùng muốn ở lại.'
+                WHEN '301' THEN 'Thanh lý đã hoàn tất.'
+                WHEN '302' THEN 'Yêu cầu thanh lý bị từ chối.'
+                WHEN '401' THEN 'Phòng đang ở, có đầy đủ hóa đơn và tệp xuất.'
+                WHEN '402' THEN 'Phòng sắp trống từ ngày 15/08/2026.'
+                WHEN '403' THEN 'Thanh lý đang được xử lý, đã có hóa đơn quyết toán.'
+                WHEN '404' THEN 'Phòng sắp hết hạn hợp đồng, đang xử lý gia hạn.'
+                WHEN '405' THEN 'Phòng nguồn chuyển phòng, người ký chính chọn người ở cùng chuyển cùng.'
+                WHEN '406' THEN 'Phòng đích cho yêu cầu chuyển phòng mới tạo.'
+                WHEN '407' THEN 'Phòng trống có thể đặt lịch xem.'
+                WHEN '408' THEN 'Phòng đang thuê, có phiếu bảo trì cần theo dõi.'
+                WHEN '501' THEN 'Phòng nguồn đang chờ ký hợp đồng chuyển phòng.'
+                WHEN '502' THEN 'Phòng đích đang chờ ký hợp đồng chuyển phòng.'
+                WHEN '503' THEN 'Đã bàn giao chuyển phòng, còn hóa đơn quyết toán.'
+                WHEN '504' THEN 'Phòng đích đang chờ hoàn tất chuyển phòng.'
+                WHEN '505' THEN 'Phòng nguồn đã hoàn tất chuyển đi.'
+                WHEN '506' THEN 'Phòng đích đã hoàn tất chuyển phòng.'
+                WHEN '507' THEN 'Người ký chính rời đi, người ở cùng muốn tiếp tục thuê.'
                 ELSE public_note
             END,
             internal_note = CASE room_code
                 WHEN '402' THEN 'Ngày dự kiến trống: 2026-08-15'
-                WHEN '408' THEN 'Theo dõi phiếu bảo trì demo.'
-                WHEN '502' THEN 'Reserved by transfer request CP_P502_30_07_2026'
-                WHEN '504' THEN 'Reserved by transfer request CP_P504_30_07_2026'
-                WHEN '507' THEN 'Needs holder replacement flow, room remains occupied.'
+                WHEN '408' THEN 'Theo dõi phiếu bảo trì định kỳ.'
+                WHEN '502' THEN 'Được giữ cho yêu cầu chuyển phòng CP_P502_30_07_2026.'
+                WHEN '504' THEN 'Được giữ cho yêu cầu chuyển phòng CP_P504_30_07_2026.'
+                WHEN '507' THEN 'Cần thay người ký chính; phòng vẫn đang có người ở.'
                 ELSE internal_note
             END,
             updated_at = @seed_now
@@ -131,19 +131,19 @@ BEGIN
             (owner_user_id, storage_key, original_name, mime_type, size_bytes, sha256_checksum, category, is_sensitive, created_at, deleted_at)
         VALUES
             (@owner_id, 'seed-demo/files/room-sample.jpg', 'seed-room-sample.jpg', 'image/jpeg', 180000, REPEAT('a', 64), 'ROOM_IMAGE', FALSE, '2026-01-01 08:00:00', NULL),
-            (@owner_id, 'seed-demo/files/portrait.jpg', 'seed-portrait.jpg', 'image/jpeg', 160000, REPEAT('b', 64), 'PORTRAIT_PHOTO', TRUE, '2026-01-01 08:00:00', NULL),
-            (@owner_id, 'seed-demo/files/cccd-front.jpg', 'seed-cccd-front.jpg', 'image/jpeg', 220000, REPEAT('c', 64), 'ID_CARD', TRUE, '2026-01-01 08:00:00', NULL),
-            (@owner_id, 'seed-demo/files/cccd-back.jpg', 'seed-cccd-back.jpg', 'image/jpeg', 210000, REPEAT('d', 64), 'ID_CARD', TRUE, '2026-01-01 08:00:00', NULL),
+            (@owner_id, 'identity-samples/anh-chan-dung.webp', 'ảnh-chân-dung.webp', 'image/webp', 83198, '409ee92f3a72815ff4f642c03c3debd4f0a60e5792039d23097b635a8cb059bd', 'PORTRAIT_PHOTO', TRUE, '2026-01-01 08:00:00', NULL),
+            (@owner_id, 'identity-samples/cccd-mat-truoc.jpg', 'căn-cước-công-dân-mặt-trước.jpg', 'image/jpeg', 85287, 'd4d904b2e47affd7676d936ef82fdaa612bbb30ce0a3dc2917a1c584f79db4c6', 'ID_CARD', TRUE, '2026-01-01 08:00:00', NULL),
+            (@owner_id, 'identity-samples/cccd-mat-sau.jpg', 'căn-cước-công-dân-mặt-sau.jpg', 'image/jpeg', 528676, 'bab26aa8cc4e115a7401179e9e59db4f11dcc97345a829ea7116c37e17b9c5f4', 'ID_CARD', TRUE, '2026-01-01 08:00:00', NULL),
             (@owner_id, 'seed-demo/files/lease-signed-401.pdf', 'HDT_P401_01_01_2026.pdf', 'application/pdf', 50000, REPEAT('e', 64), 'CONTRACT', TRUE, '2026-01-01 08:00:00', NULL),
             (@owner_id, 'seed-demo/files/lease-draft-404.pdf', 'HDT_P404_30_07_2026.pdf', 'application/pdf', 50000, REPEAT('f', 64), 'LEASE_CONTRACT_DRAFT', TRUE, '2026-07-30 08:00:00', NULL),
             (@owner_id, 'seed-demo/files/handover-401.pdf', 'BBBG_P401_01_01_2026.pdf', 'application/pdf', 48000, REPEAT('1', 64), 'HANDOVER_DOCUMENT', TRUE, '2026-01-01 08:00:00', NULL),
             (@owner_id, 'seed-demo/files/liquidation-403.pdf', 'TLHD_P403_30_07_2026.pdf', 'application/pdf', 46000, REPEAT('2', 64), 'CONTRACT', TRUE, '2026-07-30 08:00:00', NULL),
-            (@owner_id, 'seed-demo/files/receipt-301.pdf', 'bien-nhan-checkout-301.pdf', 'application/pdf', 30000, REPEAT('3', 64), 'RECEIPT', TRUE, '2026-07-25 08:00:00', NULL);
+            (@owner_id, 'seed-demo/files/receipt-301.pdf', 'biên-nhận-quyết-toán-301.pdf', 'application/pdf', 30000, REPEAT('3', 64), 'RECEIPT', TRUE, '2026-07-25 08:00:00', NULL);
 
         SET @room_image_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'seed-demo/files/room-sample.jpg' LIMIT 1);
-        SET @portrait_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'seed-demo/files/portrait.jpg' LIMIT 1);
-        SET @id_front_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'seed-demo/files/cccd-front.jpg' LIMIT 1);
-        SET @id_back_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'seed-demo/files/cccd-back.jpg' LIMIT 1);
+        SET @portrait_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'identity-samples/anh-chan-dung.webp' LIMIT 1);
+        SET @id_front_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'identity-samples/cccd-mat-truoc.jpg' LIMIT 1);
+        SET @id_back_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'identity-samples/cccd-mat-sau.jpg' LIMIT 1);
         SET @lease_signed_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'seed-demo/files/lease-signed-401.pdf' LIMIT 1);
         SET @lease_draft_404_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'seed-demo/files/lease-draft-404.pdf' LIMIT 1);
         SET @handover_401_file := (SELECT file_metadata_id FROM hdbhms.file_metadata WHERE storage_key = 'seed-demo/files/handover-401.pdf' LIMIT 1);
@@ -173,17 +173,19 @@ BEGIN
         INSERT INTO hdbhms.property_staff_assignments
             (property_id, staff_user_id, assigned_role, assignment_status, is_primary, notes, assigned_by_user_id, started_at, ended_at, created_at, updated_at)
         VALUES
-            (@property_id, @manager_id, 'MANAGER', 'ACTIVE', TRUE, 'Seed demo primary manager.', @owner_id, '2026-01-01 08:00:00', NULL, '2026-01-01 08:00:00', @seed_now);
+            (@property_id, @manager_id, 'MANAGER', 'ACTIVE', TRUE, 'Quản lý chính của nhà trọ Hải Đăng 1.', @owner_id, '2026-01-01 08:00:00', NULL, '2026-01-01 08:00:00', @seed_now);
 
         INSERT INTO hdbhms.person_profiles
             (user_id, full_name, dob, gender, phone, email, permanent_address, portrait_file_id, created_at, updated_at, deleted_at)
         VALUES
-            (@owner_id, 'Nguyễn Minh Chủ Nhà', '1980-01-01', 'MALE', '0977000001', 'seed.owner@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
-            (@manager_id, 'Trần Thu Quản Lý', '1990-01-01', 'FEMALE', '0977000002', 'seed.manager@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
-            (@tenant_demo_user_id, 'Nguyễn Văn Tenant Demo', '2001-01-01', 'MALE', '0977000400', 'seed.tenant@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
-            (@u405_co, 'Đỗ Thị Seed 405 Ở Cùng', '2005-06-05', 'FEMALE', '0977000456', 'seed.tenant405.co@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
-            (@u507_stay, 'Đặng Thị Seed 507 Ở Lại', '2002-04-24', 'FEMALE', '0977000507', 'seed.tenant507.stay@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL);
+            (@owner_id, 'Nguyễn Minh Quang', '1980-01-01', 'MALE', '0977000001', 'seed.owner@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
+            (@manager_id, 'Trần Thu Hương', '1990-01-01', 'FEMALE', '0977000002', 'seed.manager@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
+            (@tenant_demo_user_id, 'Nguyễn Văn Minh', '2001-01-01', 'MALE', '0977000400', 'seed.tenant@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
+            (@u405_co, 'Đỗ Thị Lan', '2005-06-05', 'FEMALE', '0977000456', 'seed.tenant405.co@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL),
+            (@u507_stay, 'Đặng Thị Hương', '2002-04-24', 'FEMALE', '0977000507', 'seed.tenant507.stay@hdbhms.local', 'Hà Nội', @portrait_file, '2026-01-01 08:00:00', @seed_now, NULL);
 
+        SET @p_owner := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE email = 'seed.owner@hdbhms.local' LIMIT 1);
+        SET @p_manager := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE email = 'seed.manager@hdbhms.local' LIMIT 1);
         SET @p401 := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE email = 'seed.tenant@hdbhms.local' LIMIT 1);
         SET @p405_co := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE email = 'seed.tenant405.co@hdbhms.local' LIMIT 1);
         SET @p507_stay := (SELECT person_profile_id FROM hdbhms.person_profiles WHERE email = 'seed.tenant507.stay@hdbhms.local' LIMIT 1);
@@ -191,9 +193,11 @@ BEGIN
         INSERT INTO hdbhms.identity_documents
             (profile_id, doc_type, doc_number, issued_date, issued_place, expiry_date, raw_ocr_data, front_file_id, back_file_id, status, created_at, updated_at)
         VALUES
-            (@p401, 'CCCD', '099900000401', '2021-01-15', 'Bộ Công An', '2036-01-15', CAST(JSON_OBJECT('seed', 'demo', 'room', '401') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now),
-            (@p405_co, 'CCCD', '099900000456', '2021-01-15', 'Bộ Công An', '2036-01-15', CAST(JSON_OBJECT('seed', 'demo', 'room', '405', 'role', 'co') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now),
-            (@p507_stay, 'CCCD', '099900000507', '2021-01-15', 'Bộ Công An', '2036-01-15', CAST(JSON_OBJECT('seed', 'demo', 'room', '507', 'role', 'stay') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now);
+            (@p_owner, 'CCCD', '099900000001', '2025-03-18', 'Bộ Công an', '2040-05-23', CAST(JSON_OBJECT('nguon', 'du-lieu-mau', 'vaiTro', 'chu-nha') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now),
+            (@p_manager, 'CCCD', '099900000002', '2025-03-18', 'Bộ Công an', '2040-05-23', CAST(JSON_OBJECT('nguon', 'du-lieu-mau', 'vaiTro', 'quan-ly') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now),
+            (@p401, 'CCCD', '099900000401', '2025-03-18', 'Bộ Công an', '2040-05-23', CAST(JSON_OBJECT('nguon', 'du-lieu-mau', 'phong', '401') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now),
+            (@p405_co, 'CCCD', '099900000456', '2025-03-18', 'Bộ Công an', '2040-05-23', CAST(JSON_OBJECT('nguon', 'du-lieu-mau', 'phong', '405', 'vaiTro', 'nguoi-o-cung') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now),
+            (@p507_stay, 'CCCD', '099900000507', '2025-03-18', 'Bộ Công an', '2040-05-23', CAST(JSON_OBJECT('nguon', 'du-lieu-mau', 'phong', '507', 'vaiTro', 'nguoi-o-lai') AS BINARY), @id_front_file, @id_back_file, 'ACTIVE', '2026-01-01 08:00:00', @seed_now);
 
         INSERT INTO hdbhms.vehicles
             (profile_id, vehicle_type, license_plate, image_file_id, status, created_at, deleted_at)
@@ -205,9 +209,9 @@ BEGIN
         INSERT INTO hdbhms.emergency_contacts
             (tenant_profile_id, full_name, relationship, phone, created_at)
         VALUES
-            (@p401, 'Liên hệ Seed 401', 'Người thân', '0988000401', '2026-01-01 08:00:00'),
-            (@p405_co, 'Liên hệ Seed 405 Ở Cùng', 'Người thân', '0988000456', '2026-01-01 08:00:00'),
-            (@p507_stay, 'Liên hệ Seed 507 Ở Lại', 'Người thân', '0988000507', '2026-01-01 08:00:00');
+            (@p401, 'Nguyễn Thị Mai', 'Người thân', '0988000401', '2026-01-01 08:00:00'),
+            (@p405_co, 'Đỗ Văn Hùng', 'Người thân', '0988000456', '2026-01-01 08:00:00'),
+            (@p507_stay, 'Đặng Minh Đức', 'Người thân', '0988000507', '2026-01-01 08:00:00');
 
         INSERT INTO hdbhms.lease_contracts
             (contract_code, room_id, deposit_agreement_id, primary_tenant_profile_id, start_date, end_date, rent_start_date, monthly_rent, payment_cycle_months, deposit_amount, status, tenant_intention, expected_vacant_date, intention_recorded_at, previous_contract_id, contract_file_id, signed_at, created_by, created_at, updated_at, deleted_at)
@@ -340,19 +344,19 @@ BEGIN
         INSERT INTO hdbhms.room_assets
             (room_id, asset_name, asset_category, quantity, current_condition, description, image_file_id, created_at, updated_at, deleted_at)
         VALUES
-            (@r401, 'Điều hòa', 'ELECTRIC', 1, 'GOOD', 'Tài sản demo cho biên bản bàn giao.', NULL, '2026-01-01 08:00:00', @seed_now, NULL),
-            (@r401, 'Bình nóng lạnh', 'ELECTRIC', 1, 'GOOD', 'Tài sản demo cho biên bản bàn giao.', NULL, '2026-01-01 08:00:00', @seed_now, NULL),
-            (@r404, 'Tủ quần áo', 'FURNITURE', 1, 'GOOD', 'Tài sản demo cho gia hạn hợp đồng.', NULL, '2026-01-01 08:00:00', @seed_now, NULL);
+            (@r401, 'Điều hòa', 'ELECTRIC', 1, 'GOOD', 'Tài sản ghi nhận trong biên bản bàn giao.', NULL, '2026-01-01 08:00:00', @seed_now, NULL),
+            (@r401, 'Bình nóng lạnh', 'ELECTRIC', 1, 'GOOD', 'Tài sản ghi nhận trong biên bản bàn giao.', NULL, '2026-01-01 08:00:00', @seed_now, NULL),
+            (@r404, 'Tủ quần áo', 'FURNITURE', 1, 'GOOD', 'Tài sản ghi nhận khi gia hạn hợp đồng.', NULL, '2026-01-01 08:00:00', @seed_now, NULL);
 
         INSERT INTO hdbhms.contract_handover_records
             (contract_id, room_id, handover_type, handover_date, electricity_reading_id, water_reading_id, note, status, confirmed_by, confirmed_at, created_at, signed_document_id)
         VALUES
-            (@c401, @r401, 'MOVE_IN', '2026-01-01 09:30:00', NULL, NULL, 'Biên bản bàn giao khi nhận phòng để demo xuất file.', 'CONFIRMED', @manager_id, '2026-01-01 09:35:00', '2026-01-01 09:30:00', @handover_401_file);
+            (@c401, @r401, 'MOVE_IN', '2026-01-01 09:30:00', NULL, NULL, 'Biên bản bàn giao khi khách nhận phòng.', 'CONFIRMED', @manager_id, '2026-01-01 09:35:00', '2026-01-01 09:30:00', @handover_401_file);
         SET @handover401 := LAST_INSERT_ID();
 
         INSERT INTO hdbhms.contract_handover_items
             (handover_record_id, room_asset_id, asset_name, quantity, condition_status, note, evidence_file_id, compensation_amount, compensation_invoice_id, created_at)
-        SELECT @handover401, room_asset_id, asset_name, quantity, current_condition, 'Hạng mục bàn giao demo.', NULL, NULL, NULL, '2026-01-01 09:30:00'
+        SELECT @handover401, room_asset_id, asset_name, quantity, current_condition, 'Hạng mục đã kiểm tra khi bàn giao.', NULL, NULL, NULL, '2026-01-01 09:30:00'
         FROM hdbhms.room_assets
         WHERE room_id = @r401
           AND deleted_at IS NULL;
@@ -360,48 +364,48 @@ BEGIN
         INSERT INTO hdbhms.visit_requests
             (property_id, room_id, visitor_name, visitor_phone, visitor_email, preferred_start, notes, created_at, deleted_at, deleted_by, status, updated_at)
         VALUES
-            (@property_id, @r407, 'Khách xem phòng trống Seed', '0988777407', 'visitor407@seed.local', '2026-07-30 09:00:00', 'Muốn xem phòng trống 407.', '2026-07-29 08:10:00', NULL, NULL, 'NOT_VIEWED', '2026-07-29 08:10:00'),
-            (@property_id, @r402, 'Khách xem phòng sắp trống Seed', '0988777402', 'visitor402@seed.local', '2026-08-01 15:00:00', 'Muốn xem phòng sắp trống 402.', '2026-07-29 08:20:00', NULL, NULL, 'VIEWED', '2026-07-29 09:00:00'),
-            (@property_id, @r408, 'Khách xem phòng bảo trì Seed', '0988777408', 'visitor408@seed.local', '2026-07-31 10:00:00', 'Phòng bảo trì, yêu cầu bị bỏ qua để demo bộ lọc.', '2026-07-29 08:30:00', NULL, NULL, 'DISMISSED', '2026-07-29 09:00:00');
+            (@property_id, @r407, 'Phạm Minh Hoàng', '0988777407', 'visitor407@seed.local', '2026-07-30 09:00:00', 'Muốn xem phòng trống 407.', '2026-07-29 08:10:00', NULL, NULL, 'NOT_VIEWED', '2026-07-29 08:10:00'),
+            (@property_id, @r402, 'Vũ Thị Ngọc Anh', '0988777402', 'visitor402@seed.local', '2026-08-01 15:00:00', 'Muốn xem phòng sắp trống 402.', '2026-07-29 08:20:00', NULL, NULL, 'VIEWED', '2026-07-29 09:00:00'),
+            (@property_id, @r408, 'Hoàng Đức Long', '0988777408', 'visitor408@seed.local', '2026-07-31 10:00:00', 'Phòng đang bảo trì nên yêu cầu xem phòng đã được bỏ qua.', '2026-07-29 08:30:00', NULL, NULL, 'DISMISSED', '2026-07-29 09:00:00');
 
         INSERT INTO hdbhms.invoices
             (invoice_code, property_id, room_id, lease_contract_id, deposit_agreement_id, deposit_batch_id, invoice_type, revision_no, billing_period, issue_date, due_date, status, subtotal_amount, discount_amount, total_amount, paid_amount, remaining_amount, collection_account_id, created_by, issued_at, voided_at, void_reason, created_at, updated_at)
         VALUES
-            ('SEED-INV-401-2026-05-RENT-PAID', @property_id, @r401, @c401, NULL, NULL, 'RENT', 1, '2026-05', '2026-05-01 08:00:00', '2026-05-05 23:59:59', 'PAID', 2400000, 0, 2400000, 2400000, 0, @rent_account, @owner_id, '2026-05-01 08:00:00', NULL, NULL, '2026-05-01 08:00:00', '2026-05-03 09:05:00'),
-            ('SEED-INV-401-2026-05-UTILITY-PAID', @property_id, @r401, @c401, NULL, NULL, 'UTILITY', 1, '2026-05', '2026-05-01 08:00:00', '2026-05-05 23:59:59', 'PAID', 320000, 0, 320000, 320000, 0, @utility_account, @owner_id, '2026-05-01 08:00:00', NULL, NULL, '2026-05-01 08:00:00', '2026-05-03 09:10:00'),
-            ('SEED-INV-401-2026-06-RENT-PAID', @property_id, @r401, @c401, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2400000, 0, 2400000, 2400000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-03 09:05:00'),
-            ('SEED-INV-401-2026-06-UTILITY-PAID', @property_id, @r401, @c401, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 345000, 0, 345000, 345000, 0, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-03 09:10:00'),
-            ('SEED-INV-402-2026-06-RENT-PAID', @property_id, @r402, @c402, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2500000, 0, 2500000, 2500000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-04 09:05:00'),
-            ('SEED-INV-402-2026-06-UTILITY-PAID', @property_id, @r402, @c402, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 300000, 0, 300000, 300000, 0, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-04 09:10:00'),
-            ('SEED-INV-404-2026-06-RENT-PAID', @property_id, @r404, @c404, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2600000, 0, 2600000, 2600000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-04 10:05:00'),
-            ('SEED-INV-501-2026-06-RENT-PAID', @property_id, @r501, @c501, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2500000, 0, 2500000, 2500000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-05 08:35:00'),
-            ('SEED-INV-501-2026-06-UTILITY-PAID', @property_id, @r501, @c501, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 330000, 0, 330000, 330000, 0, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-05 08:40:00'),
-            ('SEED-INV-302-2026-06-RENT-OVERDUE', @property_id, @r302, @c302, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'OVERDUE', 2350000, 0, 2350000, 0, 2350000, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', @seed_now),
-            ('SEED-INV-302-2026-06-UTILITY-OVERDUE', @property_id, @r302, @c302, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'OVERDUE', 310000, 0, 310000, 0, 310000, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', @seed_now),
-            ('SEED-INV-401-2026-07-RENT-PAID', @property_id, @r401, @c401, NULL, NULL, 'RENT', 1, '2026-07', '2026-07-01 08:00:00', '2026-07-05 23:59:59', 'PAID', 2400000, 0, 2400000, 2400000, 0, @rent_account, @owner_id, '2026-07-01 08:00:00', NULL, NULL, '2026-07-01 08:00:00', @seed_now),
-            ('SEED-INV-401-2026-07-UTILITY-PAID', @property_id, @r401, @c401, NULL, NULL, 'UTILITY', 1, '2026-07', '2026-07-01 08:00:00', '2026-07-05 23:59:59', 'PAID', 360000, 0, 360000, 360000, 0, @utility_account, @owner_id, '2026-07-01 08:00:00', NULL, NULL, '2026-07-01 08:00:00', @seed_now),
-            ('SEED-INV-403-2026-07-FINAL-ISSUED', @property_id, @r403, @c403, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-30 08:00:00', '2026-08-03 23:59:59', 'ISSUED', 1850000, 0, 1850000, 0, 1850000, @rent_account, @owner_id, '2026-07-30 08:00:00', NULL, NULL, '2026-07-30 08:00:00', @seed_now),
-            ('SEED-INV-503-TRANSFER-OUT-ISSUED', @property_id, @r503, @c503, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-30 11:00:00', '2026-08-03 23:59:59', 'ISSUED', 480000, 0, 480000, 0, 480000, @utility_account, @manager_id, '2026-07-30 11:00:00', NULL, NULL, '2026-07-30 11:00:00', @seed_now),
-            ('SEED-INV-505-TRANSFER-OUT-PAID', @property_id, @r505, @c505, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-20 11:00:00', '2026-07-23 23:59:59', 'PAID', 350000, 0, 350000, 350000, 0, @utility_account, @manager_id, '2026-07-20 11:00:00', NULL, NULL, '2026-07-20 11:00:00', '2026-07-20 12:00:00'),
-            ('SEED-INV-301-2026-07-FINAL-PAID', @property_id, @r301, @c301, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-25 09:30:00', '2026-07-30 23:59:59', 'PAID', 750000, 0, 750000, 750000, 0, @rent_account, @owner_id, '2026-07-25 09:30:00', NULL, NULL, '2026-07-25 09:30:00', '2026-07-25 12:00:00');
+            ('HD_P401_01_05_2026_TP', @property_id, @r401, @c401, NULL, NULL, 'RENT', 1, '2026-05', '2026-05-01 08:00:00', '2026-05-05 23:59:59', 'PAID', 2400000, 0, 2400000, 2400000, 0, @rent_account, @owner_id, '2026-05-01 08:00:00', NULL, NULL, '2026-05-01 08:00:00', '2026-05-03 09:05:00'),
+            ('HD_P401_01_05_2026_DV', @property_id, @r401, @c401, NULL, NULL, 'UTILITY', 1, '2026-05', '2026-05-01 08:00:00', '2026-05-05 23:59:59', 'PAID', 320000, 0, 320000, 320000, 0, @utility_account, @owner_id, '2026-05-01 08:00:00', NULL, NULL, '2026-05-01 08:00:00', '2026-05-03 09:10:00'),
+            ('HD_P401_01_06_2026_TP', @property_id, @r401, @c401, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2400000, 0, 2400000, 2400000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-03 09:05:00'),
+            ('HD_P401_01_06_2026_DV', @property_id, @r401, @c401, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 345000, 0, 345000, 345000, 0, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-03 09:10:00'),
+            ('HD_P402_01_06_2026_TP', @property_id, @r402, @c402, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2500000, 0, 2500000, 2500000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-04 09:05:00'),
+            ('HD_P402_01_06_2026_DV', @property_id, @r402, @c402, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 300000, 0, 300000, 300000, 0, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-04 09:10:00'),
+            ('HD_P404_01_06_2026_TP', @property_id, @r404, @c404, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2600000, 0, 2600000, 2600000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-04 10:05:00'),
+            ('HD_P501_01_06_2026_TP', @property_id, @r501, @c501, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 2500000, 0, 2500000, 2500000, 0, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-05 08:35:00'),
+            ('HD_P501_01_06_2026_DV', @property_id, @r501, @c501, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'PAID', 330000, 0, 330000, 330000, 0, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', '2026-06-05 08:40:00'),
+            ('HD_P302_01_06_2026_TP', @property_id, @r302, @c302, NULL, NULL, 'RENT', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'OVERDUE', 2350000, 0, 2350000, 0, 2350000, @rent_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', @seed_now),
+            ('HD_P302_01_06_2026_DV', @property_id, @r302, @c302, NULL, NULL, 'UTILITY', 1, '2026-06', '2026-06-01 08:00:00', '2026-06-05 23:59:59', 'OVERDUE', 310000, 0, 310000, 0, 310000, @utility_account, @owner_id, '2026-06-01 08:00:00', NULL, NULL, '2026-06-01 08:00:00', @seed_now),
+            ('HD_P401_01_07_2026_TP', @property_id, @r401, @c401, NULL, NULL, 'RENT', 1, '2026-07', '2026-07-01 08:00:00', '2026-07-05 23:59:59', 'PAID', 2400000, 0, 2400000, 2400000, 0, @rent_account, @owner_id, '2026-07-01 08:00:00', NULL, NULL, '2026-07-01 08:00:00', @seed_now),
+            ('HD_P401_01_07_2026_DV', @property_id, @r401, @c401, NULL, NULL, 'UTILITY', 1, '2026-07', '2026-07-01 08:00:00', '2026-07-05 23:59:59', 'PAID', 360000, 0, 360000, 360000, 0, @utility_account, @owner_id, '2026-07-01 08:00:00', NULL, NULL, '2026-07-01 08:00:00', @seed_now),
+            ('HD_P403_30_07_2026_QT', @property_id, @r403, @c403, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-30 08:00:00', '2026-08-03 23:59:59', 'ISSUED', 1850000, 0, 1850000, 0, 1850000, @rent_account, @owner_id, '2026-07-30 08:00:00', NULL, NULL, '2026-07-30 08:00:00', @seed_now),
+            ('HD_P503_30_07_2026_QT', @property_id, @r503, @c503, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-30 11:00:00', '2026-08-03 23:59:59', 'ISSUED', 480000, 0, 480000, 0, 480000, @utility_account, @manager_id, '2026-07-30 11:00:00', NULL, NULL, '2026-07-30 11:00:00', @seed_now),
+            ('HD_P505_20_07_2026_QT', @property_id, @r505, @c505, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-20 11:00:00', '2026-07-23 23:59:59', 'PAID', 350000, 0, 350000, 350000, 0, @utility_account, @manager_id, '2026-07-20 11:00:00', NULL, NULL, '2026-07-20 11:00:00', '2026-07-20 12:00:00'),
+            ('HD_P301_25_07_2026_QT', @property_id, @r301, @c301, NULL, NULL, 'FINAL_SETTLEMENT', 1, '2026-07', '2026-07-25 09:30:00', '2026-07-30 23:59:59', 'PAID', 750000, 0, 750000, 750000, 0, @rent_account, @owner_id, '2026-07-25 09:30:00', NULL, NULL, '2026-07-25 09:30:00', '2026-07-25 12:00:00');
 
-        SET @inv401mayRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-401-2026-05-RENT-PAID' LIMIT 1);
-        SET @inv401mayUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-401-2026-05-UTILITY-PAID' LIMIT 1);
-        SET @inv401junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-401-2026-06-RENT-PAID' LIMIT 1);
-        SET @inv401junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-401-2026-06-UTILITY-PAID' LIMIT 1);
-        SET @inv402junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-402-2026-06-RENT-PAID' LIMIT 1);
-        SET @inv402junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-402-2026-06-UTILITY-PAID' LIMIT 1);
-        SET @inv404junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-404-2026-06-RENT-PAID' LIMIT 1);
-        SET @inv501junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-501-2026-06-RENT-PAID' LIMIT 1);
-        SET @inv501junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-501-2026-06-UTILITY-PAID' LIMIT 1);
-        SET @inv302junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-302-2026-06-RENT-OVERDUE' LIMIT 1);
-        SET @inv302junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-302-2026-06-UTILITY-OVERDUE' LIMIT 1);
-        SET @inv401rent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-401-2026-07-RENT-PAID' LIMIT 1);
-        SET @inv401utility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-401-2026-07-UTILITY-PAID' LIMIT 1);
-        SET @inv403final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED' LIMIT 1);
-        SET @inv503final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-503-TRANSFER-OUT-ISSUED' LIMIT 1);
-        SET @inv505final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-505-TRANSFER-OUT-PAID' LIMIT 1);
-        SET @inv301final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'SEED-INV-301-2026-07-FINAL-PAID' LIMIT 1);
+        SET @inv401mayRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P401_01_05_2026_TP' LIMIT 1);
+        SET @inv401mayUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P401_01_05_2026_DV' LIMIT 1);
+        SET @inv401junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P401_01_06_2026_TP' LIMIT 1);
+        SET @inv401junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P401_01_06_2026_DV' LIMIT 1);
+        SET @inv402junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P402_01_06_2026_TP' LIMIT 1);
+        SET @inv402junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P402_01_06_2026_DV' LIMIT 1);
+        SET @inv404junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P404_01_06_2026_TP' LIMIT 1);
+        SET @inv501junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P501_01_06_2026_TP' LIMIT 1);
+        SET @inv501junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P501_01_06_2026_DV' LIMIT 1);
+        SET @inv302junRent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P302_01_06_2026_TP' LIMIT 1);
+        SET @inv302junUtility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P302_01_06_2026_DV' LIMIT 1);
+        SET @inv401rent := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P401_01_07_2026_TP' LIMIT 1);
+        SET @inv401utility := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P401_01_07_2026_DV' LIMIT 1);
+        SET @inv403final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P403_30_07_2026_QT' LIMIT 1);
+        SET @inv503final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P503_30_07_2026_QT' LIMIT 1);
+        SET @inv505final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P505_20_07_2026_QT' LIMIT 1);
+        SET @inv301final := (SELECT invoice_id FROM hdbhms.invoices WHERE invoice_code = 'HD_P301_25_07_2026_QT' LIMIT 1);
 
         INSERT INTO hdbhms.meters
             (room_id, meter_type, meter_code, status, installed_at, created_at)
@@ -486,67 +490,67 @@ BEGIN
         INSERT INTO hdbhms.invoice_lines
             (invoice_id, line_type, description, quantity, unit_price, meter_reading_id, source_type, source_id, collection_account_id, created_at)
         VALUES
-            (@inv401mayRent, 'ROOM_RENT', 'Tien phong 401 thang 05/2026', 1, 2400000, NULL, 'SEED_DEMO', @c401, @rent_account, '2026-05-01 08:00:00'),
-            (@inv401mayUtility, 'ELECTRICITY', 'Dien phong 401 thang 05/2026', 70, 3500, @mr401eMay, 'SEED_DEMO', @c401, @utility_account, '2026-05-01 08:00:00'),
-            (@inv401mayUtility, 'WATER', 'Nuoc phong 401 thang 05/2026', 5, 15000, @mr401wMay, 'SEED_DEMO', @c401, @utility_account, '2026-05-01 08:00:00'),
-            (@inv401junRent, 'ROOM_RENT', 'Tien phong 401 thang 06/2026', 1, 2400000, NULL, 'SEED_DEMO', @c401, @rent_account, '2026-06-01 08:00:00'),
-            (@inv401junUtility, 'ELECTRICITY', 'Dien phong 401 thang 06/2026', 70, 3500, @mr401eJun, 'SEED_DEMO', @c401, @utility_account, '2026-06-01 08:00:00'),
-            (@inv401junUtility, 'WATER', 'Nuoc phong 401 thang 06/2026', 5, 20000, @mr401wJun, 'SEED_DEMO', @c401, @utility_account, '2026-06-01 08:00:00'),
-            (@inv402junRent, 'ROOM_RENT', 'Tien phong 402 thang 06/2026', 1, 2500000, NULL, 'SEED_DEMO', @c402, @rent_account, '2026-06-01 08:00:00'),
-            (@inv402junUtility, 'ELECTRICITY', 'Dien phong 402 thang 06/2026', 60, 3500, @mr402eJun, 'SEED_DEMO', @c402, @utility_account, '2026-06-01 08:00:00'),
-            (@inv402junUtility, 'WATER', 'Nuoc phong 402 thang 06/2026', 3, 30000, @mr402wJun, 'SEED_DEMO', @c402, @utility_account, '2026-06-01 08:00:00'),
-            (@inv404junRent, 'ROOM_RENT', 'Tien phong 404 thang 06/2026', 1, 2600000, NULL, 'SEED_DEMO', @c404, @rent_account, '2026-06-01 08:00:00'),
-            (@inv501junRent, 'ROOM_RENT', 'Tien phong 501 thang 06/2026', 1, 2500000, NULL, 'SEED_DEMO', @c501, @rent_account, '2026-06-01 08:00:00'),
-            (@inv501junUtility, 'ELECTRICITY', 'Dien phong 501 thang 06/2026', 80, 3500, @mr501eJun, 'SEED_DEMO', @c501, @utility_account, '2026-06-01 08:00:00'),
-            (@inv501junUtility, 'WATER', 'Nuoc phong 501 thang 06/2026', 5, 10000, @mr501wJun, 'SEED_DEMO', @c501, @utility_account, '2026-06-01 08:00:00'),
-            (@inv302junRent, 'ROOM_RENT', 'No tien phong 302 thang 06/2026', 1, 2350000, NULL, 'SEED_DEMO_DEBT', @c302, @rent_account, '2026-06-01 08:00:00'),
-            (@inv302junUtility, 'ELECTRICITY', 'No dien phong 302 thang 06/2026', 70, 3500, @mr302eJun, 'SEED_DEMO_DEBT', @c302, @utility_account, '2026-06-01 08:00:00'),
-            (@inv302junUtility, 'WATER', 'No nuoc phong 302 thang 06/2026', 5, 13000, @mr302wJun, 'SEED_DEMO_DEBT', @c302, @utility_account, '2026-06-01 08:00:00'),
-            (@inv401rent, 'ROOM_RENT', 'Tien phong 401 thang 07/2026', 1, 2400000, NULL, 'SEED_DEMO', @c401, @rent_account, '2026-07-01 08:00:00'),
-            (@inv401utility, 'ELECTRICITY', 'Dien phong 401 thang 07/2026', 80, 3500, @mr401eJul, 'SEED_DEMO', @c401, @utility_account, '2026-07-01 08:00:00'),
-            (@inv401utility, 'WATER', 'Nuoc phong 401 thang 07/2026', 4, 20000, @mr401wJul, 'SEED_DEMO', @c401, @utility_account, '2026-07-01 08:00:00'),
-            (@inv403final, 'ROOM_RENT', 'Tien phong con lai khi thanh ly phong 403', 1, 1200000, NULL, 'CONTRACT_LIQUIDATION', @c403, @rent_account, '2026-07-30 08:00:00'),
-            (@inv403final, 'ELECTRICITY', 'Dien phong 403 khi thanh ly', 100, 3500, @mr403eJul, 'CONTRACT_LIQUIDATION', @c403, @utility_account, '2026-07-30 08:00:00'),
-            (@inv403final, 'WATER', 'Nuoc phong 403 khi thanh ly', 5, 20000, @mr403wJul, 'CONTRACT_LIQUIDATION', @c403, @utility_account, '2026-07-30 08:00:00'),
-            (@inv403final, 'MAINTENANCE_COMPENSATION', 'Den bu tai san phong 403', 1, 200000, NULL, 'CONTRACT_LIQUIDATION', @c403, @rent_account, '2026-07-30 08:00:00'),
-            (@inv503final, 'ELECTRICITY', 'Dien chot phong 503 khi chuyen phong', 90, 4000, @mr503eJul, 'ROOM_TRANSFER', @c503, @utility_account, '2026-07-30 11:00:00'),
-            (@inv503final, 'WATER', 'Nuoc chot phong 503 khi chuyen phong', 6, 20000, @mr503wJul, 'ROOM_TRANSFER', @c503, @utility_account, '2026-07-30 11:00:00'),
-            (@inv505final, 'ELECTRICITY', 'Dien chot phong 505 khi chuyen phong', 90, 3000, @mr505eJul, 'ROOM_TRANSFER', @c505, @utility_account, '2026-07-20 11:00:00'),
-            (@inv505final, 'WATER', 'Nuoc chot phong 505 khi chuyen phong', 4, 20000, @mr505wJul, 'ROOM_TRANSFER', @c505, @utility_account, '2026-07-20 11:00:00'),
-            (@inv301final, 'ELECTRICITY', 'Dien chot phong 301', 100, 3500, @mr301eJul, 'CONTRACT_LIQUIDATION', @c301, @utility_account, '2026-07-25 09:30:00'),
-            (@inv301final, 'WATER', 'Nuoc chot phong 301', 5, 20000, @mr301wJul, 'CONTRACT_LIQUIDATION', @c301, @utility_account, '2026-07-25 09:30:00'),
-            (@inv301final, 'MAINTENANCE_COMPENSATION', 'Phi ve sinh phong 301', 1, 300000, NULL, 'CONTRACT_LIQUIDATION', @c301, @rent_account, '2026-07-25 09:30:00');
+            (@inv401mayRent, 'ROOM_RENT', 'Tiền phòng 401 tháng 05/2026', 1, 2400000, NULL, 'SEED_DEMO', @c401, @rent_account, '2026-05-01 08:00:00'),
+            (@inv401mayUtility, 'ELECTRICITY', 'Điện phòng 401 tháng 05/2026', 70, 3500, @mr401eMay, 'SEED_DEMO', @c401, @utility_account, '2026-05-01 08:00:00'),
+            (@inv401mayUtility, 'WATER', 'Nước phòng 401 tháng 05/2026', 5, 15000, @mr401wMay, 'SEED_DEMO', @c401, @utility_account, '2026-05-01 08:00:00'),
+            (@inv401junRent, 'ROOM_RENT', 'Tiền phòng 401 tháng 06/2026', 1, 2400000, NULL, 'SEED_DEMO', @c401, @rent_account, '2026-06-01 08:00:00'),
+            (@inv401junUtility, 'ELECTRICITY', 'Điện phòng 401 tháng 06/2026', 70, 3500, @mr401eJun, 'SEED_DEMO', @c401, @utility_account, '2026-06-01 08:00:00'),
+            (@inv401junUtility, 'WATER', 'Nước phòng 401 tháng 06/2026', 5, 20000, @mr401wJun, 'SEED_DEMO', @c401, @utility_account, '2026-06-01 08:00:00'),
+            (@inv402junRent, 'ROOM_RENT', 'Tiền phòng 402 tháng 06/2026', 1, 2500000, NULL, 'SEED_DEMO', @c402, @rent_account, '2026-06-01 08:00:00'),
+            (@inv402junUtility, 'ELECTRICITY', 'Điện phòng 402 tháng 06/2026', 60, 3500, @mr402eJun, 'SEED_DEMO', @c402, @utility_account, '2026-06-01 08:00:00'),
+            (@inv402junUtility, 'WATER', 'Nước phòng 402 tháng 06/2026', 3, 30000, @mr402wJun, 'SEED_DEMO', @c402, @utility_account, '2026-06-01 08:00:00'),
+            (@inv404junRent, 'ROOM_RENT', 'Tiền phòng 404 tháng 06/2026', 1, 2600000, NULL, 'SEED_DEMO', @c404, @rent_account, '2026-06-01 08:00:00'),
+            (@inv501junRent, 'ROOM_RENT', 'Tiền phòng 501 tháng 06/2026', 1, 2500000, NULL, 'SEED_DEMO', @c501, @rent_account, '2026-06-01 08:00:00'),
+            (@inv501junUtility, 'ELECTRICITY', 'Điện phòng 501 tháng 06/2026', 80, 3500, @mr501eJun, 'SEED_DEMO', @c501, @utility_account, '2026-06-01 08:00:00'),
+            (@inv501junUtility, 'WATER', 'Nước phòng 501 tháng 06/2026', 5, 10000, @mr501wJun, 'SEED_DEMO', @c501, @utility_account, '2026-06-01 08:00:00'),
+            (@inv302junRent, 'ROOM_RENT', 'Nợ tiền phòng 302 tháng 06/2026', 1, 2350000, NULL, 'SEED_DEMO_DEBT', @c302, @rent_account, '2026-06-01 08:00:00'),
+            (@inv302junUtility, 'ELECTRICITY', 'Nợ tiền điện phòng 302 tháng 06/2026', 70, 3500, @mr302eJun, 'SEED_DEMO_DEBT', @c302, @utility_account, '2026-06-01 08:00:00'),
+            (@inv302junUtility, 'WATER', 'Nợ tiền nước phòng 302 tháng 06/2026', 5, 13000, @mr302wJun, 'SEED_DEMO_DEBT', @c302, @utility_account, '2026-06-01 08:00:00'),
+            (@inv401rent, 'ROOM_RENT', 'Tiền phòng 401 tháng 07/2026', 1, 2400000, NULL, 'SEED_DEMO', @c401, @rent_account, '2026-07-01 08:00:00'),
+            (@inv401utility, 'ELECTRICITY', 'Điện phòng 401 tháng 07/2026', 80, 3500, @mr401eJul, 'SEED_DEMO', @c401, @utility_account, '2026-07-01 08:00:00'),
+            (@inv401utility, 'WATER', 'Nước phòng 401 tháng 07/2026', 4, 20000, @mr401wJul, 'SEED_DEMO', @c401, @utility_account, '2026-07-01 08:00:00'),
+            (@inv403final, 'ROOM_RENT', 'Tiền phòng còn lại khi thanh lý phòng 403', 1, 1200000, NULL, 'CONTRACT_LIQUIDATION', @c403, @rent_account, '2026-07-30 08:00:00'),
+            (@inv403final, 'ELECTRICITY', 'Điện phòng 403 khi thanh lý', 100, 3500, @mr403eJul, 'CONTRACT_LIQUIDATION', @c403, @utility_account, '2026-07-30 08:00:00'),
+            (@inv403final, 'WATER', 'Nước phòng 403 khi thanh lý', 5, 20000, @mr403wJul, 'CONTRACT_LIQUIDATION', @c403, @utility_account, '2026-07-30 08:00:00'),
+            (@inv403final, 'MAINTENANCE_COMPENSATION', 'Đền bù tài sản phòng 403', 1, 200000, NULL, 'CONTRACT_LIQUIDATION', @c403, @rent_account, '2026-07-30 08:00:00'),
+            (@inv503final, 'ELECTRICITY', 'Điện chốt phòng 503 khi chuyển phòng', 90, 4000, @mr503eJul, 'ROOM_TRANSFER', @c503, @utility_account, '2026-07-30 11:00:00'),
+            (@inv503final, 'WATER', 'Nước chốt phòng 503 khi chuyển phòng', 6, 20000, @mr503wJul, 'ROOM_TRANSFER', @c503, @utility_account, '2026-07-30 11:00:00'),
+            (@inv505final, 'ELECTRICITY', 'Điện chốt phòng 505 khi chuyển phòng', 90, 3000, @mr505eJul, 'ROOM_TRANSFER', @c505, @utility_account, '2026-07-20 11:00:00'),
+            (@inv505final, 'WATER', 'Nước chốt phòng 505 khi chuyển phòng', 4, 20000, @mr505wJul, 'ROOM_TRANSFER', @c505, @utility_account, '2026-07-20 11:00:00'),
+            (@inv301final, 'ELECTRICITY', 'Điện chốt phòng 301', 100, 3500, @mr301eJul, 'CONTRACT_LIQUIDATION', @c301, @utility_account, '2026-07-25 09:30:00'),
+            (@inv301final, 'WATER', 'Nước chốt phòng 301', 5, 20000, @mr301wJul, 'CONTRACT_LIQUIDATION', @c301, @utility_account, '2026-07-25 09:30:00'),
+            (@inv301final, 'MAINTENANCE_COMPENSATION', 'Phí vệ sinh phòng 301', 1, 300000, NULL, 'CONTRACT_LIQUIDATION', @c301, @rent_account, '2026-07-25 09:30:00');
 
         INSERT INTO hdbhms.payment_transactions
             (provider, provider_transaction_id, collection_account_id, amount, transaction_time, payer_name, payer_account, content, status, raw_payload, confirmed_by, confirmed_at, created_at)
         VALUES
-            ('BANK', 'SEED-TXN-401-RENT-202605', @rent_account, 2400000, '2026-05-03 09:00:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-401', 'SEED-INV-401-2026-05-RENT-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-05-03 09:05:00', '2026-05-03 09:00:00'),
-            ('BANK', 'SEED-TXN-401-UTILITY-202605', @utility_account, 320000, '2026-05-03 09:10:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-401', 'SEED-INV-401-2026-05-UTILITY-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-05-03 09:15:00', '2026-05-03 09:10:00'),
-            ('BANK', 'SEED-TXN-401-RENT-202606', @rent_account, 2400000, '2026-06-03 09:00:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-401', 'SEED-INV-401-2026-06-RENT-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-06-03 09:05:00', '2026-06-03 09:00:00'),
-            ('BANK', 'SEED-TXN-401-UTILITY-202606', @utility_account, 345000, '2026-06-03 09:10:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-401', 'SEED-INV-401-2026-06-UTILITY-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-06-03 09:15:00', '2026-06-03 09:10:00'),
-            ('BANK', 'SEED-TXN-402-RENT-202606', @rent_account, 2500000, '2026-06-04 09:00:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-402', 'SEED-INV-402-2026-06-RENT-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-06-04 09:05:00', '2026-06-04 09:00:00'),
-            ('BANK', 'SEED-TXN-402-UTILITY-202606', @utility_account, 300000, '2026-06-04 09:10:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-402', 'SEED-INV-402-2026-06-UTILITY-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-06-04 09:15:00', '2026-06-04 09:10:00'),
-            ('BANK', 'SEED-TXN-404-RENT-202606', @rent_account, 2600000, '2026-06-04 10:00:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-404', 'SEED-INV-404-2026-06-RENT-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-06-04 10:05:00', '2026-06-04 10:00:00'),
-            ('BANK', 'SEED-TXN-501-RENT-202606', @rent_account, 2500000, '2026-06-05 08:30:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-501', 'SEED-INV-501-2026-06-RENT-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-06-05 08:35:00', '2026-06-05 08:30:00'),
-            ('BANK', 'SEED-TXN-501-UTILITY-202606', @utility_account, 330000, '2026-06-05 08:40:00', 'Nguyen Van Tenant Demo', 'SEED-PAYER-501', 'SEED-INV-501-2026-06-UTILITY-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-06-05 08:45:00', '2026-06-05 08:40:00'),
-            ('BANK', 'SEED-TXN-401-RENT-202607', @rent_account, 2400000, '2026-07-02 09:00:00', 'Nguyễn Văn Tenant Demo', 'SEED-PAYER-401', 'SEED-INV-401-2026-07-RENT-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-07-02 09:05:00', '2026-07-02 09:00:00'),
-            ('BANK', 'SEED-TXN-401-UTILITY-202607', @utility_account, 360000, '2026-07-02 09:10:00', 'Nguyễn Văn Tenant Demo', 'SEED-PAYER-401', 'SEED-INV-401-2026-07-UTILITY-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-07-02 09:15:00', '2026-07-02 09:10:00'),
-            ('BANK', 'SEED-TXN-505-FINAL-202607', @utility_account, 350000, '2026-07-20 12:00:00', 'Bùi Văn Seed 505', 'SEED-PAYER-505', 'SEED-INV-505-TRANSFER-OUT-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-07-20 12:05:00', '2026-07-20 12:00:00'),
-            ('BANK', 'SEED-TXN-301-FINAL-202607', @rent_account, 750000, '2026-07-25 12:00:00', 'Lê Thị Seed 301', 'SEED-PAYER-301', 'SEED-INV-301-2026-07-FINAL-PAID', 'MATCHED', CAST(JSON_OBJECT('seed', 'demo') AS BINARY), @manager_id, '2026-07-25 12:05:00', '2026-07-25 12:00:00');
+            ('BANK', 'GD_P401_03_05_2026_TP_01', @rent_account, 2400000, '2026-05-03 09:00:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-401', 'HD_P401_01_05_2026_TP', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-05-03 09:05:00', '2026-05-03 09:00:00'),
+            ('BANK', 'GD_P401_03_05_2026_DV_01', @utility_account, 320000, '2026-05-03 09:10:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-401', 'HD_P401_01_05_2026_DV', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-05-03 09:15:00', '2026-05-03 09:10:00'),
+            ('BANK', 'GD_P401_03_06_2026_TP_01', @rent_account, 2400000, '2026-06-03 09:00:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-401', 'HD_P401_01_06_2026_TP', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-06-03 09:05:00', '2026-06-03 09:00:00'),
+            ('BANK', 'GD_P401_03_06_2026_DV_01', @utility_account, 345000, '2026-06-03 09:10:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-401', 'HD_P401_01_06_2026_DV', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-06-03 09:15:00', '2026-06-03 09:10:00'),
+            ('BANK', 'GD_P402_04_06_2026_TP_01', @rent_account, 2500000, '2026-06-04 09:00:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-402', 'HD_P402_01_06_2026_TP', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-06-04 09:05:00', '2026-06-04 09:00:00'),
+            ('BANK', 'GD_P402_04_06_2026_DV_01', @utility_account, 300000, '2026-06-04 09:10:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-402', 'HD_P402_01_06_2026_DV', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-06-04 09:15:00', '2026-06-04 09:10:00'),
+            ('BANK', 'GD_P404_04_06_2026_TP_01', @rent_account, 2600000, '2026-06-04 10:00:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-404', 'HD_P404_01_06_2026_TP', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-06-04 10:05:00', '2026-06-04 10:00:00'),
+            ('BANK', 'GD_P501_05_06_2026_TP_01', @rent_account, 2500000, '2026-06-05 08:30:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-501', 'HD_P501_01_06_2026_TP', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-06-05 08:35:00', '2026-06-05 08:30:00'),
+            ('BANK', 'GD_P501_05_06_2026_DV_01', @utility_account, 330000, '2026-06-05 08:40:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-501', 'HD_P501_01_06_2026_DV', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-06-05 08:45:00', '2026-06-05 08:40:00'),
+            ('BANK', 'GD_P401_02_07_2026_TP_01', @rent_account, 2400000, '2026-07-02 09:00:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-401', 'HD_P401_01_07_2026_TP', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-07-02 09:05:00', '2026-07-02 09:00:00'),
+            ('BANK', 'GD_P401_02_07_2026_DV_01', @utility_account, 360000, '2026-07-02 09:10:00', 'Nguyễn Văn Hùng', 'SEED-PAYER-401', 'HD_P401_01_07_2026_DV', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-07-02 09:15:00', '2026-07-02 09:10:00'),
+            ('BANK', 'GD_P505_20_07_2026_QT_01', @utility_account, 350000, '2026-07-20 12:00:00', 'Phan Quốc Khánh', 'SEED-PAYER-505', 'HD_P505_20_07_2026_QT', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-07-20 12:05:00', '2026-07-20 12:00:00'),
+            ('BANK', 'GD_P301_25_07_2026_QT_01', @rent_account, 750000, '2026-07-25 12:00:00', 'Nguyễn Văn Khải', 'SEED-PAYER-301', 'HD_P301_25_07_2026_QT', 'MATCHED', CAST(JSON_OBJECT('nguon', 'du-lieu-mau') AS BINARY), @manager_id, '2026-07-25 12:05:00', '2026-07-25 12:00:00');
 
-        SET @txn401mayRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-401-RENT-202605' LIMIT 1);
-        SET @txn401mayUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-401-UTILITY-202605' LIMIT 1);
-        SET @txn401junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-401-RENT-202606' LIMIT 1);
-        SET @txn401junUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-401-UTILITY-202606' LIMIT 1);
-        SET @txn402junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-402-RENT-202606' LIMIT 1);
-        SET @txn402junUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-402-UTILITY-202606' LIMIT 1);
-        SET @txn404junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-404-RENT-202606' LIMIT 1);
-        SET @txn501junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-501-RENT-202606' LIMIT 1);
-        SET @txn501junUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-501-UTILITY-202606' LIMIT 1);
-        SET @txn401rent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-401-RENT-202607' LIMIT 1);
-        SET @txn401utility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-401-UTILITY-202607' LIMIT 1);
-        SET @txn505final := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-505-FINAL-202607' LIMIT 1);
-        SET @txn301final := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'SEED-TXN-301-FINAL-202607' LIMIT 1);
+        SET @txn401mayRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P401_03_05_2026_TP_01' LIMIT 1);
+        SET @txn401mayUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P401_03_05_2026_DV_01' LIMIT 1);
+        SET @txn401junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P401_03_06_2026_TP_01' LIMIT 1);
+        SET @txn401junUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P401_03_06_2026_DV_01' LIMIT 1);
+        SET @txn402junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P402_04_06_2026_TP_01' LIMIT 1);
+        SET @txn402junUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P402_04_06_2026_DV_01' LIMIT 1);
+        SET @txn404junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P404_04_06_2026_TP_01' LIMIT 1);
+        SET @txn501junRent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P501_05_06_2026_TP_01' LIMIT 1);
+        SET @txn501junUtility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P501_05_06_2026_DV_01' LIMIT 1);
+        SET @txn401rent := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P401_02_07_2026_TP_01' LIMIT 1);
+        SET @txn401utility := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P401_02_07_2026_DV_01' LIMIT 1);
+        SET @txn505final := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P505_20_07_2026_QT_01' LIMIT 1);
+        SET @txn301final := (SELECT payment_transaction_id FROM hdbhms.payment_transactions WHERE provider_transaction_id = 'GD_P301_25_07_2026_QT_01' LIMIT 1);
 
         INSERT INTO hdbhms.payment_allocations
             (payment_transaction_id, invoice_id, amount, allocated_by, allocated_at)
@@ -592,7 +596,7 @@ BEGIN
             ('TLHD_P507_30_07_2026', 'CONTRACT_LIQUIDATION', @tenant_demo_user_id, 'TENANT', 'CONTRACT', @c507, 'Thanh lý hợp đồng phòng 507 có người ở lại', 'Người đứng tên muốn rời đi, người ở cùng muốn tiếp tục thuê và cần lập hợp đồng thay thế.', JSON_OBJECT('contractId', @c507, 'roomCode', '507', 'liquidationDate', '2026-08-05', 'liquidationMode', 'PRIMARY_LEAVES_CO_OCCUPANT_STAYS', 'leavingProfileIds', JSON_ARRAY(@p401), 'stayingProfileIds', JSON_ARRAY(@p507_stay), 'replacementPrimaryTenantProfileId', @p507_stay, 'requiresReplacementContract', TRUE, 'roomWillRemainOccupied', TRUE, 'reason', 'Người đứng tên rời đi, người ở cùng muốn ở lại.'), NULL, 'OWNER', @owner_id, 'PENDING', NULL, NULL, NULL, '2026-07-30 08:35:00', '2026-07-30 08:35:00'),
             ('TLHD_P301_25_07_2026', 'CONTRACT_LIQUIDATION', @tenant_demo_user_id, 'TENANT', 'CONTRACT', @c301, 'Thanh lý hợp đồng phòng 301', 'Thanh lý đã hoàn tất, hóa đơn tất toán đã thanh toán.', JSON_OBJECT('contractId', @c301, 'roomCode', '301', 'liquidationDate', '2026-07-25', 'finalInvoiceId', @inv301final, 'finalInvoicePaid', true, 'liquidationStage', 'CONFIRMED', 'depositRefundStatus', 'NOT_REQUIRED', 'liquidationChecklist', JSON_OBJECT('handoverConfirmed', true, 'finalInvoicePaid', true, 'depositRefundConfirmed', true, 'signedDocumentUploaded', true, 'canConfirm', true)), NULL, 'OWNER', @owner_id, 'COMPLETED', 'Đã hoàn tất thanh lý hợp đồng.', @owner_id, '2026-07-25 12:30:00', '2026-07-25 08:30:00', '2026-07-25 12:30:00'),
             ('TLHD_P302_30_07_2026', 'CONTRACT_LIQUIDATION', @tenant_demo_user_id, 'TENANT', 'CONTRACT', @c302, 'Thanh lý hợp đồng phòng 302', 'Yêu cầu thanh lý bị từ chối vì chưa đủ điều kiện.', JSON_OBJECT('contractId', @c302, 'roomCode', '302', 'liquidationDate', '2026-08-01', 'reason', 'Khách chưa hoàn tất công nợ.'), NULL, 'OWNER', @owner_id, 'REJECTED', 'Khách chưa hoàn tất công nợ, chưa thể thanh lý.', @owner_id, '2026-07-30 09:30:00', '2026-07-30 08:40:00', '2026-07-30 09:30:00'),
-            ('XHS_P401_30_07_2026', 'TENANT_PROFILE_ACCESS', @manager_id, 'MANAGER', 'TENANT_PROFILE', @p401, 'Xin xem hồ sơ khách phòng 401', 'Seed quyền xem hồ sơ đã được duyệt cho báo cáo công an và demo hồ sơ nhạy cảm.', JSON_OBJECT('roomCode', '401', 'propertyId', @property_id), NULL, 'OWNER', @owner_id, 'APPROVED', 'Cho phép xem hồ sơ trong 30 ngày.', @owner_id, '2026-07-30 09:00:00', '2026-07-30 08:15:00', '2026-07-30 09:00:00');
+            ('XHS_P401_30_07_2026', 'TENANT_PROFILE_ACCESS', @manager_id, 'MANAGER', 'TENANT_PROFILE', @p401, 'Xin xem hồ sơ khách phòng 401', 'Quyền xem hồ sơ đã được duyệt để lập báo cáo lưu trú và kiểm tra hồ sơ nhạy cảm.', JSON_OBJECT('roomCode', '401', 'propertyId', @property_id), NULL, 'OWNER', @owner_id, 'APPROVED', 'Cho phép xem hồ sơ trong 30 ngày.', @owner_id, '2026-07-30 09:00:00', '2026-07-30 08:15:00', '2026-07-30 09:00:00');
 
         SET @cr403 := (SELECT change_request_id FROM hdbhms.change_requests WHERE request_code = 'TLHD_P403_30_07_2026' LIMIT 1);
         SET @cr404 := (SELECT change_request_id FROM hdbhms.change_requests WHERE request_code = 'GHHD_P404_30_07_2026' LIMIT 1);
@@ -632,16 +636,16 @@ BEGIN
         INSERT INTO hdbhms.contract_handover_records
             (contract_id, room_id, handover_type, handover_date, electricity_reading_id, water_reading_id, note, status, confirmed_by, confirmed_at, created_at, signed_document_id)
         VALUES
-            (@c503, @r503, 'TRANSFER_OUT', '2026-07-30 11:30:00', NULL, NULL, 'Seed transfer-out handover, waiting final execution.', 'CONFIRMED', @manager_id, '2026-07-30 11:35:00', '2026-07-30 11:30:00', NULL),
-            (@c505, @r505, 'TRANSFER_OUT', '2026-07-20 11:00:00', NULL, NULL, 'Seed completed transfer-out handover.', 'CONFIRMED', @manager_id, '2026-07-20 11:05:00', '2026-07-20 11:00:00', NULL),
-            (@c506new, @r506, 'TRANSFER_IN', '2026-07-20 12:00:00', NULL, NULL, 'Seed completed transfer-in handover.', 'CONFIRMED', @manager_id, '2026-07-20 12:05:00', '2026-07-20 12:00:00', NULL),
-            (@c301, @r301, 'MOVE_OUT', '2026-07-25 09:30:00', @mr301eJul, @mr301wJul, 'Seed completed move-out handover.', 'CONFIRMED', @manager_id, '2026-07-25 09:35:00', '2026-07-25 09:30:00', @receipt_file);
+            (@c503, @r503, 'TRANSFER_OUT', '2026-07-30 11:30:00', NULL, NULL, 'Đã bàn giao phòng chuyển đi, đang chờ hoàn tất thủ tục cuối cùng.', 'CONFIRMED', @manager_id, '2026-07-30 11:35:00', '2026-07-30 11:30:00', NULL),
+            (@c505, @r505, 'TRANSFER_OUT', '2026-07-20 11:00:00', NULL, NULL, 'Đã hoàn tất bàn giao phòng chuyển đi.', 'CONFIRMED', @manager_id, '2026-07-20 11:05:00', '2026-07-20 11:00:00', NULL),
+            (@c506new, @r506, 'TRANSFER_IN', '2026-07-20 12:00:00', NULL, NULL, 'Đã hoàn tất bàn giao phòng chuyển đến.', 'CONFIRMED', @manager_id, '2026-07-20 12:05:00', '2026-07-20 12:00:00', NULL),
+            (@c301, @r301, 'MOVE_OUT', '2026-07-25 09:30:00', @mr301eJul, @mr301wJul, 'Đã hoàn tất bàn giao trả phòng.', 'CONFIRMED', @manager_id, '2026-07-25 09:35:00', '2026-07-25 09:30:00', @receipt_file);
 
         INSERT INTO hdbhms.contract_liquidations
             (contract_id, liquidation_date, reason, deposit_amount, deposit_deduction_amount, deposit_deduction_reason, deposit_refund_amount, final_invoice_id, signed_file_id, status, created_by, created_at)
         VALUES
-            (@c403, '2026-07-31', 'Seed demo thanh lý hợp đồng.', 2300000, 200000, 'Đền bù tài sản phòng 403.', 2100000, @inv403final, @liquidation_403_file, 'DRAFT', @manager_id, '2026-07-30 09:30:00'),
-            (@c301, '2026-07-25', 'Seed completed liquidation.', 2200000, 2200000, 'Khấu trừ toàn bộ cọc để tất toán demo.', 0, @inv301final, @receipt_file, 'CONFIRMED', @manager_id, '2026-07-25 12:30:00');
+            (@c403, '2026-07-31', 'Thanh lý hợp đồng theo yêu cầu của khách thuê.', 2300000, 200000, 'Đền bù tài sản phòng 403.', 2100000, @inv403final, @liquidation_403_file, 'DRAFT', @manager_id, '2026-07-30 09:30:00'),
+            (@c301, '2026-07-25', 'Đã hoàn tất thanh lý hợp đồng.', 2200000, 2200000, 'Khấu trừ toàn bộ tiền cọc để tất toán công nợ.', 0, @inv301final, @receipt_file, 'CONFIRMED', @manager_id, '2026-07-25 12:30:00');
 
         INSERT INTO hdbhms.change_request_events
             (request_id, from_status, to_status, note, acted_by, acted_at)
@@ -668,18 +672,18 @@ BEGIN
         INSERT INTO hdbhms.permission_grants
             (grantee_user_id, target_type, target_id, source_change_request_id, granted_by, reason, duration_code, granted_at, expires_at, revoked_at, revoked_by, revoke_reason, created_at, updated_at)
         VALUES
-            (@manager_id, 'TENANT_PROFILE', @p401, @crAccess, @owner_id, 'Seed quyền xem hồ sơ đã được duyệt.', 'DAYS_30', '2026-07-30 09:00:00', '2026-08-29 23:59:59', NULL, NULL, NULL, '2026-07-30 09:00:00', '2026-07-30 09:00:00');
+            (@manager_id, 'TENANT_PROFILE', @p401, @crAccess, @owner_id, 'Quyền xem hồ sơ đã được chủ nhà phê duyệt.', 'DAYS_30', '2026-07-30 09:00:00', '2026-08-29 23:59:59', NULL, NULL, NULL, '2026-07-30 09:00:00', '2026-07-30 09:00:00');
 
         INSERT INTO hdbhms.operating_expenses
             (property_id, room_id, ticket_id, expense_code, expense_type, description, amount, expense_date, paid_by_user_id, receipt_file_id, status, approved_by, approved_at, created_by, created_at)
         VALUES
-            (@property_id, @r408, NULL, 'SEED-EXP-408-REPAIR', 'REPAIR', 'Chi phí bảo trì Seed cho export và báo cáo advisor.', 1200000, '2026-07-15', @owner_id, @receipt_file, 'PAID', @owner_id, '2026-07-15 09:00:00', @manager_id, '2026-07-15 08:00:00');
+            (@property_id, @r408, NULL, 'SEED-EXP-408-REPAIR', 'REPAIR', 'Chi phí bảo trì phục vụ báo cáo vận hành.', 1200000, '2026-07-15', @owner_id, @receipt_file, 'PAID', @owner_id, '2026-07-15 09:00:00', @manager_id, '2026-07-15 08:00:00');
         SET @expense408 := LAST_INSERT_ID();
 
         INSERT INTO hdbhms.expense_payments
             (operating_expense_id, payment_date, payment_method, payment_reference, receipt_file_id, paid_by_user_id, paid_at, note, created_at)
         VALUES
-            (@expense408, '2026-07-15', 'BANK_TRANSFER', 'SEED-EXP-408-REPAIR', @receipt_file, @owner_id, '2026-07-15 09:10:00', 'Seed thanh toán chi phí đã trả.', '2026-07-15 09:10:00');
+            (@expense408, '2026-07-15', 'BANK_TRANSFER', 'SEED-EXP-408-REPAIR', @receipt_file, @owner_id, '2026-07-15 09:10:00', 'Đã thanh toán đầy đủ chi phí sửa chữa.', '2026-07-15 09:10:00');
 
         COMMIT;
     END IF;
