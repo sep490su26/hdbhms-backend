@@ -47,6 +47,11 @@ public class SpringDataMaintenanceTicketRepository implements MaintenanceTicketR
     }
 
     @Override
+    public boolean existsByTicketCode(String ticketCode) {
+        return jpaMaintenanceTicketRepository.existsByTicketCode(ticketCode);
+    }
+
+    @Override
     public Page<MaintenanceTicket> findAll(
             List<Long> ids,
             String type,

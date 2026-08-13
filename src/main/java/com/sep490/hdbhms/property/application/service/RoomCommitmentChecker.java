@@ -42,7 +42,7 @@ public class RoomCommitmentChecker {
                         FROM lease_contracts
                         WHERE room_id = ?
                           AND deleted_at IS NULL
-                          AND status IN ('ACTIVE', 'EXPIRING_SOON')
+                          AND status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
                         ORDER BY
                           CASE status WHEN 'EXPIRING_SOON' THEN 0 WHEN 'ACTIVE' THEN 1 ELSE 2 END,
                           end_date ,

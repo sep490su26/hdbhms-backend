@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.property.application.service;
 
+import com.sep490.hdbhms.billingandpayment.application.service.UtilityBillingRunService;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.UtilityBillingRunStatus;
 import com.sep490.hdbhms.property.domain.policy.ReadingWindow;
 import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
@@ -15,7 +17,7 @@ import com.sep490.hdbhms.property.infrastructure.web.dto.response.BatchMeterRead
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.MeterReadingBatchHistoryResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.UtilityDashboardResponse;
 import com.sep490.hdbhms.property.domain.value_objects.BatchStatus;
-import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
+import com.sep490.hdbhms.property.domain.value_objects.MeterReadingReviewStatus;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -43,6 +45,7 @@ public class GetBatchMeterReadingsService {
     JpaMeterReadingRepository meterReadingRepository;
     JpaMeterReadingAnomalyRepository anomalyRepository;
     JpaMeterReadingBatchRepository batchRepository;
+    UtilityBillingRunService utilityBillingRunService;
     JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
@@ -66,8 +69,15 @@ public class GetBatchMeterReadingsService {
             ).orElse(null);
         }
         boolean lockedBatch = batch != null && batch.getStatus() != BatchStatus.DRAFT;
+        String billingPeriod = ym.toString();
+        UtilityBillingRunStatus billingRunStatus = utilityBillingRunService.getMonthlyRunStatus(
+                resolvedPropertyId,
+                billingPeriod
+        );
+        boolean readingsLocked = (batch != null && batch.getStatus() == BatchStatus.CANCELLED)
+                || billingRunStatus == UtilityBillingRunStatus.INVOICES_CREATED;
 
-        // Draft batches stay dynamic; locked batches must show their persisted snapshot.
+        // Batch-specific readings include edits made after confirmation, while invoices are still a draft.
         List<MeterReadingEntity> currentReadings = lockedBatch
                 ? meterReadingRepository.findByBatchIdWithRoomAndMeter(batch.getId())
                 : meterReadingRepository.findByPeriodAndOptionalProperty(resolvedPeriod, resolvedPropertyId);
@@ -143,7 +153,9 @@ public class GetBatchMeterReadingsService {
                 .readingPeriod(resolvedPeriod)
                 .batchId(batch != null ? batch.getId() : null)
                 .batchStatus(batch != null ? batch.getStatus().name() : null)
-                .electricityTariff(readUtilityTariff(resolvedPropertyId, UtilityType.ELECTRICITY, tariffDate))
+                .billingRunStatus(billingRunStatus == null ? null : billingRunStatus.name())
+                .readingsLocked(readingsLocked)
+                .electricityTariff(readElectricityTariff(resolvedPropertyId, tariffDate))
                 .rooms(statusList)
                 .build();
     }
@@ -185,30 +197,48 @@ public class GetBatchMeterReadingsService {
             Map<Long, List<MeterReadingAnomalyEntity>> anomaliesByReading
     ) {
         List<BatchMeterReadingStatusResponse.ReadingWarning> warnings = new ArrayList<>();
-        addReadingWarnings(warnings, "ELECTRICITY", electricity, anomaliesByReading);
+        addReadingWarnings(warnings, electricity, anomaliesByReading);
         return warnings;
     }
 
     private void addReadingWarnings(
             List<BatchMeterReadingStatusResponse.ReadingWarning> warnings,
-            String meterType,
             MeterReadingEntity reading,
             Map<Long, List<MeterReadingAnomalyEntity>> anomaliesByReading
     ) {
         if (reading == null) {
             warnings.add(BatchMeterReadingStatusResponse.ReadingWarning.builder()
-                    .meterType(meterType)
+                    .meterType("ELECTRICITY")
                     .type("MISSING_READING")
                     .severity("HIGH")
-                    .message(("ELECTRICITY".equals(meterType) ? "Điện" : "Nước") + " chưa có chỉ số trong kỳ.")
+                    .message("Điện chưa có chỉ số trong kỳ.")
                     .build());
+            return;
+        }
+
+        // A previously approved bad reading must still be visible as a warning.
+        if (reading.getPreviousValue() != null
+                && reading.getCurrentValue() != null
+                && reading.getCurrentValue().compareTo(reading.getPreviousValue()) < 0) {
+            warnings.add(BatchMeterReadingStatusResponse.ReadingWarning.builder()
+                    .meterType("ELECTRICITY")
+                    .type("NEGATIVE_USAGE")
+                    .severity("HIGH")
+                    .message("Chỉ số điện mới thấp hơn chỉ số cũ. Vui lòng sửa lại trước khi xác nhận.")
+                    .build());
+            return;
+        }
+
+        // An approved reading has already been explicitly reviewed; stale anomaly rows
+        // must not make the room return to the warning state after a reload.
+        if (reading.getReviewStatus() == MeterReadingReviewStatus.APPROVED) {
             return;
         }
 
         anomaliesByReading.getOrDefault(reading.getId(), List.of()).forEach(anomaly ->
                 warnings.add(BatchMeterReadingStatusResponse.ReadingWarning.builder()
                         .id(anomaly.getId())
-                        .meterType(meterType)
+                        .meterType("ELECTRICITY")
                         .type(anomaly.getAnomalyType().name())
                         .severity(anomaly.getSeverity().name())
                         .message(anomaly.getMessage())
@@ -216,9 +246,8 @@ public class GetBatchMeterReadingsService {
         );
     }
 
-    private BatchMeterReadingStatusResponse.UtilityTariffSnapshot readUtilityTariff(
+    private BatchMeterReadingStatusResponse.UtilityTariffSnapshot readElectricityTariff(
             Long propertyId,
-            UtilityType utilityType,
             LocalDate readingDate
     ) {
         if (propertyId != null) {
@@ -237,27 +266,17 @@ public class GetBatchMeterReadingsService {
                             .freeAllowance(rs.getLong("free_allowance"))
                             .build(),
                     propertyId,
-                    utilityType.name(),
+                    "ELECTRICITY",
                     readingDate,
                     readingDate
             ).stream().findFirst();
             if (tariff.isPresent()) return tariff.get();
         }
 
-        return switch (utilityType) {
-            case ELECTRICITY -> BatchMeterReadingStatusResponse.UtilityTariffSnapshot.builder()
-                    .unitPrice(3500L)
-                    .freeAllowance(0L)
-                    .build();
-            case WATER -> BatchMeterReadingStatusResponse.UtilityTariffSnapshot.builder()
-                    .unitPrice(20000L)
-                    .freeAllowance(6L)
-                    .build();
-            default -> BatchMeterReadingStatusResponse.UtilityTariffSnapshot.builder()
-                    .unitPrice(0L)
-                    .freeAllowance(0L)
-                    .build();
-        };
+        return BatchMeterReadingStatusResponse.UtilityTariffSnapshot.builder()
+                .unitPrice(3500L)
+                .freeAllowance(0L)
+                .build();
     }
 
     @Transactional(readOnly = true)

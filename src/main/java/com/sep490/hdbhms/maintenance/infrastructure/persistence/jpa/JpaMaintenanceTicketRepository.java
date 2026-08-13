@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface JpaMaintenanceTicketRepository extends JpaRepository<MaintenanceTicketEntity, Long>, JpaSpecificationExecutor<MaintenanceTicketEntity> {
+    boolean existsByTicketCode(String ticketCode);
+
     @Query("SELECT t.id FROM MaintenanceTicketEntity t WHERE LOWER(t.ticketCode) LIKE LOWER(CONCAT('%', :code, '%'))")
     List<Long> findIdsByTicketCode(@Param("code") String code);
 }

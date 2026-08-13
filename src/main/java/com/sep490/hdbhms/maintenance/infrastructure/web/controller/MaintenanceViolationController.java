@@ -29,6 +29,7 @@ import com.sep490.hdbhms.maintenance.infrastructure.persistence.entity.Maintenan
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.jpa.JpaMaintenanceTicketAttachmentRepository;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.jpa.JpaMaintenanceTicketEventRepository;
 import com.sep490.hdbhms.maintenance.infrastructure.persistence.jpa.JpaMaintenanceTicketRepository;
+import com.sep490.hdbhms.maintenance.application.service.MaintenanceTicketCodeService;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.CreateRuleViolationRequest;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.RuleViolationResponse;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
@@ -88,6 +89,7 @@ public class MaintenanceViolationController {
     JpaLeaseContractRepository jpaLeaseContractRepository;
     JpaContractOccupantRepository jpaContractOccupantRepository;
     JpaMaintenanceTicketRepository jpaMaintenanceTicketRepository;
+    MaintenanceTicketCodeService maintenanceTicketCodeService;
     JpaMaintenanceTicketAttachmentRepository jpaMaintenanceTicketAttachmentRepository;
     JpaMaintenanceTicketEventRepository jpaMaintenanceTicketEventRepository;
     JpaFileMetadataRepository jpaFileMetadataRepository;
@@ -335,7 +337,10 @@ public class MaintenanceViolationController {
     ) {
         String title = ruleTitle(rule);
         MaintenanceTicketEntity ticket = MaintenanceTicketEntity.builder()
-                .ticketCode(String.format("#SC-TMP-%d-%d", currentUserId(), System.nanoTime()))
+                .ticketCode(maintenanceTicketCodeService.nextCode(
+                        room.getRoomCode(),
+                        LocalDate.now()
+                ))
                 .property(room.getProperty())
                 .room(room)
                 .contract(contract)
@@ -348,8 +353,6 @@ public class MaintenanceViolationController {
                 .assignedTo(jpaUserRepository.getReferenceById(currentUserId()))
                 .completedAt(LocalDateTime.now())
                 .build();
-        ticket = jpaMaintenanceTicketRepository.save(ticket);
-        ticket.setTicketCode(String.format("#SC-%04d", ticket.getId()));
         ticket = jpaMaintenanceTicketRepository.save(ticket);
         jpaMaintenanceTicketEventRepository.save(MaintenanceTicketEventEntity.builder()
                 .ticket(ticket)

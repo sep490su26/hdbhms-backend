@@ -29,12 +29,14 @@ import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingAnomalyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingBatchEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.UtilityTariffEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingAnomalyRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingBatchRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaUtilityTariffRepository;
@@ -57,6 +59,7 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -89,6 +92,7 @@ public class UtilityBillingRunService {
     JpaLeaseContractRepository leaseContractRepository;
     JpaMeterReadingRepository meterReadingRepository;
     JpaMeterReadingAnomalyRepository anomalyRepository;
+    JpaMeterReadingBatchRepository meterReadingBatchRepository;
     JpaUtilityTariffRepository utilityTariffRepository;
     JpaUtilityBillingRunRepository runRepository;
     JpaUtilityBillingRunItemRepository itemRepository;
@@ -147,6 +151,7 @@ public class UtilityBillingRunService {
                         .build());
 
         if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED) {
+            markMeterReadingBatchConfirmed(run, currentUserId);
             return getRun(run.getId());
         }
 
@@ -170,6 +175,35 @@ public class UtilityBillingRunService {
         }
         syncRunTotals(run.getId());
         return getRun(run.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public UtilityBillingRunStatus getMonthlyRunStatus(Long propertyId, String billingPeriod) {
+        if (propertyId == null || billingPeriod == null || billingPeriod.isBlank()) {
+            return null;
+        }
+        YearMonth period = requirePeriod(billingPeriod);
+        return runRepository.findByProperty_IdAndBillingPeriodAndInvoiceReason(
+                        propertyId,
+                        period.toString(),
+                        InvoiceReason.MONTHLY
+                )
+                .map(UtilityBillingRunEntity::getStatus)
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasIssuedMonthlyInvoices(Long propertyId, String billingPeriod) {
+        return getMonthlyRunStatus(propertyId, billingPeriod) == UtilityBillingRunStatus.INVOICES_CREATED;
+    }
+
+    @Transactional
+    public void refreshMonthlyPreviewIfOpen(Long propertyId, String billingPeriod, Long currentUserId) {
+        UtilityBillingRunStatus status = getMonthlyRunStatus(propertyId, billingPeriod);
+        if (status == null || status == UtilityBillingRunStatus.INVOICES_CREATED) {
+            return;
+        }
+        createPreview(propertyId, billingPeriod, InvoiceReason.MONTHLY.name(), currentUserId);
     }
 
     @Transactional(readOnly = true)
@@ -284,8 +318,38 @@ public class UtilityBillingRunService {
         run.setGeneratedAt(now);
         run.setGeneratedInvoiceCount(invoiceCount);
         runRepository.save(run);
+        markMeterReadingBatchConfirmed(run, currentUserId);
         syncRunTotals(runId);
         return getRun(runId);
+    }
+
+    private void markMeterReadingBatchConfirmed(UtilityBillingRunEntity run, Long currentUserId) {
+        if (run.getInvoiceReason() != InvoiceReason.MONTHLY || run.getProperty() == null) {
+            return;
+        }
+
+        String readingPeriod = run.getBillingPeriod() == null
+                ? null
+                : YearMonth.parse(run.getBillingPeriod()).format(METER_READING_PERIOD);
+        if (readingPeriod == null) {
+            return;
+        }
+
+        meterReadingBatchRepository.findByProperty_IdAndReadingPeriod(
+                        run.getProperty().getId(),
+                        readingPeriod
+                )
+                .filter(batch -> batch.getStatus() != com.sep490.hdbhms.property.domain.value_objects.BatchStatus.CANCELLED)
+                .ifPresent(batch -> {
+                    batch.setStatus(com.sep490.hdbhms.property.domain.value_objects.BatchStatus.CONFIRMED);
+                    if (batch.getConfirmedAt() == null) {
+                        batch.setConfirmedAt(LocalDateTime.now());
+                    }
+                    if (currentUserId != null) {
+                        batch.setConfirmedBy(userRepository.getReferenceById(currentUserId));
+                    }
+                    meterReadingBatchRepository.save(batch);
+                });
     }
 
     @Transactional
@@ -721,6 +785,13 @@ public class UtilityBillingRunService {
         int paymentCycleMonths = contract.getPaymentCycleMonths() == null
                 ? 1
                 : Math.max(contract.getPaymentCycleMonths(), 1);
+        LocalDate rentStartDate = contract.getRentStartDate() != null
+                ? contract.getRentStartDate()
+                : contract.getStartDate();
+        if (rentStartDate != null
+                && !isServiceFeeDue(period, YearMonth.from(rentStartDate), paymentCycleMonths)) {
+            return ServiceFeeCharge.empty();
+        }
         return new ServiceFeeCharge(
                 tariff.unitPrice(),
                 tariff.unitPrice() * occupantCount * paymentCycleMonths,
@@ -728,6 +799,14 @@ public class UtilityBillingRunService {
                 null,
                 true
         );
+    }
+
+    static boolean isServiceFeeDue(YearMonth billingPeriod, YearMonth chargeStartPeriod, int paymentCycleMonths) {
+        if (billingPeriod == null || chargeStartPeriod == null || paymentCycleMonths <= 0) {
+            return false;
+        }
+        long monthsSinceChargeStart = ChronoUnit.MONTHS.between(chargeStartPeriod, billingPeriod);
+        return monthsSinceChargeStart >= 0 && monthsSinceChargeStart % paymentCycleMonths == 0;
     }
 
     private int activeOccupantCount(Long contractId) {

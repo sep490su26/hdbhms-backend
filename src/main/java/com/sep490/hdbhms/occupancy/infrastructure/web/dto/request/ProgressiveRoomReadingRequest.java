@@ -17,10 +17,4 @@ public class ProgressiveRoomReadingRequest {
     BigDecimal electricityValue;
 
     Long electricityPhotoId;
-
-    @NotNull(message = "Chỉ số nước là bắt buộc")
-    @PositiveOrZero(message = "Chỉ số nước không hợp lệ")
-    BigDecimal waterValue;
-
-    Long waterPhotoId;
 }

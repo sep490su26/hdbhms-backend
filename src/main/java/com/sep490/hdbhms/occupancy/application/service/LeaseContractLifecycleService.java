@@ -25,7 +25,8 @@ import java.util.List;
 public class LeaseContractLifecycleService {
     static final List<LeaseStatus> EXPIRY_CANDIDATE_STATUSES = List.of(
             LeaseStatus.ACTIVE,
-            LeaseStatus.EXPIRING_SOON
+            LeaseStatus.EXPIRING_SOON,
+            LeaseStatus.TERMINATION_PENDING
     );
 
     LeaseContractRepository leaseContractRepository;
@@ -47,6 +48,10 @@ public class LeaseContractLifecycleService {
     }
 
     private void processContract(LeaseContract contract, LocalDate today) {
+        if (contract.getStatus() == LeaseStatus.TERMINATION_PENDING) {
+            resolveTerminationPendingRoom(contract, today);
+            return;
+        }
         if (contract.getEndDate() == null) {
             return;
         }
@@ -168,5 +173,15 @@ public class LeaseContractLifecycleService {
         if (is1MonthLeft) {
             releaseRoomPort.execute(contract.getRoomId());
         }
+    }
+
+    private void resolveTerminationPendingRoom(LeaseContract contract, LocalDate today) {
+        LocalDate expectedVacantDate = contract.getExpectedVacantDate();
+        if (contract.getRoomId() == null
+                || expectedVacantDate == null
+                || today.isBefore(expectedVacantDate)) {
+            return;
+        }
+        releaseRoomPort.executeImmediately(contract.getRoomId());
     }
 }

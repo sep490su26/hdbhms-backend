@@ -35,11 +35,7 @@ public record ExecuteTransferRequest(
             @PositiveOrZero(message = "Chỉ số điện không được âm")
             BigDecimal currentValue,
             Long photoFileId,
-            LocalDate readingDate,
-            @NotNull(message = "Chỉ số nước là bắt buộc")
-            @PositiveOrZero(message = "Chỉ số nước không được âm")
-            BigDecimal waterValue,
-            Long waterPhotoFileId
+            LocalDate readingDate
     ) {}
 
     public record AssetPayload(

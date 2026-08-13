@@ -55,12 +55,6 @@ public class SubmitHandoverRequest {
 
         /** Ngày chụp ảnh / ngày ghi chỉ số */
         LocalDate readingDate;
-
-        @NotNull(message = "Chỉ số nước là bắt buộc")
-        @PositiveOrZero(message = "Chỉ số nước không được âm")
-        BigDecimal waterValue;
-
-        Long waterPhotoFileId;
     }
 
     @Data

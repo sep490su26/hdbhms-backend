@@ -54,6 +54,22 @@ class DocumentFilenameBuilderTest {
     }
 
     @Test
+    void buildsMaintenanceTicketCodeFromRoomAndCreationDate() {
+        assertEquals(
+                "SC_P304_22_08_2026",
+                DocumentFilenameBuilder.buildMaintenanceTicketCode("304", LocalDate.of(2026, 8, 22))
+        );
+    }
+
+    @Test
+    void buildsMaintenanceTicketCodeForCommonArea() {
+        assertEquals(
+                "SC_COMMON_22_08_2026",
+                DocumentFilenameBuilder.buildMaintenanceTicketCode(null, LocalDate.of(2026, 8, 22))
+        );
+    }
+
+    @Test
     void buildsRfc5987AttachmentHeader() {
         assertEquals(
                 "attachment; filename*=UTF-8''HDC_P101_29_06_2026.pdf",

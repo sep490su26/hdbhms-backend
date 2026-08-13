@@ -31,6 +31,14 @@ public final class DocumentFilenameBuilder {
         return "HDT_%s_%s".formatted(safeRoomCode, safeDate);
     }
 
+    public static String buildMaintenanceTicketCode(String roomCode, LocalDate date) {
+        String safeRoomCode = roomCode == null || roomCode.isBlank()
+                ? "COMMON"
+                : withRoomPrefix(normalize(roomCode, "Phong-X"));
+        String safeDate = date == null ? "Chua-Ro-Ngay" : DATE_FORMATTER.format(date);
+        return "SC_%s_%s".formatted(safeRoomCode, safeDate);
+    }
+
     public static String attachmentContentDisposition(String filename) {
         String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
         return "attachment; filename*=UTF-8''" + encoded;

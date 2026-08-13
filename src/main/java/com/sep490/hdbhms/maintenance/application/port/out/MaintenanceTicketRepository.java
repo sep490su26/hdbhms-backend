@@ -14,6 +14,8 @@ public interface MaintenanceTicketRepository {
 
     List<Long> findIdsByTicketCode(String code);
 
+    boolean existsByTicketCode(String ticketCode);
+
     Page<MaintenanceTicket> findAll(
             List<Long> ids,
             String type,

@@ -27,11 +27,5 @@ public class HandoverMeterReadingsRequest {
         Long photoFileId;
 
         java.time.LocalDate readingDate;
-
-        @NotNull(message = "Giá trị chỉ số nước là bắt buộc")
-        @PositiveOrZero(message = "Chỉ số nước không được âm")
-        BigDecimal waterValue;
-
-        Long waterPhotoFileId;
     }
 }

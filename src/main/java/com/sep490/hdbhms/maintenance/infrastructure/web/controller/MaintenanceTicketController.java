@@ -39,6 +39,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPer
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceCostRepository;
+import com.sep490.hdbhms.maintenance.application.service.MaintenanceTicketCodeService;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceTicketRepository;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceCost;
 import com.sep490.hdbhms.maintenance.domain.model.MaintenanceTicket;
@@ -138,6 +139,7 @@ public class MaintenanceTicketController {
     );
 
     MaintenanceTicketRepository maintenanceTicketRepository;
+    MaintenanceTicketCodeService maintenanceTicketCodeService;
     MaintenanceCostRepository maintenanceCostRepository;
     JpaRolePromotionRepository jpaRolePromotionRepository;
     JpaRoomRepository jpaRoomRepository;
@@ -707,7 +709,14 @@ public class MaintenanceTicketController {
     ) {
         String category = normalizeCategory(firstNonBlank(request.getCategory(), request.getType(), "OTHER"));
         MaintenanceTicket ticket = MaintenanceTicket.builder()
-                .ticketCode(String.format("#SC-TMP-%d-%d", currentUserId(), System.nanoTime()))
+                .ticketCode(maintenanceTicketCodeService.nextCode(
+                        roomId == null
+                                ? null
+                                : jpaRoomRepository.findById(roomId)
+                                .map(RoomEntity::getRoomCode)
+                                .orElse(null),
+                        LocalDate.now()
+                ))
                 .propertyId(propertyId)
                 .roomId(roomId)
                 .contractId(contractId)
@@ -720,8 +729,7 @@ public class MaintenanceTicketController {
                 .status(MaintenanceTicketStatus.PENDING_ACCEPTANCE)
                 .build();
         ticket = maintenanceTicketRepository.save(ticket);
-        ticket.setTicketCode(String.format("#SC-%04d", ticket.getId()));
-        return maintenanceTicketRepository.save(ticket);
+        return ticket;
     }
 
     private MaintenanceTicket saveRepairInformation(

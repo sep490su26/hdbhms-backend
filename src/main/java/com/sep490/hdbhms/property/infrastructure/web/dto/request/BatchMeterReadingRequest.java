@@ -31,7 +31,7 @@ public class BatchMeterReadingRequest {
     @NotNull(message = "Vui lòng chọn ngày ghi chỉ số")
     LocalDate readingDate;
 
-        @NotEmpty(message = "Danh sách chỉ số không được để trống")
+    @NotEmpty(message = "Danh sách chỉ số không được để trống")
     @Valid
     List<RoomReadingInput> readings;
 
@@ -46,11 +46,5 @@ public class BatchMeterReadingRequest {
         BigDecimal electricityValue;
 
         Long electricityPhotoId;
-
-        @NotNull(message = "Chỉ số nước là bắt buộc")
-        @PositiveOrZero(message = "Chỉ số nước không được âm")
-        BigDecimal waterValue;
-
-        Long waterPhotoId;
     }
 }

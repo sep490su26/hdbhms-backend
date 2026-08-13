@@ -287,6 +287,229 @@ DELETE FROM hdbhms.manager_tasks
 WHERE lease_contract_id = @c402
   AND task_type = 'LEASE_HANDOVER_CONFIRMATION';
 
+-- Reset room 403 to the start of the liquidation flow. The old lifecycle
+-- scenario left a request, handover task, final invoice, and draft liquidation.
+SET @c403 := (
+    SELECT lease_contract_id
+    FROM hdbhms.lease_contracts contract
+    JOIN hdbhms.rooms room
+      ON room.room_id = contract.room_id
+    WHERE room.property_id = @property_id
+      AND room.room_code = '403'
+      AND contract.contract_code IN ('HD-HDD1-403-2026', 'HD-SEED-403-2026')
+      AND contract.deleted_at IS NULL
+    ORDER BY contract.contract_code = 'HD-HDD1-403-2026' DESC
+    LIMIT 1
+);
+
+SET @r403 := (
+    SELECT room_id
+    FROM hdbhms.rooms
+    WHERE property_id = @property_id
+      AND room_code = '403'
+    LIMIT 1
+);
+
+SET @cr403 := (
+    SELECT change_request_id
+    FROM hdbhms.change_requests
+    WHERE request_code = 'TLHD_P403_30_07_2026'
+    LIMIT 1
+);
+
+SET @inv403_final := (
+    SELECT invoice_id
+    FROM hdbhms.invoices
+    WHERE invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED'
+    LIMIT 1
+);
+
+SET @task403 := (
+    SELECT manager_task_id
+    FROM hdbhms.manager_tasks
+    WHERE lease_contract_id = @c403
+      AND task_type = 'LEASE_HANDOVER_CONFIRMATION'
+    LIMIT 1
+);
+
+DELETE delivery
+FROM hdbhms.notification_deliveries delivery
+JOIN hdbhms.notification_outbox notification
+  ON notification.notification_outbox_id = delivery.outbox_id
+JOIN hdbhms.manager_tasks task
+  ON task.manager_task_id = notification.target_id
+WHERE notification.target_type = 'MANAGER_TASK'
+  AND task.lease_contract_id = @c403
+  AND task.task_type = 'LEASE_HANDOVER_CONFIRMATION';
+
+DELETE FROM hdbhms.notification_outbox
+WHERE (target_type = 'MANAGER_TASK' AND target_id = @task403)
+   OR (target_type = 'CHANGE_REQUEST' AND target_id = @cr403)
+   OR (event_type = 'LEASE_HANDOVER_CONFIRMATION_DUE'
+       AND target_type = 'MANAGER_TASK'
+       AND target_id IN (
+           SELECT manager_task_id
+           FROM hdbhms.manager_tasks
+           WHERE lease_contract_id = @c403
+             AND task_type = 'LEASE_HANDOVER_CONFIRMATION'
+       ));
+
+DELETE FROM hdbhms.notification_deliveries
+WHERE outbox_id IN (
+    SELECT notification_outbox_id
+    FROM hdbhms.notification_outbox
+    WHERE target_type = 'INVOICE'
+      AND target_id = @inv403_final
+);
+
+DELETE FROM hdbhms.notification_outbox
+WHERE target_type = 'INVOICE'
+  AND target_id = @inv403_final;
+
+DELETE FROM hdbhms.reminder_trackers
+WHERE related_task_id IN (
+          SELECT manager_task_id
+          FROM hdbhms.manager_tasks
+          WHERE lease_contract_id = @c403
+            AND task_type = 'LEASE_HANDOVER_CONFIRMATION'
+      )
+   OR (target_type = 'CONTRACT' AND target_id = @c403
+       AND reminder_key = 'LEASE_HANDOVER_CONFIRMATION');
+
+DELETE FROM hdbhms.change_request_events
+WHERE request_id = @cr403;
+
+DELETE FROM hdbhms.change_requests
+WHERE change_request_id = @cr403
+   OR request_code = 'TLHD_P403_30_07_2026';
+
+DELETE FROM hdbhms.contract_liquidations
+WHERE contract_id = @c403;
+
+DELETE intention
+FROM hdbhms.contract_occupant_intentions intention
+JOIN hdbhms.contract_occupants occupant
+  ON occupant.contract_occupant_id = intention.contract_occupant_id
+WHERE occupant.contract_id = @c403;
+
+DELETE FROM hdbhms.contract_occupants
+WHERE contract_id = @c403;
+
+UPDATE hdbhms.contract_handover_items item
+SET compensation_invoice_id = NULL
+WHERE compensation_invoice_id = @inv403_final;
+
+UPDATE hdbhms.rule_violations violation
+SET invoice_id = NULL
+WHERE invoice_id = @inv403_final;
+
+UPDATE hdbhms.maintenance_costs cost
+SET charge_invoice_id = NULL
+WHERE charge_invoice_id = @inv403_final;
+
+UPDATE hdbhms.transfer_settlements settlement
+SET old_room_final_invoice_id = NULL,
+    transfer_difference_invoice_id = NULL
+WHERE old_room_final_invoice_id = @inv403_final
+   OR transfer_difference_invoice_id = @inv403_final;
+
+UPDATE hdbhms.deposit_batches deposit_batch
+SET invoice_id = NULL
+WHERE invoice_id = @inv403_final;
+
+UPDATE hdbhms.deposit_batches deposit_batch
+JOIN hdbhms.payment_intents intent
+  ON intent.deposit_batch_id = deposit_batch.deposit_batch_id
+SET deposit_batch.payment_intent_id = NULL
+WHERE intent.invoice_id = @inv403_final;
+
+DELETE FROM hdbhms.contract_handover_items
+WHERE handover_record_id IN (
+    SELECT contract_handover_record_id
+    FROM hdbhms.contract_handover_records
+    WHERE contract_id = @c403
+      AND handover_type = 'MOVE_OUT'
+);
+
+DELETE FROM hdbhms.contract_handover_records
+WHERE contract_id = @c403
+  AND handover_type = 'MOVE_OUT';
+
+UPDATE hdbhms.invoices
+SET status = 'DRAFT',
+    paid_amount = 0,
+    remaining_amount = 0,
+    updated_at = '2026-08-01 08:00:00'
+WHERE invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+DELETE line
+FROM hdbhms.invoice_lines line
+JOIN hdbhms.invoices invoice
+  ON invoice.invoice_id = line.invoice_id
+WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+DELETE allocation
+FROM hdbhms.payment_allocations allocation
+JOIN hdbhms.invoices invoice
+  ON invoice.invoice_id = allocation.invoice_id
+WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+UPDATE hdbhms.invoice_payment_groups payment_group
+SET payment_intent_id = NULL
+WHERE payment_group.invoice_id = @inv403_final;
+
+UPDATE hdbhms.room_deposit_failures failure
+JOIN hdbhms.payment_intents intent
+  ON intent.payment_intent_id = failure.payment_intent_id
+SET failure.payment_intent_id = NULL
+WHERE intent.invoice_id = @inv403_final;
+
+DELETE payment_group
+FROM hdbhms.invoice_payment_groups payment_group
+JOIN hdbhms.invoices invoice
+  ON invoice.invoice_id = payment_group.invoice_id
+WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+DELETE payment_intent
+FROM hdbhms.payment_intents payment_intent
+JOIN hdbhms.invoices invoice
+  ON invoice.invoice_id = payment_intent.invoice_id
+WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+DELETE item
+FROM hdbhms.utility_billing_run_items item
+JOIN hdbhms.invoices invoice
+  ON invoice.invoice_id = item.invoice_id
+WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+DELETE charge
+FROM hdbhms.pending_billing_charges charge
+JOIN hdbhms.invoices invoice
+  ON invoice.invoice_id = charge.invoice_id
+WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+DELETE FROM hdbhms.invoices
+WHERE invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+
+DELETE FROM hdbhms.manager_tasks
+WHERE manager_task_id = @task403
+   OR (lease_contract_id = @c403 AND task_type = 'LEASE_HANDOVER_CONFIRMATION');
+
+UPDATE hdbhms.lease_contracts
+SET status = 'EXPIRING_SOON',
+    tenant_intention = NULL,
+    expected_vacant_date = NULL,
+    intention_recorded_at = NULL,
+    updated_at = '2026-08-01 08:00:00'
+WHERE lease_contract_id = @c403;
+
+UPDATE hdbhms.rooms
+SET current_status = 'OCCUPIED',
+    public_note = 'Seed: Room 403 contract expires on 2026-09-30; liquidation flow has not started.',
+    internal_note = 'No liquidation intention, request, task, or settlement exists yet.',
+    updated_at = '2026-08-01 08:00:00'
+WHERE room_id = @r403;
+
 INSERT INTO hdbhms.reminder_trackers
     (reminder_key, target_type, target_id, audience, recipient_user_id, status, sent_count,
      last_sent_at, next_due_at, metadata, created_at, updated_at)
@@ -498,7 +721,7 @@ SET
             '. Lý do: ',
             CASE contract.contract_code
                 WHEN 'HD-HDD1-402-2026' THEN 'Khách đã chọn chuyển đi khi hợp đồng sắp hết hạn.'
-                ELSE 'Khách đã chọn chuyển đi và dự kiến bàn giao ngày 2026-07-31.'
+                ELSE 'Khách đã chọn chuyển đi và dự kiến bàn giao ngày 2026-08-31.'
             END
         )
         WHEN 'LEASE_RENEWAL_TERMS_CONFIRMATION' THEN CONCAT(
@@ -519,7 +742,7 @@ SET
             'dueDate', task.due_date,
             'reason', CASE contract.contract_code
                 WHEN 'HD-HDD1-402-2026' THEN 'Khách đã chọn chuyển đi khi hợp đồng sắp hết hạn.'
-                ELSE 'Khách đã chọn chuyển đi và dự kiến bàn giao ngày 2026-07-31.'
+                ELSE 'Khách đã chọn chuyển đi và dự kiến bàn giao ngày 2026-08-31.'
             END,
             'targetRoute', CONCAT('/dashboard/contracts/', contract.lease_contract_id)
         )
@@ -707,10 +930,11 @@ VALUES
     ('401', 1, 'Nguyễn Văn Hùng', 'nguyen.van.hung.401@haidang1.local', '0901401001', '1995-04-27', 'MALE'),
     ('401', 2, 'Trần Thị Hương', 'tran.thi.huong.401@haidang1.local', '0901401002', '1998-07-02', 'FEMALE'),
     ('401', 3, 'Phạm Minh Châu', 'pham.minh.chau.401@haidang1.local', '0901401003', '1999-12-22', 'FEMALE'),
-    ('402', 1, 'Nguyễn Đức Thịnh', 'nguyen.duc.thinh.402@haidang1.local', '0901402001', '1996-06-15', 'MALE'),
-    ('402', 2, 'Lê Thu Trang', 'le.thu.trang.402@haidang1.local', '0901402002', '1998-10-08', 'FEMALE'),
-    ('402', 3, 'Võ Thanh Tùng', 'vo.thanh.tung.402@haidang1.local', '0901402003', '1997-01-09', 'MALE'),
-    ('405', 1, 'Dương Minh Đức', 'duong.minh.duc.405@haidang1.local', '0901405001', '1996-05-30', 'MALE'),
+     ('402', 1, 'Nguyễn Đức Thịnh', 'nguyen.duc.thinh.402@haidang1.local', '0901402001', '1996-06-15', 'MALE'),
+     ('402', 2, 'Lê Thu Trang', 'le.thu.trang.402@haidang1.local', '0901402002', '1998-10-08', 'FEMALE'),
+     ('402', 3, 'Võ Thanh Tùng', 'vo.thanh.tung.402@haidang1.local', '0901402003', '1997-01-09', 'MALE'),
+     ('403', 1, 'Nguyen Duc Thinh', 'nguyen.duc.thinh.403@haidang1.local', '0901403001', '1996-06-15', 'MALE'),
+     ('405', 1, 'Dương Minh Đức', 'duong.minh.duc.405@haidang1.local', '0901405001', '1996-05-30', 'MALE'),
     ('406', 1, 'Nguyễn Hoài Nam', 'nguyen.hoai.nam.406@haidang1.local', '0901406001', '1999-02-17', 'MALE'),
     ('408', 1, 'Phạm Thị Hoa', 'pham.thi.hoa.408@haidang1.local', '0901408001', '1997-08-25', 'FEMALE'),
     ('501', 1, 'Lê Văn Phúc', 'le.van.phuc.501@haidang1.local', '0901501001', '1995-11-14', 'MALE'),
@@ -771,7 +995,7 @@ VALUES
     ('308', 1, 'HD-HDD1-308-2026', 1),
     ('401', 3, 'HD-HDD1-401-2026', 3),
     ('402', 3, 'HD-HDD1-402-2026', 1),
-    ('403', 0, NULL, 0),
+     ('403', 1, 'HD-HDD1-403-2026', 1),
     ('404', 0, NULL, 0),
     ('405', 1, 'HD-HDD1-405-2026', 1),
     ('406', 1, 'HD-HDD1-406-2026', 1),
@@ -1101,13 +1325,12 @@ WHERE profile.email IN (
 
 -- Mirror the workbook's occupant count in the room list.
 UPDATE hdbhms.rooms room
-JOIN tmp_hdd1_excel_rooms excel_room
-  ON excel_room.room_code = room.room_code
-SET room.current_status = CASE
-        WHEN excel_room.occupant_count > 0 THEN 'OCCUPIED'
-        WHEN room.room_code = '403' THEN 'SOON_VACANT'
-        ELSE 'VACANT'
-    END,
+ JOIN tmp_hdd1_excel_rooms excel_room
+   ON excel_room.room_code = room.room_code
+ SET room.current_status = CASE
+         WHEN excel_room.occupant_count > 0 THEN 'OCCUPIED'
+         ELSE 'VACANT'
+     END,
     room.updated_at = @now
 WHERE room.property_id = @property_id
   AND room.deleted_at IS NULL;
@@ -1200,6 +1423,13 @@ SET @manager_id := (
     SELECT user_id
     FROM hdbhms.users
     WHERE email = 'seed.manager@hdbhms.local'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @owner_id := (
+    SELECT user_id
+    FROM hdbhms.users
+    WHERE email = 'seed.owner@hdbhms.local'
       AND deleted_at IS NULL
     LIMIT 1
 );
@@ -1933,10 +2163,204 @@ UPDATE hdbhms.change_requests request
 JOIN tmp_hdd1_contract_code_map code_map
   ON LOCATE(code_map.old_code, request.title) > 0
   OR LOCATE(code_map.old_code, request.description) > 0
-  OR LOCATE(code_map.old_code, request.request_payload) > 0
+   OR LOCATE(code_map.old_code, request.request_payload) > 0
 SET request.title = REPLACE(request.title, code_map.old_code, code_map.new_code),
     request.description = REPLACE(request.description, code_map.old_code, code_map.new_code),
     request.request_payload = REPLACE(request.request_payload, code_map.old_code, code_map.new_code);
+
+-- Recreate the management notifications for the seeded requests after all
+-- request/contract references have been normalized. Only requests that still
+-- require action are notified, so completed/rejected history stays quiet.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'CHANGE_REQUEST_CREATED',
+    'CHANGE_REQUEST',
+    request.change_request_id,
+    COALESCE(
+        request.assigned_to,
+        CASE request.assigned_role
+            WHEN 'OWNER' THEN @owner_id
+            WHEN 'MANAGER' THEN @manager_id
+            ELSE NULL
+        END
+    ),
+    notification_channel.channel,
+    CONCAT(
+        'Có ',
+        CASE request.request_type
+            WHEN 'CONTRACT_LIQUIDATION' THEN 'yêu cầu thanh lý hợp đồng'
+            WHEN 'CONTRACT_RENEWAL' THEN 'yêu cầu gia hạn hợp đồng'
+            WHEN 'ROOM_TRANSFER' THEN 'yêu cầu chuyển phòng'
+            WHEN 'TENANT_PROFILE_ACCESS' THEN 'yêu cầu xem hồ sơ khách thuê'
+            ELSE 'yêu cầu mới'
+        END,
+        ' cần xử lý'
+    ),
+    CONCAT(
+        request.request_code,
+        ' - ',
+        request.title,
+        ' đang ',
+        CASE request.status
+            WHEN 'PENDING' THEN 'chờ tiếp nhận'
+            WHEN 'UNDER_REVIEW' THEN 'được xem xét'
+            WHEN 'PROCESSING' THEN 'được xử lý'
+            ELSE 'cần xử lý'
+        END,
+        '. Nội dung: ',
+        request.description,
+        '.'
+    ),
+    JSON_OBJECT(
+        'requestId', request.change_request_id,
+        'requestCode', request.request_code,
+        'requestType', request.request_type,
+        'requestTypeLabel', CASE request.request_type
+            WHEN 'CONTRACT_LIQUIDATION' THEN 'Yêu cầu thanh lý hợp đồng'
+            WHEN 'CONTRACT_RENEWAL' THEN 'Yêu cầu gia hạn hợp đồng'
+            WHEN 'ROOM_TRANSFER' THEN 'Yêu cầu chuyển phòng'
+            WHEN 'TENANT_PROFILE_ACCESS' THEN 'Yêu cầu xem hồ sơ khách thuê'
+            ELSE 'Yêu cầu'
+        END,
+        'title', request.title,
+        'description', request.description,
+        'requesterId', request.requester_id,
+        'requesterRole', request.requester_role,
+        'assignedRole', request.assigned_role,
+        'targetType', request.target_type,
+        'targetId', request.target_id,
+        'roomCode', request_room.room_code,
+        'propertyName', COALESCE(request_property.name, request_payload_property.name),
+        'targetRoute', CONCAT('/dashboard/requests?requestId=', request.change_request_id)
+    ),
+    'SENT',
+    0,
+    3,
+    @now,
+    @now,
+    @now,
+    FALSE
+FROM hdbhms.change_requests request
+LEFT JOIN hdbhms.lease_contracts request_contract
+  ON request.request_type IN ('CONTRACT_LIQUIDATION', 'CONTRACT_RENEWAL')
+ AND request.target_type = 'CONTRACT'
+ AND request.target_id = request_contract.lease_contract_id
+LEFT JOIN hdbhms.room_transfer_requests transfer_request
+  ON request.request_type = 'ROOM_TRANSFER'
+ AND transfer_request.request_code = request.request_code
+LEFT JOIN hdbhms.rooms request_room
+  ON request_room.room_id = COALESCE(request_contract.room_id, transfer_request.old_room_id)
+LEFT JOIN hdbhms.properties request_property
+  ON request_property.property_id = request_room.property_id
+LEFT JOIN hdbhms.properties request_payload_property
+  ON request_payload_property.property_id = CAST(
+      JSON_UNQUOTE(JSON_EXTRACT(request.request_payload, '$.propertyId'))
+      AS UNSIGNED
+  )
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH' AS channel
+) notification_channel
+WHERE COALESCE(request_property.property_id, request_payload_property.property_id) = @property_id
+  AND request.assigned_role IN ('OWNER', 'MANAGER')
+  AND request.status IN ('PENDING', 'UNDER_REVIEW', 'PROCESSING')
+  AND NOT (
+      request.request_type = 'CONTRACT_RENEWAL'
+      AND request_contract.status = 'AUTO_TERMINATED'
+  )
+  AND COALESCE(
+      request.assigned_to,
+      CASE request.assigned_role
+          WHEN 'OWNER' THEN @owner_id
+          WHEN 'MANAGER' THEN @manager_id
+          ELSE NULL
+      END
+  ) IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = 'CHANGE_REQUEST_CREATED'
+        AND existing_notification.target_type = 'CHANGE_REQUEST'
+        AND existing_notification.target_id = request.change_request_id
+        AND existing_notification.recipient_user_id = COALESCE(
+            request.assigned_to,
+            CASE request.assigned_role
+                WHEN 'OWNER' THEN @owner_id
+                WHEN 'MANAGER' THEN @manager_id
+                ELSE NULL
+            END
+        )
+        AND existing_notification.channel = notification_channel.channel
+  );
+
+-- Room 402 has an expiring contract with no tenant intention yet. Notify the
+-- owner and manager to monitor it without fabricating a manager task before
+-- the tenant chooses renewal, transfer, or move-out.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'CONTRACT_EXPIRING_SOON_REVIEW',
+    'CONTRACT',
+    contract.lease_contract_id,
+    recipient.recipient_user_id,
+    notification_channel.channel,
+    CONCAT('Hợp đồng phòng ', room.room_code, ' sắp hết hạn'),
+    CONCAT(
+        'Hợp đồng ', contract.contract_code,
+        ' của phòng ', room.room_code,
+        ' sẽ hết hạn vào ', contract.end_date,
+        '. Khách thuê chưa ghi nhận ý định; vui lòng theo dõi và xử lý khi có phản hồi.'
+    ),
+    JSON_OBJECT(
+        'contractId', contract.lease_contract_id,
+        'contractCode', contract.contract_code,
+        'roomId', room.room_id,
+        'roomName', room.name,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'endDate', contract.end_date,
+        'tenantIntention', contract.tenant_intention,
+        'targetRoute', CONCAT('/dashboard/contracts/', contract.lease_contract_id)
+    ),
+    'SENT',
+    0,
+    3,
+    @now,
+    @now,
+    @now,
+    FALSE
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = room.property_id
+CROSS JOIN (
+    SELECT @owner_id AS recipient_user_id
+    UNION
+    SELECT @manager_id AS recipient_user_id
+) recipient
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH' AS channel
+) notification_channel
+WHERE contract.lease_contract_id = @c402
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND recipient.recipient_user_id IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = 'CONTRACT_EXPIRING_SOON_REVIEW'
+        AND existing_notification.target_type = 'CONTRACT'
+        AND existing_notification.target_id = contract.lease_contract_id
+        AND existing_notification.recipient_user_id = recipient.recipient_user_id
+        AND existing_notification.channel = notification_channel.channel
+  );
 
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_excel_occupants;
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_excel_rooms;

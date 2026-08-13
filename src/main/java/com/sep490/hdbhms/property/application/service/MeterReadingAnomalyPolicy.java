@@ -25,62 +25,41 @@ public class MeterReadingAnomalyPolicy {
             BigDecimal currentValue,
             BigDecimal previousCycleUsage
     ) {
-        MeterReadingAnomalySettings settings = settingsProvider.settingsFor(propertyId);
         List<DetectedAnomaly> anomalies = new ArrayList<>();
-        BigDecimal usage = safe(currentValue).subtract(safe(previousValue));
-        if (usage.compareTo(BigDecimal.ZERO) < 0) {
+        BigDecimal previous = safe(previousValue);
+        BigDecimal current = safe(currentValue);
+
+        // The first cumulative reading has no baseline to compare against.
+        if (previous.compareTo(BigDecimal.ZERO) <= 0) {
+            return anomalies;
+        }
+
+        if (current.compareTo(previous) < 0) {
             anomalies.add(new DetectedAnomaly(
                     AnomalyType.NEGATIVE_USAGE,
                     AnomalySeverity.HIGH,
-                    "Chỉ số " + utilityLabel(meterType) + " mới nhỏ hơn chỉ số trước đó."
+                    "Chỉ số " + utilityLabel(meterType) + " mới thấp hơn chỉ số cũ."
             ));
             return anomalies;
         }
 
-        if (isHighUsage(usage, previousCycleUsage, settings)) {
+        if (current.compareTo(previous) == 0) {
+            anomalies.add(new DetectedAnomaly(
+                    AnomalyType.SAME_READING,
+                    AnomalySeverity.MEDIUM,
+                    "Chỉ số " + utilityLabel(meterType) + " mới bằng chỉ số cũ. Vui lòng xác nhận đã kiểm tra."
+            ));
+            return anomalies;
+        }
+
+        if (current.compareTo(previous.multiply(BigDecimal.valueOf(1.5))) >= 0) {
             anomalies.add(new DetectedAnomaly(
                     AnomalyType.HIGH_USAGE,
                     AnomalySeverity.MEDIUM,
-                    highUsageMessage(meterType, usage, previousCycleUsage, settings)
+                    "Chỉ số " + utilityLabel(meterType) + " mới đạt từ 150% chỉ số cũ trở lên, cần kiểm tra."
             ));
         }
         return anomalies;
-    }
-
-    private boolean isHighUsage(
-            BigDecimal usage,
-            BigDecimal previousCycleUsage,
-            MeterReadingAnomalySettings settings
-    ) {
-        if (usage.compareTo(BigDecimal.ZERO) <= 0) {
-            return false;
-        }
-        if (previousCycleUsage != null && previousCycleUsage.compareTo(BigDecimal.ZERO) > 0) {
-            return usage.compareTo(previousCycleUsage.multiply(settings.highUsageMultiplier())) > 0
-                    && usage.subtract(previousCycleUsage).compareTo(settings.highUsageMinDelta()) >= 0;
-        }
-        return usage.compareTo(settings.highUsageAbsoluteLimit()) > 0;
-    }
-
-    private String highUsageMessage(
-            MeterType meterType,
-            BigDecimal usage,
-            BigDecimal previousCycleUsage,
-            MeterReadingAnomalySettings settings
-    ) {
-        if (previousCycleUsage != null && previousCycleUsage.compareTo(BigDecimal.ZERO) > 0) {
-            return "Mức tiêu thụ " + utilityLabel(meterType)
-                    + " là " + usage.stripTrailingZeros().toPlainString()
-                    + ", cao hơn kỳ trước "
-                    + previousCycleUsage.stripTrailingZeros().toPlainString()
-                    + " quá " + settings.highUsageMultiplier().stripTrailingZeros().toPlainString()
-                    + " lần.";
-        }
-        return "Mức tiêu thụ " + utilityLabel(meterType)
-                + " là " + usage.stripTrailingZeros().toPlainString()
-                + ", vượt ngưỡng "
-                + settings.highUsageAbsoluteLimit().stripTrailingZeros().toPlainString()
-                + " cần kiểm tra.";
     }
 
     private String utilityLabel(MeterType meterType) {

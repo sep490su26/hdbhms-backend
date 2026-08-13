@@ -20,6 +20,7 @@ import com.sep490.hdbhms.property.application.port.out.MeterRepository;
 import com.sep490.hdbhms.property.application.port.out.PropertyRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.property.domain.value_objects.BatchStatus;
+import com.sep490.hdbhms.property.domain.value_objects.AnomalyType;
 import com.sep490.hdbhms.property.domain.value_objects.MeterReadingReviewStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
@@ -94,11 +95,17 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         Room room = roomRepository.findById(command.roomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         assertRoomRequiresMeterReading(room.getPropertyId(), room.getId(), readingPeriod);
+        assertMonthlyInvoicesNotIssued(room.getPropertyId(), readingPeriod);
 
         // Submit electricity reading
         submitMeterValue(room, MeterType.ELECTRICITY, command.electricityValue(), 
                 readingPeriod, command.readingDate(), command.electricityPhotoId(),
                 null, currentUser);
+        utilityBillingRunService.refreshMonthlyPreviewIfOpen(
+                room.getPropertyId(),
+                MeterReadingPeriod.parse(readingPeriod).toString(),
+                currentUser.getId()
+        );
 
     }
 
@@ -110,6 +117,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         Property property = propertyRepository.findById(command.propertyId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.PROPERTY_NOT_FOUND));
+        assertMonthlyInvoicesNotIssued(property.getId(), readingPeriod);
         int totalRooms = requireMeterReadingRooms(property.getId(), readingPeriod);
 
         // Create the batch record
@@ -117,10 +125,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .propertyId(property.getId())
                 .readingPeriod(readingPeriod)
                 .totalRooms(totalRooms)
-                .status(BatchStatus.CONFIRMED)
+                .status(BatchStatus.DRAFT)
                 .createdById(currentUser.getId())
-                .confirmedById(currentUser.getId())
-                .confirmedAt(java.time.LocalDateTime.now())
                 .build();
         batch = meterReadingBatchRepository.save(batch);
 
@@ -247,9 +253,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         if (batch.getStatus() == BatchStatus.CANCELLED) {
             throw new AppException(ApiErrorCode.METER_READING_BATCH_CANCELLED);
         }
-        if (batch.getStatus() == BatchStatus.CONFIRMED) {
-            throw new AppException(ApiErrorCode.METER_READING_BATCH_CONFIRMED);
-        }
+        assertBatchReadingsEditable(batch);
 
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
@@ -263,6 +267,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         saveOrUpdateMeterValue(room, MeterType.ELECTRICITY, electricityValue, batch, elecPhotoId, currentUser);
         
         refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
+        refreshMonthlyPreview(batch, currentUser.getId());
     }
 
     @Override
@@ -276,9 +281,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         if (batch.getStatus() == BatchStatus.CANCELLED) {
             throw new AppException(ApiErrorCode.METER_READING_BATCH_CANCELLED);
         }
-        if (batch.getStatus() == BatchStatus.CONFIRMED) {
-            throw new AppException(ApiErrorCode.METER_READING_BATCH_CONFIRMED);
-        }
+        assertBatchReadingsEditable(batch);
 
         List<ExcelReadingRow> parsedRows = parseExcel(file);
         Set<String> seenRoomCodes = new HashSet<>();
@@ -287,15 +290,39 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         for (ExcelReadingRow row : parsedRows) {
             String normalizedRoomCode = normalizeRoomCode(row.roomCode());
             if (!seenRoomCodes.add(normalizedRoomCode)) {
-                throw invalidExcel();
+                throw new AppException(
+                        ApiErrorCode.METER_READING_EXCEL_DUPLICATE_ROOM,
+                        row.roomCode(),
+                        row.excelRowNumber()
+                );
             }
 
             Room room = roomRepository.findByRoomCode(row.roomCode())
-                    .orElseThrow(() -> invalidExcel());
+                    .orElseThrow(() -> new AppException(
+                            ApiErrorCode.METER_READING_EXCEL_ROOM_NOT_FOUND,
+                            row.roomCode(),
+                            row.excelRowNumber()
+                    ));
             if (!room.getPropertyId().equals(batch.getPropertyId())) {
-                throw invalidExcel();
+                throw new AppException(
+                        ApiErrorCode.METER_READING_EXCEL_ROOM_WRONG_PROPERTY,
+                        row.roomCode(),
+                        row.excelRowNumber()
+                );
             }
-            assertRoomRequiresMeterReading(batch.getPropertyId(), room.getId(), batch.getReadingPeriod());
+            try {
+                assertRoomRequiresMeterReading(batch.getPropertyId(), room.getId(), batch.getReadingPeriod());
+            } catch (AppException exception) {
+                if (exception.getApiErrorCode() == ApiErrorCode.METER_READING_ROOM_NOT_ELIGIBLE) {
+                    throw new AppException(
+                            ApiErrorCode.METER_READING_EXCEL_ROOM_NOT_ELIGIBLE,
+                            row.roomCode(),
+                            batch.getReadingPeriod(),
+                            row.excelRowNumber()
+                    );
+                }
+                throw exception;
+            }
             validatedRows.add(new ValidatedExcelReading(room, row.currentValue()));
         }
 
@@ -319,6 +346,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             );
         }
         refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
+        refreshMonthlyPreview(batch, currentUser.getId());
 
         return MeterReadingExcelImportResponse.builder()
                 .batchId(batch.getId())
@@ -329,25 +357,22 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
     private List<ExcelReadingRow> parseExcel(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw invalidExcel();
+            throw new AppException(ApiErrorCode.METER_READING_EXCEL_FILE_REQUIRED);
         }
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase(Locale.ROOT);
         if (!filename.endsWith(".xlsx")) {
-            throw invalidExcel();
+            throw new AppException(ApiErrorCode.METER_READING_EXCEL_XLSX_REQUIRED);
         }
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(file.getInputStream())) {
             if (workbook.getNumberOfSheets() == 0) {
-                throw invalidExcel();
+                throw new AppException(ApiErrorCode.METER_READING_EXCEL_WORKBOOK_EMPTY);
             }
 
             Sheet sheet = workbook.getSheetAt(0);
             DataFormatter formatter = new DataFormatter();
             FormulaEvaluator evaluator = workbook.getCreationHelper().createFormulaEvaluator();
             ExcelImportColumns columns = findImportColumns(sheet, formatter, evaluator);
-            if (columns == null) {
-                throw invalidExcel();
-            }
 
             List<ExcelReadingRow> rows = new ArrayList<>();
             for (int rowIndex = columns.headerRowIndex() + 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
@@ -355,24 +380,29 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 String roomCode = cellText(row == null ? null : row.getCell(columns.roomCodeColumn()), formatter, evaluator).trim();
                 String valueText = cellText(row == null ? null : row.getCell(columns.electricityColumn()), formatter, evaluator).trim();
                 if (roomCode.isBlank() && valueText.isBlank()) continue;
-                if (roomCode.isBlank()) throw invalidExcel();
-                if (valueText.isBlank()) throw invalidExcel();
+                int excelRowNumber = rowIndex + 1;
+                if (roomCode.isBlank()) {
+                    throw new AppException(ApiErrorCode.METER_READING_EXCEL_ROOM_REQUIRED, excelRowNumber);
+                }
+                if (valueText.isBlank()) {
+                    throw new AppException(ApiErrorCode.METER_READING_EXCEL_VALUE_REQUIRED, excelRowNumber, roomCode);
+                }
 
                 BigDecimal value;
                 try {
                     value = parseExcelNumber(valueText);
                 } catch (NumberFormatException exception) {
-                    throw invalidExcel();
+                    throw new AppException(ApiErrorCode.METER_READING_EXCEL_VALUE_INVALID, excelRowNumber, roomCode);
                 }
                 if (value.compareTo(BigDecimal.ZERO) < 0) {
-                    throw invalidExcel();
+                    throw new AppException(ApiErrorCode.METER_READING_EXCEL_VALUE_NEGATIVE, excelRowNumber, roomCode);
                 }
-                rows.add(new ExcelReadingRow(roomCode, value));
+                rows.add(new ExcelReadingRow(roomCode, value, excelRowNumber));
             }
-            if (rows.isEmpty()) throw invalidExcel();
+            if (rows.isEmpty()) throw new AppException(ApiErrorCode.METER_READING_EXCEL_NO_DATA);
             return rows;
         } catch (IOException exception) {
-            throw invalidExcel();
+            throw new AppException(ApiErrorCode.METER_READING_EXCEL_XLSX_REQUIRED, exception);
         }
     }
 
@@ -382,6 +412,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             FormulaEvaluator evaluator
     ) {
         int lastHeaderRow = Math.min(sheet.getLastRowNum(), IMPORT_HEADER_SCAN_ROWS - 1);
+        boolean roomColumnFound = false;
+        boolean electricityColumnFound = false;
         for (int rowIndex = 0; rowIndex <= lastHeaderRow; rowIndex++) {
             Row header = sheet.getRow(rowIndex);
             if (header == null || header.getLastCellNum() < 0) {
@@ -404,11 +436,19 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             }
 
             int resolvedRoomColumn = roomCodeColumn >= 0 ? roomCodeColumn : roomDisplayColumn;
+            roomColumnFound |= resolvedRoomColumn >= 0;
+            electricityColumnFound |= electricityColumn >= 0;
             if (resolvedRoomColumn >= 0 && electricityColumn >= 0) {
                 return new ExcelImportColumns(rowIndex, resolvedRoomColumn, electricityColumn);
             }
         }
-        return null;
+        if (!roomColumnFound && !electricityColumnFound) {
+            throw new AppException(ApiErrorCode.METER_READING_EXCEL_REQUIRED_COLUMNS_MISSING);
+        }
+        if (!roomColumnFound) {
+            throw new AppException(ApiErrorCode.METER_READING_EXCEL_ROOM_COLUMN_MISSING);
+        }
+        throw new AppException(ApiErrorCode.METER_READING_EXCEL_VALUE_COLUMN_MISSING);
     }
 
     private String cellText(Cell cell, DataFormatter formatter, FormulaEvaluator evaluator) {
@@ -470,11 +510,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 
-    private AppException invalidExcel() {
-        return new AppException(ApiErrorCode.INVALID_REQUEST);
-    }
-
-    private record ExcelReadingRow(String roomCode, BigDecimal currentValue) {
+    private record ExcelReadingRow(String roomCode, BigDecimal currentValue, int excelRowNumber) {
     }
 
     private record ExcelImportColumns(int headerRowIndex, int roomCodeColumn, int electricityColumn) {
@@ -494,9 +530,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         if (batch.getStatus() == BatchStatus.CANCELLED) {
             throw new AppException(ApiErrorCode.METER_READING_BATCH_CANCELLED);
         }
-        if (batch.getStatus() == BatchStatus.CONFIRMED) {
-            throw new AppException(ApiErrorCode.METER_READING_BATCH_CONFIRMED);
-        }
+        assertBatchReadingsEditable(batch);
 
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
@@ -504,11 +538,14 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             throw new AppException(ApiErrorCode.VISIT_002);
         }
 
+        ensureReadingExistsBeforeResolving(room, batch, currentUser);
+
         List<MeterReadingAnomalyEntity> anomalies = meterReadingAnomalyRepository
                 .findByBatch_IdAndMeterReading_Room_IdAndResolvedAtIsNullOrderByIdAsc(batchId, roomId);
         if (anomalies.isEmpty()) {
             return;
         }
+        assertAnomaliesCanBeResolved(anomalies);
 
         var resolvedBy = jpaUserRepository.getReferenceById(currentUser.getId());
         var resolvedAt = java.time.LocalDateTime.now();
@@ -525,6 +562,43 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
         meterReadingAnomalyRepository.saveAll(anomalies);
         refreshBatchAnomalyCount(batchId);
+        refreshMonthlyPreview(batch, currentUser.getId());
+    }
+
+    private void assertAnomaliesCanBeResolved(List<MeterReadingAnomalyEntity> anomalies) {
+        if (anomalies.stream().anyMatch(anomaly -> anomaly.getAnomalyType() == AnomalyType.NEGATIVE_USAGE)) {
+            throw new AppException(ApiErrorCode.INVALID_METER_READING_VALUE);
+        }
+    }
+
+    private void ensureReadingExistsBeforeResolving(Room room, MeterReadingBatch batch, User currentUser) {
+        Meter activeMeter = meterRepository.findFirstByRoomIdAndMeterTypeAndStatus(
+                        room.getId(), MeterType.ELECTRICITY, MeterStatus.ACTIVE)
+                .orElseThrow(() -> new AppException(ApiErrorCode.METER_NOT_FOUND));
+
+        if (meterReadingRepository.findByMeterIdAndBatchId(activeMeter.getId(), batch.getId()).isPresent()) {
+            return;
+        }
+
+        MeterReading latestReading = meterReadingRepository
+                .findFirstByRoomIdAndMeterTypeOrderByReadingDateDesc(room.getId(), MeterType.ELECTRICITY)
+                .orElse(null);
+        if (latestReading == null || latestReading.getCurrentValue() == null) {
+            return;
+        }
+
+        // A missing-reading warning is resolved against the last known meter value.
+        // This creates the current-period record before the anomaly is marked approved.
+        saveOrUpdateMeterValue(
+                room,
+                MeterType.ELECTRICITY,
+                latestReading.getCurrentValue(),
+                batch,
+                null,
+                currentUser,
+                ReadingSource.MANUAL,
+                MeterReadingPeriod.parse(batch.getReadingPeriod()).atEndOfMonth()
+        );
     }
 
     private void saveOrUpdateMeterValue(Room room, MeterType meterType, BigDecimal newValue, MeterReadingBatch batch, Long photoId, User currentUser) {
@@ -545,11 +619,12 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         var existingReadingOpt = meterReadingRepository.findByMeterIdAndBatchId(activeMeter.getId(), batch.getId());
         if (existingReadingOpt.isPresent()) {
             MeterReading existing = existingReadingOpt.get();
+            boolean preserveApprovedReview = isApprovedWithUnchangedValue(existing, newValue, source);
             existing.setBatchId(batch.getId());
             existing.setCurrentValue(newValue);
             existing.setPhotoFileId(photoId);
             existing.setSource(source);
-            saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId());
+            saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId(), preserveApprovedReview);
             return;
         }
 
@@ -560,11 +635,12 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         if (existingPeriodReadingOpt.isPresent()
                 && existingPeriodReadingOpt.get().getStatus() != ReadingStatus.VOIDED) {
             MeterReading existing = existingPeriodReadingOpt.get();
+            boolean preserveApprovedReview = isApprovedWithUnchangedValue(existing, newValue, source);
             existing.setBatchId(batch.getId());
             existing.setCurrentValue(newValue);
             existing.setPhotoFileId(photoId);
             existing.setSource(source);
-            saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId());
+            saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId(), preserveApprovedReview);
             return;
         }
 
@@ -594,23 +670,54 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         saveReadingWithReview(reading, meterType, usageOf(previousReading), room.getPropertyId());
     }
 
+    private boolean isApprovedWithUnchangedValue(
+            MeterReading reading,
+            BigDecimal newValue,
+            ReadingSource source
+    ) {
+        // A new Excel import must re-run anomaly detection, even when its value is unchanged.
+        return source != ReadingSource.EXCEL_IMPORT
+                && reading.getReviewStatus() == MeterReadingReviewStatus.APPROVED
+                && reading.getCurrentValue() != null
+                && (reading.getPreviousValue() == null
+                || reading.getCurrentValue().compareTo(reading.getPreviousValue()) >= 0)
+                && reading.getCurrentValue().compareTo(newValue) == 0;
+    }
+
     private MeterReading saveReadingWithReview(
             MeterReading reading,
             MeterType meterType,
             BigDecimal previousCycleUsage,
             Long propertyId
     ) {
-        List<MeterReadingAnomalyPolicy.DetectedAnomaly> anomalies = anomalyPolicy.detect(
-                propertyId,
-                meterType,
-                reading.getPreviousValue(),
-                reading.getCurrentValue(),
-                previousCycleUsage
-        );
-        reading.setReviewStatus(anomalies.isEmpty()
-                ? MeterReadingReviewStatus.NONE
-                : MeterReadingReviewStatus.PENDING);
-        reading.setReviewCount(anomalies.size());
+        return saveReadingWithReview(reading, meterType, previousCycleUsage, propertyId, false);
+    }
+
+    private MeterReading saveReadingWithReview(
+            MeterReading reading,
+            MeterType meterType,
+            BigDecimal previousCycleUsage,
+            Long propertyId,
+            boolean preserveApprovedReview
+    ) {
+        List<MeterReadingAnomalyPolicy.DetectedAnomaly> anomalies;
+        if (preserveApprovedReview) {
+            anomalies = List.of();
+            reading.setReviewStatus(MeterReadingReviewStatus.APPROVED);
+            reading.setReviewCount(0);
+        } else {
+            anomalies = anomalyPolicy.detect(
+                    propertyId,
+                    meterType,
+                    reading.getPreviousValue(),
+                    reading.getCurrentValue(),
+                    previousCycleUsage
+            );
+            reading.setReviewStatus(anomalies.isEmpty()
+                    ? MeterReadingReviewStatus.NONE
+                    : MeterReadingReviewStatus.PENDING);
+            reading.setReviewCount(anomalies.size());
+        }
 
         MeterReading saved = meterReadingRepository.save(reading);
         replaceAnomalies(saved, anomalies);
@@ -698,6 +805,28 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         }
     }
 
+    private void assertBatchReadingsEditable(MeterReadingBatch batch) {
+        if (batch.getStatus() == BatchStatus.CANCELLED) {
+            throw new AppException(ApiErrorCode.METER_READING_BATCH_CANCELLED);
+        }
+        assertMonthlyInvoicesNotIssued(batch.getPropertyId(), batch.getReadingPeriod());
+    }
+
+    private void assertMonthlyInvoicesNotIssued(Long propertyId, String readingPeriod) {
+        String billingPeriod = MeterReadingPeriod.parse(readingPeriod).toString();
+        if (utilityBillingRunService.hasIssuedMonthlyInvoices(propertyId, billingPeriod)) {
+            throw new AppException(ApiErrorCode.METER_READING_INVOICES_ISSUED);
+        }
+    }
+
+    private void refreshMonthlyPreview(MeterReadingBatch batch, Long currentUserId) {
+        utilityBillingRunService.refreshMonthlyPreviewIfOpen(
+                batch.getPropertyId(),
+                MeterReadingPeriod.parse(batch.getReadingPeriod()).toString(),
+                currentUserId
+        );
+    }
+
     @Override
     @Transactional
     public void confirmBatch(Long batchId) {
@@ -707,22 +836,14 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         MeterReadingBatch batch = meterReadingBatchRepository.findById(batchId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_BATCH_NOT_FOUND));
         requireMeterReadingRooms(batch.getPropertyId(), batch.getReadingPeriod());
+        assertMonthlyInvoicesNotIssued(batch.getPropertyId(), batch.getReadingPeriod());
 
-        if (batch.getStatus() == BatchStatus.CONFIRMED) {
-            return;
-        }
         if (batch.getStatus() == BatchStatus.CANCELLED) {
             throw new AppException(ApiErrorCode.METER_READING_BATCH_CANCELLED);
         }
 
-        // Validate no pending rooms...
-        // Simplified: just update status
-        batch.setStatus(BatchStatus.CONFIRMED);
-        batch.setConfirmedById(currentUser.getId());
-        batch.setConfirmedAt(java.time.LocalDateTime.now());
-
-        meterReadingBatchRepository.save(batch);
-        refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
+        requireNoUnresolvedAnomalies(batch);
+        requireCompletedReadings(batch);
         createMonthlyUtilityBillingBatch(batch, currentUser.getId());
     }
 

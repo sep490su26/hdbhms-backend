@@ -19,6 +19,8 @@ public class BatchMeterReadingStatusResponse {
     String readingPeriod;
     Long batchId;
     String batchStatus;
+    String billingRunStatus;
+    boolean readingsLocked;
     UtilityTariffSnapshot electricityTariff;
     List<RoomBatchStatus> rooms;
 

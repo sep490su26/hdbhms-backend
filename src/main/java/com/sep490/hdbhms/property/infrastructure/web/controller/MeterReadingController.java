@@ -150,7 +150,7 @@ public class MeterReadingController {
             @Valid @RequestBody SingleMeterReadingRequest request) {
         submitMeterReadingUseCase.submitSingleReading(meterReadingWebMapper.toCommand(request));
         return ApiResponse.<Void>builder()
-                .message("Lưu chỉ số điện nước thành công")
+                .message("Lưu chỉ số điện thành công")
                 .build();
     }
 
@@ -165,7 +165,7 @@ public class MeterReadingController {
             @Valid @RequestBody BatchMeterReadingRequest request) {
         submitMeterReadingUseCase.submitBatchReadings(meterReadingWebMapper.toCommand(request));
         return ApiResponse.<Void>builder()
-                .message("Gửi lô chỉ số điện nước thành công")
+                .message("Đã tạo/cập nhật bản nháp hóa đơn từ lô chỉ số điện")
                 .build();
     }
 
@@ -254,7 +254,7 @@ public class MeterReadingController {
             @PathVariable Long batchId) {
         submitMeterReadingUseCase.confirmBatch(batchId);
         return ApiResponse.<Void>builder()
-                .message("Đã chốt kỳ ghi chỉ số. Đang mở batch hóa đơn nháp.")
+                .message("Đã tạo/cập nhật bản nháp hóa đơn từ kỳ ghi chỉ số.")
                 .build();
     }
 

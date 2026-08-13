@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
+import java.time.LocalDate;
 
 @Service
 @Transactional
@@ -41,6 +42,7 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
     TenantRepository tenantRepository;
     FileMetadataRepository fileMetadataRepository;
     MaintenanceTicketRepository maintenanceTicketRepository;
+    MaintenanceTicketCodeService maintenanceTicketCodeService;
     GetRoomFromLeaseContractPort getRoomFromLeaseContractPort;
     MaintenanceTicketAttachmentRepository maintenanceTicketAttachmentRepository;
     RoomRepository roomRepository;
@@ -58,7 +60,10 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
         String title = firstNonBlank(command.title(), category);
         TicketScope ticketScope = command.ticketScope() == null ? TicketScope.TENANT_ROOM : command.ticketScope();
         MaintenanceTicket maintenanceTicket = MaintenanceTicket.builder()
-                .ticketCode(String.format("#SC-TMP-%d-%d", currentSessionUserId, System.nanoTime()))
+                .ticketCode(maintenanceTicketCodeService.nextCode(
+                        leaseRoom.room().getRoomCode(),
+                        LocalDate.now()
+                ))
                 .propertyId(leaseRoom.room().getPropertyId())
                 .roomId(leaseRoom.room().getId())
                 .contractId(leaseRoom.leaseContract() == null ? null : leaseRoom.leaseContract().getId())
@@ -69,9 +74,6 @@ public class CreateMaintenanceTicketService implements CreateMaintenanceTicketUs
                 .description(command.description())
                 .repairRequested(command.repairRequested() == null || command.repairRequested())
                 .build();
-        maintenanceTicket = maintenanceTicketRepository.save(maintenanceTicket);
-        String ticketCode = String.format("#SC-%04d", maintenanceTicket.getId());
-        maintenanceTicket.setTicketCode(ticketCode);
         maintenanceTicket = maintenanceTicketRepository.save(maintenanceTicket);
 
         List<Long> attachmentFileIds = command.attachmentIds();

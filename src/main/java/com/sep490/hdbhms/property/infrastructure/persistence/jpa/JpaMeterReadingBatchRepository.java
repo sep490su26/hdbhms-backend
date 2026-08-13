@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface JpaMeterReadingBatchRepository extends JpaRepository<MeterReadingBatchEntity, Long> {
     List<MeterReadingBatchEntity> findByProperty_IdOrderByReadingPeriodDescIdDesc(Long propertyId);
     List<MeterReadingBatchEntity> findAllByProperty_IdAndReadingPeriodOrderByIdDesc(Long propertyId, String readingPeriod);
+    Optional<MeterReadingBatchEntity> findByProperty_IdAndReadingPeriod(Long propertyId, String readingPeriod);
 
     Optional<MeterReadingBatchEntity> findFirstByProperty_IdAndStatusInOrderByCreatedAtDesc(Long propertyId, List<BatchStatus> statuses);
 }

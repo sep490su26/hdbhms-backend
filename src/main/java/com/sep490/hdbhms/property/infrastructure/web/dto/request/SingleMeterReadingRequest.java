@@ -33,10 +33,4 @@ public class SingleMeterReadingRequest {
     BigDecimal electricityValue;
 
     Long electricityPhotoId;
-
-    @NotNull(message = "Vui lòng nhập chỉ số nước")
-    @PositiveOrZero(message = "Chỉ số nước không được nhỏ hơn 0")
-    BigDecimal waterValue;
-
-    Long waterPhotoId;
 }

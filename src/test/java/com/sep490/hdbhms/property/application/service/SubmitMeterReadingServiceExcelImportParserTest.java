@@ -1,5 +1,12 @@
 package com.sep490.hdbhms.property.application.service;
 
+import com.sep490.hdbhms.property.domain.model.MeterReading;
+import com.sep490.hdbhms.property.domain.value_objects.MeterReadingReviewStatus;
+import com.sep490.hdbhms.property.domain.value_objects.AnomalyType;
+import com.sep490.hdbhms.property.domain.value_objects.ReadingSource;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingAnomalyEntity;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
+import com.sep490.hdbhms.shared.exception.AppException;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -13,6 +20,9 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SubmitMeterReadingServiceExcelImportParserTest {
 
@@ -52,13 +62,50 @@ class SubmitMeterReadingServiceExcelImportParserTest {
         assertEquals(new BigDecimal("3094"), recordValue(rows.get(0), "currentValue"));
     }
 
+    @Test
+    void excelImportDoesNotPreserveApprovedReviewForUnchangedValue() throws Exception {
+        MeterReading reading = MeterReading.builder()
+                .previousValue(new BigDecimal("100"))
+                .currentValue(new BigDecimal("100"))
+                .reviewStatus(MeterReadingReviewStatus.APPROVED)
+                .build();
+        Method method = SubmitMeterReadingService.class.getDeclaredMethod(
+                "isApprovedWithUnchangedValue",
+                MeterReading.class,
+                BigDecimal.class,
+                ReadingSource.class
+        );
+        method.setAccessible(true);
+
+        assertFalse((Boolean) method.invoke(serviceWithNullDependencies(), reading, new BigDecimal("100"), ReadingSource.EXCEL_IMPORT));
+        assertTrue((Boolean) method.invoke(serviceWithNullDependencies(), reading, new BigDecimal("100"), ReadingSource.MANUAL));
+
+        reading.setCurrentValue(new BigDecimal("0"));
+        assertFalse((Boolean) method.invoke(serviceWithNullDependencies(), reading, new BigDecimal("0"), ReadingSource.MANUAL));
+    }
+
+    @Test
+    void negativeUsageCannotBeMarkedAsReviewed() throws Exception {
+        Method method = SubmitMeterReadingService.class.getDeclaredMethod(
+                "assertAnomaliesCanBeResolved",
+                List.class
+        );
+        method.setAccessible(true);
+        List<MeterReadingAnomalyEntity> anomalies = List.of(
+                MeterReadingAnomalyEntity.builder().anomalyType(AnomalyType.NEGATIVE_USAGE).build()
+        );
+
+        Exception error = assertThrows(Exception.class,
+                () -> method.invoke(serviceWithNullDependencies(), anomalies));
+        assertEquals(ApiErrorCode.INVALID_METER_READING_VALUE,
+                ((java.lang.reflect.InvocationTargetException) error).getCause() instanceof AppException appException
+                        ? appException.getApiErrorCode()
+                        : null);
+    }
+
     @SuppressWarnings("unchecked")
     private List<?> parseExcel(byte[] workbookBytes) throws Exception {
-        SubmitMeterReadingService service = new SubmitMeterReadingService(
-                null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null,
-                null, null
-        );
+        SubmitMeterReadingService service = serviceWithNullDependencies();
         MultipartFile file = new MockMultipartFile(
                 "file",
                 "template.xlsx",
@@ -68,6 +115,14 @@ class SubmitMeterReadingServiceExcelImportParserTest {
         Method parseExcel = SubmitMeterReadingService.class.getDeclaredMethod("parseExcel", MultipartFile.class);
         parseExcel.setAccessible(true);
         return (List<?>) parseExcel.invoke(service, file);
+    }
+
+    private SubmitMeterReadingService serviceWithNullDependencies() {
+        return new SubmitMeterReadingService(
+                null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null,
+                null, null
+        );
     }
 
     private Object recordValue(Object record, String accessorName) throws Exception {

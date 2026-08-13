@@ -30,7 +30,15 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
         JOIN FETCH rm.property p
         LEFT JOIN FETCH r.createdBy u
         WHERE r.readingPeriod = :period
+          AND r.status <> com.sep490.hdbhms.property.domain.value_objects.ReadingStatus.VOIDED
           AND (:propertyId IS NULL OR p.id = :propertyId)
+          AND r.revisionNo = (
+              SELECT MAX(latest.revisionNo)
+              FROM MeterReadingEntity latest
+              WHERE latest.meter.id = r.meter.id
+                AND latest.readingPeriod = r.readingPeriod
+                AND latest.status <> com.sep490.hdbhms.property.domain.value_objects.ReadingStatus.VOIDED
+          )
         ORDER BY p.id, rm.roomCode, r.meter.meterType
     """)
     List<MeterReadingEntity> findByPeriodAndOptionalProperty(
@@ -47,10 +55,12 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
         LEFT JOIN FETCH r.photoFile f
         WHERE r.batch.id = :batchId
           AND r.status <> com.sep490.hdbhms.property.domain.value_objects.ReadingStatus.VOIDED
-          AND (
-              r.batch.status <> com.sep490.hdbhms.property.domain.value_objects.BatchStatus.CONFIRMED
-              OR r.batch.confirmedAt IS NULL
-              OR r.createdAt <= r.batch.confirmedAt
+          AND r.revisionNo = (
+              SELECT MAX(latest.revisionNo)
+              FROM MeterReadingEntity latest
+              WHERE latest.meter.id = r.meter.id
+                AND latest.readingPeriod = r.readingPeriod
+                AND latest.status <> com.sep490.hdbhms.property.domain.value_objects.ReadingStatus.VOIDED
           )
         ORDER BY p.id, rm.sortOrder, rm.roomCode, m.meterType
     """)

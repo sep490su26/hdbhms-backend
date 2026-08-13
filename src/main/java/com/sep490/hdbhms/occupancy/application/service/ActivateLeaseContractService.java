@@ -15,6 +15,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContract
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -75,15 +78,15 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         Long previousContractId = contract.getPreviousContract() != null
                 ? contract.getPreviousContract().getId()
                 : null;
-        if (workflowSupport.hasOtherActiveContract(room.getId(), contract.getId(), previousContractId)) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
-        }
+//        if (workflowSupport.hasOtherActiveContract(room.getId(), contract.getId(), previousContractId)) {
+//            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+//        }
 
         workflowSupport.ensureContractOccupants(contract);
         LeaseContractEntity previousContract = contract.getPreviousContract();
-        if (previousContract != null && workflowSupport.isHolderReplacementLiquidation(previousContract.getId())) {
-            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
-        }
+//        if (previousContract != null && workflowSupport.isHolderReplacementLiquidation(previousContract.getId())) {
+//            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
+//        }
         if (previousContract != null) {
             workflowSupport.copyContractOccupants(previousContract, contract);
             boolean legacyPrematureRenewal = previousContract.getStatus() == LeaseStatus.RENEWED
@@ -96,6 +99,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
             previousContract.setStatus(LeaseStatus.RENEWED);
             leaseContractRepository.saveAndFlush(previousContract);
         }
+        log.info("Test");
         contract.setStatus(LeaseStatus.ACTIVE);
         contract.setSignedAt(LocalDateTime.now());
         if (contract.getRentStartDate() == null) {
