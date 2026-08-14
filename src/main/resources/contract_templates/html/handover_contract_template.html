@@ -3,235 +3,196 @@
 <head>
     <meta charset="UTF-8"/>
     <style>
+        @page {
+            size: letter;
+            margin: 14mm;
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
 
         body {
+            margin: 0;
+            color: #000;
+            background: #fff;
             font-family: "Times New Roman", Times, serif;
             font-size: 12pt;
             line-height: 1.5;
-            color: #000;
-            background: #fff;
         }
 
-        .page {
-            width: 210mm;
-            min-height: 297mm;
-            margin: 0 auto;
-            padding: 15mm 20mm 20mm 25mm;
+        p {
+            margin: 0 0 8px;
+            text-align: justify;
+        }
+
+        .title {
+            margin: 0 0 18px;
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+        }
+
+        .section-title {
+            margin: 0 0 8px 9mm;
+            font-weight: bold;
+            page-break-after: avoid;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 16px;
+            table-layout: fixed;
         }
 
-        th, td {
+        .equipment-table {
+            margin-bottom: 12px;
+            page-break-inside: auto;
+            -fs-table-paginate: paginate;
+        }
+
+        .equipment-table col:nth-child(1) { width: 6%; }
+        .equipment-table col:nth-child(2) { width: 24%; }
+        .equipment-table col:nth-child(3) { width: 30%; }
+        .equipment-table col:nth-child(4) { width: 18%; }
+        .equipment-table col:nth-child(5) { width: 22%; }
+
+        .equipment-table th,
+        .equipment-table td {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 5px 7px;
             vertical-align: middle;
+            overflow-wrap: break-word;
         }
 
-        th {
-            background-color: #d9d9d9;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        .title-cell {
+        .equipment-table th {
+            height: 28px;
             text-align: center;
             font-weight: bold;
-            font-size: 13pt;
-            padding: 10px;
-            border: none;
-            background-color: transparent;
         }
 
-        .section-header {
-            background-color: #bfbfbf;
+        .equipment-table td.center,
+        .equipment-table th {
+            text-align: center;
+        }
+
+        .equipment-table tbody tr {
+            height: 28px;
+            page-break-inside: avoid;
+        }
+
+        .rules-title {
+            margin: 18px 0 8px;
             font-weight: bold;
-            text-align: center;
-            font-size: 12pt;
+            page-break-after: avoid;
         }
 
-        td.center {
-            text-align: center;
+        .rules-intro {
+            font-style: italic;
         }
 
-        .signature-row td {
-            border: none;
-            padding: 8px;
-            text-align: center;
-            height: 80px;
+        .rules p {
+            margin: 0 0 7px;
+        }
+
+        .confirmation {
+            margin-top: 18px;
+            page-break-inside: avoid;
+        }
+
+        .confirmation td {
+            border: 0;
             vertical-align: top;
         }
 
-        .sig-date {
-            text-align: right;
-            font-style: italic;
-            padding: 8px;
-            border: none;
+        .confirmation td:first-child {
+            width: 47%;
+        }
+
+        .confirmation .spacer {
+            width: 5%;
+        }
+
+        .confirmation .representative {
+            width: 48%;
+        }
+
+        .representative p {
+            margin: 0 0 8px;
+            text-align: left;
+        }
+
+        .representative .signature-label {
+            margin-bottom: 28px;
+            text-align: center;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-<div class="page">
+<main>
+    <h1 class="title">PHỤ LỤC HỢP ĐỒNG</h1>
 
-    <table>
-        <!-- Tiêu đề -->
-        <tr>
-            <td colspan="6" class="title-cell">
-                BẢNG KÊ THIẾT BỊ BÀN GIAO TRONG PHÒNG<br/>
-                <span style="font-size: 11pt; font-weight: normal;">
-                    PHÒNG SỐ: <span th:text="${roomNumber}"></span>
-                    TẦNG <span th:text="${roomFloorNumber}"></span>
-                </span>
-            </td>
-        </tr>
+    <p class="section-title">
+        Danh mục nội thất bàn giao
+        <span th:if="${roomNumber != '......'}">- Phòng <span th:text="${roomNumber}"></span><span th:if="${roomFloorNumber != '...'}">, tầng <span th:text="${roomFloorNumber}"></span></span></span>
+    </p>
 
-        <!-- Header bảng thiết bị -->
-        <tr>
-            <th style="width: 6%">STT</th>
-            <th style="width: 40%">TÊN THIẾT BỊ</th>
-            <th style="width: 10%">ĐƠN VỊ</th>
-            <th style="width: 10%">SỐ LƯỢNG</th>
-            <th style="width: 20%">HIỆN TRẠNG</th>
-            <th style="width: 14%">GHI CHÚ</th>
-        </tr>
-
-        <!-- Danh sách thiết bị cố định -->
-        <tr>
-            <td class="center">1</td>
-            <td>ĐIỀU HÒA + REMOTE</td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Hoạt động bình thường</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">2</td>
-            <td>
-                THIẾT BỊ VỆ SINH + PHÒNG TẮM:<br/>
-                + XÍ &nbsp; + XỊT XÍ &nbsp; + VÒI HOA SEN<br/>
-                + CHẬU RỬA MẶT &nbsp; + VÒI RỬA MẶT<br/>
-                + GƯƠNG VÀ PHỤ KIỆN, CỐC ĐÁNH RĂNG<br/>
-                + CHẬU BẾP + VÒI RỬA + CHẠN BẾP
-            </td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Hoạt động bình thường</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">3</td>
-            <td>BÌNH NÓNG LẠNH</td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Hoạt động bình thường</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">4</td>
-            <td>TỦ ĐỰNG QUẦN ÁO 3 BUỒNG</td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Còn nguyên vẹn</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">5</td>
-            <td>BÀN HỌC</td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Còn nguyên vẹn</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">6</td>
-            <td>GIƯỜNG NẰM ĐÔI / TẦNG + RÁT GIƯỜNG</td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Còn nguyên vẹn</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">7</td>
-            <td>
-                CỬA CÁC LOẠI:<br/>
-                + CỬA ĐI &nbsp; + CỬA SỔ CÁC LOẠI
-            </td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Kính không vỡ, khóa + chìa đầy đủ</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">8</td>
-            <td>MODEM INTERNET</td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td>Hoạt động bình thường</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td class="center">9</td>
-            <td>HỆ THỐNG ĐIỆN (Công tắc, ổ cắm, bóng điện)</td>
-            <td class="center"></td>
-            <td class="center">01</td>
-            <td>Hoạt động bình thường</td>
-            <td></td>
-        </tr>
-
-        <!-- Phần bàn giao đồng hồ -->
-        <tr>
-            <td colspan="6" class="section-header">BÀN GIAO CÁC CHỈ SỐ ĐỒNG HỒ / CÔNG TƠ</td>
-        </tr>
+    <table class="equipment-table">
+        <colgroup>
+            <col/>
+            <col/>
+            <col/>
+            <col/>
+            <col/>
+        </colgroup>
+        <thead>
         <tr>
             <th>STT</th>
-            <th>TÊN THIẾT BỊ</th>
-            <th>ĐƠN VỊ</th>
-            <th>SỐ LƯỢNG</th>
-            <th colspan="2">SỐ HIỆN TRẠNG</th>
+            <th>Hạng mục</th>
+            <th>Diễn giải</th>
+            <th>Số lượng</th>
+            <th>Tình trạng</th>
         </tr>
-        <tr>
-            <td class="center">1</td>
-            <td>ĐỒNG HỒ ĐO ĐIỆN</td>
-            <td class="center">CÁI</td>
-            <td class="center">01</td>
-            <td colspan="2">
-                Chỉ số: <strong th:text="${roomElectricityValue}"></strong>,
-                ngày <span th:text="${roomElectricityReadingDate}"></span>
-            </td>
+        </thead>
+        <tbody>
+        <tr th:each="asset, rowStat : ${equipmentRows}">
+            <td class="center" th:text="${rowStat.count}"></td>
+            <td th:text="${asset.name}"></td>
+            <td th:text="${asset.description}"></td>
+            <td class="center" th:text="${asset.quantity}"></td>
+            <td class="center" th:text="${asset.condition}"></td>
         </tr>
-        <tr>
-            <td class="center">2</td>
-            <td>CHÌA KHÓA CỬA CHÍNH</td>
-            <td class="center">BỘ</td>
-            <td class="center">01</td>
-            <td colspan="2"></td>
-        </tr>
+        </tbody>
+    </table>
 
-        <!-- Ngày tháng + chữ ký -->
+    <h2 class="rules-title">NỘI QUY CỘNG ĐỒNG TẠI TÒA NHÀ</h2>
+    <p class="rules-intro">Để đảm bảo an toàn và an ninh trong tòa nhà, BQL đề nghị Quý cư dân thực hiện một cách nghiêm túc các nội quy sau:</p>
+
+    <section class="rules">
+        <p>1. Tự bảo quản tài sản cá nhân và các trang thiết bị bên trong căn hộ cẩn thận.</p>
+        <p>2. Không đục khoét, vẽ bậy, dán tranh ảnh lên tường nhà. Không tự ý sửa chữa bên trong căn nhà nếu chưa có sự đồng ý của BQL.</p>
+        <p>3. Không gom rác, bụi và để giày dép ngoài hàng lang đi lại chung. Không vất rác qua cửa sổ và ban công.</p>
+        <p>4. Không nuôi chó, mèo, vật nuôi khác trong căn hộ và trong tòa nhà.</p>
+        <p><strong>5. KHÔNG TỰ Ý SỬ DỤNG, LẤY ĐỒ CỦA NGƯỜI KHÁC KHI CHƯA ĐƯỢC SỰ ĐỒNG Ý.</strong></p>
+        <p><strong>6. KHÔNG GÂY ỒN ÀO, MẤT TRẬT TỰ SAU 22H ĐÊM.</strong></p>
+        <p>7. Ra vào tòa nhà phải chú ý <strong><u>ĐÓNG CỬA</u></strong> &amp; <strong><u>ĐÓNG CỬA NHẸ NHÀNG</u></strong></p>
+        <p>8. <strong>TUYỆT ĐỐI KHÔNG MỞ CỬA CHO NGƯỜI LẠ RA – VÀO TÒA NHÀ</strong>. Khách đến chơi, Quý cư dân vui lòng chủ động xuống đón khách. Báo ngay cho Ban quản lý nếu thấy có trường hợp khả nghi nhờ mở cửa hoặc ra vào tòa nhà!</p>
+        <p>9. Tất cả các vấn đề phát sinh do quý khách không thực hiện nghiêm túc các quy định trên, quý khách hoàn toàn phải chịu trách nhiệm.</p>
+        <p>10. Vui lòng <strong>TẮT MÁY – DẮT XE</strong> ra vào tòa nhà vào các khung giờ: 12h – 13h trưa và 22h đêm – 6h sáng hôm sau.</p>
+    </section>
+
+    <table class="confirmation">
         <tr>
-            <td colspan="4" style="border: none;"></td>
-            <td colspan="2" style="text-align: center; font-style: italic; border: none;">
-                Hà Nội, <span th:text="${issuedAtDateString}"></span>
-            </td>
-        </tr>
-        <tr class="signature-row">
-            <td colspan="3">
-                NGƯỜI GIAO<br/><em style="font-weight: normal;">(Ký, ghi rõ họ tên)</em>
-            </td>
-            <td colspan="3">
-                NGƯỜI NHẬN<br/><em style="font-weight: normal;">(Ký, ghi rõ họ tên)</em>
+            <td></td>
+            <td class="spacer"></td>
+            <td class="representative">
+                <p class="signature-label">ĐẠI DIỆN BÊN B</p>
+                <p>1. Tôi xác nhận đã nhận bàn giao đầy đủ các trang thiết bị như phụ lục Hợp đồng. Tất cả đều đang sử dụng bình thường.</p>
+                <p>2. Tôi đồng ý và cam kết thực hiện đúng các nội quy nêu trên!</p>
             </td>
         </tr>
     </table>
-
-</div>
+</main>
 </body>
 </html>

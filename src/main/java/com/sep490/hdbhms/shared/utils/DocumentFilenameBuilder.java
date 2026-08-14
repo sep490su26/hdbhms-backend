@@ -25,6 +25,10 @@ public final class DocumentFilenameBuilder {
         return "%s_%s_%s.pdf".formatted(safeType, safeRoomCode, safeDate);
     }
 
+    public static String buildDocx(String roomCode, String tenantName, DocumentType type, LocalDate date) {
+        return build(roomCode, tenantName, type, date).replaceFirst("\\.pdf$", ".docx");
+    }
+
     public static String buildLeaseContractCode(String roomCode, LocalDate date) {
         String safeRoomCode = withRoomPrefix(normalize(roomCode, "Phong-X"));
         String safeDate = date == null ? "Chua-Ro-Ngay" : DATE_FORMATTER.format(date);

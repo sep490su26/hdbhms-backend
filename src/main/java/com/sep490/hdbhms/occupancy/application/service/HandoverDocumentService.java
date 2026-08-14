@@ -26,14 +26,21 @@ import org.xhtmlrenderer.pdf.ITextFontResolver;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.net.URL;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
+import org.apache.poi.xwpf.usermodel.XWPFTableRow;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTRow;
 
 @Service
 @RequiredArgsConstructor
@@ -51,6 +58,150 @@ public class HandoverDocumentService {
         HandoverTemplateData data = fetchHandoverData(contractId, type);
         String html = buildHandoverTemplateHtml(data);
         return renderHtmlToPdf(html);
+    }
+
+    /** Builds the current handover appendix from the updated DOCX template. */
+    public byte[] generateHandoverDraftDocx(Long contractId, HandoverType type) {
+        HandoverDocxData data = fetchDocxData(contractId);
+        try (InputStream template = getClass().getClassLoader().getResourceAsStream(
+                "templates/contractTemplates/docx/handover_contract_template.docx")) {
+            if (template == null) {
+                throw new AppException(ApiErrorCode.UNDEFINED);
+            }
+            try (XWPFDocument document = new XWPFDocument(template);
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                updateEquipmentHeading(document, data);
+                updateEquipmentTable(document, data.assets());
+                document.write(output);
+                return output.toByteArray();
+            }
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AppException(ApiErrorCode.UNDEFINED);
+        }
+    }
+
+    private HandoverDocxData fetchDocxData(Long contractId) {
+        HandoverDocxData room = jdbcTemplate.query("""
+                        SELECT r.room_id, r.room_code, f.floor_code
+                        FROM lease_contracts lc
+                        JOIN rooms r ON r.room_id = lc.room_id
+                        LEFT JOIN floors f ON f.floor_id = r.floor_id
+                        WHERE lc.lease_contract_id = ?
+                          AND lc.deleted_at IS NULL
+                        LIMIT 1
+                        """,
+                rs -> rs.next()
+                        ? new HandoverDocxData(rs.getLong("room_id"), rs.getString("room_code"), rs.getString("floor_code"), List.of())
+                        : null,
+                contractId
+        );
+        if (room == null) {
+            throw new AppException(ApiErrorCode.CONTRACT_NOT_FOUND);
+        }
+        List<EquipmentRow> assets = jdbcTemplate.query("""
+                        SELECT asset_name, asset_category, quantity, current_condition, description
+                        FROM room_assets
+                        WHERE room_id = ?
+                          AND deleted_at IS NULL
+                        ORDER BY room_asset_id ASC
+                        """,
+                (rs, rowNum) -> new EquipmentRow(
+                        rs.getString("asset_name"),
+                        rs.getString("asset_category"),
+                        rs.getInt("quantity"),
+                        rs.getString("current_condition"),
+                        rs.getString("description")
+                ),
+                room.roomId()
+        );
+        return new HandoverDocxData(room.roomId(), room.roomCode(), room.floorCode(), assets);
+    }
+
+    private void updateEquipmentHeading(XWPFDocument document, HandoverDocxData data) {
+        String floor = data.floorCode() == null || data.floorCode().isBlank()
+                ? ""
+                : ", tầng " + data.floorCode();
+        for (XWPFParagraph paragraph : document.getParagraphs()) {
+            if (paragraph.getText() != null && paragraph.getText().contains("Danh mục nội thất bàn giao")) {
+                replaceParagraphText(paragraph, "Danh mục nội thất bàn giao - Phòng " + data.roomCode() + floor);
+                return;
+            }
+        }
+    }
+
+    private void replaceParagraphText(XWPFParagraph paragraph, String text) {
+        while (!paragraph.getRuns().isEmpty()) {
+            paragraph.removeRun(0);
+        }
+        XWPFRun run = paragraph.createRun();
+        run.setBold(true);
+        run.setText(text);
+    }
+
+    private void updateEquipmentTable(XWPFDocument document, List<EquipmentRow> assets) {
+        if (document.getTables().isEmpty()) {
+            return;
+        }
+        XWPFTable table = document.getTables().get(0);
+        if (table.getNumberOfRows() < 2) {
+            return;
+        }
+
+        CTRow template = (CTRow) table.getRow(1).getCtRow().copy();
+        while (table.getNumberOfRows() > 1) {
+            table.removeRow(1);
+        }
+
+        List<EquipmentRow> rows = assets == null || assets.isEmpty()
+                ? List.of(new EquipmentRow("", "", null, "", ""))
+                : assets;
+        for (int index = 0; index < rows.size(); index++) {
+            table.addRow(new XWPFTableRow((CTRow) template.copy(), table), index + 1);
+            XWPFTableRow row = table.getRow(index + 1);
+            fillEquipmentRow(row, index + 1, rows.get(index));
+        }
+    }
+
+    private void fillEquipmentRow(XWPFTableRow row, int number, EquipmentRow asset) {
+        String category = asset.category() == null ? "" : asset.category().trim();
+        String description = asset.description() == null ? "" : asset.description().trim();
+        if (!category.isBlank() && !description.isBlank()) {
+            description = category + ": " + description;
+        } else if (description.isBlank()) {
+            description = category;
+        }
+        setCellText(row.getCell(0), String.valueOf(number), ParagraphAlignment.CENTER);
+        setCellText(row.getCell(1), asset.name(), ParagraphAlignment.LEFT);
+        setCellText(row.getCell(2), description, ParagraphAlignment.LEFT);
+        setCellText(row.getCell(3), asset.quantity() == null ? "" : String.valueOf(asset.quantity()), ParagraphAlignment.CENTER);
+        setCellText(row.getCell(4), localizeCondition(asset.condition()), ParagraphAlignment.CENTER);
+    }
+
+    private void setCellText(XWPFTableCell cell, String value, ParagraphAlignment alignment) {
+        while (cell.getParagraphs().size() > 1) {
+            cell.removeParagraph(1);
+        }
+        XWPFParagraph paragraph = cell.getParagraphs().get(0);
+        while (!paragraph.getRuns().isEmpty()) {
+            paragraph.removeRun(0);
+        }
+        paragraph.setAlignment(alignment);
+        paragraph.createRun().setText(value == null ? "" : value);
+    }
+
+    private String localizeCondition(String condition) {
+        if (condition == null) {
+            return "";
+        }
+        return switch (condition) {
+            case "GOOD" -> "Tốt";
+            case "ATTENTION" -> "Cần chú ý";
+            case "BROKEN" -> "Hỏng";
+            case "MISSING" -> "Thiếu";
+            default -> condition;
+        };
     }
 
     @Transactional
@@ -121,35 +272,49 @@ public class HandoverDocumentService {
 
     private HandoverTemplateData fetchHandoverData(Long contractId, HandoverType type) {
         String sql = """
-            SELECT 
-                r.room_code, f.floor_code,
-                e.current_value as elec_val, e.reading_date as elec_date
+            SELECT r.room_id, r.room_code, f.floor_code
             FROM contract_handover_records h
             JOIN rooms r ON h.room_id = r.room_id
             LEFT JOIN floors f ON r.floor_id = f.floor_id
-            LEFT JOIN meter_readings e ON h.electricity_reading_id = e.meter_reading_id
             WHERE h.contract_id = ? AND h.handover_type = ?
+            ORDER BY h.contract_handover_record_id DESC
+            LIMIT 1
         """;
-        
-        List<HandoverTemplateData> results = jdbcTemplate.query(
-            sql, 
-            this::mapRowToData, 
-            contractId, 
-            type.name()
+
+        HandoverTemplateData room = jdbcTemplate.query(
+                sql,
+                rs -> rs.next()
+                        ? HandoverTemplateData.builder()
+                        .roomId(rs.getLong("room_id"))
+                        .roomNumber(rs.getString("room_code"))
+                        .roomFloorNumber(rs.getString("floor_code"))
+                        .build()
+                        : null,
+                contractId,
+                type.name()
         );
-        if (results.isEmpty()) {
+        if (room == null) {
             throw new AppException(ApiErrorCode.UNDEFINED);
         }
-        return results.get(0);
-    }
 
-    private HandoverTemplateData mapRowToData(ResultSet rs, int rowNum) throws SQLException {
-        return HandoverTemplateData.builder()
-                .roomNumber(rs.getString("room_code"))
-                .roomFloorNumber(rs.getString("floor_code"))
-                .elecValue(rs.getLong("elec_val"))
-                .elecDate(rs.getDate("elec_date") != null ? rs.getDate("elec_date").toLocalDate() : null)
-                .build();
+        List<EquipmentRow> assets = jdbcTemplate.query("""
+                        SELECT asset_name, asset_category, quantity, current_condition, description
+                        FROM room_assets
+                        WHERE room_id = ?
+                          AND deleted_at IS NULL
+                        ORDER BY room_asset_id ASC
+                        """,
+                (rs, rowNum) -> new EquipmentRow(
+                        rs.getString("asset_name"),
+                        rs.getString("asset_category"),
+                        rs.getObject("quantity", Integer.class),
+                        rs.getString("current_condition"),
+                        rs.getString("description")
+                ),
+                room.roomId
+        );
+        room.assets = assets;
+        return room;
     }
 
     private String buildHandoverTemplateHtml(HandoverTemplateData data) {
@@ -160,16 +325,31 @@ public class HandoverDocumentService {
 
     private Map<String, Object> buildHandoverVariables(HandoverTemplateData data) {
         Map<String, Object> variables = new HashMap<>();
-        
+
         variables.put("roomNumber", valueOrDefault(data.roomNumber, "......"));
         variables.put("roomFloorNumber", valueOrDefault(data.roomFloorNumber, "..."));
-        
-        variables.put("roomElectricityValue", data.elecValue != null ? data.elecValue : "......");
-        variables.put("roomElectricityReadingDate", formatDate(data.elecDate));
-        
-        variables.put("issuedAtDateString", formatVietnameseDate(LocalDate.now()));
+        List<EquipmentRow> assets = data.assets == null || data.assets.isEmpty()
+                ? List.of(new EquipmentRow("", "", null, "", ""))
+                : data.assets;
+        variables.put("equipmentRows", assets.stream()
+                .map(this::toEquipmentTemplateRow)
+                .toList());
 
         return variables;
+    }
+
+    private Map<String, Object> toEquipmentTemplateRow(EquipmentRow asset) {
+        Map<String, Object> row = new HashMap<>();
+        String category = valueOrDefault(asset.category(), "");
+        String description = valueOrDefault(asset.description(), "");
+        String detail = !category.isBlank() && !description.isBlank()
+                ? category + ": " + description
+                : !description.isBlank() ? description : category;
+        row.put("name", valueOrDefault(asset.name(), ""));
+        row.put("description", detail);
+        row.put("quantity", asset.quantity() == null ? "" : asset.quantity());
+        row.put("condition", localizeCondition(asset.condition()));
+        return row;
     }
 
     private byte[] renderHtmlToPdf(String html) {
@@ -203,15 +383,6 @@ public class HandoverDocumentService {
         return date == null ? "............" : DATE_FORMATTER.format(date);
     }
 
-    private String formatVietnameseDate(LocalDate date) {
-        if (date == null) return "............";
-        return "ngày %02d tháng %02d năm %d".formatted(
-                date.getDayOfMonth(),
-                date.getMonthValue(),
-                date.getYear()
-        );
-    }
-
     private String valueOrDefault(String value, String defaultValue) {
         return value == null || value.trim().isEmpty() ? defaultValue : value.trim();
     }
@@ -219,10 +390,27 @@ public class HandoverDocumentService {
     @lombok.Data
     @lombok.Builder
     private static class HandoverTemplateData {
+        Long roomId;
         String roomNumber;
         String roomFloorNumber;
-        Long elecValue;
-        LocalDate elecDate;
+        List<EquipmentRow> assets;
+    }
+
+    private record HandoverDocxData(
+            Long roomId,
+            String roomCode,
+            String floorCode,
+            List<EquipmentRow> assets
+    ) {
+    }
+
+    private record EquipmentRow(
+            String name,
+            String category,
+            Integer quantity,
+            String condition,
+            String description
+    ) {
     }
 
     public record HandoverFilenameContext(

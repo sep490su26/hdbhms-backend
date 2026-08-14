@@ -77,6 +77,9 @@ public class ManageContractHandoverService {
 
     @Transactional
     public HandoverMeterReadingsResponse createHandoverReadings(Long contractId, HandoverMeterReadingsRequest request, HandoverType handoverType) {
+        if (handoverType == HandoverType.MOVE_IN) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
         LeaseContractEntity contract = leaseContractRepository.findByIdAndDeletedAtIsNull(contractId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
 
@@ -220,10 +223,18 @@ public class ManageContractHandoverService {
         }
 
         // ── 2. Meter readings ────────────────────────────────────────────────
-        MeterReadingEntity electricReading = createOrUpdateReading(contract.getRoom(), MeterType.ELECTRICITY, toReadingInput(request.getElectricity()), record.getElectricityReading());
-        if (handoverType == HandoverType.TRANSFER_OUT || handoverType == HandoverType.TRANSFER_IN) {
-            electricReading.setPurpose(ReadingPurpose.TRANSFER);
-            electricReading = meterReadingRepository.save(electricReading);
+        // Move-in electricity is the contract-start reading now. Other handover types
+        // still record their closing/transfer reading here.
+        MeterReadingEntity electricReading = null;
+        if (handoverType != HandoverType.MOVE_IN) {
+            if (request.getElectricity() == null) {
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            }
+            electricReading = createOrUpdateReading(contract.getRoom(), MeterType.ELECTRICITY, toReadingInput(request.getElectricity()), record.getElectricityReading());
+            if (handoverType == HandoverType.TRANSFER_OUT || handoverType == HandoverType.TRANSFER_IN) {
+                electricReading.setPurpose(ReadingPurpose.TRANSFER);
+                electricReading = meterReadingRepository.save(electricReading);
+            }
         }
 
         LocalDateTime handoverDateTime = request.getHandoverDate() != null
@@ -287,7 +298,7 @@ public class ManageContractHandoverService {
                 .handoverType(record.getHandoverType())
                 .status(record.getStatus())
                 .handoverDate(record.getHandoverDate())
-                .electricityReadingId(electricReading.getId())
+                .electricityReadingId(electricReading == null ? null : electricReading.getId())
                 .assets(assetResults)
                 .compensationInvoiceId(compensationInvoice == null ? null : compensationInvoice.getId())
                 .compensationAmount(compensationInvoice == null ? 0L : compensationInvoice.getTotalAmount())

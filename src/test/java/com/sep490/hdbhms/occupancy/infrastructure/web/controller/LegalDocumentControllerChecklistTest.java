@@ -18,6 +18,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.CompleteLeaseLiqu
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RenewLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractActivationReadingUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseLiquidationDraftUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractFileUseCase;
 import com.sep490.hdbhms.occupancy.application.service.HandoverDocumentService;
@@ -179,6 +180,7 @@ class LegalDocumentControllerChecklistTest {
                 mock(ActivateLeaseContractUseCase.class),
                 mock(CreateDraftLeaseContractForDepositUseCase.class),
                 mock(UpdateLeaseContractTermsUseCase.class),
+                mock(UpdateLeaseContractActivationReadingUseCase.class),
                 mock(CompleteLeaseLiquidationUseCase.class),
                 mock(UpdateLeaseLiquidationDraftUseCase.class),
                 mock(RenewLeaseContractUseCase.class),

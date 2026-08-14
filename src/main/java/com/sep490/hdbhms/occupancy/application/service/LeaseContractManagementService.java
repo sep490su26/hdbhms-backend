@@ -146,6 +146,8 @@ public class LeaseContractManagementService {
                     lc.start_date,
                     lc.end_date,
                     lc.rent_start_date,
+                    lc.activation_electricity_value,
+                    lc.activation_reading_date,
                     lc.monthly_rent,
                     lc.payment_cycle_months,
                     lc.deposit_amount,
@@ -262,6 +264,8 @@ public class LeaseContractManagementService {
                     NULL AS start_date,
                     NULL AS end_date,
                     df.expected_move_in_date AS rent_start_date,
+                    NULL AS activation_electricity_value,
+                    NULL AS activation_reading_date,
                     r.listed_price AS monthly_rent,
                     df.payment_cycle_months,
                     df.amount AS deposit_amount,
@@ -2165,6 +2169,8 @@ public class LeaseContractManagementService {
                             lc.start_date,
                             lc.end_date,
                             lc.rent_start_date,
+                            lc.activation_electricity_value,
+                            lc.activation_reading_date,
                             lc.monthly_rent,
                             lc.payment_cycle_months,
                             lc.deposit_amount,
@@ -2693,6 +2699,8 @@ public class LeaseContractManagementService {
                 .startDate(toLocalDate(rs, "start_date"))
                 .endDate(toLocalDate(rs, "end_date"))
                 .rentStartDate(toLocalDate(rs, "rent_start_date"))
+                .activationElectricityValue(getBigDecimalOrNull(rs, "activation_electricity_value"))
+                .activationReadingDate(toLocalDate(rs, "activation_reading_date"))
                 .monthlyRent(getLongOrNull(rs, "monthly_rent"))
                 .paymentCycleMonths(getIntOrNull(rs, "payment_cycle_months"))
                 .depositAmount(getLongOrNull(rs, "deposit_amount"))
@@ -2914,6 +2922,10 @@ public class LeaseContractManagementService {
     private Integer getIntOrNull(ResultSet rs, String column) throws SQLException {
         int value = rs.getInt(column);
         return rs.wasNull() ? null : value;
+    }
+
+    private BigDecimal getBigDecimalOrNull(ResultSet rs, String column) throws SQLException {
+        return rs.getBigDecimal(column);
     }
 
     public record LiquidationChargeInput(

@@ -14,6 +14,7 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -64,6 +65,12 @@ public class LeaseContractEntity {
 
     @Column(name = "rent_start_date", nullable = false)
     LocalDate rentStartDate;
+
+    @Column(name = "activation_electricity_value", precision = 12, scale = 3)
+    BigDecimal activationElectricityValue;
+
+    @Column(name = "activation_reading_date")
+    LocalDate activationReadingDate;
 
     @Column(name = "monthly_rent", nullable = false)
     Long monthlyRent;

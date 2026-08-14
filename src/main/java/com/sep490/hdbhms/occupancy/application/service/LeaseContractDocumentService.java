@@ -17,6 +17,7 @@ import org.xhtmlrenderer.pdf.ITextFontResolver;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.net.URL;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -50,7 +51,11 @@ public class LeaseContractDocumentService {
     JdbcTemplate jdbcTemplate;
 
     public byte[] generateDraftPdf(Long leaseContractId) {
-        return renderHtmlToPdf(buildLeaseTemplateHtml(fetchContractData(leaseContractId)));
+        return generateDraftPdf(leaseContractId, null);
+    }
+
+    public byte[] generateDraftPdf(Long leaseContractId, BigDecimal electricityValue) {
+        return renderHtmlToPdf(buildLeaseTemplateHtml(fetchContractData(leaseContractId, electricityValue)));
     }
 
     public String previewDepositContract(Map<String, Object> input) {
@@ -73,7 +78,31 @@ public class LeaseContractDocumentService {
         }
         ContractTemplateData data = jdbcTemplate.query(
                 """
-                SELECT r.room_code, r.listed_price, p.name AS property_name, p.address_line AS property_address
+                SELECT
+                    r.room_code,
+                    r.listed_price,
+                    p.name AS property_name,
+                    p.address_line AS property_address,
+                    COALESCE((
+                        SELECT tariff.unit_price
+                        FROM utility_tariffs tariff
+                        WHERE tariff.property_id = p.property_id
+                          AND tariff.utility_type = 'ELECTRICITY'
+                          AND tariff.effective_from <= CURRENT_DATE
+                          AND (tariff.effective_to IS NULL OR tariff.effective_to >= CURRENT_DATE)
+                        ORDER BY tariff.effective_from DESC, tariff.utility_tariff_id DESC
+                        LIMIT 1
+                    ), 3500) AS electricity_price,
+                    COALESCE((
+                        SELECT tariff.unit_price
+                        FROM utility_tariffs tariff
+                        WHERE tariff.property_id = p.property_id
+                          AND tariff.utility_type = 'SERVICE_FEE'
+                          AND tariff.effective_from <= CURRENT_DATE
+                          AND (tariff.effective_to IS NULL OR tariff.effective_to >= CURRENT_DATE)
+                        ORDER BY tariff.effective_from DESC, tariff.utility_tariff_id DESC
+                        LIMIT 1
+                    ), 50000) AS utility_price
                 FROM rooms r
                 JOIN properties p ON p.property_id = r.property_id
                 WHERE r.room_id = ?
@@ -87,7 +116,7 @@ public class LeaseContractDocumentService {
         return buildLeaseTemplateHtml(data);
     }
 
-    private ContractTemplateData fetchContractData(Long contractId) {
+    private ContractTemplateData fetchContractData(Long contractId, BigDecimal electricityValue) {
         String sql = """
             SELECT
                 c.contract_code,
@@ -95,6 +124,7 @@ public class LeaseContractDocumentService {
                 c.start_date,
                 c.end_date,
                 c.rent_start_date,
+                c.activation_electricity_value,
                 c.monthly_rent,
                 c.payment_cycle_months,
                 c.deposit_amount,
@@ -102,8 +132,26 @@ public class LeaseContractDocumentService {
                 r.listed_price,
                 p.name AS property_name,
                 p.address_line AS property_address,
-                u1.unit_price AS electricity_price,
-                u3.unit_price AS utility_price,
+                COALESCE((
+                    SELECT tariff.unit_price
+                    FROM utility_tariffs tariff
+                    WHERE tariff.property_id = p.property_id
+                      AND tariff.utility_type = 'ELECTRICITY'
+                      AND tariff.effective_from <= CURRENT_DATE
+                      AND (tariff.effective_to IS NULL OR tariff.effective_to >= CURRENT_DATE)
+                    ORDER BY tariff.effective_from DESC, tariff.utility_tariff_id DESC
+                    LIMIT 1
+                ), 3500) AS electricity_price,
+                COALESCE((
+                    SELECT tariff.unit_price
+                    FROM utility_tariffs tariff
+                    WHERE tariff.property_id = p.property_id
+                      AND tariff.utility_type = 'SERVICE_FEE'
+                      AND tariff.effective_from <= CURRENT_DATE
+                      AND (tariff.effective_to IS NULL OR tariff.effective_to >= CURRENT_DATE)
+                    ORDER BY tariff.effective_from DESC, tariff.utility_tariff_id DESC
+                    LIMIT 1
+                ), 50000) AS utility_price,
                 pp.full_name AS tenant_name,
                 pp.dob AS tenant_dob,
                 pp.phone AS tenant_phone,
@@ -119,18 +167,14 @@ public class LeaseContractDocumentService {
                 ON pp.person_profile_id = ide.profile_id
                 AND ide.status = 'ACTIVE'
                 AND ide.doc_type = 'CCCD'
-            LEFT JOIN utility_tariffs u1
-                ON u1.property_id = p.property_id
-                AND u1.utility_type = 'ELECTRICITY'
-                AND (u1.effective_to IS NULL OR u1.effective_to >= CURRENT_DATE)
-            LEFT JOIN utility_tariffs u3
-                ON u3.property_id = p.property_id
-                AND u3.utility_type = 'SERVICE_FEE'
-                AND (u3.effective_to IS NULL OR u3.effective_to >= CURRENT_DATE)
             WHERE c.lease_contract_id = ?
             """;
 
-        List<ContractTemplateData> results = jdbcTemplate.query(sql, this::mapRowToData, contractId);
+        List<ContractTemplateData> results = jdbcTemplate.query(
+                sql,
+                (rs, rowNum) -> mapRowToData(rs, rowNum, electricityValue),
+                contractId
+        );
         if (results.isEmpty()) {
             throw new AppException(ApiErrorCode.UNDEFINED);
         }
@@ -140,6 +184,20 @@ public class LeaseContractDocumentService {
     }
 
     private ContractTemplateData mapRowToData(ResultSet rs, int rowNum) throws SQLException {
+        return mapRowToData(rs, rowNum, null);
+    }
+
+    private ContractTemplateData mapRowToData(
+            ResultSet rs,
+            int rowNum,
+            BigDecimal electricityValue
+    ) throws SQLException {
+        if (electricityValue != null && electricityValue.signum() < 0) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        BigDecimal effectiveElectricityValue = electricityValue == null
+                ? rs.getBigDecimal("activation_electricity_value")
+                : electricityValue;
         LocalDate startDate = localDate(rs, "start_date");
         LocalDate endDate = localDate(rs, "end_date");
         int termMonths = startDate == null || endDate == null
@@ -170,7 +228,9 @@ public class LeaseContractDocumentService {
                 .leaseTermMonths(termMonths)
                 .renewalTermMonths(termMonths)
                 .handoverDate(startDate)
-                .handoverElectricityMeter("............")
+                .handoverElectricityMeter(effectiveElectricityValue == null
+                        ? "............"
+                        : effectiveElectricityValue.stripTrailingZeros().toPlainString())
                 .otherFees("............")
                 .build();
     }
@@ -201,8 +261,8 @@ public class LeaseContractDocumentService {
                 .tenantIdNumber(stringValue(input.get("idNumber")))
                 .tenantIdIssuedDate(toDate(input.get("idIssueDate")))
                 .tenantIdIssuedPlace(stringValue(input.get("idIssuePlace")))
-                .electricityPrice(null)
-                .utilityPrice(null)
+                .electricityPrice(rs.getObject("electricity_price", Long.class))
+                .utilityPrice(rs.getObject("utility_price", Long.class))
                 .leaseTermMonths(termMonths)
                 .renewalTermMonths(termMonths)
                 .handoverDate(startDate)

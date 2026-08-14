@@ -22,12 +22,6 @@
         th, td { border: 1px solid #000; padding: 4px 5px; vertical-align: top; }
         th { text-align: center; font-weight: 700; }
         .occupants th, .occupants td { font-size: 10pt; }
-        .inventory th, .inventory td { font-size: 10.5pt; }
-        .inventory th:nth-child(1) { width: 9%; }
-        .inventory th:nth-child(2) { width: 31%; }
-        .inventory th:nth-child(3) { width: 25%; }
-        .inventory th:nth-child(4) { width: 12%; }
-        .inventory th:nth-child(5) { width: 23%; }
         .appendix { page-break-before: always; }
         .appendix-title { margin: 0 0 12px; text-align: center; font-size: 15pt; font-weight: 700; }
         .signature { margin-top: 28px; }
@@ -35,7 +29,6 @@
         .signature-name { margin-top: 58px; font-weight: 700; }
         .rules { text-align: justify; }
         .rules p { margin: 5px 0; }
-        .handover-note { margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -47,7 +40,7 @@
         <h1 class="title">HỢP ĐỒNG THUÊ CĂN HỘ</h1>
     </header>
 
-    <p class="lead">Hôm nay, ngày <span th:text="${issuedAtDateString}"></span>, tại <span th:text="${issuedAtPlace}"></span>, theo hợp đồng số <span th:text="${contractCode}"></span>, chúng tôi gồm:</p>
+    <p class="lead">Hôm nay, ngày <span th:text="${issuedAtDateString}"></span>, tại <span th:text="${issuedAtPlace}"></span>, chúng tôi gồm:</p>
 
     <p class="section-title">Bên Cho Thuê</p>
     <p>(Sau đây gọi tắt là <strong>Bên A</strong>)</p>
@@ -83,7 +76,7 @@
     <p class="clause-title">Điều 1: Thông tin chung</p>
     <p class="clause">1.1. Địa điểm thuê: Bên A đồng ý cho thuê và bên B đồng ý thuê phòng <span th:text="${roomCode}"></span> tại <span th:text="${propertyAddress}"></span>.</p>
     <p class="clause">1.2. Mục đích thuê: Để ở.</p>
-    <p class="clause">1.3. Ngày giao nhận phòng: <span th:text="${handoverDateString}"></span>. Số điện tại thời điểm giao nhận: <span th:text="${handoverElectricityMeter}"></span> số.</p>
+    <p class="clause">1.3. Ngày giao nhận phòng: <span th:text="${handoverDateString}"></span>. Số điện đầu kỳ: <span th:text="${handoverElectricityMeter}"></span> số.</p>
     <p class="clause">1.4. Thời hạn thuê: <span th:text="${leaseTermMonths}"></span> tháng kể từ ngày <span th:text="${leaseContractStartDateString}"></span>. Sau khi Hợp đồng này hết hạn, nếu các thông tin trong Hợp đồng không có gì thay đổi và hai bên không có ý kiến gì về việc chấm dứt Hợp đồng, Hợp đồng này sẽ tự động gia hạn thêm <span th:text="${renewalTermMonths}"></span> tháng.</p>
 
     <p class="clause-title">Điều 2: Giá thuê căn hộ, ngày bắt đầu tính tiền và các chi phí khác</p>
@@ -148,54 +141,9 @@
     <table class="signature">
         <tr>
             <td><strong>ĐẠI DIỆN BÊN A</strong><div class="signature-name" th:text="${ownerFullNameUppercase}"></div></td>
-            <td><strong>ĐẠI DIỆN BÊN B</strong><div class="signature-name" th:text="${signerFullName}"></div></td>
+            <td><strong>ĐẠI DIỆN BÊN B</strong><div class="signature-name"></div></td>
         </tr>
     </table>
-
-    <section class="appendix">
-        <h2 class="appendix-title">PHỤ LỤC HỢP ĐỒNG</h2>
-        <p class="section-title">Danh mục nội thất bàn giao</p>
-        <table class="inventory">
-            <thead><tr><th>STT</th><th>Hạng mục</th><th>Diễn giải</th><th>Số lượng</th><th>Tình trạng</th></tr></thead>
-            <tbody>
-            <tr><td>1</td><td>Cửa đi</td><td></td><td></td><td></td></tr>
-            <tr><td>2</td><td>Cửa sổ</td><td></td><td></td><td></td></tr>
-            <tr><td>3</td><td>Giường</td><td></td><td></td><td></td></tr>
-            <tr><td>4</td><td>Tủ quần áo</td><td></td><td></td><td></td></tr>
-            <tr><td>5</td><td>Bàn học</td><td></td><td></td><td></td></tr>
-            <tr><td>6</td><td>Tủ lạnh</td><td></td><td></td><td></td></tr>
-            <tr><td>7</td><td>Chậu rửa bát + vòi</td><td></td><td></td><td></td></tr>
-            <tr><td>8</td><td>Chậu rửa mặt + vòi</td><td></td><td></td><td></td></tr>
-            <tr><td>9</td><td>Xí bệt + vòi</td><td></td><td></td><td></td></tr>
-            <tr><td>10</td><td>Vòi hoa sen</td><td></td><td></td><td></td></tr>
-            <tr><td>11</td><td>Quạt hút mùi</td><td></td><td></td><td></td></tr>
-            <tr><td>12</td><td>Bóng đèn</td><td></td><td></td><td></td></tr>
-            <tr><td>13</td><td>Điều hòa</td><td></td><td></td><td></td></tr>
-            <tr th:each="row : ${#numbers.sequence(14, 19)}"><td th:text="${row}"></td><td></td><td></td><td></td><td></td></tr>
-            </tbody>
-        </table>
-
-        <h2 class="appendix-title">NỘI QUY CỘNG ĐỒNG TẠI TÒA NHÀ</h2>
-        <div class="rules">
-            <p>Để đảm bảo an toàn và an ninh trong tòa nhà, BQL đề nghị Quý cư dân thực hiện một cách nghiêm túc các nội quy sau:</p>
-            <p>1. Tự bảo quản tài sản cá nhân và các trang thiết bị bên trong căn hộ cẩn thận.</p>
-            <p>2. Không đục khoét, vẽ bậy, dán tranh ảnh lên tường nhà. Không tự ý sửa chữa bên trong căn nhà nếu chưa có sự đồng ý của BQL.</p>
-            <p>3. Không gom rác, bụi và để giày dép ngoài hành lang đi lại chung. Không vất rác qua cửa sổ và ban công.</p>
-            <p>4. Không nuôi chó, mèo, vật nuôi khác trong căn hộ và trong tòa nhà.</p>
-            <p><strong>5. KHÔNG TỰ Ý SỬ DỤNG, LẤY ĐỒ CỦA NGƯỜI KHÁC KHI CHƯA ĐƯỢC SỰ ĐỒNG Ý.</strong></p>
-            <p><strong>6. KHÔNG GÂY ỒN ÀO, MẤT TRẬT TỰ SAU 22H ĐÊM.</strong></p>
-            <p>7. Ra vào tòa nhà phải chú ý <strong><u>ĐÓNG CỬA</u></strong> &amp; <strong><u>ĐÓNG CỬA NHẸ NHÀNG</u></strong></p>
-            <p>8. <strong>TUYỆT ĐỐI KHÔNG MỞ CỬA CHO NGƯỜI LẠ RA – VÀO TÒA NHÀ.</strong> Khách đến chơi, Quý cư dân vui lòng chủ động xuống đón khách. Báo ngay cho Ban quản lý nếu thấy có trường hợp khả nghi nhờ mở cửa hoặc ra vào tòa nhà!</p>
-            <p>9. Tất cả các vấn đề phát sinh do quý khách không thực hiện nghiêm túc các quy định trên, quý khách hoàn toàn phải chịu trách nhiệm.</p>
-            <p>10. Vui lòng <strong>TẮT MÁY – DẮT XE</strong> ra vào tòa nhà vào các khung giờ: 12h – 13h trưa và 22h đêm – 6h sáng hôm sau.</p>
-        </div>
-
-        <table class="signature handover-note">
-            <tr><td></td><td><strong>ĐẠI DIỆN BÊN B</strong></td></tr>
-            <tr><td></td><td>1. Tôi xác nhận đã nhận bàn giao đầy đủ các trang thiết bị như phụ lục Hợp đồng. Tất cả đều đang sử dụng bình thường.</td></tr>
-            <tr><td></td><td>2. Tôi đồng ý và cam kết thực hiện đúng các nội quy nêu trên!</td></tr>
-        </table>
-    </section>
 </main>
 </body>
 </html>

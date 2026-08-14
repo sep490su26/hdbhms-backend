@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -46,6 +47,8 @@ public class LeaseContractManagementResponse {
     LocalDate startDate;
     LocalDate endDate;
     LocalDate rentStartDate;
+    BigDecimal activationElectricityValue;
+    LocalDate activationReadingDate;
     Long monthlyRent;
     Integer paymentCycleMonths;
     Long depositAmount;

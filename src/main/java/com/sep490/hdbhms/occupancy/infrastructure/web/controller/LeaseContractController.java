@@ -17,6 +17,8 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.LiquidationCharge
 import com.sep490.hdbhms.occupancy.application.port.in.command.RecordTenantIntentionCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.RenewLeaseContractCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ActivateLeaseContractRequest;
+import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.UpdateLeaseContractActivationReadingRequest;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetLeaseContractDetailsQuery;
 import com.sep490.hdbhms.occupancy.application.port.in.query.GetListLeaseContractsQuery;
 import com.sep490.hdbhms.property.application.port.in.query.GetRoomDetailsQuery;
@@ -30,6 +32,7 @@ import com.sep490.hdbhms.property.application.port.in.usecase.GetRoomDetailsUseC
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RecordTenantIntentionUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.RenewLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
+import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractActivationReadingUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseLiquidationDraftUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractFileUseCase;
 import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
@@ -95,6 +98,7 @@ public class LeaseContractController {
     ActivateLeaseContractUseCase activateLeaseContractUseCase;
     CreateDraftLeaseContractForDepositUseCase createDraftLeaseContractForDepositUseCase;
     UpdateLeaseContractTermsUseCase updateLeaseContractTermsUseCase;
+    UpdateLeaseContractActivationReadingUseCase updateLeaseContractActivationReadingUseCase;
     CompleteLeaseLiquidationUseCase completeLeaseLiquidationUseCase;
     UpdateLeaseLiquidationDraftUseCase updateLeaseLiquidationDraftUseCase;
     RenewLeaseContractUseCase renewLeaseContractUseCase;
@@ -107,12 +111,21 @@ public class LeaseContractController {
     PersonProfileRepository personProfileRepository;
     JdbcTemplate jdbcTemplate;
 
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getDraftPdf(Long id) {
+        return getDraftPdf(id, null);
+    }
+
     @GetMapping("/{id}/draft-pdf")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
-    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getDraftPdf(@PathVariable Long id) {
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getDraftPdf(
+            @PathVariable Long id,
+            @RequestParam(required = false) BigDecimal electricityValue
+    ) {
         assertOwnerOrAssignedManagerCanAccessContract(id);
         LeaseContractManagementResponse contract = getLeaseContractManagementUseCase.findOne(id);
-        byte[] pdfBytes = leaseContractDocumentService.generateDraftPdf(id);
+        byte[] pdfBytes = electricityValue == null
+                ? leaseContractDocumentService.generateDraftPdf(id)
+                : leaseContractDocumentService.generateDraftPdf(id, electricityValue);
         org.springframework.core.io.Resource resource = new org.springframework.core.io.ByteArrayResource(pdfBytes);
         String filename = leaseContractFilename(contract);
         return org.springframework.http.ResponseEntity.ok()
@@ -203,11 +216,24 @@ public class LeaseContractController {
     @PostMapping("/{leaseContractId}/activate")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public ApiResponse<LeaseContractManagementResponse> activateLeaseContract(
-            @PathVariable Long leaseContractId
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody(required = false) ActivateLeaseContractRequest request
     ) {
         assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
         return ApiResponse.<LeaseContractManagementResponse>builder()
-                .data(activateLeaseContractUseCase.execute(leaseContractId))
+                .data(activateLeaseContractUseCase.execute(leaseContractId, request))
+                .build();
+    }
+
+    @PatchMapping("/{leaseContractId}/activation-reading")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public ApiResponse<LeaseContractManagementResponse> updateActivationReading(
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody UpdateLeaseContractActivationReadingRequest request
+    ) {
+        assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
+        return ApiResponse.<LeaseContractManagementResponse>builder()
+                .data(updateLeaseContractActivationReadingUseCase.execute(leaseContractId, request))
                 .build();
     }
 

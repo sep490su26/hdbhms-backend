@@ -105,6 +105,27 @@ public class ContractHandoverController {
                 .body(resource);
     }
 
+    @GetMapping("/draft-docx")
+    @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
+    public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> getHandoverDraftDocx(
+            @PathVariable Long contractId,
+            @RequestParam(required = false, defaultValue = "MOVE_IN") HandoverType type) {
+        assertOwnerOrAssignedManagerCanAccessContract(contractId);
+        byte[] docxBytes = handoverDocumentService.generateHandoverDraftDocx(contractId, type);
+        org.springframework.core.io.Resource resource = new org.springframework.core.io.ByteArrayResource(docxBytes);
+        var filenameContext = handoverDocumentService.getFilenameContext(contractId, type);
+        String filename = DocumentFilenameBuilder.buildDocx(
+                filenameContext.roomCode(),
+                filenameContext.tenantName(),
+                DocumentType.BBBG,
+                filenameContext.startDate()
+        );
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, DocumentFilenameBuilder.attachmentContentDisposition(filename))
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                .body(resource);
+    }
+
     @GetMapping("/signed-pdf")
     @PreAuthorize("hasAnyRole('OWNER','MANAGER')")
     public org.springframework.http.ResponseEntity<org.springframework.core.io.Resource> downloadSignedHandoverPdf(
