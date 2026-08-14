@@ -21,41 +21,59 @@ CREATE TEMPORARY TABLE tmp_hdd1_seed_email_map
 );
 
 INSERT INTO tmp_hdd1_seed_email_map (user_id, new_email)
-SELECT user_account.user_id,
-       CASE user_account.role
-           WHEN 'OWNER' THEN 'nguyenminhquang80@gmail.com'
-           WHEN 'MANAGER' THEN 'tranthuhuong90@gmail.com'
-           ELSE CONCAT(
-               COALESCE(
-                   NULLIF(
-                       REPLACE(
-                           REGEXP_REPLACE(COALESCE(SUBSTRING_INDEX(user_account.email, '@', 1), ''), '\\.[0-9]+$', ''),
-                           '.',
+WITH email_candidates AS (
+    SELECT user_account.user_id,
+           CASE user_account.role
+               WHEN 'OWNER' THEN 'nguyenminhquang80@gmail.com'
+               WHEN 'MANAGER' THEN 'tranthuhuong90@gmail.com'
+               ELSE CONCAT(
+                   COALESCE(
+                       NULLIF(
+                           REPLACE(
+                               REGEXP_REPLACE(COALESCE(SUBSTRING_INDEX(user_account.email, '@', 1), ''), '\\.[0-9]+$', ''),
+                               '.',
+                               ''
+                           ),
                            ''
                        ),
-                       ''
+                       CONCAT('seeduser', user_account.user_id)
                    ),
-                   CONCAT('seeduser', user_account.user_id)
-               ),
-               COALESCE(DATE_FORMAT(profile.dob, '%y'), '00'),
-               '@gmail.com'
-           )
+                   COALESCE(DATE_FORMAT(profile.dob, '%y'), '00'),
+                   '@gmail.com'
+               )
+           END AS base_email
+    FROM hdbhms.users user_account
+    JOIN hdbhms.person_profiles profile
+      ON profile.user_id = user_account.user_id
+     AND profile.deleted_at IS NULL
+    WHERE user_account.deleted_at IS NULL
+      AND EXISTS (
+          SELECT 1
+          FROM hdbhms.tenants tenant
+          JOIN hdbhms.properties property
+            ON property.property_id = tenant.property_id
+           AND property.deleted_at IS NULL
+          WHERE tenant.user_id = user_account.user_id
+            AND tenant.deleted_at IS NULL
+            AND property.property_code = 'HAI_DANG_1'
+      )
+), ranked_candidates AS (
+    SELECT user_id,
+           base_email,
+           ROW_NUMBER() OVER (PARTITION BY base_email ORDER BY user_id) AS email_rank
+    FROM email_candidates
+)
+SELECT user_id,
+       CASE WHEN email_rank = 1 THEN base_email
+            ELSE CONCAT(
+                SUBSTRING_INDEX(base_email, '@', 1),
+                '.',
+                email_rank,
+                '@',
+                SUBSTRING_INDEX(base_email, '@', -1)
+            )
        END
-FROM hdbhms.users user_account
-JOIN hdbhms.person_profiles profile
-  ON profile.user_id = user_account.user_id
- AND profile.deleted_at IS NULL
-WHERE user_account.deleted_at IS NULL
-  AND EXISTS (
-      SELECT 1
-      FROM hdbhms.tenants tenant
-      JOIN hdbhms.properties property
-        ON property.property_id = tenant.property_id
-       AND property.deleted_at IS NULL
-      WHERE tenant.user_id = user_account.user_id
-        AND tenant.deleted_at IS NULL
-        AND property.property_code = 'HAI_DANG_1'
-  );
+FROM ranked_candidates;
 
 UPDATE hdbhms.tenant_account_provisionings provisioning
 JOIN hdbhms.person_profiles profile

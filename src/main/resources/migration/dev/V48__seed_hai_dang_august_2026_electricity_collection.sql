@@ -320,7 +320,7 @@ SET @cr403 := (
 SET @inv403_final := (
     SELECT invoice_id
     FROM hdbhms.invoices
-    WHERE invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED'
+    WHERE invoice_code = 'HD_P403_30_07_2026_QT'
     LIMIT 1
 );
 
@@ -440,19 +440,19 @@ SET status = 'DRAFT',
     paid_amount = 0,
     remaining_amount = 0,
     updated_at = '2026-08-01 08:00:00'
-WHERE invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice_code = 'HD_P403_30_07_2026_QT';
 
 DELETE line
 FROM hdbhms.invoice_lines line
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = line.invoice_id
-WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice.invoice_code = 'HD_P403_30_07_2026_QT';
 
 DELETE allocation
 FROM hdbhms.payment_allocations allocation
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = allocation.invoice_id
-WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice.invoice_code = 'HD_P403_30_07_2026_QT';
 
 UPDATE hdbhms.invoice_payment_groups payment_group
 SET payment_intent_id = NULL
@@ -468,28 +468,28 @@ DELETE payment_group
 FROM hdbhms.invoice_payment_groups payment_group
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = payment_group.invoice_id
-WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice.invoice_code = 'HD_P403_30_07_2026_QT';
 
 DELETE payment_intent
 FROM hdbhms.payment_intents payment_intent
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = payment_intent.invoice_id
-WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice.invoice_code = 'HD_P403_30_07_2026_QT';
 
 DELETE item
 FROM hdbhms.utility_billing_run_items item
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = item.invoice_id
-WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice.invoice_code = 'HD_P403_30_07_2026_QT';
 
 DELETE charge
 FROM hdbhms.pending_billing_charges charge
 JOIN hdbhms.invoices invoice
   ON invoice.invoice_id = charge.invoice_id
-WHERE invoice.invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice.invoice_code = 'HD_P403_30_07_2026_QT';
 
 DELETE FROM hdbhms.invoices
-WHERE invoice_code = 'SEED-INV-403-2026-07-FINAL-ISSUED';
+WHERE invoice_code = 'HD_P403_30_07_2026_QT';
 
 DELETE FROM hdbhms.manager_tasks
 WHERE manager_task_id = @task403
