@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 class MeterReadingControllerImportTemplateTest {
 
     @Test
-    void downloadImportTemplateUsesVietnameseHeadersPeriodSheetAndPendingRooms() throws Exception {
+    void downloadImportTemplateUsesVietnameseHeadersPeriodSheetAndAllRooms() throws Exception {
         GetBatchMeterReadingsService batchService = mock(GetBatchMeterReadingsService.class);
         when(batchService.getBatchStatus(eq("08-2026"), eq(7L), eq(11L))).thenReturn(
                 BatchMeterReadingStatusResponse.builder()
@@ -65,9 +65,11 @@ class MeterReadingControllerImportTemplateTest {
             assertEquals("#,##0", sheet.getRow(1).getCell(3).getCellStyle().getDataFormatString());
             assertEquals(CellType.BLANK, sheet.getRow(1).getCell(3).getCellType());
 
-            assertEquals("P103", sheet.getRow(2).getCell(0).getStringCellValue());
-            assertEquals(70D, sheet.getRow(2).getCell(3).getNumericCellValue());
-            assertNull(sheet.getRow(3));
+            assertEquals("P102", sheet.getRow(2).getCell(0).getStringCellValue());
+            assertEquals(145D, sheet.getRow(2).getCell(3).getNumericCellValue());
+            assertEquals("P103", sheet.getRow(3).getCell(0).getStringCellValue());
+            assertEquals(70D, sheet.getRow(3).getCell(3).getNumericCellValue());
+            assertNull(sheet.getRow(4));
         }
     }
 
