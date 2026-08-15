@@ -475,7 +475,7 @@ public class TransactionHistoryService {
         return switch (invoiceType == null ? "" : invoiceType) {
             case "DEPOSIT" -> "Cọc";
             case "RENT" -> "Tiền phòng";
-            case "UTILITY" -> "Điện nước";
+            case "UTILITY" -> "Tiền điện";
             case "FINAL_SETTLEMENT" -> "Tất toán";
             case "COMPENSATION" -> "Bồi thường";
             case "OPERATING_REIMBURSEMENT" -> "Hoàn chi";

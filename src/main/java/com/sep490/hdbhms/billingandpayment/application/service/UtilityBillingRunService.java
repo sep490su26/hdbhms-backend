@@ -684,6 +684,7 @@ public class UtilityBillingRunService {
         RentCharge rentCharge = buildRentCharge(item.getLeaseContract(), billingPeriod);
         long rentSubtotal = rentCharge.amount();
         long utilitySubtotal = utilitySubtotal(item);
+        long serviceFeeSubtotal = safe(item.getServiceFeeAmount());
         long configuredRentDiscount = configuredRentDiscount(item.getLeaseContract(), billingPeriod, rentCharge);
         long requestedDiscount = Math.max(safe(item.getDiscountAmount()), 0L);
         long rentDiscount = Math.min(
@@ -692,7 +693,7 @@ public class UtilityBillingRunService {
         );
 
         InvoiceEntity rentInvoice = findExistingInvoice(item, run, InvoiceType.RENT).orElse(null);
-        if (rentInvoice == null && rentSubtotal > 0) {
+        if (rentInvoice == null && rentSubtotal + serviceFeeSubtotal > 0) {
             rentInvoice = createMonthlyRentInvoice(
                     item,
                     run,
@@ -705,8 +706,7 @@ public class UtilityBillingRunService {
         }
 
         InvoiceEntity utilityInvoice = findExistingInvoice(item, run, InvoiceType.UTILITY).orElse(null);
-        boolean utilityAlreadyIncludedInRent = hasUtilityLine(rentInvoice);
-        if (utilityInvoice == null && !utilityAlreadyIncludedInRent && utilitySubtotal > 0) {
+        if (utilityInvoice == null && utilitySubtotal > 0) {
             utilityInvoice = createMonthlyUtilityInvoice(
                     item,
                     run,
@@ -742,10 +742,11 @@ public class UtilityBillingRunService {
                 now,
                 currentUserId,
                 InvoiceType.RENT,
-                rentCharge.amount(),
+                rentCharge.amount() + safe(item.getServiceFeeAmount()),
                 discountAmount
         );
         saveRentLine(invoice, rentCharge, item.getId());
+        saveServiceFeeLine(invoice, item, run.getBillingPeriod());
         return issueInvoice(invoice, now, currentUserId);
     }
 
@@ -770,9 +771,6 @@ public class UtilityBillingRunService {
         );
         saveInvoiceLine(invoice, item, InvoiceLineType.ELECTRICITY, item.getElectricityReading(),
                 item.getElectricityQuantity(), item.getElectricityUnitPrice(), "Electricity");
-        saveInvoiceLine(invoice, item, InvoiceLineType.WATER, item.getWaterReading(),
-                item.getWaterQuantity(), item.getWaterUnitPrice(), "Water");
-        saveServiceFeeLine(invoice, item, run.getBillingPeriod());
         return issueInvoice(invoice, now, currentUserId);
     }
 
@@ -821,19 +819,7 @@ public class UtilityBillingRunService {
     }
 
     private long utilitySubtotal(UtilityBillingRunItemEntity item) {
-        return safe(item.getElectricityAmount())
-                + safe(item.getWaterAmount())
-                + safe(item.getServiceFeeAmount());
-    }
-
-    private boolean hasUtilityLine(InvoiceEntity invoice) {
-        if (invoice == null || invoice.getId() == null) {
-            return false;
-        }
-        return invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId()).stream()
-                .anyMatch(line -> line.getLineType() == InvoiceLineType.ELECTRICITY
-                        || line.getLineType() == InvoiceLineType.WATER
-                        || line.getLineType() == InvoiceLineType.SERVICE_FEE);
+        return safe(item.getElectricityAmount());
     }
 
     private void publishMeterReadingPeriodOpened(UtilityBillingRunResponse run) {
@@ -1014,11 +1000,30 @@ public class UtilityBillingRunService {
         run.setReadyCount((int) items.stream().filter(item -> item.getStatus() == UtilityBillingRunItemStatus.READY).count());
         run.setWarningCount((int) items.stream().filter(item -> item.getStatus() == UtilityBillingRunItemStatus.WARNING).count());
         run.setSkippedCount((int) items.stream().filter(item -> item.getStatus() == UtilityBillingRunItemStatus.SKIPPED).count());
-        run.setGeneratedInvoiceCount((int) items.stream().filter(item -> item.getStatus() == UtilityBillingRunItemStatus.INVOICED).count());
+        run.setGeneratedInvoiceCount(run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED
+                ? countIssuedInvoices(run)
+                : (int) items.stream().filter(item -> item.getStatus() == UtilityBillingRunItemStatus.INVOICED).count());
         run.setSubtotalAmount(items.stream().mapToLong(item -> safe(item.getSubtotalAmount())).sum());
         run.setDiscountAmount(items.stream().mapToLong(item -> safe(item.getDiscountAmount())).sum());
         run.setTotalAmount(items.stream().mapToLong(item -> safe(item.getTotalAmount())).sum());
         runRepository.save(run);
+    }
+
+    private int countIssuedInvoices(UtilityBillingRunEntity run) {
+        if (run == null || run.getId() == null || run.getInvoiceReason() == null) {
+            return 0;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(DISTINCT invoice.invoice_id)
+                FROM invoices invoice
+                JOIN utility_billing_run_items item
+                  ON item.lease_contract_id = invoice.lease_contract_id
+                WHERE item.run_id = ?
+                  AND invoice.billing_period = ?
+                  AND invoice.invoice_reason = ?
+                  AND invoice.status <> 'VOIDED'
+                """, Integer.class, run.getId(), run.getBillingPeriod(), run.getInvoiceReason().name());
+        return count == null ? 0 : count;
     }
 
     private UtilityBillingRunEntity requireEditableRun(Long runId) {
@@ -1476,7 +1481,7 @@ public class UtilityBillingRunService {
                 || Boolean.TRUE.equals(item.getServiceFeeLineRequired());
         List<String> payablePeriods = hasCycleCharge
                 ? calculatedRentCharge.periods().stream().map(YearMonth::toString).toList()
-                : List.of(billingPeriod.toString());
+                : List.of();
         return new UtilityBillingRunResponse.Item(
                 item.getId(),
                 item.getRoom() == null ? null : item.getRoom().getId(),

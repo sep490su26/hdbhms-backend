@@ -1185,7 +1185,7 @@ public class BillingManagementService {
             serviceAmount += sumLines(invoice, InvoiceLineType.SERVICE_FEE);
             electricityAmount += sumLines(invoice, InvoiceLineType.ELECTRICITY);
             if (invoice.getInvoiceType() == InvoiceType.RENT) {
-                discountAmount += safe(invoice.getDiscountAmount());
+                discountAmount += resolveExportDiscount(invoice);
                 if (invoice.getLeastContract() != null && invoice.getBillingPeriod() != null) {
                     rentOverrideRepository.findByContract_IdAndBillingPeriod(
                                     invoice.getLeastContract().getId(), invoice.getBillingPeriod().trim()
@@ -1217,6 +1217,22 @@ public class BillingManagementService {
                     }
                 }
             }
+        }
+
+        private long resolveExportDiscount(InvoiceEntity invoice) {
+            long invoiceDiscount = safe(invoice.getDiscountAmount());
+            if (invoiceDiscount > 0L) {
+                return invoiceDiscount;
+            }
+            if (invoice.getLeastContract() == null || invoice.getBillingPeriod() == null) {
+                return 0L;
+            }
+            return rentOverrideRepository.findByContract_IdAndBillingPeriod(
+                            invoice.getLeastContract().getId(), invoice.getBillingPeriod().trim()
+                    )
+                    .map(RentOverrideEntity::getDiscountAmount)
+                    .map(BillingManagementService.this::safe)
+                    .orElse(0L);
         }
 
         private long sumLines(InvoiceEntity invoice, InvoiceLineType lineType) {
