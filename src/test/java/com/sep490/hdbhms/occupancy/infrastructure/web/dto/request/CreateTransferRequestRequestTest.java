@@ -22,4 +22,20 @@ class CreateTransferRequestRequestTest {
         assertEquals(LocalDate.of(2026, 8, 1), request.requestedTransferDate());
         assertEquals(LocalDate.of(2026, 8, 1), request.expectedTransferDate());
     }
+
+    @Test
+    void defaultsMissingTransferDatesToTheFirstDayOfNextMonth() {
+        var request = new CreateTransferRequestRequest(
+                10L,
+                20L,
+                null,
+                null,
+                null,
+                null
+        );
+        var expected = LocalDate.now().plusMonths(1).withDayOfMonth(1);
+
+        assertEquals(expected, request.requestedTransferDate());
+        assertEquals(expected, request.expectedTransferDate());
+    }
 }

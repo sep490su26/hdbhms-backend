@@ -21,6 +21,7 @@ public record BillingInvoiceResponse(
         LocalDateTime dueDate,
         Long subtotalAmount,
         Long discountAmount,
+        String discountReason,
         Long totalAmount,
         Long paidAmount,
         Long remainingAmount,

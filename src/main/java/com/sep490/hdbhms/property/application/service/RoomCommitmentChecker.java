@@ -43,6 +43,30 @@ public class RoomCommitmentChecker {
         return Blocker.NONE;
     }
 
+    /**
+     * Returns true for the expiring tenant's room when another tenant has
+     * already reserved it. This is the shared gate for move-out workflows.
+     */
+    public boolean isSoonVacantBookingCase(
+            Long roomId,
+            Long currentContractId,
+            LocalDate contractEndDate
+    ) {
+        return isSoonVacant(roomId)
+                && hasLessThanOneMonthRemaining(contractEndDate)
+                && isReserved(roomId, currentContractId);
+    }
+
+    /**
+     * Returns true for a booking-backed incoming contract waiting for a
+     * move-in handover while the previous lease is still expiring.
+     */
+    public boolean requiresVacantRoomForIncomingBooking(Long roomId, Long incomingContractId) {
+        return !isVacant(roomId)
+                && hasExpiringContract(roomId, incomingContractId)
+                && hasBookingBackedContract(incomingContractId, roomId);
+    }
+
     public Optional<LocalDate> findExpectedVacantDateForBooking(Long roomId) {
         return jdbcTemplate.query("""
                         SELECT COALESCE(expected_vacant_date, end_date) AS expected_vacant_date
@@ -110,6 +134,72 @@ public class RoomCommitmentChecker {
                 && contractEndDate.isBefore(LocalDate.now().plusMonths(1));
     }
 
+    private boolean isSoonVacant(Long roomId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM rooms
+                        WHERE room_id = ?
+                          AND deleted_at IS NULL
+                          AND current_status = 'SOON_VACANT'
+                        """,
+                Integer.class,
+                roomId
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean isVacant(Long roomId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM rooms
+                        WHERE room_id = ?
+                          AND deleted_at IS NULL
+                          AND current_status = 'VACANT'
+                        """,
+                Integer.class,
+                roomId
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean hasExpiringContract(Long roomId, Long excludedContractId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM lease_contracts
+                        WHERE room_id = ?
+                          AND lease_contract_id <> ?
+                          AND deleted_at IS NULL
+                          AND status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                          AND end_date < DATE_ADD(CURRENT_DATE, INTERVAL 1 MONTH)
+                        """,
+                Integer.class,
+                roomId,
+                excludedContractId
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean hasBookingBackedContract(Long contractId, Long roomId) {
+        if (contractId == null) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM lease_contracts contract
+                        JOIN deposit_forms deposit
+                          ON deposit.deposit_form_id = contract.deposit_form_id
+                        WHERE contract.lease_contract_id = ?
+                          AND contract.room_id = ?
+                          AND contract.deleted_at IS NULL
+                          AND deposit.deposit_status IN ('PAID', 'CONFIRMED', 'EXTENDED')
+                        """,
+                Integer.class,
+                contractId,
+                roomId
+        );
+        return count != null && count > 0;
+    }
+
     private boolean hasApprovedTransfer(Long roomId) {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -119,7 +209,6 @@ public class RoomCommitmentChecker {
                               'MANAGER_APPROVED',
                               'WAITING_HOLDER_RESPONSE',
                               'WAITING_TARGET_HOLDER_APPROVAL',
-                              'WAITING_TENANT_CONFIRMATION',
                               'WAITING_NEW_CONTRACT',
                               'WAITING_CONTRACT_CONFIRMATION',
                               'WAITING_SIGNING',

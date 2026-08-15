@@ -28,6 +28,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.ContractHando
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
 import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
 import com.sep490.hdbhms.shared.exception.AppException;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -271,7 +272,8 @@ class RoomTransferServiceSigningTest {
                 mock(SnowflakeIdGenerator.class),
                 mock(ApplicationEventPublisher.class),
                 mock(JdbcTemplate.class),
-                mock(ObjectMapper.class)
+                mock(ObjectMapper.class),
+                mock(RoomCommitmentChecker.class)
         );
     }
 

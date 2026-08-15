@@ -90,7 +90,7 @@ class CompleteInvoiceServiceTest {
     void paidTransferDifferenceAutoConfirmsContractAfterPayment() {
         RoomTransferRequest request = RoomTransferRequest.builder()
                 .id(9L)
-                .status(TransferRequestStatus.WAITING_TENANT_CONFIRMATION)
+                .status(TransferRequestStatus.WAITING_PAYMENT)
                 .build();
         RecordingRoomTransferRepository roomTransferRepository = new RecordingRoomTransferRepository(request);
         RecordingRoomTransferUseCase roomTransferUseCase = new RecordingRoomTransferUseCase();

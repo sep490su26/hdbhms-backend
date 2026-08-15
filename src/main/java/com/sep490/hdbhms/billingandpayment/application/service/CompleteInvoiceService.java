@@ -99,7 +99,6 @@ public class CompleteInvoiceService implements CompleteInvoiceUseCase {
 
     private boolean canAdvanceTransferAfterPayment(RoomTransferRequest transferRequest) {
         return transferRequest.getStatus() == TransferRequestStatus.WAITING_PAYMENT
-                || transferRequest.getStatus() == TransferRequestStatus.WAITING_TENANT_CONFIRMATION
                 || transferRequest.getStatus() == TransferRequestStatus.WAITING_CONTRACT_CONFIRMATION;
     }
 }

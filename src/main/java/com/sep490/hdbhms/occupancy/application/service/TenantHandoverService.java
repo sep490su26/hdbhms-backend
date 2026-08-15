@@ -106,6 +106,7 @@ public class TenantHandoverService {
         }
         return ContractHandoverDetailsResponse.MeterReadingDetails.builder()
                 .id(reading.getId())
+                .previousValue(reading.getPreviousValue())
                 .currentValue(reading.getCurrentValue())
                 .readingDate(reading.getReadingDate().atStartOfDay())
                 .photoFileId(reading.getPhotoFile() != null ? reading.getPhotoFile().getId() : null)

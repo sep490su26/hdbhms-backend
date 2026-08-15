@@ -267,6 +267,7 @@ public class BillingManagementService {
             if (billingPeriod != null) {
                 setText(sheet, 5, 0, invoiceExcelTitle(billingPeriod));
             }
+            setText(sheet, 6, 16, "Giảm giá (5)");
 
             Map<String, List<InvoiceExcelRow>> rowsByFloor = new LinkedHashMap<>();
             for (InvoiceExcelRow item : rows) {
@@ -576,7 +577,6 @@ public class BillingManagementService {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         YearMonth period = requirePeriod(request.billingPeriod());
-        long newRent = requirePositiveAmount(request.overrideMonthlyRent(), "Giá không hợp lệ");
         var room = roomRepository.findById(request.roomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
@@ -600,9 +600,16 @@ public class BillingManagementService {
                 .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
 
         long listedRent = safe(contract.getMonthlyRent());
-        if (listedRent > 0 && newRent >= listedRent) {
-            throw new AppException(ApiErrorCode.MIGRATED_GIA_KHUYEN_MAI_PHAI_THAP_HON_GIA_NIEM_YET_CO_BAN_CUA_PHONG);
+        if (listedRent <= 0) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
+        long invoiceRentSubtotal = invoice == null
+                ? listedRent
+                : invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId()).stream()
+                .filter(line -> line.getLineType() == InvoiceLineType.ROOM_RENT)
+                .mapToLong(this::lineAmount)
+                .sum();
+        long discountAmount = resolveDiscountAmount(request, listedRent, Math.max(listedRent, invoiceRentSubtotal));
 
         RentOverrideEntity rentOverride = rentOverrideRepository
                 .findByContract_IdAndBillingPeriod(contract.getId(), period.toString())
@@ -610,23 +617,22 @@ public class BillingManagementService {
 
         long oldRent = rentOverride.getOverrideMonthlyRent() != null
                 ? rentOverride.getOverrideMonthlyRent()
-                : resolveInvoiceRent(invoice, contract);
+                : listedRent;
 
         rentOverride.setContract(contract);
         rentOverride.setBillingPeriod(period.toString());
-        rentOverride.setOverrideMonthlyRent(newRent);
+        rentOverride.setOverrideMonthlyRent(Math.max(listedRent - Math.min(discountAmount, listedRent), 0L));
+        rentOverride.setDiscountAmount(discountAmount);
         rentOverride.setReason(defaultText(request.reason(), "Điều chỉnh giá tháng " + period));
         rentOverride.setApprovedBy(userRepository.getReferenceById(currentUserId));
         rentOverride = rentOverrideRepository.saveAndFlush(rentOverride);
 
         boolean invoiceApplied = false;
         if (invoice != null) {
-            applyOverrideToInvoice(invoice, newRent, oldRent);
+            applyRentDiscountToInvoice(invoice, contract, discountAmount);
             cancelPendingPaymentIntents(invoice);
             invoiceApplied = true;
         }
-
-        appendContractPriceEvent(contract.getId(), oldRent, newRent, period.toString(), currentUserId);
 
         return new RentOverrideResponse(
                 rentOverride.getId(),
@@ -635,7 +641,9 @@ public class BillingManagementService {
                 contract.getId(),
                 period.toString(),
                 oldRent,
-                newRent,
+                rentOverride.getOverrideMonthlyRent(),
+                discountAmount,
+                rentOverride.getReason(),
                 invoiceApplied,
                 invoice == null ? null : invoice.getId(),
                 invoice == null || invoice.getStatus() == null ? null : invoice.getStatus().name(),
@@ -868,35 +876,64 @@ public class BillingManagementService {
                 + ". Vui lòng thanh toán sớm hoặc liên hệ quản lý nếu cần hỗ trợ.";
     }
 
-    private void applyOverrideToInvoice(InvoiceEntity invoice, long newRent, long oldRent) {
-        var existingLine = invoiceLineRepository
-                .findFirstByInvoice_IdAndLineTypeOrderByIdAsc(invoice.getId(), InvoiceLineType.ROOM_RENT);
-        InvoiceLineEntity line = existingLine
-                .orElseGet(() -> InvoiceLineEntity.builder()
-                        .invoice(invoice)
-                        .lineType(InvoiceLineType.ROOM_RENT)
-                        .description("Tiền phòng tháng " + invoice.getBillingPeriod())
-                        .quantity(1)
-                        .unitPrice(oldRent)
-                        .build());
+    private void applyRentDiscountToInvoice(
+            InvoiceEntity invoice,
+            LeaseContractEntity contract,
+            long discountAmount
+    ) {
+        if (invoice.getInvoiceType() != InvoiceType.RENT) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        List<InvoiceLineEntity> lines = invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId());
+        InvoiceLineEntity rentLine = lines.stream()
+                .filter(line -> line.getLineType() == InvoiceLineType.ROOM_RENT)
+                .findFirst()
+                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
 
-        long oldLineAmount = existingLine.map(this::lineAmount).orElse(0L);
-        line.setQuantity(1);
-        line.setUnitPrice(newRent);
-        invoiceLineRepository.save(line);
+        // Keep the contract rent in the line; the reduction belongs to the RENT invoice.
+        rentLine.setUnitPrice(safe(contract.getMonthlyRent()));
+        invoiceLineRepository.save(rentLine);
 
-        long nextSubtotal = Math.max(safe(invoice.getSubtotalAmount()) - oldLineAmount + newRent, 0L);
-        long nextTotal = Math.max(nextSubtotal - safe(invoice.getDiscountAmount()), 0L);
+        long nextSubtotal = lines.stream().mapToLong(this::lineAmount).sum();
+        long rentSubtotal = lines.stream()
+                .filter(line -> line.getLineType() == InvoiceLineType.ROOM_RENT)
+                .mapToLong(this::lineAmount)
+                .sum();
+        if (discountAmount < 0 || discountAmount > rentSubtotal) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        long nextTotal = Math.max(nextSubtotal - discountAmount, 0L);
         if (nextTotal < safe(invoice.getPaidAmount())) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         invoice.setSubtotalAmount(nextSubtotal);
+        invoice.setDiscountAmount(discountAmount);
         invoice.setTotalAmount(nextTotal);
         invoice.setRemainingAmount(nextTotal - safe(invoice.getPaidAmount()));
         if (invoice.getPaidAmount() != null && invoice.getPaidAmount() > 0) {
             invoice.setStatus(invoice.getRemainingAmount() == 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID);
         }
         invoiceRepository.save(invoice);
+    }
+
+    private long resolveDiscountAmount(
+            ApplyRentOverrideRequest request,
+            long listedRent,
+            long discountLimit
+    ) {
+        if (request.discountAmount() != null) {
+            long discount = request.discountAmount();
+            if (discount < 0 || discount > discountLimit) {
+                throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            }
+            return discount;
+        }
+
+        long effectiveRent = requirePositiveAmount(request.overrideMonthlyRent(), "Giá không hợp lệ");
+        if (effectiveRent > listedRent) {
+            throw new AppException(ApiErrorCode.MIGRATED_GIA_KHUYEN_MAI_PHAI_THAP_HON_GIA_NIEM_YET_CO_BAN_CUA_PHONG);
+        }
+        return listedRent - effectiveRent;
     }
 
     private long resolveInvoiceRent(InvoiceEntity invoice, LeaseContractEntity contract) {
@@ -914,6 +951,13 @@ public class BillingManagementService {
         var room = invoice.getRoom();
         var contract = invoice.getLeastContract();
         var tenant = contract == null ? null : contract.getPrimaryTenantProfile();
+        String discountReason = invoice.getInvoiceType() == InvoiceType.RENT
+                && contract != null
+                && invoice.getBillingPeriod() != null
+                ? rentOverrideRepository.findByContract_IdAndBillingPeriod(
+                        contract.getId(), invoice.getBillingPeriod().trim()
+                ).map(RentOverrideEntity::getReason).orElse(null)
+                : null;
         return new BillingInvoiceResponse(
                 invoice.getId(),
                 invoice.getInvoiceCode(),
@@ -932,6 +976,7 @@ public class BillingManagementService {
                 invoice.getDueDate(),
                 invoice.getSubtotalAmount(),
                 invoice.getDiscountAmount(),
+                discountReason,
                 invoice.getTotalAmount(),
                 invoice.getPaidAmount(),
                 invoice.getRemainingAmount(),
@@ -1107,6 +1152,7 @@ public class BillingManagementService {
         private long serviceAmount;
         private long electricityAmount;
         private long discountAmount;
+        private String discountReason;
         private long totalAmount;
         private BigDecimal electricityPrevious = BigDecimal.ZERO;
         private BigDecimal electricityCurrent = BigDecimal.ZERO;
@@ -1138,7 +1184,17 @@ public class BillingManagementService {
             rentAmount += sumLines(invoice, InvoiceLineType.ROOM_RENT);
             serviceAmount += sumLines(invoice, InvoiceLineType.SERVICE_FEE);
             electricityAmount += sumLines(invoice, InvoiceLineType.ELECTRICITY);
-            discountAmount += safe(invoice.getDiscountAmount());
+            if (invoice.getInvoiceType() == InvoiceType.RENT) {
+                discountAmount += safe(invoice.getDiscountAmount());
+                if (invoice.getLeastContract() != null && invoice.getBillingPeriod() != null) {
+                    rentOverrideRepository.findByContract_IdAndBillingPeriod(
+                                    invoice.getLeastContract().getId(), invoice.getBillingPeriod().trim()
+                            )
+                            .map(RentOverrideEntity::getReason)
+                            .filter(reason -> reason != null && !reason.isBlank())
+                            .ifPresent(reason -> discountReason = reason);
+                }
+            }
             totalAmount += safe(invoice.getTotalAmount());
             addPayablePeriods(invoice, exportContract);
 
@@ -1229,8 +1285,16 @@ public class BillingManagementService {
                     0L,
                     discountAmount,
                     totalAmount,
-                    payablePeriods.isEmpty() ? "" : "Ky tinh tien: " + String.join(", ", payablePeriods)
+                    buildInvoiceNote(payablePeriods, discountReason)
             );
+        }
+
+        private String buildInvoiceNote(List<String> periods, String reason) {
+            String note = periods.isEmpty() ? "" : "Kỳ tính tiền: " + String.join(", ", periods);
+            if (reason == null || reason.isBlank()) {
+                return note;
+            }
+            return note.isBlank() ? "Giảm giá: " + reason : note + " | Giảm giá: " + reason;
         }
     }
 

@@ -24,7 +24,11 @@ JOIN hdbhms.person_profiles profile
   ON profile.person_profile_id = contract.primary_tenant_profile_id
 JOIN hdbhms.users tenant_user
   ON tenant_user.user_id = profile.user_id
-WHERE notification.event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
+WHERE notification.event_type IN (
+      'LEASE_EXPIRY_REMINDER_FIRST',
+      'LEASE_EXPIRY_REMINDER_SECOND',
+      'LEASE_EXPIRY_REMINDER_FINAL'
+  )
   AND notification.target_type = 'CONTRACT'
   AND notification.recipient_user_id <> tenant_user.user_id
   AND room.property_id = @hdd1_property_id
@@ -41,7 +45,11 @@ JOIN hdbhms.person_profiles profile
   ON profile.person_profile_id = contract.primary_tenant_profile_id
 JOIN hdbhms.users tenant_user
   ON tenant_user.user_id = profile.user_id
-WHERE notification.event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
+WHERE notification.event_type IN (
+      'LEASE_EXPIRY_REMINDER_FIRST',
+      'LEASE_EXPIRY_REMINDER_SECOND',
+      'LEASE_EXPIRY_REMINDER_FINAL'
+  )
   AND notification.target_type = 'CONTRACT'
   AND notification.recipient_user_id <> tenant_user.user_id
   AND room.property_id = @hdd1_property_id

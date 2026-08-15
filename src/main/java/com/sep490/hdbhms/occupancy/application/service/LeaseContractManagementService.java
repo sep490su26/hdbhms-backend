@@ -388,6 +388,7 @@ public class LeaseContractManagementService {
         if (room == null) {
             throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_CHUA_GAN_PHONG);
         }
+        ensureLiquidationAllowedForRoomCommitment(contract);
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
         String finalReason = reason == null || reason.isBlank()
@@ -422,9 +423,9 @@ public class LeaseContractManagementService {
 
         requireNoUnpaidInvoicesForLiquidation(contract.getId());
         if (!holderReplacement) {
-            requireConfirmedMoveOutHandover(contract.getId());
             requireLiquidationDepositForfeitureConfirmed(contract, liquidation);
             requireLiquidationDepositRefundConfirmed(contract, liquidation);
+            requireConfirmedMoveOutHandover(contract.getId());
         }
 
         contract.setStatus(LeaseStatus.LIQUIDATED);
@@ -551,6 +552,7 @@ public class LeaseContractManagementService {
         if (room == null) {
             throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_CHUA_GAN_PHONG);
         }
+        ensureLiquidationAllowedForRoomCommitment(contract);
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
         String finalReason = reason == null || reason.isBlank()
@@ -1066,6 +1068,7 @@ public class LeaseContractManagementService {
         );
         liquidation.setStatus(LiquidationStatus.DRAFT);
         liquidation = contractLiquidationRepository.saveAndFlush(liquidation);
+        // Keep the invoice/payment intent locally issued; PayOS checkout creation is retryable.
         InvoiceEntity finalInvoice = upsertFinalSettlementInvoice(
                 contract,
                 liquidation,
@@ -1225,7 +1228,7 @@ public class LeaseContractManagementService {
             invoice.setIssuedAt(now);
             return invoiceRepository.save(invoice);
         }
-        return issuedInvoiceChargeService.issueDraftInvoice(invoice.getId()).invoice();
+        return issuedInvoiceChargeService.issueDraftInvoiceForLiquidation(invoice.getId()).invoice();
     }
 
     private String buildLiquidationInvoiceCode(Long contractId, String billingPeriod, LocalDateTime now) {
@@ -1705,6 +1708,13 @@ public class LeaseContractManagementService {
         RoomEntity room = contract.getRoom();
         if (room == null) {
             throw new AppException(ApiErrorCode.MIGRATED_HOP_DONG_CHUA_GAN_PHONG);
+        }
+        if (roomCommitmentChecker.isSoonVacantBookingCase(
+                room.getId(),
+                contract.getId(),
+                contract.getEndDate()
+        )) {
+            throw new AppException(ApiErrorCode.ROOM_CO_OCCUPANT_ADD_BLOCKED_BY_BOOKING);
         }
         Integer activeOccupants = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
@@ -2642,6 +2652,17 @@ public class LeaseContractManagementService {
         return count != null && count > 0;
     }
 
+    private void ensureLiquidationAllowedForRoomCommitment(LeaseContractEntity contract) {
+        if (contract.getRoom() != null
+                && roomCommitmentChecker.isSoonVacantBookingCase(
+                contract.getRoom().getId(),
+                contract.getId(),
+                contract.getEndDate()
+        )) {
+            throw new AppException(ApiErrorCode.ROOM_LIQUIDATION_BLOCKED_BY_BOOKING);
+        }
+    }
+
     private String normalizeTenantIntention(String intention) {
         String normalized = intention == null ? "" : intention.trim().toUpperCase();
         return "TRANSFER_ROOM".equals(normalized) ? "TRANSFER" : normalized;
@@ -2737,6 +2758,12 @@ public class LeaseContractManagementService {
                         parsedContractStatus,
                         toLocalDate(rs, "end_date")
                 );
+        boolean liquidationBlockedByBooking = leaseContractId != null
+                && roomCommitmentChecker.isSoonVacantBookingCase(
+                roomId,
+                leaseContractId,
+                toLocalDate(rs, "end_date")
+        );
         Long liquidationFinalInvoiceId = getLongOrNull(rs, "liquidation_final_invoice_id");
         LiquidationInvoiceSummary liquidationInvoiceSummary = liquidationInvoiceSummary(liquidationFinalInvoiceId);
         ExpenseRequestService.LiquidationDepositRefundLink refundLink = depositRow
@@ -2785,7 +2812,9 @@ public class LeaseContractManagementService {
                 .canRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
                         ? null
                         : renewBlockedReason(renewBlocker))
-                .canLiquidate(leaseContractId != null && isLiquidatableContractStatus(parsedContractStatus))
+                .canLiquidate(leaseContractId != null
+                        && isLiquidatableContractStatus(parsedContractStatus)
+                        && !liquidationBlockedByBooking)
                 .transferRequestId(transferRequestId)
                 .transferRequestCode(rs.getString("transfer_request_code"))
                 .transferStatus(transferStatus)

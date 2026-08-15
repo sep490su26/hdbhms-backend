@@ -10,6 +10,8 @@ public record RentOverrideResponse(
         String billingPeriod,
         Long oldMonthlyRent,
         Long overrideMonthlyRent,
+        Long discountAmount,
+        String reason,
         boolean invoiceApplied,
         Long invoiceId,
         String invoiceStatus,

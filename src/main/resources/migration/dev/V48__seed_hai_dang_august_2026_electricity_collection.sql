@@ -1347,7 +1347,6 @@ WHERE room.property_id = @property_id
   AND transfer_request.status IN (
       'WAITING_APPROVAL',
       'WAITING_NEW_CONTRACT',
-      'WAITING_TARGET_HOLDER_APPROVAL',
       'WAITING_CONTRACT_CONFIRMATION',
       'WAITING_SIGNING',
       'WAITING_EXECUTION'

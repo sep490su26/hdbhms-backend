@@ -309,6 +309,15 @@ public class ContractLifecycleChangeRequestService {
         if (requestType == RequestType.ADD_CO_OCCUPANT && !ADD_CO_OCCUPANT_STATUSES.contains(contract.getStatus())) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
+        if (requestType == RequestType.ADD_CO_OCCUPANT
+                && contract.getRoom() != null
+                && roomCommitmentChecker.isSoonVacantBookingCase(
+                contract.getRoom().getId(),
+                contract.getId(),
+                contract.getEndDate()
+        )) {
+            throw new AppException(ApiErrorCode.ROOM_CO_OCCUPANT_ADD_BLOCKED_BY_BOOKING);
+        }
     }
 
     private PersonProfileEntity resolveOrCreateCoOccupantProfile(

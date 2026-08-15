@@ -16,4 +16,10 @@ public interface JpaContractHandoverRecordRepository extends JpaRepository<Contr
             HandoverType handoverType,
             HandoverStatus status
     );
+
+    boolean existsByContract_IdAndHandoverTypeAndStatusAndElectricityReadingIsNotNull(
+            Long contractId,
+            HandoverType handoverType,
+            HandoverStatus status
+    );
 }

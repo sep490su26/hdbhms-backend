@@ -24,6 +24,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class IssuedInvoiceChargeService {
     public static final String SOURCE_MAINTENANCE_TICKET = "MAINTENANCE_TICKET";
@@ -170,6 +172,19 @@ public class IssuedInvoiceChargeService {
 
     @Transactional
     public IssuedChargeResult issueDraftInvoice(Long invoiceId) {
+        return issueDraftInvoice(invoiceId, false);
+    }
+
+    /**
+     * Liquidation must be issuable even when PayOS is temporarily unavailable;
+     * the tenant invoice flow can retry the checkout link later.
+     */
+    @Transactional
+    public IssuedChargeResult issueDraftInvoiceForLiquidation(Long invoiceId) {
+        return issueDraftInvoice(invoiceId, true);
+    }
+
+    private IssuedChargeResult issueDraftInvoice(Long invoiceId, boolean tolerateExternalServiceFailure) {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (invoice.getStatus() != InvoiceStatus.DRAFT) {
@@ -208,7 +223,16 @@ public class IssuedInvoiceChargeService {
                     paymentExpiresAt
             ));
         } catch (RuntimeException exception) {
-            throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR);
+            if (!tolerateExternalServiceFailure) {
+                throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, exception);
+            }
+            log.warn(
+                    "Could not create PayOS checkout for liquidation invoice; invoice remains issued and can be retried. invoiceId={}, paymentIntentId={}, message={}",
+                    issuedInvoice.getId(),
+                    paymentIntent.getId(),
+                    exception.getMessage()
+            );
+            return new IssuedChargeResult(issuedInvoice, line, paymentIntent, null);
         }
         paymentIntent.setProviderOrderCode(checkout.providerOrderCode());
         paymentIntent.setQrPayload(toCheckoutPayload(checkout, paymentIntent));

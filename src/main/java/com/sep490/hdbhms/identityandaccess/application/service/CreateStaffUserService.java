@@ -51,8 +51,8 @@ public class CreateStaffUserService implements CreateStaffUserUseCase {
             throw new AppException(ApiErrorCode.ACCOUNT_EXISTED);
         }
         String randomPassword = RandomPasswordUtils.generatePassword(
-                6,
-                true,
+                8,
+                false,
                 true
         );
         User user = User.newUser(

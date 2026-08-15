@@ -8,6 +8,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Inv
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
@@ -19,8 +20,10 @@ import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.property.application.service.MeterReadingPeriod;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverItemEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractLiquidationEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
@@ -28,6 +31,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomAssetEnt
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverItemRepository;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
@@ -68,12 +72,15 @@ public class ManageContractHandoverService {
     JpaMeterRepository meterRepository;
     JpaContractHandoverRecordRepository handoverRecordRepository;
     JpaContractHandoverItemRepository handoverItemRepository;
+    JpaContractLiquidationRepository contractLiquidationRepository;
+    ExpenseRequestService expenseRequestService;
     JpaUserRepository userRepository;
     JpaFileMetadataRepository fileMetadataRepository;
     JpaRoomAssetRepository roomAssetRepository;
     JpaInvoiceRepository invoiceRepository;
     JpaInvoiceLineRepository invoiceLineRepository;
     JdbcTemplate jdbcTemplate;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Transactional
     public HandoverMeterReadingsResponse createHandoverReadings(Long contractId, HandoverMeterReadingsRequest request, HandoverType handoverType) {
@@ -82,6 +89,10 @@ public class ManageContractHandoverService {
         }
         LeaseContractEntity contract = leaseContractRepository.findByIdAndDeletedAtIsNull(contractId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
+
+        if (handoverType == HandoverType.MOVE_OUT) {
+            requireDepositSettlementConfirmed(contractId);
+        }
 
         Long roomId = contract.getRoom().getId();
 
@@ -173,6 +184,9 @@ public class ManageContractHandoverService {
 
     @Transactional
     public void confirmHandover(Long contractId, ConfirmHandoverRequest request) {
+        LeaseContractEntity contract = leaseContractRepository.findByIdAndDeletedAtIsNull(contractId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
+        ensureMoveInHandoverAllowed(contract, request.getHandoverType());
         ContractHandoverRecordEntity handoverRecord = handoverRecordRepository
                 .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, request.getHandoverType())
                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND));
@@ -202,13 +216,7 @@ public class ManageContractHandoverService {
 
         Long roomId = contract.getRoom().getId();
         HandoverType handoverType = request.getHandoverType();
-        if (handoverType == HandoverType.MOVE_OUT) {
-            requireNoUnpaidLeaseInvoices(
-                    contractId,
-                    "Khách thuê cần thanh toán hết hóa đơn còn nợ trước khi bàn giao trả phòng."
-            );
-        }
-
+        ensureMoveInHandoverAllowed(contract, handoverType);
         // ── 1. Handover record (create or update existing DRAFT) ─────────────
         ContractHandoverRecordEntity record = handoverRecordRepository
                 .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, handoverType)
@@ -303,6 +311,17 @@ public class ManageContractHandoverService {
                 .compensationInvoiceId(compensationInvoice == null ? null : compensationInvoice.getId())
                 .compensationAmount(compensationInvoice == null ? 0L : compensationInvoice.getTotalAmount())
                 .build();
+    }
+
+    private void ensureMoveInHandoverAllowed(LeaseContractEntity contract, HandoverType handoverType) {
+        if (handoverType == HandoverType.MOVE_IN
+                && contract.getRoom() != null
+                && roomCommitmentChecker.requiresVacantRoomForIncomingBooking(
+                contract.getRoom().getId(),
+                contract.getId()
+        )) {
+            throw new AppException(ApiErrorCode.ROOM_HANDOVER_REQUIRES_VACANT_ROOM);
+        }
     }
 
     private boolean isDamageItem(SubmitHandoverRequest.AssetInput input) {
@@ -415,20 +434,38 @@ public class ManageContractHandoverService {
         return (maxRevision == null ? 0 : maxRevision) + 1;
     }
 
-    private void requireNoUnpaidLeaseInvoices(Long contractId, String message) {
-        Integer count = jdbcTemplate.queryForObject("""
-                        SELECT COUNT(*)
-                        FROM invoices
-                        WHERE lease_contract_id = ?
-                          AND status NOT IN ('PAID', 'VOIDED')
-                          AND remaining_amount > 0
-                        """,
-                Integer.class,
-                contractId
-        );
-        if (count != null && count > 0) {
-            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
+    /**
+     * Legacy meter-reading endpoint keeps its original deposit prerequisite.
+     * The unified submit endpoint records handover data before final liquidation.
+     */
+    private void requireDepositSettlementConfirmed(Long contractId) {
+        ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contractId)
+                .orElseThrow(() -> new AppException(
+                        ApiErrorCode.CONTRACT_HANDOVER_DEPOSIT_SETTLEMENT_REQUIRED
+                ));
+
+        long refundAmount = nonNegative(liquidation.getDepositRefundAmount());
+        long deductionAmount = nonNegative(liquidation.getDepositDeductionAmount());
+
+        if (refundAmount > 0) {
+            ExpenseRequestService.LiquidationDepositRefundLink refundLink =
+                    expenseRequestService.getLiquidationDepositRefundLink(contractId);
+            if (!"TENANT_CONFIRMED".equals(refundLink.status())) {
+                throw new AppException(ApiErrorCode.CONTRACT_HANDOVER_DEPOSIT_SETTLEMENT_REQUIRED);
+            }
         }
+
+        if (deductionAmount > 0) {
+            ExpenseRequestService.LiquidationDepositForfeitureLink forfeitureLink =
+                    expenseRequestService.getLiquidationDepositForfeitureLink(contractId);
+            if (!"TENANT_CONFIRMED".equals(forfeitureLink.status())) {
+                throw new AppException(ApiErrorCode.CONTRACT_HANDOVER_DEPOSIT_SETTLEMENT_REQUIRED);
+            }
+        }
+    }
+
+    private long nonNegative(Long amount) {
+        return amount == null ? 0L : Math.max(0L, amount);
     }
 
     private String buildDamageDescription(ContractHandoverItemEntity item) {
@@ -513,6 +550,7 @@ public class ManageContractHandoverService {
         if (r == null) return null;
         return ContractHandoverDetailsResponse.MeterReadingDetails.builder()
                 .id(r.getId())
+                .previousValue(r.getPreviousValue())
                 .currentValue(r.getCurrentValue())
                 .readingDate(r.getReadingDate().atStartOfDay())
                 .photoFileId(r.getPhotoFile() != null ? r.getPhotoFile().getId() : null)

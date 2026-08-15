@@ -11,6 +11,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContra
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -32,6 +33,7 @@ public class AddCoOccupantToContractService implements AddCoOccupantToContractUs
     JdbcTemplate jdbcTemplate;
     LeaseContractWorkflowSupport workflowSupport;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Override
     public LeaseContractManagementResponse execute(AddCoOccupantToContractCommand command) {
@@ -81,6 +83,13 @@ public class AddCoOccupantToContractService implements AddCoOccupantToContractUs
         RoomEntity room = contract.getRoom();
         if (room == null) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (roomCommitmentChecker.isSoonVacantBookingCase(
+                room.getId(),
+                contract.getId(),
+                contract.getEndDate()
+        )) {
+            throw new AppException(ApiErrorCode.ROOM_CO_OCCUPANT_ADD_BLOCKED_BY_BOOKING);
         }
         Integer activeOccupants = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)

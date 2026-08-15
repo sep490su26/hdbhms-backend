@@ -16,6 +16,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateTransferRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomTransferResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
@@ -75,6 +76,10 @@ public abstract class RoomTransferWebMapper {
 
         Room oldRoom = resolveRoom(request.getOldRoomId());
         Room targetRoom = resolveRoom(request.getTargetRoomId());
+        LeaseContract oldContract = resolveContract(request.getOldContractId());
+        LeaseContract targetContract = resolveContract(request.getTargetContractId());
+        LeaseContract newContract = resolveContract(request.getNewContractId());
+        LeaseContract replacementOldContract = resolveContract(request.getReplacementOldContractId());
         String oldContractCode = resolveOldContractCode(request);
         Long oldRoomPrice = resolveOldRoomPrice(request);
         Long newRoomPrice = resolveNewRoomPrice(request);
@@ -84,20 +89,35 @@ public abstract class RoomTransferWebMapper {
                 ? SettlementType.NO_DIFFERENCE
                 : request.getPositiveDifferenceSettlementType();
         Integer remainingOccupantCountAfterTransfer = resolveRemainingOccupantCountAfterTransfer(request);
-        Boolean sourceRoomWillBeEmptyAfterTransfer = remainingOccupantCountAfterTransfer != null
+        // A replacement contract is created only when occupants remain in the
+        // source room. Keep that persisted marker after the old contract has
+        // moved its occupants out during execution.
+        Boolean sourceRoomWillBeEmptyAfterTransfer = request.getReplacementOldContractId() != null
+                ? false
+                : remainingOccupantCountAfterTransfer != null
                 ? remainingOccupantCountAfterTransfer == 0
                 : null;
         TransferSettlement settlement = transferSettlementRepository
             .findLatestByTransferRequestId(request.getId())
             .orElse(null);
         Long transferDifferenceInvoiceId = settlement == null ? null : settlement.getTransferDifferenceInvoiceId();
-        Long oldRoomFinalInvoiceId = settlement == null ? null : settlement.getOldRoomFinalInvoiceId();
+        Long oldRoomFinalInvoiceId = Boolean.FALSE.equals(sourceRoomWillBeEmptyAfterTransfer)
+                ? null
+                : settlement == null ? null : settlement.getOldRoomFinalInvoiceId();
         boolean oldRoomFinalInvoicePaid = oldRoomFinalInvoiceId == null || isInvoicePaid(oldRoomFinalInvoiceId);
-        List<Long> oldRoomCompensationInvoiceIds = resolveOldRoomCompensationInvoiceIds(request);
+        List<Long> oldRoomCompensationInvoiceIds = Boolean.FALSE.equals(sourceRoomWillBeEmptyAfterTransfer)
+                ? List.of()
+                : resolveOldRoomCompensationInvoiceIds(request);
         List<Long> unpaidOldRoomCompensationInvoiceIds = oldRoomCompensationInvoiceIds.stream()
                 .filter(invoiceId -> !isInvoicePaid(invoiceId))
                 .toList();
         boolean oldRoomCheckoutInvoicesPaid = oldRoomFinalInvoicePaid && unpaidOldRoomCompensationInvoiceIds.isEmpty();
+        boolean transferOutHandoverRequired = isTransferOutHandoverRequired(
+                request,
+                oldContract,
+                sourceRoomWillBeEmptyAfterTransfer,
+                oldRoomFinalInvoiceId
+        );
         Map<Long, String> transferringTenantNames = resolveTransferringTenantNames(request);
         TenantContact requesterContact = resolveRequesterContact(request, transferringTenantNames);
         List<Long> sourceHolderCandidateProfileIds = resolveSourceHolderCandidateProfileIds(request);
@@ -113,6 +133,7 @@ public abstract class RoomTransferWebMapper {
             request.getRequesterId(),
             request.getOldContractId(),
             oldContractCode,
+            oldContract == null ? null : oldContract.getStatus(),
             request.getOldRoomId(),
             oldRoom == null ? null : oldRoom.getRoomCode(),
             oldRoom == null ? null : oldRoom.getName(),
@@ -130,6 +151,7 @@ public abstract class RoomTransferWebMapper {
             request.getNominatedHolderProfileId(),
             request.getTargetTransferType(),
             request.getTargetContractId(),
+            targetContract == null ? null : targetContract.getStatus(),
             request.getRequestedTransferDate(),
             request.getRequestedTransferDate(),
             request.getReason(),
@@ -146,7 +168,9 @@ public abstract class RoomTransferWebMapper {
             resolveActualTransferDate(request),
             request.getStatus(),
             request.getNewContractId(),
+            newContract == null ? null : newContract.getStatus(),
             request.getReplacementOldContractId(),
+            replacementOldContract == null ? null : replacementOldContract.getStatus(),
             oldRoomPrice,
             newRoomPrice,
             priceDifferenceAmount,
@@ -168,11 +192,11 @@ public abstract class RoomTransferWebMapper {
             request.getTransferHistorySnapshot(),
             eligibilityWarnings,
             resolvePaymentBranch(request, priceDifferenceAmount),
-            isTransferOutHandoverRequired(request),
-            isTransferInHandoverRequired(request),
-            isRoomHandoverRequired(request, sourceRoomWillBeEmptyAfterTransfer),
+            transferOutHandoverRequired,
+            isTransferInHandoverRequired(request, newContract),
+            isRoomHandoverRequired(request, sourceRoomWillBeEmptyAfterTransfer, transferOutHandoverRequired),
             resolveAllowedActions(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomCheckoutInvoicesPaid),
-            resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid, unpaidOldRoomCompensationInvoiceIds)
+            resolveBlockingReasons(request, remainingOccupantCountAfterTransfer, priceDifferenceToPay, transferDifferenceInvoiceId, oldRoomFinalInvoiceId, oldRoomFinalInvoicePaid, unpaidOldRoomCompensationInvoiceIds, transferOutHandoverRequired)
         );
     }
 
@@ -181,6 +205,13 @@ public abstract class RoomTransferWebMapper {
             return null;
         }
         return roomRepository.findById(roomId).orElse(null);
+    }
+
+    private LeaseContract resolveContract(Long contractId) {
+        if (contractId == null) {
+            return null;
+        }
+        return leaseContractRepository.findById(contractId).orElse(null);
     }
 
     private boolean isInvoicePaid(Long invoiceId) {
@@ -544,13 +575,24 @@ public abstract class RoomTransferWebMapper {
         if (request.getOldContractId() == null) {
             return null;
         }
+        if (request.getReplacementOldContractId() != null) {
+            int replacementOccupantCount = contractOccupantRepository
+                    .findAllByContractIdAndStatus(request.getReplacementOldContractId(), OccupantStatus.ACTIVE)
+                    .size();
+            if (replacementOccupantCount > 0) {
+                return replacementOccupantCount;
+            }
+        }
         int activeOccupantCount = contractOccupantRepository
                 .findAllByContractIdAndStatus(request.getOldContractId(), OccupantStatus.ACTIVE)
                 .size();
         int transferringCount = request.getTransferringTenantProfileIds() == null
                 ? 0
                 : request.getTransferringTenantProfileIds().size();
-        return Math.max(0, activeOccupantCount - transferringCount);
+        int remainingCount = Math.max(0, activeOccupantCount - transferringCount);
+        return request.getReplacementOldContractId() != null
+                ? Math.max(1, remainingCount)
+                : remainingCount;
     }
 
     private String resolvePaymentBranch(RoomTransferRequest request, Long difference) {
@@ -571,14 +613,37 @@ public abstract class RoomTransferWebMapper {
         return settlementType.name();
     }
 
-    private Boolean isTransferOutHandoverRequired(RoomTransferRequest request) {
-        return request.getStatus() == TransferRequestStatus.WAITING_TRANSFER_DATE
-                || request.getStatus() == TransferRequestStatus.READY_FOR_HANDOVER;
+    private Boolean isTransferOutHandoverRequired(
+            RoomTransferRequest request,
+            LeaseContract oldContract,
+            Boolean sourceRoomWillBeEmptyAfterTransfer,
+            Long oldRoomFinalInvoiceId
+    ) {
+        if (request.getStatus() != TransferRequestStatus.WAITING_TRANSFER_DATE
+                && request.getStatus() != TransferRequestStatus.READY_FOR_HANDOVER) {
+            return false;
+        }
+        // A transferred source contract or an existing final invoice means the
+        // old-room checkout was already handled by an earlier step.
+        if (oldContract == null
+                || !Boolean.TRUE.equals(sourceRoomWillBeEmptyAfterTransfer)
+                || oldContract.getStatus() == LeaseStatus.TRANSFERRED
+                || oldRoomFinalInvoiceId != null) {
+            return false;
+        }
+        return !handoverRecordRepository.existsByContract_IdAndHandoverTypeAndStatusAndElectricityReadingIsNotNull(
+                oldContract.getId(),
+                HandoverType.TRANSFER_OUT,
+                HandoverStatus.CONFIRMED
+        );
     }
 
-    private Boolean isTransferInHandoverRequired(RoomTransferRequest request) {
+    private Boolean isTransferInHandoverRequired(RoomTransferRequest request, LeaseContract newContract) {
         if (request.getTargetTransferType() != TargetTransferType.NEW_CONTRACT
                 || request.getStatus() != TransferRequestStatus.WAITING_EXECUTION) {
+            return false;
+        }
+        if (newContract != null && newContract.getStatus() == LeaseStatus.ACTIVE) {
             return false;
         }
         Long targetContractId = request.getNewContractId();
@@ -594,8 +659,13 @@ public abstract class RoomTransferWebMapper {
         );
     }
 
-    private Boolean isRoomHandoverRequired(RoomTransferRequest request, Boolean sourceRoomWillBeEmptyAfterTransfer) {
+    private Boolean isRoomHandoverRequired(
+            RoomTransferRequest request,
+            Boolean sourceRoomWillBeEmptyAfterTransfer,
+            Boolean transferOutHandoverRequired
+    ) {
         return Boolean.TRUE.equals(sourceRoomWillBeEmptyAfterTransfer)
+                && Boolean.TRUE.equals(transferOutHandoverRequired)
                 && (request.getStatus() == TransferRequestStatus.WAITING_TRANSFER_DATE
                 || request.getStatus() == TransferRequestStatus.READY_FOR_HANDOVER
                 || request.getStatus() == TransferRequestStatus.WAITING_EXECUTION);
@@ -621,23 +691,13 @@ public abstract class RoomTransferWebMapper {
             case MANAGER_APPROVED, WAITING_NEW_CONTRACT -> {
                 if (isSourceHolderNominationPending(request, remainingOccupantCountAfterTransfer)) {
                     actions.add("NOMINATE_SOURCE_HOLDER");
-                } else {
-                    actions.add("CONFIRM_TENANT_TRANSFER");
                 }
             }
             case WAITING_HOLDER_RESPONSE -> {
-                actions.add("ACCEPT_SOURCE_HOLDER_NOMINATION");
+                // Legacy rows are advanced automatically when they are read.
             }
-            case WAITING_TARGET_HOLDER_APPROVAL -> {
-                actions.add("APPROVE_TARGET_HOLDER");
-                actions.add("REJECT_TARGET_HOLDER");
-            }
-            case WAITING_TENANT_CONFIRMATION -> {
-                if (isImmediateDifferencePaymentPending(request, priceDifferenceToPay)) {
-                    actions.add("PAY_TRANSFER_DIFFERENCE");
-                } else {
-                    actions.add("CONFIRM_TENANT_TRANSFER");
-                }
+            case WAITING_TARGET_HOLDER_APPROVAL, WAITING_TENANT_CONFIRMATION -> {
+                // Legacy statuses are migrated/advanced automatically and expose no tenant action.
             }
             case WAITING_PAYMENT -> {
                 if (transferDifferenceInvoiceId != null) {
@@ -676,7 +736,8 @@ public abstract class RoomTransferWebMapper {
             Long transferDifferenceInvoiceId,
             Long oldRoomFinalInvoiceId,
             boolean oldRoomFinalInvoicePaid,
-            List<Long> unpaidOldRoomCompensationInvoiceIds
+            List<Long> unpaidOldRoomCompensationInvoiceIds,
+            boolean transferOutHandoverRequired
     ) {
         List<String> reasons = new ArrayList<>();
         TransferRequestStatus status = request.getStatus();
@@ -690,12 +751,9 @@ public abstract class RoomTransferWebMapper {
 
         switch (status) {
             case REQUESTED, WAITING_MANAGER_APPROVAL -> reasons.add("Đang chờ quản lý phê duyệt.");
-            case WAITING_HOLDER_RESPONSE -> reasons.add("Đang chờ người được đề cử phản hồi.");
-            case WAITING_TARGET_HOLDER_APPROVAL -> reasons.add("Đang chờ người đại diện phòng đích phê duyệt.");
-            case WAITING_TENANT_CONFIRMATION -> {
-                if (isImmediateDifferencePaymentPending(request, priceDifferenceToPay)) {
-                    reasons.add("Cần thanh toán hóa đơn chênh lệch chuyển phòng trước khi xác nhận yêu cầu.");
-                }
+            case WAITING_HOLDER_RESPONSE -> reasons.add("Hệ thống đang tiếp tục xử lý yêu cầu.");
+            case WAITING_TARGET_HOLDER_APPROVAL, WAITING_TENANT_CONFIRMATION -> {
+                reasons.add("Yêu cầu đang được hệ thống chuyển sang bước tiếp theo.");
             }
             case WAITING_PAYMENT -> {
                 if (transferDifferenceInvoiceId == null) {
@@ -714,7 +772,7 @@ public abstract class RoomTransferWebMapper {
             }
             case WAITING_TRANSFER_DATE, READY_FOR_HANDOVER -> {
                 reasons.add("Quản lý có thể bắt đầu phiên chuyển phòng.");
-                if (Boolean.TRUE.equals(isRoomHandoverRequired(request, remainingOccupantCountAfterTransfer == null ? null : remainingOccupantCountAfterTransfer == 0))) {
+                if (Boolean.TRUE.equals(isRoomHandoverRequired(request, remainingOccupantCountAfterTransfer == null ? null : remainingOccupantCountAfterTransfer == 0, transferOutHandoverRequired))) {
                     reasons.add("Cần bàn giao tài sản phòng vì phòng cũ sẽ được trả trống.");
                 }
             }
@@ -733,7 +791,7 @@ public abstract class RoomTransferWebMapper {
                 if (blockedByOldRoomInvoices) {
                     break;
                 }
-                if (Boolean.TRUE.equals(isTransferInHandoverRequired(request))) {
+                if (Boolean.TRUE.equals(isTransferInHandoverRequired(request, resolveContract(request.getNewContractId())))) {
                     reasons.add("Cần nhập chỉ số ban đầu của phòng mới trước khi thực hiện bước cuối.");
                 } else {
                     reasons.add("Đang chờ thực hiện bước cuối.");
@@ -744,12 +802,6 @@ public abstract class RoomTransferWebMapper {
         }
 
         return reasons;
-    }
-
-    private boolean isImmediateDifferencePaymentPending(RoomTransferRequest request, Long priceDifferenceToPay) {
-        return priceDifferenceToPay != null
-                && priceDifferenceToPay > 0
-                && request.getPositiveDifferenceSettlementType() == SettlementType.TENANT_PAY_MORE;
     }
 
     private boolean hasAllRequiredSignedContractFiles(RoomTransferRequest request) {

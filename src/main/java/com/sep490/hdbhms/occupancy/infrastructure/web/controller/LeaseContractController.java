@@ -247,6 +247,7 @@ public class LeaseContractController {
                 .data(updateLeaseContractTermsUseCase.execute(new UpdateLeaseContractTermsCommand(
                         leaseContractId,
                         request.startDate(),
+                        request.endDate(),
                         request.paymentCycleMonths(),
                         request.monthlyRent(),
                         request.depositAmount()
@@ -975,6 +976,8 @@ public class LeaseContractController {
     public record LeaseContractTermsUpdateRequest(
             @NotNull(message = "Ngày bắt đầu hợp đồng là bắt buộc.")
             LocalDate startDate,
+            @NotNull
+            LocalDate endDate,
             @NotNull(message = "Chu kỳ thanh toán là bắt buộc.")
             Integer paymentCycleMonths,
             @NotNull(message = "Giá thuê mỗi tháng là bắt buộc.")

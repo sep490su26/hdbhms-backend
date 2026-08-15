@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 
@@ -15,6 +16,7 @@ public record RoomTransferResponse(
     Long requesterId,
     Long oldContractId,
     String oldContractCode,
+    LeaseStatus oldContractStatus,
     Long oldRoomId,
     String oldRoomCode,
     String oldRoomName,
@@ -32,6 +34,7 @@ public record RoomTransferResponse(
     Long nominatedHolderProfileId,
     TargetTransferType targetTransferType,
     Long targetContractId,
+    LeaseStatus targetContractStatus,
     LocalDate requestedTransferDate,
     LocalDate expectedTransferDate,
     String reason,
@@ -48,7 +51,9 @@ public record RoomTransferResponse(
     LocalDateTime actualTransferDate,
     TransferRequestStatus status,
     Long newContractId,
+    LeaseStatus newContractStatus,
     Long replacementOldContractId,
+    LeaseStatus replacementOldContractStatus,
     Long oldRoomPrice,
     Long newRoomPrice,
     Long priceDifferenceAmount,

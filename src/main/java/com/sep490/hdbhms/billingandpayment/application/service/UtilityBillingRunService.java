@@ -14,6 +14,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Uti
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaRoomUtilityBaselineRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaRentOverrideRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaUtilityBillingRunItemRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaUtilityBillingRunRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.request.UtilityBillingItemAdjustmentRequest;
@@ -99,6 +100,7 @@ public class UtilityBillingRunService {
     JpaRoomUtilityBaselineRepository baselineRepository;
     JpaInvoiceRepository invoiceRepository;
     JpaInvoiceLineRepository invoiceLineRepository;
+    JpaRentOverrideRepository rentOverrideRepository;
     JpaUserRepository userRepository;
     BusinessNotificationPublisher notificationPublisher;
     SnowflakeIdGenerator snowflakeIdGenerator;
@@ -269,7 +271,10 @@ public class UtilityBillingRunService {
         UtilityBillingRunItemEntity item = itemRepository.findByIdAndRun_Id(itemId, runId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         long discount = request == null || request.discountAmount() == null ? 0L : request.discountAmount();
-        if (discount < 0 || discount > safe(item.getSubtotalAmount())) {
+        long rentSubtotal = calculateRentCharge(
+                item.getLeaseContract(), requirePeriod(run.getBillingPeriod())
+        ).amount();
+        if (discount < 0 || discount > rentSubtotal) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         item.setDiscountAmount(discount);
@@ -641,7 +646,19 @@ public class UtilityBillingRunService {
                 currentUserId,
                 invoiceType,
                 safe(item.getSubtotalAmount()),
-                safe(item.getDiscountAmount())
+                invoiceType == InvoiceType.RENT
+                        ? Math.min(
+                        Math.max(
+                                safe(item.getDiscountAmount()) > 0
+                                        ? safe(item.getDiscountAmount())
+                                        : configuredRentDiscount(
+                                        item.getLeaseContract(),
+                                        requirePeriod(run.getBillingPeriod()),
+                                        rentCharge
+                                ),
+                                0L
+                        ), rentCharge.amount())
+                        : 0L
         );
 
         saveRentLine(invoice, rentCharge, item.getId());
@@ -667,12 +684,12 @@ public class UtilityBillingRunService {
         RentCharge rentCharge = buildRentCharge(item.getLeaseContract(), billingPeriod);
         long rentSubtotal = rentCharge.amount();
         long utilitySubtotal = utilitySubtotal(item);
-        long totalDiscount = Math.min(
-                Math.max(safe(item.getDiscountAmount()), 0L),
-                rentSubtotal + utilitySubtotal
+        long configuredRentDiscount = configuredRentDiscount(item.getLeaseContract(), billingPeriod, rentCharge);
+        long requestedDiscount = Math.max(safe(item.getDiscountAmount()), 0L);
+        long rentDiscount = Math.min(
+                requestedDiscount > 0 ? requestedDiscount : configuredRentDiscount,
+                rentSubtotal
         );
-        long rentDiscount = Math.min(totalDiscount, rentSubtotal);
-        long utilityDiscount = totalDiscount - rentDiscount;
 
         InvoiceEntity rentInvoice = findExistingInvoice(item, run, InvoiceType.RENT).orElse(null);
         if (rentInvoice == null && rentSubtotal > 0) {
@@ -697,7 +714,7 @@ public class UtilityBillingRunService {
                     now,
                     currentUserId,
                     utilitySubtotal,
-                    utilityDiscount
+                    0L
             );
         }
 
@@ -787,7 +804,7 @@ public class UtilityBillingRunService {
                 .dueDate(now.plusDays(dueDays))
                 .status(InvoiceStatus.DRAFT)
                 .subtotalAmount(normalizedSubtotal)
-                .discountAmount(normalizedDiscount)
+                .discountAmount(invoiceType == InvoiceType.RENT ? normalizedDiscount : 0L)
                 .totalAmount(totalAmount)
                 .paidAmount(0L)
                 .remainingAmount(totalAmount)
@@ -1101,6 +1118,32 @@ public class UtilityBillingRunService {
                         cycleMonths,
                         periods(period, cycleMonths)
                 );
+    }
+
+    private long configuredRentDiscount(
+            LeaseContractEntity contract,
+            YearMonth period,
+            RentCharge rentCharge
+    ) {
+        if (contract == null || contract.getId() == null || period == null || rentCharge == null || rentCharge.amount() <= 0) {
+            return 0L;
+        }
+        return rentOverrideRepository.findByContract_IdAndBillingPeriod(contract.getId(), period.toString())
+                .map(override -> {
+                    long explicitDiscount = safe(override.getDiscountAmount());
+                    if (explicitDiscount > 0) {
+                        return Math.min(explicitDiscount, rentCharge.amount());
+                    }
+                    long legacyMonthlyDiscount = Math.max(
+                            safe(contract.getMonthlyRent()) - safe(override.getOverrideMonthlyRent()),
+                            0L
+                    );
+                    return Math.min(
+                            legacyMonthlyDiscount * Math.max(rentCharge.months(), 1),
+                            rentCharge.amount()
+                    );
+                })
+                .orElse(0L);
     }
 
     private int paymentCycleMonths(LeaseContractEntity contract) {

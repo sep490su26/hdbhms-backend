@@ -25,7 +25,9 @@ public record CreateTransferRequestRequest(
         LocalDate transferMonth = expectedTransferDate != null
                 ? expectedTransferDate
                 : requestedTransferDate;
-        transferMonth = transferMonth == null ? null : transferMonth.withDayOfMonth(1);
+        transferMonth = transferMonth == null
+                ? LocalDate.now().plusMonths(1).withDayOfMonth(1)
+                : transferMonth.withDayOfMonth(1);
         requestedTransferDate = transferMonth;
         expectedTransferDate = transferMonth;
     }

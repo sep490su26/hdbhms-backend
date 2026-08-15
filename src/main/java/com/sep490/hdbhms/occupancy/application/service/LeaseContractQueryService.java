@@ -746,6 +746,21 @@ public class LeaseContractQueryService {
         boolean canRenew = renewedContractId == null
                 && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED).contains(status)
                 && renewBlocker == RoomCommitmentChecker.Blocker.NONE;
+        boolean liquidationBlockedByBooking = roomCommitmentChecker.isSoonVacantBookingCase(
+                rs.getLong("room_id"),
+                rs.getLong("contract_id"),
+                endDate
+        );
+        boolean canLiquidate = List.of(
+                LeaseStatus.ACTIVE,
+                LeaseStatus.EXPIRING_SOON,
+                LeaseStatus.EXPIRED,
+                LeaseStatus.TERMINATION_PENDING
+        ).contains(status) && !liquidationBlockedByBooking;
+        boolean addCoOccupantAllowedStatus = List.of(
+                LeaseStatus.ACTIVE,
+                LeaseStatus.EXPIRING_SOON
+        ).contains(status);
         AccountProvisioningSummary accountProvisioning =
                 previousContractId != null
                         ? new AccountProvisioningSummary("NOT_APPLICABLE", false)
@@ -788,12 +803,15 @@ public class LeaseContractQueryService {
                 renewBlocker == RoomCommitmentChecker.Blocker.NONE
                         ? null
                         : renewBlockedReason(renewBlocker),
-                List.of(
-                        LeaseStatus.ACTIVE,
-                        LeaseStatus.EXPIRING_SOON,
-                        LeaseStatus.EXPIRED,
-                        LeaseStatus.TERMINATION_PENDING
-                ).contains(status),
+                canLiquidate,
+                liquidationBlockedByBooking
+                        ? "Phòng sắp trống đã có khách khác đặt hoặc giữ chỗ; không thể thanh lý."
+                        : null,
+                addCoOccupantAllowedStatus && !liquidationBlockedByBooking,
+                addCoOccupantAllowedStatus && liquidationBlockedByBooking
+                        ? "Phòng sắp trống đã có khách khác đặt hoặc giữ chỗ; không thể thêm người ở cùng."
+                        : null,
+                liquidationBlockedByBooking,
                 accountProvisioning.canSend(),
                 accountProvisioning.status(),
                 fileId != null ? new LeaseContractQueryDetailsResponse.ContractFileInfo(fileId, rs.getString("contract_file_name")) : null,
@@ -853,6 +871,10 @@ public class LeaseContractQueryService {
                 details.canRenew(),
                 details.canRenewBlockedReason(),
                 details.canLiquidate(),
+                details.canLiquidateBlockedReason(),
+                details.canAddCoOccupant(),
+                details.canAddCoOccupantBlockedReason(),
+                details.mustTransferAllOccupants(),
                 accountProvisioning.canSend(),
                 accountProvisioning.status(),
                 details.contractFile(),

@@ -70,7 +70,8 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
         }
         updateLeaseContractTermsUseCase.execute(new UpdateLeaseContractTermsCommand(
                 request.getTargetId(),
-                localDate(payload.get("startDate")),
+                localDate(firstValue(payload, "newStartDate", "startDate")),
+                localDate(firstValue(payload, "newEndDate", "endDate")),
                 intValue(payload.get("paymentCycleMonths")),
                 longValue(payload.get("monthlyRent")),
                 longValue(payload.get("depositAmount"))
@@ -95,6 +96,15 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
 
     private LocalDate localDate(Object value) {
         return value == null ? null : LocalDate.parse(value.toString());
+    }
+
+    private Object firstValue(Map<String, Object> payload, String... keys) {
+        for (String key : keys) {
+            if (payload.containsKey(key) && payload.get(key) != null) {
+                return payload.get(key);
+            }
+        }
+        return null;
     }
 
     private String string(Object value) {

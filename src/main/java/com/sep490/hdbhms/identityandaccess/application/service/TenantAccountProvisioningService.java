@@ -342,7 +342,7 @@ public class TenantAccountProvisioningService {
             if (existingUser != null) {
                 prepareExistingUser(occupant, existingUser);
                 if (!isActivated(existingUser.getLastLoginAt(), existingUser.isMustChangePassword())) {
-                    String temporaryPassword = RandomPasswordUtils.generatePassword(6, true, true);
+                    String temporaryPassword = RandomPasswordUtils.generatePassword(8, false, true);
                     existingUser.issueTemporaryPassword(passwordEncoder.encode(temporaryPassword));
                     User savedUser = userRepository.save(existingUser);
                     ensureTenantMembership(occupant.getPropertyId(), savedUser.getId());
@@ -367,7 +367,7 @@ public class TenantAccountProvisioningService {
                 continue;
             }
 
-            String temporaryPassword = RandomPasswordUtils.generatePassword(6, true, true);
+            String temporaryPassword = RandomPasswordUtils.generatePassword(8, false, true);
             User savedUser = createUser(occupant, temporaryPassword);
             ensureTenantMembership(occupant.getPropertyId(), savedUser.getId());
             linkProfileIfNeeded(occupant.getProfileId(), savedUser.getId());

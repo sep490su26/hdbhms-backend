@@ -41,7 +41,7 @@ class ContractLifecycleChangeRequestDecisionHandlerTest {
                 .targetId(18L)
                 .requestPayload("""
                         {
-                          "startDate":"2024-01-01",
+                          "newStartDate":"2024-01-01",
                           "newEndDate":"2027-07-31",
                           "monthlyRent":2200000,
                           "paymentCycleMonths":1,
@@ -57,6 +57,7 @@ class ContractLifecycleChangeRequestDecisionHandlerTest {
         verify(updateTermsUseCase).execute(captor.capture());
         assertEquals(18L, captor.getValue().leaseContractId());
         assertEquals(LocalDate.parse("2024-01-01"), captor.getValue().startDate());
+        assertEquals(LocalDate.parse("2027-07-31"), captor.getValue().endDate());
         assertEquals(1, captor.getValue().paymentCycleMonths());
         assertEquals(2200000L, captor.getValue().monthlyRent());
         assertEquals(2200000L, captor.getValue().depositAmount());

@@ -55,9 +55,13 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
                 command.monthlyRent(),
                 command.depositAmount()
         );
+        if (command.endDate() == null || !command.endDate().isAfter(command.startDate())) {
+            throw new AppException(ApiErrorCode.LEASE_RENEWAL_DATES_INVALID);
+        }
         boolean rentChanged = !Objects.equals(contract.getMonthlyRent(), command.monthlyRent());
 
         contract.setStartDate(command.startDate());
+        contract.setEndDate(command.endDate());
         contract.setRentStartDate(workflowSupport.resolveRentStartDate(command.startDate()));
         contract.setPaymentCycleMonths(command.paymentCycleMonths());
         contract.setMonthlyRent(command.monthlyRent());

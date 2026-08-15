@@ -643,6 +643,8 @@ public class MaintenanceTicketController {
             List<Long> restrictedPropertyIds
     ) {
         Specification<MaintenanceTicketEntity> spec = Specification.where(null);
+        // Rule violations are managed in the rules module, not the maintenance queue.
+        spec = spec.and((root, query, cb) -> cb.notEqual(cb.upper(root.get("category")), "RULE_VIOLATION"));
         if (!firstNonBlank(code).isBlank()) {
             String keyword = firstNonBlank(code).replace("#", "").toLowerCase(Locale.ROOT);
             spec = spec.and((root, query, cb) ->
@@ -766,6 +768,9 @@ public class MaintenanceTicketController {
             CreateMaintenanceTicketRequest request
     ) {
         String category = normalizeCategory(firstNonBlank(request.getCategory(), request.getType(), "OTHER"));
+        if ("RULE_VIOLATION".equals(category)) {
+            category = "OTHER";
+        }
         MaintenanceTicket ticket = MaintenanceTicket.builder()
                 .ticketCode(maintenanceTicketCodeService.nextCode(
                         roomId == null

@@ -36,6 +36,7 @@ public class ContractHandoverDetailsResponse {
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class MeterReadingDetails {
         Long id;
+        BigDecimal previousValue;
         BigDecimal currentValue;
         LocalDateTime readingDate;
         Long photoFileId;

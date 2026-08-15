@@ -4,6 +4,7 @@ public record ApplyRentOverrideRequest(
         Long roomId,
         String billingPeriod,
         Long overrideMonthlyRent,
+        Long discountAmount,
         String reason
 ) {
 }

@@ -7,6 +7,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentProvider;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentStatus;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPaymentIntentRepository;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class IssuedInvoiceChargeServiceTest {
 
@@ -86,6 +88,45 @@ class IssuedInvoiceChargeServiceTest {
         assertEquals("665117859709184", result.paymentIntent().getProviderOrderCode());
         assertNotNull(capturedRequest.get());
         assertEquals(200_000L, capturedRequest.get().amount());
+    }
+
+    @Test
+    void liquidationIssueKeepsInvoiceAndPaymentIntentWhenPayOsIsUnavailable() {
+        InvoiceEntity invoice = InvoiceEntity.builder()
+                .id(17L)
+                .invoiceCode("INV-LIQ-30-202608")
+                .status(InvoiceStatus.DRAFT)
+                .remainingAmount(350_000L)
+                .build();
+        JpaInvoiceRepository invoiceRepository = proxy(JpaInvoiceRepository.class, (method, arguments) -> {
+            if ("findById".equals(method.getName())) {
+                return Optional.of(invoice);
+            }
+            if ("save".equals(method.getName())) {
+                return arguments[0];
+            }
+            return defaultValue(method.getReturnType());
+        });
+        ExternalPaymentPort unavailablePayOs = proxy(ExternalPaymentPort.class, (method, arguments) -> {
+            if ("createCheckoutRequest".equals(method.getName())) {
+                throw new IllegalStateException("PayOS is unavailable");
+            }
+            return null;
+        });
+        IssuedInvoiceChargeService service = new IssuedInvoiceChargeService(
+                invoiceRepository,
+                passthroughRepository(JpaInvoiceLineRepository.class),
+                passthroughRepository(JpaPaymentIntentRepository.class),
+                unavailablePayOs,
+                new ObjectMapper()
+        );
+
+        IssuedInvoiceChargeService.IssuedChargeResult result =
+                service.issueDraftInvoiceForLiquidation(invoice.getId());
+
+        assertEquals(InvoiceStatus.ISSUED, result.invoice().getStatus());
+        assertEquals(PaymentIntentStatus.PENDING, result.paymentIntent().getStatus());
+        assertNull(result.checkout());
     }
 
     private static <T> T passthroughRepository(Class<T> type) {

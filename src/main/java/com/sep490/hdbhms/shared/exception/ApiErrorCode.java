@@ -128,6 +128,10 @@ public enum     ApiErrorCode {
     ROOM_TRANSFER_DATE_INVALID(40434, "Room transfer date invalid", "Tháng chuyển phòng không hợp lệ.", HttpStatus.BAD_REQUEST),
     ROOM_TRANSFER_SOURCE_CONTRACT_INVALID(40435, "Room transfer source contract invalid", "Hợp đồng phòng cũ không ở trạng thái đang hiệu lực hoặc người yêu cầu không phải người ở.", HttpStatus.UNPROCESSABLE_ENTITY),
     ROOM_TRANSFER_PARTICIPANT_INVALID(40436, "Room transfer participant invalid", "Người dùng hiện tại không phải người tham gia hợp lệ của yêu cầu chuyển phòng.", HttpStatus.FORBIDDEN),
+    ROOM_HANDOVER_REQUIRES_VACANT_ROOM(40441, "Room handover requires vacant room", "Phòng đặt trước vào phòng sắp trống chỉ được bàn giao khi phòng đã ở trạng thái trống.", HttpStatus.CONFLICT),
+    ROOM_LIQUIDATION_BLOCKED_BY_BOOKING(40442, "Room liquidation blocked by booking", "Không thể thanh lý vì phòng sắp trống đã có khách khác đặt hoặc giữ chỗ.", HttpStatus.CONFLICT),
+    ROOM_CO_OCCUPANT_ADD_BLOCKED_BY_BOOKING(40443, "Co-occupant addition blocked by booking", "Không thể thêm người ở cùng vì phòng sắp trống đã có khách khác đặt hoặc giữ chỗ.", HttpStatus.CONFLICT),
+    ROOM_TRANSFER_ALL_OCCUPANTS_REQUIRED(40444, "All occupants must transfer", "Phòng sắp trống đã có khách khác đặt hoặc giữ chỗ; bắt buộc chuyển toàn bộ người đang ở.", HttpStatus.CONFLICT),
     ROOM_TRANSFER_INVOICE_NOT_FOUND(40437, "Room transfer invoice not found", "Không tìm thấy hóa đơn phát sinh trong luồng chuyển phòng.", HttpStatus.NOT_FOUND),
 
     // --- OCCUPANCY: LEASE & CONTRACT (407xx) ---
@@ -156,6 +160,7 @@ public enum     ApiErrorCode {
     CONTRACT_TRANSFER_WORKFLOW_CONFLICT(40722, "Contract transfer workflow conflict", "Hợp đồng đang thuộc một luồng chuyển phòng chưa hoàn tất.", HttpStatus.CONFLICT),
     CONTRACT_HANDOVER_TYPE_INVALID(40723, "Contract handover type invalid", "Loại bàn giao không phù hợp với endpoint này.", HttpStatus.BAD_REQUEST),
     CONTRACT_HANDOVER_ELECTRICITY_REQUIRED(40724, "Contract handover electricity required", "Phải nhập chỉ số điện khi bàn giao hợp đồng.", HttpStatus.BAD_REQUEST),
+    CONTRACT_HANDOVER_DEPOSIT_SETTLEMENT_REQUIRED(40725, "Move-out handover requires deposit settlement", "Vui lòng hoàn tất hoàn cọc hoặc xác nhận mất cọc trước khi bàn giao trả phòng.", HttpStatus.CONFLICT),
 
     // --- OCCUPANCY: DEPOSIT (402xx) ---
     DEPOSIT_AGREEMENT_NOT_FOUND(40201, "Deposit agreement not found", "Không tìm thấy thỏa thuận cọc", HttpStatus.NOT_FOUND),

@@ -5,10 +5,14 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInv
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomAssetEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.*;
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
+import com.sep490.hdbhms.property.infrastructure.web.dto.request.HandoverMeterReadingsRequest;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomAssetRepository;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import org.junit.jupiter.api.Test;
@@ -28,20 +32,44 @@ import static org.mockito.Mockito.when;
 
 class ManageContractHandoverServiceTest {
 
+    private final JpaLeaseContractRepository leaseContractRepository = mock(JpaLeaseContractRepository.class);
+    private final JpaContractLiquidationRepository contractLiquidationRepository = mock(JpaContractLiquidationRepository.class);
     private final JpaRoomAssetRepository roomAssetRepository = mock(JpaRoomAssetRepository.class);
     private final ManageContractHandoverService service = new ManageContractHandoverService(
-            mock(JpaLeaseContractRepository.class),
+            leaseContractRepository,
             mock(JpaMeterReadingRepository.class),
             mock(JpaMeterRepository.class),
             mock(JpaContractHandoverRecordRepository.class),
             mock(JpaContractHandoverItemRepository.class),
+            contractLiquidationRepository,
+            mock(ExpenseRequestService.class),
             mock(JpaUserRepository.class),
             mock(JpaFileMetadataRepository.class),
             roomAssetRepository,
             mock(JpaInvoiceRepository.class),
             mock(JpaInvoiceLineRepository.class),
-            mock(JdbcTemplate.class)
+            mock(JdbcTemplate.class),
+            mock(RoomCommitmentChecker.class)
     );
+
+    @Test
+    void moveOutHandoverRequiresDepositSettlement() {
+        when(leaseContractRepository.findByIdAndDeletedAtIsNull(1L))
+                .thenReturn(Optional.of(LeaseContractEntity.builder().id(1L).build()));
+        when(contractLiquidationRepository.findByContract_Id(1L))
+                .thenReturn(Optional.empty());
+
+        AppException exception = assertThrows(
+                AppException.class,
+                () -> service.createHandoverReadings(
+                        1L,
+                        new HandoverMeterReadingsRequest(),
+                        com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType.MOVE_OUT
+                )
+        );
+
+        assertEquals(ApiErrorCode.CONTRACT_HANDOVER_DEPOSIT_SETTLEMENT_REQUIRED, exception.getApiErrorCode());
+    }
 
     @Test
     void softDeletesDistinctAssetsFromTheContractRoom() {

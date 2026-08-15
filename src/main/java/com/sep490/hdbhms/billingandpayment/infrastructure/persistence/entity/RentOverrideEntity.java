@@ -38,6 +38,10 @@ public class RentOverrideEntity {
     @Column(name = "override_monthly_rent", nullable = false)
     Long overrideMonthlyRent;
 
+    @Column(name = "discount_amount", nullable = false)
+    @Builder.Default
+    Long discountAmount = 0L;
+
     @Column(nullable = false, length = 1000)
     String reason;
 

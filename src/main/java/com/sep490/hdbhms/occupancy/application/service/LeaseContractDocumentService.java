@@ -37,11 +37,11 @@ public class LeaseContractDocumentService {
     static final java.time.format.DateTimeFormatter DATE_FORMATTER =
             java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
     static final NumberFormat MONEY_FORMATTER = NumberFormat.getInstance(Locale.forLanguageTag("vi-VN"));
-    static final String OWNER_FULL_NAME = "\u0110\u1eb6NG V\u0102N NHU\u1ea6N";
+    static final String OWNER_FULL_NAME = "C\u1ea4N V\u0102N L\u00c2M";
     static final String OWNER_DOB = "06/08/1978";
-    static final String OWNER_ID_NUMBER = "036078008683";
-    static final String OWNER_ID_ISSUED_DATE = "01/04/2020";
-    static final String OWNER_ID_ISSUED_PLACE = "C\u1ee5c c\u1ea3nh s\u00e1t QLHCVT";
+    static final String OWNER_ID_NUMBER = "001091021090";
+    static final String OWNER_ID_ISSUED_DATE = "10/4/2021";
+    static final String OWNER_ID_ISSUED_PLACE = "C\u1ee5c tr\u01b0\u1edfng c\u1ee5c C\u1ea3nh s\u00e1t, Qu\u1ea3n l\u00fd h\u00e0nh ch\u00ednh v\u1ec1 Tr\u1eadt t\u1ef1 x\u00e3 h\u1ed9i";
     static final String OWNER_PHONE = "0914.339.682; 0846.557.999";
     static final String OWNER_BANK_ACCOUNT = ".............";
     static final String OWNER_BANK_NAME = ".............";

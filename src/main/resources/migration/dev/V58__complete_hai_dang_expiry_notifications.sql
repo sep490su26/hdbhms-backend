@@ -11,12 +11,23 @@ SET @hdd1_property_id := (
 );
 SET @hdd1_seed_now := '2026-08-01 09:00:00';
 SET @hdd1_shared_password_hash := '$2a$10$2Dy4Vg1B5BKuiUMPRuTAluvk/0XzLuSgLGaABFHCoWHaUfUtDFGqm';
-SET @hdd1_manager_id := (
-    SELECT user_id
-    FROM hdbhms.users
-    WHERE email = 'seed.manager@hdbhms.local'
-      AND deleted_at IS NULL
-    LIMIT 1
+SET @hdd1_manager_id := COALESCE(
+    (
+        SELECT user_id
+        FROM hdbhms.users
+        WHERE email = 'seed.manager@hdbhms.local'
+          AND deleted_at IS NULL
+        LIMIT 1
+    ),
+    (
+        SELECT user_id
+        FROM hdbhms.users
+        WHERE role = 'OWNER'
+          AND status = 'ACTIVE'
+          AND deleted_at IS NULL
+        ORDER BY user_id
+        LIMIT 1
+    )
 );
 SET @hdd1_portrait_file_id := (
     SELECT file_metadata_id
@@ -65,6 +76,7 @@ VALUES
      'TENANT', 'ACTIVE', NULL, TRUE, FALSE, @hdd1_seed_now, @hdd1_seed_now, NULL)
 ON DUPLICATE KEY UPDATE
     phone = VALUES(phone),
+    email = VALUES(email),
     password_hash = VALUES(password_hash),
     role = 'TENANT',
     status = 'ACTIVE',
@@ -276,6 +288,84 @@ ON DUPLICATE KEY UPDATE
     failure_reason = NULL,
     updated_at = VALUES(updated_at);
 
+-- Re-align legacy trackers with the same calendar milestones used by the
+-- runtime. A fixed 30-day interval is not equivalent to minus one month.
+UPDATE hdbhms.reminder_trackers tracker
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = tracker.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+SET tracker.status = 'COMPLETED',
+    tracker.completed_at = COALESCE(tracker.completed_at, @hdd1_seed_now),
+    tracker.next_due_at = NULL,
+    tracker.updated_at = @hdd1_seed_now
+WHERE tracker.reminder_key = 'LEASE_EXPIRY_INTENTION'
+  AND tracker.target_type = 'CONTRACT'
+  AND tracker.audience = 'PRIMARY_TENANT'
+  AND tracker.status = 'ACTIVE'
+  AND room.property_id = @hdd1_property_id
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NOT NULL
+  AND contract.end_date >= DATE(@hdd1_seed_now);
+
+UPDATE hdbhms.reminder_trackers tracker
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = tracker.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = contract.primary_tenant_profile_id
+JOIN hdbhms.users tenant_user
+  ON tenant_user.user_id = profile.user_id
+SET tracker.recipient_user_id = tenant_user.user_id,
+    tracker.status = 'ACTIVE',
+    tracker.completed_at = NULL,
+    tracker.sent_count =
+        CASE WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now) THEN 1 ELSE 0 END
+      + CASE WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) <= DATE(@hdd1_seed_now) THEN 1 ELSE 0 END
+      + CASE WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) <= DATE(@hdd1_seed_now) THEN 1 ELSE 0 END,
+    tracker.last_sent_at = CASE
+        WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) <= DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 1 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) <= DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 2 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00')
+        ELSE NULL
+    END,
+    tracker.next_due_at = CASE
+        WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) > DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) > DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 2 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) > DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 1 MONTH), ' 09:00:00')
+        ELSE NULL
+    END,
+    tracker.metadata = JSON_OBJECT(
+        'contractCode', contract.contract_code,
+        'roomCode', room.room_code,
+        'endDate', contract.end_date,
+        'firstReminderDate', DATE_SUB(contract.end_date, INTERVAL 3 MONTH),
+        'secondReminderDate', DATE_SUB(contract.end_date, INTERVAL 2 MONTH),
+        'finalReminderDate', DATE_SUB(contract.end_date, INTERVAL 1 MONTH),
+        'lastReminderStage', CASE
+            WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) <= DATE(@hdd1_seed_now) THEN 'FINAL'
+            WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) <= DATE(@hdd1_seed_now) THEN 'SECOND'
+            WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now) THEN 'FIRST'
+            ELSE 'PENDING'
+        END
+    ),
+    tracker.updated_at = @hdd1_seed_now
+WHERE tracker.reminder_key = 'LEASE_EXPIRY_INTENTION'
+  AND tracker.target_type = 'CONTRACT'
+  AND tracker.audience = 'PRIMARY_TENANT'
+  AND tracker.status = 'ACTIVE'
+  AND room.property_id = @hdd1_property_id
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND contract.end_date >= DATE(@hdd1_seed_now);
+
 INSERT INTO hdbhms.reminder_trackers
     (reminder_key, target_type, target_id, audience, recipient_user_id, status, sent_count,
      last_sent_at, next_due_at, metadata, created_at, updated_at)
@@ -286,15 +376,40 @@ SELECT
     'PRIMARY_TENANT',
     tenant_user.user_id,
     'ACTIVE',
-    1,
-    @hdd1_seed_now,
-    DATE_ADD(@hdd1_seed_now, INTERVAL 30 DAY),
+    CASE WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now) THEN 1 ELSE 0 END
+      + CASE WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) <= DATE(@hdd1_seed_now) THEN 1 ELSE 0 END
+      + CASE WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) <= DATE(@hdd1_seed_now) THEN 1 ELSE 0 END,
+    CASE
+        WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) <= DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 1 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) <= DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 2 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00')
+        ELSE NULL
+    END,
+    CASE
+        WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) > DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) > DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 2 MONTH), ' 09:00:00')
+        WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) > DATE(@hdd1_seed_now)
+            THEN CONCAT(DATE_SUB(contract.end_date, INTERVAL 1 MONTH), ' 09:00:00')
+        ELSE NULL
+    END,
     JSON_OBJECT(
         'contractCode', contract.contract_code,
         'roomCode', room.room_code,
         'endDate', contract.end_date,
-        'firstReminderDate', DATE_SUB(contract.end_date, INTERVAL 90 DAY),
-        'lastReminderStage', 'FIRST'
+        'firstReminderDate', DATE_SUB(contract.end_date, INTERVAL 3 MONTH),
+        'secondReminderDate', DATE_SUB(contract.end_date, INTERVAL 2 MONTH),
+        'finalReminderDate', DATE_SUB(contract.end_date, INTERVAL 1 MONTH),
+        'lastReminderStage', CASE
+            WHEN DATE_SUB(contract.end_date, INTERVAL 1 MONTH) <= DATE(@hdd1_seed_now) THEN 'FINAL'
+            WHEN DATE_SUB(contract.end_date, INTERVAL 2 MONTH) <= DATE(@hdd1_seed_now) THEN 'SECOND'
+            WHEN DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now) THEN 'FIRST'
+            ELSE 'PENDING'
+        END
     ),
     @hdd1_seed_now,
     @hdd1_seed_now
@@ -307,6 +422,7 @@ JOIN hdbhms.users tenant_user
   ON tenant_user.user_id = profile.user_id
 WHERE room.property_id = @hdd1_property_id
   AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
   AND contract.end_date >= DATE(@hdd1_seed_now)
   AND NOT EXISTS (
       SELECT 1
@@ -315,6 +431,7 @@ WHERE room.property_id = @hdd1_property_id
         AND existing_tracker.target_type = 'CONTRACT'
         AND existing_tracker.target_id = contract.lease_contract_id
         AND existing_tracker.audience = 'PRIMARY_TENANT'
+        AND existing_tracker.status = 'ACTIVE'
   );
 
 INSERT INTO hdbhms.notification_outbox
@@ -341,16 +458,68 @@ SELECT
         'roomCode', room.room_code,
         'propertyName', property.name,
         'endDate', contract.end_date,
-        'daysRemaining', DATEDIFF(contract.end_date, DATE(@hdd1_seed_now)),
+        'daysRemaining', DATEDIFF(contract.end_date, DATE_SUB(contract.end_date, INTERVAL 3 MONTH)),
         'stage', 'FIRST',
         'targetRoute', '/contract'
     ),
     'SENT',
     0,
     3,
-    @hdd1_seed_now,
-    @hdd1_seed_now,
-    @hdd1_seed_now,
+     CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00'),
+     CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00'),
+     CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00'),
+     FALSE
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = room.property_id
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = contract.primary_tenant_profile_id
+JOIN hdbhms.users tenant_user
+  ON tenant_user.user_id = profile.user_id
+WHERE room.property_id = @hdd1_property_id
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND contract.end_date >= DATE(@hdd1_seed_now)
+  AND DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
+        AND existing_notification.target_type = 'CONTRACT'
+        AND existing_notification.target_id = contract.lease_contract_id
+        AND existing_notification.recipient_user_id = tenant_user.user_id
+        AND existing_notification.channel = 'PUSH'
+  );
+
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'LEASE_EXPIRY_REMINDER_SECOND',
+    'CONTRACT',
+    contract.lease_contract_id,
+    tenant_user.user_id,
+    'PUSH',
+    CONCAT('Expiry reminder for contract ', contract.contract_code),
+    CONCAT('Room ', room.room_code, ' expires on ', contract.end_date, '.'),
+    JSON_OBJECT(
+        'contractId', contract.lease_contract_id,
+        'contractCode', contract.contract_code,
+        'roomId', room.room_id,
+        'roomName', room.name,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'endDate', contract.end_date,
+        'daysRemaining', DATEDIFF(contract.end_date, DATE_SUB(contract.end_date, INTERVAL 2 MONTH)),
+        'stage', 'SECOND',
+        'targetRoute', '/contract'
+    ),
+    'SENT', 0, 3,
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 2 MONTH), ' 09:00:00'),
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 2 MONTH), ' 09:00:00'),
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 2 MONTH), ' 09:00:00'),
     FALSE
 FROM hdbhms.lease_contracts contract
 JOIN hdbhms.rooms room
@@ -363,11 +532,65 @@ JOIN hdbhms.users tenant_user
   ON tenant_user.user_id = profile.user_id
 WHERE room.property_id = @hdd1_property_id
   AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
   AND contract.end_date >= DATE(@hdd1_seed_now)
+  AND DATE_SUB(contract.end_date, INTERVAL 2 MONTH) <= DATE(@hdd1_seed_now)
   AND NOT EXISTS (
       SELECT 1
       FROM hdbhms.notification_outbox existing_notification
-      WHERE existing_notification.event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
+      WHERE existing_notification.event_type = 'LEASE_EXPIRY_REMINDER_SECOND'
+        AND existing_notification.target_type = 'CONTRACT'
+        AND existing_notification.target_id = contract.lease_contract_id
+        AND existing_notification.recipient_user_id = tenant_user.user_id
+        AND existing_notification.channel = 'PUSH'
+  );
+
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'LEASE_EXPIRY_REMINDER_FINAL',
+    'CONTRACT',
+    contract.lease_contract_id,
+    tenant_user.user_id,
+    'PUSH',
+    CONCAT('Expiry reminder for contract ', contract.contract_code),
+    CONCAT('Room ', room.room_code, ' expires on ', contract.end_date, '.'),
+    JSON_OBJECT(
+        'contractId', contract.lease_contract_id,
+        'contractCode', contract.contract_code,
+        'roomId', room.room_id,
+        'roomName', room.name,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'endDate', contract.end_date,
+        'daysRemaining', DATEDIFF(contract.end_date, DATE_SUB(contract.end_date, INTERVAL 1 MONTH)),
+        'stage', 'FINAL',
+        'targetRoute', '/contract'
+    ),
+    'SENT', 0, 3,
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 1 MONTH), ' 09:00:00'),
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 1 MONTH), ' 09:00:00'),
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 1 MONTH), ' 09:00:00'),
+    FALSE
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = room.property_id
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = contract.primary_tenant_profile_id
+JOIN hdbhms.users tenant_user
+  ON tenant_user.user_id = profile.user_id
+WHERE room.property_id = @hdd1_property_id
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND contract.end_date >= DATE(@hdd1_seed_now)
+  AND DATE_SUB(contract.end_date, INTERVAL 1 MONTH) <= DATE(@hdd1_seed_now)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = 'LEASE_EXPIRY_REMINDER_FINAL'
         AND existing_notification.target_type = 'CONTRACT'
         AND existing_notification.target_id = contract.lease_contract_id
         AND existing_notification.recipient_user_id = tenant_user.user_id
@@ -412,15 +635,25 @@ SELECT
     room.room_id,
     contract.lease_contract_id,
     'PENDING',
-    COALESCE(contract.expected_vacant_date, DATE_SUB(contract.end_date, INTERVAL 25 DAY)),
+    CASE contract.tenant_intention
+        WHEN 'RENEW' THEN DATE_ADD(DATE(@hdd1_seed_now), INTERVAL 7 DAY)
+        ELSE DATE_ADD(DATE(@hdd1_seed_now), INTERVAL 1 DAY)
+    END,
     @hdd1_seed_now,
     @hdd1_seed_now
 FROM hdbhms.lease_contracts contract
 JOIN hdbhms.rooms room
   ON room.room_id = contract.room_id
 WHERE room.property_id = @hdd1_property_id
-  AND contract.status IN ('EXPIRING_SOON', 'TERMINATION_PENDING')
-  AND contract.tenant_intention IN ('RENEW', 'MOVE_OUT')
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IN ('RENEW', 'MOVE_OUT', 'TRANSFER')
+  AND (
+      contract.tenant_intention = 'RENEW'
+      OR DATEDIFF(
+          COALESCE(contract.expected_vacant_date, contract.end_date),
+          DATE(@hdd1_seed_now)
+      ) <= 14
+  )
   AND NOT EXISTS (
       SELECT 1
       FROM hdbhms.manager_tasks existing_task
