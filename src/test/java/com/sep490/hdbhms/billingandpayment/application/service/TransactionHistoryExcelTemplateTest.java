@@ -52,7 +52,7 @@ class TransactionHistoryExcelTemplateTest {
             assertEquals(11, workbook.getFontAt(row.getCell(0).getCellStyle().getFontIndex()).getFontHeightInPoints());
             assertEquals(CellType.NUMERIC, row.getCell(5).getCellType());
             assertEquals("hh:mm dd/MM/yyyy", row.getCell(5).getCellStyle().getDataFormatString());
-            assertEquals("Điện nước", row.getCell(8).getStringCellValue());
+            assertEquals("Tiền điện", row.getCell(8).getStringCellValue());
         }
     }
 
