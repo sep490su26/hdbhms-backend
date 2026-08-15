@@ -1,0 +1,11 @@
+ALTER TABLE maintenance_tickets
+    MODIFY COLUMN status ENUM (
+        'PENDING_ACCEPTANCE',
+        'ACCEPTED',
+        'WAITING_TENANT_DECISION',
+        'IN_PROGRESS',
+        'WAITING_CONFIRMATION',
+        'COMPLETED',
+        'REJECTED',
+        'CANCELLED'
+    ) DEFAULT 'PENDING_ACCEPTANCE' NOT NULL;

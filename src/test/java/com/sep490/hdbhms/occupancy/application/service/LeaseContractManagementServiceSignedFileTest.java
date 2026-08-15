@@ -1,5 +1,6 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
@@ -281,6 +282,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 mock(JpaContractHandoverRecordRepository.class),
                 mock(JpaInvoiceRepository.class),
                 mock(JpaInvoiceLineRepository.class),
+                mock(IssuedInvoiceChargeService.class),
                 mock(JpaMeterRepository.class),
                 mock(JpaMeterReadingRepository.class),
                 mock(RoomCommitmentChecker.class),

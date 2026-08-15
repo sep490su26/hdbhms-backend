@@ -166,7 +166,7 @@ public class TenantInvoiceController {
         if (line.getInvoice() == null || !invoice.getId().equals(line.getInvoice().getId())) {
             throw new AppException(ApiErrorCode.MIGRATED_DONG_HOA_ON_KHONG_THUOC_HOA_ON_A_CHON);
         }
-        if (invoice.getInvoiceType() != InvoiceType.UTILITY) {
+        if (!supportsMeterReview(invoice)) {
             throw new AppException(ApiErrorCode.MIGRATED_CHI_HO_TRO_KHIEU_NAI_HOA_ON_IEN_NUOC);
         }
         if (!isReviewableInvoice(invoice)) {
@@ -280,8 +280,16 @@ public class TenantInvoiceController {
             PaymentIntentEntity paymentIntent = jpaPaymentIntentRepository
                     .findFirstByInvoice_IdAndStatusOrderByIdDesc(invoice.getId(), PaymentIntentStatus.PENDING)
                     .orElse(null);
-            if (paymentIntent == null
-                    || paymentIntent.getProvider() != PaymentIntentProvider.PAYOS
+            if (paymentIntent == null) {
+                paymentIntent = jpaPaymentIntentRepository.save(PaymentIntentEntity.builder()
+                        .invoice(invoice)
+                        .amount(invoice.getRemainingAmount())
+                        .provider(PaymentIntentProvider.PAYOS)
+                        .paymentContent(invoice.getInvoiceCode())
+                        .status(PaymentIntentStatus.PENDING)
+                        .expiresAt(LocalDateTime.now().plusDays(7))
+                        .build());
+            } else if (paymentIntent.getProvider() != PaymentIntentProvider.PAYOS
                     || hasUsablePayOSPayload(paymentIntent)) {
                 continue;
             }
@@ -692,8 +700,14 @@ public class TenantInvoiceController {
                 && openReview == null
                 && isUtilityMeterLine(line)
                 && line.getInvoice() != null
-                && line.getInvoice().getInvoiceType() == InvoiceType.UTILITY
+                && supportsMeterReview(line.getInvoice())
                 && isReviewableInvoice(line.getInvoice());
+    }
+
+    private boolean supportsMeterReview(InvoiceEntity invoice) {
+        return invoice != null
+                && (invoice.getInvoiceType() == InvoiceType.UTILITY
+                || invoice.getInvoiceType() == InvoiceType.RENT);
     }
 
     private String reviewPayload(

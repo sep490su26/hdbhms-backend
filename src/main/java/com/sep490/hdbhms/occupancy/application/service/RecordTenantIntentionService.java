@@ -192,7 +192,11 @@ public class RecordTenantIntentionService implements RecordTenantIntentionUseCas
                     && (room.getCurrentStatus() == RoomStatus.SOON_VACANT
                     || room.getCurrentStatus() == RoomStatus.RESERVED)) {
                 RoomCommitmentChecker.Blocker blocker =
-                        roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
+                        roomCommitmentChecker.checkRenewBlockers(
+                                room.getId(),
+                                contract.getId(),
+                                contract.getEndDate()
+                        );
                 if (blocker != RoomCommitmentChecker.Blocker.NONE) {
                     throwRenewBlocked(blocker);
                 }

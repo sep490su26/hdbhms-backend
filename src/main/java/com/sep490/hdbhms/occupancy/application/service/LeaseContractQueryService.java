@@ -12,6 +12,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractQueryItemResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomRentalHistoryResponse;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -35,6 +36,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LeaseContractQueryService {
     JdbcTemplate jdbcTemplate;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     public List<LeaseContractQueryItemResponse> findContracts(
             Long tenantId,
@@ -189,6 +191,7 @@ public class LeaseContractQueryService {
                                       AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
                                 ) THEN FALSE
                                 WHEN tr.room_transfer_request_id IS NULL THEN FALSE
+                                WHEN lc.previous_contract_id IS NOT NULL THEN FALSE
                                 WHEN tr.status = 'EXECUTED' THEN FALSE
                                 ELSE TRUE
                             END AS transfer_activation_locked,
@@ -458,6 +461,7 @@ public class LeaseContractQueryService {
                                       AND source_transfer.status IN ('EXECUTED', 'COMPLETED')
                                 ) THEN FALSE
                                 WHEN tr.room_transfer_request_id IS NULL THEN FALSE
+                                WHEN lc.previous_contract_id IS NOT NULL THEN FALSE
                                 WHEN tr.status = 'EXECUTED' THEN FALSE
                                 ELSE TRUE
                             END AS transfer_activation_locked,
@@ -729,9 +733,23 @@ public class LeaseContractQueryService {
         Long fileId = getLongOrNull(rs, "contract_file_id");
         Long signedFileId = getLongOrNull(rs, "signed_file_id");
         LeaseStatus status = LeaseStatus.valueOf(rs.getString("status"));
+        Long previousContractId = getLongOrNull(rs, "previous_contract_id");
         Long renewedContractId = getLongOrNull(rs, "renewed_contract_id");
+        LocalDate endDate = toLocalDate(rs, "end_date");
+        RoomCommitmentChecker.Blocker renewBlocker = resolveRenewBlocker(
+                rs.getLong("room_id"),
+                rs.getLong("contract_id"),
+                renewedContractId,
+                status,
+                endDate
+        );
+        boolean canRenew = renewedContractId == null
+                && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED).contains(status)
+                && renewBlocker == RoomCommitmentChecker.Blocker.NONE;
         AccountProvisioningSummary accountProvisioning =
-                resolveAccountProvisioning(status, occupants);
+                previousContractId != null
+                        ? new AccountProvisioningSummary("NOT_APPLICABLE", false)
+                        : resolveAccountProvisioning(status, occupants);
         return new LeaseContractQueryDetailsResponse(
                 rs.getLong("contract_id"),
                 rs.getString("contract_code"),
@@ -746,14 +764,14 @@ public class LeaseContractQueryService {
                         rs.getString("property_address")
                 ),
                 toLocalDate(rs, "start_date"),
-                toLocalDate(rs, "end_date"),
+                endDate,
                 toLocalDate(rs, "rent_start_date"),
                 getLongOrNull(rs, "monthly_rent"),
                 getIntOrNull(rs, "payment_cycle_months"),
                 getLongOrNull(rs, "deposit_amount"),
                 status,
                 toLocalDateTime(rs, "signed_at"),
-                getLongOrNull(rs, "previous_contract_id"),
+                previousContractId,
                 rs.getString("previous_contract_code"),
                 renewedContractId,
                 rs.getString("renewed_contract_code"),
@@ -766,11 +784,10 @@ public class LeaseContractQueryService {
                 toLocalDate(rs, "transfer_requested_date"),
                 rs.getString("transfer_contract_role"),
                 rs.getBoolean("transfer_activation_locked"),
-                renewedContractId == null && List.of(
-                        LeaseStatus.ACTIVE,
-                        LeaseStatus.EXPIRING_SOON,
-                        LeaseStatus.EXPIRED
-                ).contains(status),
+                canRenew,
+                renewBlocker == RoomCommitmentChecker.Blocker.NONE
+                        ? null
+                        : renewBlockedReason(renewBlocker),
                 List.of(
                         LeaseStatus.ACTIVE,
                         LeaseStatus.EXPIRING_SOON,
@@ -804,8 +821,9 @@ public class LeaseContractQueryService {
             List<LeaseContractQueryDetailsResponse.OccupantInfo> occupants,
             List<LeaseContractQueryDetailsResponse.EventInfo> events
     ) {
-        AccountProvisioningSummary accountProvisioning =
-                resolveAccountProvisioning(details.status(), occupants);
+        AccountProvisioningSummary accountProvisioning = details.previousContractId() != null
+                ? new AccountProvisioningSummary("NOT_APPLICABLE", false)
+                : resolveAccountProvisioning(details.status(), occupants);
         return new LeaseContractQueryDetailsResponse(
                 details.contractId(),
                 details.contractCode(),
@@ -833,6 +851,7 @@ public class LeaseContractQueryService {
                 details.transferContractRole(),
                 details.transferActivationLocked(),
                 details.canRenew(),
+                details.canRenewBlockedReason(),
                 details.canLiquidate(),
                 accountProvisioning.canSend(),
                 accountProvisioning.status(),
@@ -844,6 +863,29 @@ public class LeaseContractQueryService {
                 occupants,
                 events
         );
+    }
+
+    private RoomCommitmentChecker.Blocker resolveRenewBlocker(
+            Long roomId,
+            Long contractId,
+            Long renewedContractId,
+            LeaseStatus status,
+            LocalDate endDate
+    ) {
+        if (roomId == null
+                || contractId == null
+                || renewedContractId != null
+                || !List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED).contains(status)) {
+            return RoomCommitmentChecker.Blocker.NONE;
+        }
+        return roomCommitmentChecker.checkRenewBlockers(roomId, contractId, endDate);
+    }
+
+    private String renewBlockedReason(RoomCommitmentChecker.Blocker blocker) {
+        if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
+            return "Phòng đang được giữ chỗ cho khách khác. Vui lòng liên hệ quản lý.";
+        }
+        return "Phòng đã có cam kết khách khác, không thể tái ký.";
     }
 
     private List<LeaseContractQueryDetailsResponse.OccupantInfo> findOccupants(Long contractId) {

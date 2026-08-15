@@ -109,7 +109,8 @@ public class LeaseContract {
         }
         if (this.status != LeaseStatus.ACTIVE
                 && this.status != LeaseStatus.EXPIRING_SOON
-                && this.status != LeaseStatus.TERMINATION_PENDING) {
+                && this.status != LeaseStatus.TERMINATION_PENDING
+                && this.status != LeaseStatus.RENEWED) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
         this.status = LeaseStatus.TRANSFERRED;

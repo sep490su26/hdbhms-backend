@@ -705,6 +705,7 @@ public class TenantAccountProvisioningService {
             return jdbcTemplate.queryForObject("""
                             SELECT
                                 lc.status AS contract_status,
+                                lc.previous_contract_id,
                                 r.current_status AS room_status,
                                 (
                                     SELECT COUNT(*)
@@ -720,6 +721,7 @@ public class TenantAccountProvisioningService {
                             """,
                     (rs, rowNum) -> new ContractProvisioningContext(
                             LeaseStatus.valueOf(rs.getString("contract_status")),
+                            getLongOrNull(rs, "previous_contract_id"),
                             RoomStatus.valueOf(rs.getString("room_status")),
                             rs.getInt("occupant_count")
                     ),
@@ -732,6 +734,9 @@ public class TenantAccountProvisioningService {
 
     private void validateContractContext(ContractProvisioningContext context) {
         if (!List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(context.contractStatus())) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (context.previousContractId() != null) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         if (context.roomStatus() != RoomStatus.OCCUPIED) {
@@ -899,6 +904,7 @@ public class TenantAccountProvisioningService {
                 LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.person_profile_id
                 WHERE lc.deleted_at IS NULL
                   AND lc.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+                  AND lc.previous_contract_id IS NULL
                 """;
     }
 
@@ -1089,6 +1095,7 @@ public class TenantAccountProvisioningService {
 
     private record ContractProvisioningContext(
             LeaseStatus contractStatus,
+            Long previousContractId,
             RoomStatus roomStatus,
             int occupantCount
     ) {

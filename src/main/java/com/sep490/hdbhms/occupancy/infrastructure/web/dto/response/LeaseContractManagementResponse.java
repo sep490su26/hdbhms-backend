@@ -111,6 +111,10 @@ public class LeaseContractManagementResponse {
     Long liquidationDepositRefundedAmount;
     String liquidationDepositRefundedAt;
     String liquidationDepositRefundTransactionRef;
+    Long liquidationDepositForfeitureRequestId;
+    String liquidationDepositForfeitureStatus;
+    Long liquidationDepositForfeitureConfirmedBy;
+    String liquidationDepositForfeitureConfirmedAt;
 
     Boolean accountProvisioned;
     Boolean emailAvailable;

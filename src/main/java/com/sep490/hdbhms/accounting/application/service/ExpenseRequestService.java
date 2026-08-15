@@ -272,6 +272,15 @@ public class ExpenseRequestService {
         return toLiquidationDepositRefundLink(sourceRequest, payloadMap(sourceRequest.getRequestPayload()));
     }
 
+    @Transactional(readOnly = true)
+    public LiquidationDepositForfeitureLink getLiquidationDepositForfeitureLink(Long contractId) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        if (sourceRequest == null) {
+            return LiquidationDepositForfeitureLink.empty();
+        }
+        return toLiquidationDepositForfeitureLink(sourceRequest, payloadMap(sourceRequest.getRequestPayload()));
+    }
+
     @Transactional
     public LiquidationDepositRefundLink ensureLiquidationDepositRefundRequest(
             Long contractId,
@@ -436,6 +445,125 @@ public class ExpenseRequestService {
     }
 
     @Transactional
+    public LiquidationDepositForfeitureLink ensureLiquidationDepositForfeitureRequest(
+            Long contractId,
+            String contractCode,
+            Long propertyId,
+            Long roomId,
+            String roomCode,
+            Long amount,
+            String reason,
+            LocalDate liquidationDate,
+            Long currentUserId,
+            Long tenantUserId
+    ) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        long forfeitureAmount = safeAmount(amount);
+        String forfeitureReason = reason == null || reason.isBlank() ? null : reason.trim();
+        boolean sourceCreated = false;
+
+        if (sourceRequest == null && forfeitureAmount > 0) {
+            UserEntity requester = requireUser(currentUserId);
+            PropertyEntity property = propertyRepository.findById(propertyId)
+                    .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST));
+            RoomEntity room = resolveRoom(roomId, property.getId());
+            String roomLabel = roomCode == null || roomCode.isBlank() ? "" : " phong " + roomCode;
+            sourceRequest = changeRequestRepository.save(ChangeRequestEntity.builder()
+                    .requestCode(nextRequestCode(
+                            RequestType.CONTRACT_LIQUIDATION,
+                            room == null ? roomCode : room.getRoomCode()
+                    ))
+                    .requestType(RequestType.CONTRACT_LIQUIDATION)
+                    .requester(requester)
+                    .requesterRole(toRequesterRole(requester.getRole()))
+                    .targetType(TargetType.CONTRACT)
+                    .targetId(contractId)
+                    .title("Yeu cau xac nhan mat coc hop dong " + defaultText(contractCode, "#" + contractId))
+                    .description("Khach thue can xac nhan khoan mat coc" + roomLabel)
+                    .requestPayload(toJson(payload(
+                            "requestKind", SOURCE_REQUEST_TYPE_CONTRACT_LIQUIDATION,
+                            "contractId", contractId,
+                            "contractCode", contractCode,
+                            "roomId", room == null ? null : room.getId(),
+                            "roomCode", roomCode,
+                            "primaryTenantUserId", tenantUserId,
+                            "liquidationDate", liquidationDate,
+                            "liquidationStage", "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION",
+                            "depositForfeitureStatus", "PENDING_TENANT_CONFIRMATION",
+                            "depositForfeitureAmount", forfeitureAmount,
+                            "depositForfeitureReason", forfeitureReason,
+                            "liquidationChecklist", payload(
+                                    "depositForfeitureConfirmed", false
+                            )
+                    )))
+                    .assignedRole(AssignedRole.OWNER)
+                    .status(RequestStatus.PROCESSING)
+                    .build());
+            sourceCreated = true;
+            recordChangeEvent(sourceRequest, null, RequestStatus.PROCESSING,
+                    "Tao yeu cau xac nhan mat coc", currentUserId);
+        }
+
+        if (sourceRequest == null) {
+            return LiquidationDepositForfeitureLink.empty();
+        }
+
+        Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
+        String currentStatus = Objects.toString(sourcePayload.get("depositForfeitureStatus"), "NOT_REQUIRED");
+        long currentAmount = safeAmount(toLong(sourcePayload.get("depositForfeitureAmount")));
+        String currentReason = sourcePayload.get("depositForfeitureReason") == null
+                ? null
+                : sourcePayload.get("depositForfeitureReason").toString();
+        String currentLiquidationDate = sourcePayload.get("liquidationDate") == null
+                ? null
+                : sourcePayload.get("liquidationDate").toString();
+        String requestedLiquidationDate = liquidationDate == null ? null : liquidationDate.toString();
+        boolean sameDecision = currentAmount == forfeitureAmount
+                && Objects.equals(blankToNull(currentReason), blankToNull(forfeitureReason))
+                && Objects.equals(currentLiquidationDate, requestedLiquidationDate);
+
+        sourcePayload.put("depositForfeitureAmount", forfeitureAmount);
+        sourcePayload.put("depositForfeitureReason", forfeitureReason);
+        sourcePayload.put("liquidationDate", liquidationDate);
+        boolean notifyTenant = sourceCreated;
+        if (forfeitureAmount <= 0) {
+            boolean wasBlocking = "PENDING_TENANT_CONFIRMATION".equals(currentStatus)
+                    || "DISPUTED".equals(currentStatus);
+            sourcePayload.put("depositForfeitureStatus", "NOT_REQUIRED");
+            markChecklist(sourcePayload, "depositForfeitureConfirmed", true);
+            if (wasBlocking) {
+                sourcePayload.put("liquidationStage", liquidationStageAfterSettlementSync(
+                        sourcePayload,
+                        syncFinalInvoicePaid(sourcePayload),
+                        Objects.toString(sourcePayload.get("depositRefundStatus"), "")
+                ));
+            }
+        } else if (!sameDecision || (!"TENANT_CONFIRMED".equals(currentStatus)
+                && !"PENDING_TENANT_CONFIRMATION".equals(currentStatus)
+                && !"DISPUTED".equals(currentStatus))) {
+            sourcePayload.put("depositForfeitureStatus", "PENDING_TENANT_CONFIRMATION");
+            sourcePayload.remove("depositForfeitureConfirmedBy");
+            sourcePayload.remove("depositForfeitureConfirmedAt");
+            sourcePayload.remove("depositForfeitureDisputedBy");
+            sourcePayload.remove("depositForfeitureDisputedAt");
+            sourcePayload.remove("depositForfeitureDisputeReason");
+            markChecklist(sourcePayload, "depositForfeitureConfirmed", false);
+            sourcePayload.put("liquidationStage", "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION");
+            notifyTenant = true;
+        } else if ("PENDING_TENANT_CONFIRMATION".equals(currentStatus)
+                || "DISPUTED".equals(currentStatus)) {
+            sourcePayload.put("liquidationStage", "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION");
+        }
+
+        sourceRequest.setRequestPayload(toJson(sourcePayload));
+        changeRequestRepository.save(sourceRequest);
+        if (notifyTenant) {
+            notifyTenantForfeitureConfirmation(sourceRequest, sourcePayload);
+        }
+        return toLiquidationDepositForfeitureLink(sourceRequest, sourcePayload);
+    }
+
+    @Transactional
     public void completeLiquidationRequest(Long contractId) {
         ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
         if (sourceRequest == null || sourceRequest.getStatus() == RequestStatus.COMPLETED) {
@@ -560,9 +688,11 @@ public class ExpenseRequestService {
         payload.put("depositRefundAmount", 0L);
         payload.put("depositRefundedAmount", 0L);
         markChecklist(payload, "depositRefundConfirmed", true);
-        payload.put("liquidationStage", syncFinalInvoicePaid(payload)
-                ? "WAITING_SIGNED_DOCUMENT"
-                : "WAITING_PAYMENT");
+        payload.put("liquidationStage", liquidationStageAfterSettlementSync(
+                payload,
+                syncFinalInvoicePaid(payload),
+                "NOT_REQUIRED"
+        ));
         sourceRequest.setRequestPayload(toJson(payload));
         changeRequestRepository.save(sourceRequest);
     }
@@ -607,7 +737,7 @@ public class ExpenseRequestService {
             markChecklist(payload, "depositRefundConfirmed", false);
         }
         boolean finalInvoicePaid = syncFinalInvoicePaid(payload);
-        payload.put("liquidationStage", liquidationStageAfterRefundSync(finalInvoicePaid, nextStatus));
+        payload.put("liquidationStage", liquidationStageAfterSettlementSync(payload, finalInvoicePaid, nextStatus));
         sourceRequest.setRequestPayload(toJson(payload));
         changeRequestRepository.save(sourceRequest);
         if (!Objects.equals(currentStatus, nextStatus)
@@ -626,7 +756,7 @@ public class ExpenseRequestService {
         boolean finalInvoicePaid = syncFinalInvoicePaid(payload);
         if (finalInvoicePaid) {
             String refundStatus = Objects.toString(payload.get("depositRefundStatus"), "");
-            payload.put("liquidationStage", liquidationStageAfterRefundSync(true, refundStatus));
+            payload.put("liquidationStage", liquidationStageAfterSettlementSync(payload, true, refundStatus));
             sourceRequest.setRequestPayload(toJson(payload));
             changeRequestRepository.save(sourceRequest);
         }
@@ -697,6 +827,10 @@ public class ExpenseRequestService {
             return;
         }
         Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
+        Long tenantUserId = toLong(sourcePayload.get("primaryTenantUserId"));
+        if (tenantUserId == null) {
+            tenantUserId = sourceRequest.getRequester().getId();
+        }
         Map<String, Object> data = payload(
                 "requestId", sourceRequest.getId(),
                 "requestCode", sourceRequest.getRequestCode(),
@@ -711,7 +845,7 @@ public class ExpenseRequestService {
         );
         notificationPublisher.publish(
                 "LIQUIDATION_DEPOSIT_REFUND_RECORDED",
-                sourceRequest.getRequester().getId(),
+                tenantUserId,
                 "CHANGE_REQUEST",
                 sourceRequest.getId(),
                 data
@@ -788,7 +922,16 @@ public class ExpenseRequestService {
         return "PENDING";
     }
 
-    private String liquidationStageAfterRefundSync(boolean finalInvoicePaid, String refundStatus) {
+    private String liquidationStageAfterSettlementSync(
+            Map<String, Object> payload,
+            boolean finalInvoicePaid,
+            String refundStatus
+    ) {
+        String forfeitureStatus = Objects.toString(payload.get("depositForfeitureStatus"), "NOT_REQUIRED");
+        if ("PENDING_TENANT_CONFIRMATION".equals(forfeitureStatus)
+                || "DISPUTED".equals(forfeitureStatus)) {
+            return "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION";
+        }
         if (!finalInvoicePaid) {
             return "WAITING_PAYMENT";
         }
@@ -796,6 +939,32 @@ public class ExpenseRequestService {
             return "WAITING_SIGNED_DOCUMENT";
         }
         return "WAITING_DEPOSIT_REFUND";
+    }
+
+    private void notifyTenantForfeitureConfirmation(
+            ChangeRequestEntity sourceRequest,
+            Map<String, Object> payload
+    ) {
+        Long tenantUserId = toLong(payload.get("primaryTenantUserId"));
+        if (tenantUserId == null && sourceRequest.getRequester() != null) {
+            tenantUserId = sourceRequest.getRequester().getId();
+        }
+        notificationPublisher.publish(
+                "LIQUIDATION_DEPOSIT_FORFEITURE_CONFIRMATION_REQUIRED",
+                tenantUserId,
+                "CHANGE_REQUEST",
+                sourceRequest.getId(),
+                payload(
+                        "requestId", sourceRequest.getId(),
+                        "requestCode", sourceRequest.getRequestCode(),
+                        "contractId", payload.get("contractId"),
+                        "contractCode", payload.get("contractCode"),
+                        "roomCode", payload.get("roomCode"),
+                        "depositForfeitureAmount", payload.get("depositForfeitureAmount"),
+                        "depositForfeitureReason", payload.get("depositForfeitureReason"),
+                        "targetRoute", "/requests"
+                )
+        );
     }
 
     private boolean syncFinalInvoicePaid(Map<String, Object> payload) {
@@ -838,6 +1007,29 @@ public class ExpenseRequestService {
                 toLong(payload.get("depositRefundedAmount")),
                 payload.get("depositRefundedAt") == null ? null : payload.get("depositRefundedAt").toString(),
                 payload.get("depositRefundTransactionRef") == null ? null : payload.get("depositRefundTransactionRef").toString()
+        );
+    }
+
+    private LiquidationDepositForfeitureLink toLiquidationDepositForfeitureLink(
+            ChangeRequestEntity sourceRequest,
+            Map<String, Object> payload
+    ) {
+        if (sourceRequest == null) {
+            return LiquidationDepositForfeitureLink.empty();
+        }
+        return new LiquidationDepositForfeitureLink(
+                sourceRequest.getId(),
+                payload.get("depositForfeitureStatus") == null
+                        ? null
+                        : payload.get("depositForfeitureStatus").toString(),
+                toLong(payload.get("depositForfeitureAmount")),
+                payload.get("depositForfeitureReason") == null
+                        ? null
+                        : payload.get("depositForfeitureReason").toString(),
+                toLong(payload.get("depositForfeitureConfirmedBy")),
+                payload.get("depositForfeitureConfirmedAt") == null
+                        ? null
+                        : payload.get("depositForfeitureConfirmedAt").toString()
         );
     }
 
@@ -1188,6 +1380,19 @@ public class ExpenseRequestService {
     ) {
         public static LiquidationDepositRefundLink empty() {
             return new LiquidationDepositRefundLink(null, null, null, null, null, null, null, null);
+        }
+    }
+
+    public record LiquidationDepositForfeitureLink(
+            Long liquidationChangeRequestId,
+            String status,
+            Long amount,
+            String reason,
+            Long confirmedBy,
+            String confirmedAt
+    ) {
+        public static LiquidationDepositForfeitureLink empty() {
+            return new LiquidationDepositForfeitureLink(null, null, null, null, null, null);
         }
     }
 }

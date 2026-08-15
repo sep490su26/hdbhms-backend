@@ -67,13 +67,13 @@ SET @c301 := (SELECT lease_contract_id FROM hdbhms.lease_contracts WHERE contrac
 
 UPDATE hdbhms.rooms
 SET current_status = CASE room_code
-        WHEN '402' THEN 'OCCUPIED'
-        WHEN '403' THEN 'SOON_VACANT'
+        WHEN '402' THEN 'SOON_VACANT'
+        WHEN '403' THEN 'OCCUPIED'
         ELSE current_status
     END,
     public_note = CASE room_code
         WHEN '402' THEN 'Hợp đồng sắp hết hạn ngày 15/08/2026, đang chờ khách phản hồi ý định.'
-        WHEN '403' THEN 'Đang xử lý thanh lý; phòng sẽ trống sau khi hoàn tất bàn giao.'
+        WHEN '403' THEN 'Hợp đồng sắp hết hạn ngày 30/09/2026; chưa bắt đầu thanh lý.'
         ELSE public_note
     END,
     updated_at = '2026-07-30 09:00:00'
@@ -90,10 +90,10 @@ SET tenant_intention = NULL,
 WHERE lease_contract_id = @c402;
 
 UPDATE hdbhms.lease_contracts
-SET status = 'TERMINATION_PENDING',
-    tenant_intention = 'MOVE_OUT',
-    expected_vacant_date = '2026-07-31',
-    intention_recorded_at = '2026-07-30 08:00:00',
+SET status = 'EXPIRING_SOON',
+    tenant_intention = NULL,
+    expected_vacant_date = NULL,
+    intention_recorded_at = NULL,
     updated_at = '2026-07-30 09:00:00'
 WHERE lease_contract_id = @c403;
 
@@ -297,47 +297,11 @@ WHERE n.target_type = 'MANAGER_TASK'
 DELETE FROM hdbhms.reminder_trackers
 WHERE target_type = 'CONTRACT'
   AND target_id = @c402
-  AND reminder_key IN ('LEASE_HANDOVER_CONFIRMATION', 'LEASE_EXPIRY_INTENTION');
+  AND reminder_key = 'LEASE_HANDOVER_CONFIRMATION';
 
 DELETE FROM hdbhms.manager_tasks
 WHERE lease_contract_id = @c402
   AND task_type = 'LEASE_HANDOVER_CONFIRMATION';
-
-INSERT INTO hdbhms.reminder_trackers
-    (reminder_key, target_type, target_id, audience, recipient_user_id, status, sent_count,
-     last_sent_at, next_due_at, metadata, created_at, updated_at)
-VALUES
-    ('LEASE_EXPIRY_INTENTION', 'CONTRACT', @c402, 'PRIMARY_TENANT', @tenant_user_id, 'ACTIVE', 1,
-     '2026-07-30 09:00:00', '2026-08-29 09:00:00',
-     JSON_OBJECT('endDate', '2026-08-15', 'firstReminderDate', '2026-05-15', 'lastReminderStage', 'FIRST'),
-     '2026-07-30 09:00:00', '2026-07-30 09:00:00');
-
-DELETE delivery
-FROM hdbhms.notification_deliveries delivery
-JOIN hdbhms.notification_outbox n
-    ON n.notification_outbox_id = delivery.outbox_id
-WHERE n.event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
-  AND n.target_type = 'CONTRACT'
-  AND n.target_id = @c402
-  AND n.recipient_user_id = @tenant_user_id;
-
-DELETE FROM hdbhms.notification_outbox
-WHERE event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
-  AND target_type = 'CONTRACT'
-  AND target_id = @c402
-  AND recipient_user_id = @tenant_user_id;
-
-INSERT INTO hdbhms.notification_outbox
-    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
-     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
-VALUES
-    ('LEASE_EXPIRY_REMINDER_FIRST', 'CONTRACT', @c402, @tenant_user_id, 'PUSH',
-     'Hợp đồng HDT_P402_01_09_2025 sắp hết hạn',
-     'Phòng 402 tại Nhà trọ Hải Đăng 1 sẽ hết hạn vào 2026-08-15. Bạn muốn gia hạn, chuyển phòng hay chuyển đi?',
-     JSON_OBJECT('contractId', @c402, 'contractCode', 'HDT_P402_01_09_2025', 'roomId', @r402,
-                  'roomName', 'Phòng 402', 'roomCode', '402', 'propertyName', 'Nhà trọ Hải Đăng 1', 'endDate', '2026-08-15',
-                 'daysRemaining', 16, 'stage', 'FIRST', 'targetRoute', '/contract'),
-      'SENT', 0, 3, '2026-07-30 09:00:00', '2026-07-30 09:00:00', '2026-07-30 09:00:00', FALSE);
 
 -- Keep persisted custom templates aligned with NotificationTemplateDefaults.
 UPDATE hdbhms.notification_templates

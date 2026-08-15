@@ -67,6 +67,9 @@ public class CreateDraftLeaseContractForDepositService implements CreateDraftLea
         long monthlyRent = room.getListedPrice() == null ? 0L : room.getListedPrice();
         long depositAmount = deposit.getAmount() == null ? 0L : deposit.getAmount();
         workflowSupport.validateContractTerms(startDate, paymentCycleMonths, monthlyRent, depositAmount);
+        if (termMonths % paymentCycleMonths != 0) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
 
         String contractCode = DocumentFilenameBuilder.buildLeaseContractCode(room.getRoomCode(), startDate);
         LeaseContractEntity contract = LeaseContractEntity.builder()

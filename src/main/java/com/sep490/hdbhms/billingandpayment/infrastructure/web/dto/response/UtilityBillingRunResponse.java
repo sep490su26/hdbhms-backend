@@ -53,7 +53,10 @@ public record UtilityBillingRunResponse(
             String adjustmentReason,
             String status,
             Long invoiceId,
-            String invoiceCode
+            String invoiceCode,
+            String invoiceType,
+            Long roomRentAmount,
+            List<String> payablePeriods
     ) {
     }
 }

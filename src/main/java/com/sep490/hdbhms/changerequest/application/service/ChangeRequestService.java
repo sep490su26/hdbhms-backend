@@ -9,6 +9,8 @@ import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisio
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestRepository;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaTenantAccountProvisioningRepository;
 import com.sep490.hdbhms.permissiongrant.application.service.PermissionGrantService;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -33,6 +35,7 @@ public class ChangeRequestService implements ChangeRequestUseCase {
     List<ChangeRequestDecisionHandler> decisionHandlers;
     PermissionGrantService permissionGrantService;
     ObjectMapper objectMapper;
+    JpaTenantAccountProvisioningRepository provisioningRepository;
 
     @Override
     @Transactional
@@ -76,10 +79,13 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         if ("TENANT_CONFIRMED".equals(payload.get("depositRefundStatus"))) {
             return request;
         }
-        assertRefundRecordedByManager(payload);
+        assertRefundAwaitingTenantConfirmation(payload);
+        LocalDateTime confirmedAt = LocalDateTime.now();
         payload.put("depositRefundStatus", "TENANT_CONFIRMED");
         payload.put("depositRefundConfirmedBy", tenantId);
-        payload.put("depositRefundConfirmedAt", LocalDateTime.now().toString());
+        payload.put("depositRefundConfirmedAt", confirmedAt.toString());
+        payload.put("depositRefundedAmount", payload.get("depositRefundAmount"));
+        payload.put("depositRefundedAt", confirmedAt.toString());
         if (isFinalInvoicePaid(payload) && "WAITING_DEPOSIT_REFUND".equals(payload.get("liquidationStage"))) {
             payload.put("liquidationStage", "WAITING_SIGNED_DOCUMENT");
         } else if (!isFinalInvoicePaid(payload)) {
@@ -99,12 +105,50 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         }
         ChangeRequest request = liquidationRequestForTenant(requestId, tenantId);
         Map<String, Object> payload = payloadMap(request.getRequestPayload());
-        assertRefundRecordedByManager(payload);
+        assertRefundAwaitingTenantConfirmation(payload);
         payload.put("depositRefundStatus", "DISPUTED");
         payload.put("depositRefundDisputedBy", tenantId);
         payload.put("depositRefundDisputedAt", LocalDateTime.now().toString());
         payload.put("depositRefundDisputeReason", finalReason);
         markChecklist(payload, "depositRefundConfirmed", false);
+        request.updateRequestPayload(writePayload(payload));
+        return repository.save(request);
+    }
+
+    @Override
+    @Transactional
+    public ChangeRequest confirmLiquidationDepositForfeiture(Long requestId, Long tenantId) {
+        ChangeRequest request = liquidationRequestForTenant(requestId, tenantId);
+        Map<String, Object> payload = payloadMap(request.getRequestPayload());
+        if ("TENANT_CONFIRMED".equals(payload.get("depositForfeitureStatus"))) {
+            return request;
+        }
+        assertForfeiturePending(payload);
+        payload.put("depositForfeitureStatus", "TENANT_CONFIRMED");
+        payload.put("depositForfeitureConfirmedBy", tenantId);
+        payload.put("depositForfeitureConfirmedAt", LocalDateTime.now().toString());
+        markChecklist(payload, "depositForfeitureConfirmed", true);
+        payload.put("liquidationStage", liquidationStageAfterTenantSettlement(payload));
+        request.updateRequestPayload(writePayload(payload));
+        return repository.save(request);
+    }
+
+    @Override
+    @Transactional
+    public ChangeRequest disputeLiquidationDepositForfeiture(Long requestId, Long tenantId, String reason) {
+        String finalReason = reason == null ? "" : reason.trim();
+        if (finalReason.isBlank()) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        ChangeRequest request = liquidationRequestForTenant(requestId, tenantId);
+        Map<String, Object> payload = payloadMap(request.getRequestPayload());
+        assertForfeiturePending(payload);
+        payload.put("depositForfeitureStatus", "DISPUTED");
+        payload.put("depositForfeitureDisputedBy", tenantId);
+        payload.put("depositForfeitureDisputedAt", LocalDateTime.now().toString());
+        payload.put("depositForfeitureDisputeReason", finalReason);
+        markChecklist(payload, "depositForfeitureConfirmed", false);
+        payload.put("liquidationStage", "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION");
         request.updateRequestPayload(writePayload(payload));
         return repository.save(request);
     }
@@ -130,10 +174,12 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         String stage = holderReplacement ? "WAITING_REPLACEMENT_CONTRACT" : "WAITING_HANDOVER";
         data.put("liquidationStage", stage);
         data.put("depositRefundStatus", holderReplacement ? "NOT_REQUIRED" : "PENDING");
+        data.put("depositForfeitureStatus", "NOT_REQUIRED");
         Map<String, Object> checklist = new LinkedHashMap<>();
         checklist.put("handoverConfirmed", holderReplacement);
         checklist.put("finalInvoicePaid", false);
         checklist.put("depositRefundConfirmed", holderReplacement);
+        checklist.put("depositForfeitureConfirmed", holderReplacement);
         checklist.put("signedDocumentUploaded", false);
         if (holderReplacement) {
             checklist.put("replacementContractSigned", false);
@@ -154,7 +200,14 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         Long expectedTenantUserId = contractTenantUserId == null
                 ? request.getRequesterId()
                 : contractTenantUserId;
-        if (tenantId == null || !tenantId.equals(expectedTenantUserId)) {
+        Long primaryTenantProfileId = toLong(payload.get("primaryTenantProfileId"));
+        boolean provisionedTenant = tenantId != null
+                && primaryTenantProfileId != null
+                && provisioningRepository.findByTenantProfileId(primaryTenantProfileId)
+                .filter(provisioning -> provisioning.getStatus() != TenantAccountProvisioningStatus.DISABLED)
+                .map(provisioning -> tenantId.equals(provisioning.getUserId()))
+                .orElse(false);
+        if (tenantId == null || (!tenantId.equals(expectedTenantUserId) && !provisionedTenant)) {
             throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
         return request;
@@ -177,12 +230,36 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         return data;
     }
 
-    private void assertRefundRecordedByManager(Map<String, Object> payload) {
+    private void assertRefundAwaitingTenantConfirmation(Map<String, Object> payload) {
         Object status = payload.get("depositRefundStatus");
         if (!"APPROVED_WAITING_TENANT_CONFIRMATION".equals(status)
                 && !"RECORDED_BY_MANAGER".equals(status)) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
+    }
+
+    private void assertForfeiturePending(Map<String, Object> payload) {
+        Object status = payload.get("depositForfeitureStatus");
+        if (!"PENDING_TENANT_CONFIRMATION".equals(status)
+                && !"DISPUTED".equals(status)) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    private String liquidationStageAfterTenantSettlement(Map<String, Object> payload) {
+        if (!"TENANT_CONFIRMED".equals(payload.get("depositForfeitureStatus"))) {
+            return "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION";
+        }
+        if (!isFinalInvoicePaid(payload)) {
+            return "WAITING_PAYMENT";
+        }
+        Object refundStatus = payload.get("depositRefundStatus");
+        if (refundStatus != null
+                && !"TENANT_CONFIRMED".equals(refundStatus)
+                && !"NOT_REQUIRED".equals(refundStatus)) {
+            return "WAITING_DEPOSIT_REFUND";
+        }
+        return "WAITING_SIGNED_DOCUMENT";
     }
 
     private Long toLong(Object value) {

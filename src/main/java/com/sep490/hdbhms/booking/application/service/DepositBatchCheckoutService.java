@@ -166,6 +166,7 @@ public class DepositBatchCheckoutService {
                     .idBackFile(idBackEntity)
                     .portraitFile(portraitEntity)
                     .depositMonths(request.getDepositMonths())
+                    .contractTermMonths(request.getContractTermMonths())
                     .paymentCycleMonths(request.getPaymentCycleMonths())
                     .occupantCount(roomRequest.getOccupantCount())
                     .expectedMoveInDate(request.getExpectedMoveInDate())

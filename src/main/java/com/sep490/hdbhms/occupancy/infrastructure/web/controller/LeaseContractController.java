@@ -559,7 +559,11 @@ public class LeaseContractController {
 
         RoomCommitmentChecker.Blocker renewBlocker = response.getRoom() == null || response.getRoom().getId() == null
                 ? RoomCommitmentChecker.Blocker.NONE
-                : roomCommitmentChecker.checkRenewBlockers(response.getRoom().getId(), leaseContractId);
+                : roomCommitmentChecker.checkRenewBlockers(
+                        response.getRoom().getId(),
+                        leaseContractId,
+                        response.getEndDate()
+                );
         response.setCanRenew(canRecordIntention && renewBlocker == RoomCommitmentChecker.Blocker.NONE);
         response.setCanRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
                 ? null

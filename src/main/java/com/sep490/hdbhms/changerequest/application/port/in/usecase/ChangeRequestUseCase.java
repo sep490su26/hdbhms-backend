@@ -9,4 +9,6 @@ public interface ChangeRequestUseCase {
     void rejectRequest(RejectRequestCommand command);
     ChangeRequest confirmLiquidationDepositReceipt(Long requestId, Long tenantId);
     ChangeRequest disputeLiquidationDepositRefund(Long requestId, Long tenantId, String reason);
+    ChangeRequest confirmLiquidationDepositForfeiture(Long requestId, Long tenantId);
+    ChangeRequest disputeLiquidationDepositForfeiture(Long requestId, Long tenantId, String reason);
 }

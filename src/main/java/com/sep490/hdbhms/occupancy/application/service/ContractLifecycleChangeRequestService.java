@@ -22,6 +22,7 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContra
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractOccupantRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.shared.utils.RequestCodeBuilder;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -70,6 +71,7 @@ public class ContractLifecycleChangeRequestService {
     ChangeRequestRepository changeRequestRepository;
     ObjectMapper objectMapper;
     ChangeRequestNotificationService changeRequestNotificationService;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Transactional
     public ChangeRequest submitLiquidationRequest(
@@ -294,6 +296,15 @@ public class ContractLifecycleChangeRequestService {
         }
         if (requestType == RequestType.CONTRACT_RENEWAL && !RENEWABLE_STATUSES.contains(contract.getStatus())) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (requestType == RequestType.CONTRACT_RENEWAL
+                && contract.getRoom() != null
+                && roomCommitmentChecker.checkRenewBlockers(
+                        contract.getRoom().getId(),
+                        contract.getId(),
+                        contract.getEndDate()
+                ) != RoomCommitmentChecker.Blocker.NONE) {
+            throw new AppException(ApiErrorCode.MIGRATED_PHONG_DA_CO_KHACH_KHAC_DAT_COC_GIU_CHO_KHONG_THE_GIA_HAN_BEF683);
         }
         if (requestType == RequestType.ADD_CO_OCCUPANT && !ADD_CO_OCCUPANT_STATUSES.contains(contract.getStatus())) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);

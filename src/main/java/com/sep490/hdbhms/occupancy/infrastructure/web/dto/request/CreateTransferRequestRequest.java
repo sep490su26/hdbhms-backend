@@ -14,7 +14,7 @@ public record CreateTransferRequestRequest(
 
         LocalDate requestedTransferDate,
 
-        @NotNull(message = "Vui lòng chọn ngày chuyển dự kiến")
+        @NotNull(message = "Vui lòng chọn tháng chuyển dự kiến")
         LocalDate expectedTransferDate,
 
         List<Long> transferredTenantProfileIds,
@@ -22,8 +22,11 @@ public record CreateTransferRequestRequest(
         String reason
 ) {
     public CreateTransferRequestRequest {
-        if (expectedTransferDate == null) {
-            expectedTransferDate = requestedTransferDate;
-        }
+        LocalDate transferMonth = expectedTransferDate != null
+                ? expectedTransferDate
+                : requestedTransferDate;
+        transferMonth = transferMonth == null ? null : transferMonth.withDayOfMonth(1);
+        requestedTransferDate = transferMonth;
+        expectedTransferDate = transferMonth;
     }
 }

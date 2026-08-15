@@ -49,7 +49,6 @@ public class LeaseExpiryReminderService {
     private static final String HANDOVER_TASK = "LEASE_HANDOVER_CONFIRMATION";
     private static final String MANAGER_VISIT_TASK = "LEASE_EXPIRY_MANAGER_VISIT";
 
-    private static final int REMINDER_SPACING_DAYS = 30;
     private static final int HANDOVER_WINDOW_DAYS = 14;
 
     JpaReminderTrackerRepository reminderTrackerRepository;
@@ -105,7 +104,7 @@ public class LeaseExpiryReminderService {
     }
 
     private void processIntentionReminder(LeaseContract contract, LocalDate today) {
-        LocalDate firstReminderDate = contract.getEndDate().minusMonths(3);
+        LocalDate firstReminderDate = reminderDate(contract.getEndDate(), ReminderStage.FIRST);
         if (today.isBefore(firstReminderDate)) {
             return;
         }
@@ -142,10 +141,23 @@ public class LeaseExpiryReminderService {
 
         int sentCount = tracker.getSentCount() == null ? 0 : tracker.getSentCount();
         if (sentCount >= 3) {
+            tracker.setNextDueAt(null);
+            reminderTrackerRepository.save(tracker);
             return;
         }
 
         ReminderStage stage = ReminderStage.fromSentCount(sentCount);
+        LocalDate stageDueDate = reminderDate(contract.getEndDate(), stage);
+        if (tracker.getNextDueAt() == null
+                || !stageDueDate.equals(tracker.getNextDueAt().toLocalDate())) {
+            // Re-align legacy trackers with the calendar milestones derived from the contract end date.
+            tracker.setNextDueAt(stageDueDate.atStartOfDay());
+        }
+        if (today.isBefore(stageDueDate)) {
+            reminderTrackerRepository.save(tracker);
+            return;
+        }
+
         notificationPublisher.publish(
                 stage.eventType(),
                 recipientUserId,
@@ -180,9 +192,13 @@ public class LeaseExpiryReminderService {
             //TODO: Add release room logic when reached final reminder
 //            contract.getRoom().setCurrentStatus(RoomStatus.SOON_VACANT);
         } else {
-            tracker.setNextDueAt(today.plusDays(REMINDER_SPACING_DAYS).atStartOfDay());
+            tracker.setNextDueAt(reminderDate(contract.getEndDate(), stage.next()).atStartOfDay());
         }
         reminderTrackerRepository.save(tracker);
+    }
+
+    private LocalDate reminderDate(LocalDate endDate, ReminderStage stage) {
+        return endDate.minusMonths(stage.monthsBeforeExpiry());
     }
 
     private void ensureRenewalTermsTask(LeaseContract contract, LocalDate today) {
@@ -486,14 +502,16 @@ public class LeaseExpiryReminderService {
     }
 
     private enum ReminderStage {
-        FIRST("LEASE_EXPIRY_REMINDER_FIRST"),
-        SECOND("LEASE_EXPIRY_REMINDER_SECOND"),
-        FINAL("LEASE_EXPIRY_REMINDER_FINAL");
+        FIRST("LEASE_EXPIRY_REMINDER_FIRST", 3),
+        SECOND("LEASE_EXPIRY_REMINDER_SECOND", 2),
+        FINAL("LEASE_EXPIRY_REMINDER_FINAL", 1);
 
         private final String eventType;
+        private final int monthsBeforeExpiry;
 
-        ReminderStage(String eventType) {
+        ReminderStage(String eventType, int monthsBeforeExpiry) {
             this.eventType = eventType;
+            this.monthsBeforeExpiry = monthsBeforeExpiry;
         }
 
         static ReminderStage fromSentCount(int sentCount) {
@@ -508,6 +526,18 @@ public class LeaseExpiryReminderService {
 
         String eventType() {
             return eventType;
+        }
+
+        int monthsBeforeExpiry() {
+            return monthsBeforeExpiry;
+        }
+
+        ReminderStage next() {
+            return switch (this) {
+                case FIRST -> SECOND;
+                case SECOND -> FINAL;
+                case FINAL -> FINAL;
+            };
         }
     }
 

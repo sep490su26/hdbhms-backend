@@ -150,11 +150,17 @@ public class UtilityBillingRunService {
                         .createdBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId))
                         .build());
 
-        if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED) {
+        if (isRunActuallyPublished(run)) {
             markMeterReadingBatchConfirmed(run, currentUserId);
             return getRun(run.getId());
         }
 
+        if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED) {
+            run.setStatus(UtilityBillingRunStatus.PREVIEWED);
+            run.setGeneratedBy(null);
+            run.setGeneratedAt(null);
+            run.setGeneratedInvoiceCount(0);
+        }
         run.setStatus(UtilityBillingRunStatus.PREVIEWED);
         run = runRepository.saveAndFlush(run);
         itemRepository.deleteByRun_Id(run.getId());
@@ -188,13 +194,22 @@ public class UtilityBillingRunService {
                         period.toString(),
                         InvoiceReason.MONTHLY
                 )
-                .map(UtilityBillingRunEntity::getStatus)
+                .map(this::effectiveRunStatus)
                 .orElse(null);
     }
 
     @Transactional(readOnly = true)
     public boolean hasIssuedMonthlyInvoices(Long propertyId, String billingPeriod) {
-        return getMonthlyRunStatus(propertyId, billingPeriod) == UtilityBillingRunStatus.INVOICES_CREATED;
+        if (propertyId == null || billingPeriod == null || billingPeriod.isBlank()) {
+            return false;
+        }
+        return runRepository.findByProperty_IdAndBillingPeriodAndInvoiceReason(
+                        propertyId,
+                        requirePeriod(billingPeriod).toString(),
+                        InvoiceReason.MONTHLY
+                )
+                .map(this::isRunActuallyPublished)
+                .orElse(false);
     }
 
     @Transactional
@@ -214,11 +229,19 @@ public class UtilityBillingRunService {
     }
 
     @Transactional(readOnly = true)
-    public List<UtilityBillingRunResponse> listRuns(String billingPeriod, Long propertyId, String status) {
+    public List<UtilityBillingRunResponse> listRuns(
+            String billingPeriod,
+            Long propertyId,
+            String status,
+            String invoiceReason
+    ) {
         String normalizedPeriod = billingPeriod == null || billingPeriod.isBlank()
                 ? null
                 : requirePeriod(billingPeriod).toString();
         UtilityBillingRunStatus parsedStatus = parseRunStatus(status);
+        InvoiceReason parsedReason = invoiceReason == null || invoiceReason.isBlank()
+                ? null
+                : parseReason(invoiceReason);
         List<UtilityBillingRunEntity> runs;
         if (propertyId != null && normalizedPeriod != null) {
             runs = runRepository.findByProperty_IdAndBillingPeriodOrderByIdDesc(propertyId, normalizedPeriod);
@@ -230,7 +253,8 @@ public class UtilityBillingRunService {
             runs = runRepository.findAllByOrderByBillingPeriodDescIdDesc();
         }
         return runs.stream()
-                .filter(run -> parsedStatus == null || run.getStatus() == parsedStatus)
+                .filter(run -> parsedStatus == null || effectiveRunStatus(run) == parsedStatus)
+                .filter(run -> parsedReason == null || run.getInvoiceReason() == parsedReason)
                 .map(run -> toResponse(run, List.of()))
                 .toList();
     }
@@ -271,8 +295,16 @@ public class UtilityBillingRunService {
         if (run.getStatus() == UtilityBillingRunStatus.CANCELLED) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
-        if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED) {
+        if (isRunActuallyPublished(run)) {
             return getRun(runId);
+        }
+
+        if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED) {
+            run.setStatus(UtilityBillingRunStatus.PREVIEWED);
+            run.setGeneratedBy(null);
+            run.setGeneratedAt(null);
+            run.setGeneratedInvoiceCount(0);
+            runRepository.save(run);
         }
 
         int paymentDueDays = dueDays == null ? 7 : dueDays;
@@ -282,7 +314,7 @@ public class UtilityBillingRunService {
 
         List<UtilityBillingRunItemEntity> items = itemRepository.findByRun_IdOrderByRoom_RoomCodeAscIdAsc(runId);
         long warningCount = items.stream()
-                .filter(item -> item.getStatus() == UtilityBillingRunItemStatus.WARNING)
+                .filter(this::hasBlockingWarning)
                 .count();
         if (warningCount > 0) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
@@ -298,8 +330,18 @@ public class UtilityBillingRunService {
             }
 
             if (safe(item.getTotalAmount()) > 0) {
-                InvoiceEntity invoice = findExistingInvoice(item, run)
-                        .orElseGet(() -> createInvoice(item, run, paymentDueDays, now, currentUserId));
+                RentCharge rentCharge = buildRentCharge(item.getLeaseContract(), requirePeriod(run.getBillingPeriod()));
+                InvoiceType invoiceType = rentCharge.amount() > 0 ? InvoiceType.RENT : InvoiceType.UTILITY;
+                InvoiceEntity invoice = findExistingInvoice(item, run, invoiceType)
+                        .orElseGet(() -> createInvoice(
+                                item,
+                                run,
+                                paymentDueDays,
+                                now,
+                                currentUserId,
+                                rentCharge,
+                                invoiceType
+                        ));
                 item.setInvoice(invoice);
                 item.setStatus(UtilityBillingRunItemStatus.INVOICED);
                 invoiceCount++;
@@ -401,13 +443,30 @@ public class UtilityBillingRunService {
         UtilityBillingRunItemEntity item = itemRepository.saveAndFlush(
                 buildItem(run, room, contract, electricity, null, period)
         );
+        if (hasBlockingWarning(item)) {
+            item.setStatus(UtilityBillingRunItemStatus.WARNING);
+            itemRepository.save(item);
+            syncRunTotals(run.getId());
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_METER_READING_INVALID);
+        }
+
         Long invoiceId = null;
         LocalDateTime now = LocalDateTime.now();
         if (hasBillableReadings(item) && safe(item.getTotalAmount()) > 0) {
             UtilityBillingRunItemEntity invoiceItem = item;
             UtilityBillingRunEntity invoiceRun = run;
-            InvoiceEntity invoice = findExistingInvoice(invoiceItem, invoiceRun)
-                    .orElseGet(() -> createInvoice(invoiceItem, invoiceRun, 7, now, currentUserId));
+            RentCharge rentCharge = buildRentCharge(invoiceItem.getLeaseContract(), period);
+            InvoiceType invoiceType = rentCharge.amount() > 0 ? InvoiceType.RENT : InvoiceType.UTILITY;
+            InvoiceEntity invoice = findExistingInvoice(invoiceItem, invoiceRun, invoiceType)
+                    .orElseGet(() -> createInvoice(
+                            invoiceItem,
+                            invoiceRun,
+                            7,
+                            now,
+                            currentUserId,
+                            rentCharge,
+                            invoiceType
+                    ));
             item.setInvoice(invoice);
             item.setStatus(UtilityBillingRunItemStatus.INVOICED);
             invoiceId = invoice.getId();
@@ -454,25 +513,26 @@ public class UtilityBillingRunService {
         Charge electricityCharge = buildCharge(electricity, UtilityType.ELECTRICITY);
         StringJoiner warnings = new StringJoiner("; ");
         if (contract == null) warnings.add("Không có hợp đồng đủ điều kiện tính tiền trong kỳ này");
-        if (electricity == null) warnings.add("Thiếu chỉ số điện");
+        if (electricity == null || electricity.getCurrentValue() == null) warnings.add("Thiếu chỉ số điện");
         if (electricityCharge.warning() != null) warnings.add(electricityCharge.warning());
         if (anomalyMessage != null && !anomalyMessage.isBlank()) warnings.add(anomalyMessage);
 
         boolean canInvoice = contract != null
                 && electricity != null
+                && electricity.getCurrentValue() != null
                 && electricityCharge.warning() == null;
+        RentCharge rentCharge = canInvoice
+                ? buildRentCharge(contract, period)
+                : RentCharge.empty();
         ServiceFeeCharge serviceFeeCharge = canInvoice
                 ? buildServiceFeeCharge(contract, room.getProperty().getId(), period)
                 : ServiceFeeCharge.empty();
-        long subtotal = electricityCharge.amount() + serviceFeeCharge.amount();
-        UtilityBillingRunItemStatus status;
-        if (!canInvoice || subtotal <= 0) {
-            status = UtilityBillingRunItemStatus.SKIPPED;
-        } else if (warnings.length() > 0) {
-            status = UtilityBillingRunItemStatus.WARNING;
-        } else {
-            status = UtilityBillingRunItemStatus.READY;
-        }
+        long subtotal = electricityCharge.amount() + rentCharge.amount() + serviceFeeCharge.amount();
+        UtilityBillingRunItemStatus status = resolveItemStatus(
+                warnings.length() > 0,
+                canInvoice,
+                subtotal
+        );
 
         return UtilityBillingRunItemEntity.builder()
                 .run(run)
@@ -551,17 +611,20 @@ public class UtilityBillingRunService {
             UtilityBillingRunEntity run,
             int dueDays,
             LocalDateTime now,
-            Long currentUserId
+            Long currentUserId,
+            RentCharge rentCharge,
+            InvoiceType invoiceType
     ) {
         InvoiceEntity invoice = invoiceRepository.saveAndFlush(InvoiceEntity.builder()
-                .invoiceCode("INV-UTL-" + run.getInvoiceReason().name() + "-" + item.getRoom().getId()
+                .invoiceCode("INV-" + (invoiceType == InvoiceType.RENT ? "RENT" : "UTL") + "-"
+                        + run.getInvoiceReason().name() + "-" + item.getRoom().getId()
                         + "-" + run.getBillingPeriod().replace("-", "") + "-" + snowflakeIdGenerator.next())
                 .property(run.getProperty())
                 .room(item.getRoom())
                 .leastContract(item.getLeaseContract())
-                .invoiceType(InvoiceType.UTILITY)
+                .invoiceType(invoiceType)
                 .invoiceReason(run.getInvoiceReason())
-                .revisionNo(nextRevision(item.getLeaseContract().getId(), run.getBillingPeriod(), InvoiceType.UTILITY))
+                .revisionNo(nextRevision(item.getLeaseContract().getId(), run.getBillingPeriod(), invoiceType))
                 .billingPeriod(run.getBillingPeriod())
                 .issueDate(now)
                 .dueDate(now.plusDays(dueDays))
@@ -574,9 +637,10 @@ public class UtilityBillingRunService {
                 .createdBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId))
                 .build());
 
+        saveRentLine(invoice, rentCharge, item.getId());
         saveInvoiceLine(invoice, item, InvoiceLineType.ELECTRICITY, item.getElectricityReading(),
                 item.getElectricityQuantity(), item.getElectricityUnitPrice(), "Electricity");
-        saveServiceFeeLine(invoice, item);
+        saveServiceFeeLine(invoice, item, run.getBillingPeriod());
 
         invoice.setStatus(InvoiceStatus.ISSUED);
         invoice.setIssuedAt(now);
@@ -626,13 +690,33 @@ public class UtilityBillingRunService {
         }
     }
 
-    private void saveServiceFeeLine(InvoiceEntity invoice, UtilityBillingRunItemEntity item) {
+    private void saveRentLine(InvoiceEntity invoice, RentCharge rentCharge, Long sourceId) {
+        if (rentCharge == null || rentCharge.amount() <= 0) {
+            return;
+        }
+        invoiceLineRepository.save(InvoiceLineEntity.builder()
+                .invoice(invoice)
+                .lineType(InvoiceLineType.ROOM_RENT)
+                .description("Ti\u1ec1n ph\u00f2ng c\u00e1c k\u1ef3: " + periodList(rentCharge.periods()))
+                .quantity(rentCharge.months())
+                .unitPrice(rentCharge.monthlyAmount())
+                .sourceType(SOURCE_TYPE)
+                .sourceId(sourceId)
+                .build());
+    }
+
+    private void saveServiceFeeLine(InvoiceEntity invoice, UtilityBillingRunItemEntity item, String billingPeriod) {
         if (!Boolean.TRUE.equals(item.getServiceFeeLineRequired()) && safe(item.getServiceFeeAmount()) <= 0) {
             return;
         }
         String description = item.getServiceFeeWaiveReason() != null && !item.getServiceFeeWaiveReason().isBlank()
                 ? item.getServiceFeeWaiveReason()
                 : "Phí dịch vụ " + invoice.getBillingPeriod();
+        if (item.getServiceFeeWaiveReason() == null || item.getServiceFeeWaiveReason().isBlank()) {
+            YearMonth period = requirePeriod(billingPeriod);
+            int cycleMonths = paymentCycleMonths(invoice.getLeastContract());
+            description = "Ph\u00ed d\u1ecbch v\u1ee5 c\u00e1c k\u1ef3: " + periodList(period, cycleMonths);
+        }
         invoiceLineRepository.save(InvoiceLineEntity.builder()
                 .invoice(invoice)
                 .lineType(InvoiceLineType.SERVICE_FEE)
@@ -702,14 +786,18 @@ public class UtilityBillingRunService {
                 ));
     }
 
-    private Optional<InvoiceEntity> findExistingInvoice(UtilityBillingRunItemEntity item, UtilityBillingRunEntity run) {
+    private Optional<InvoiceEntity> findExistingInvoice(
+            UtilityBillingRunItemEntity item,
+            UtilityBillingRunEntity run,
+            InvoiceType invoiceType
+    ) {
         if (item.getLeaseContract() == null) {
             return Optional.empty();
         }
         return invoiceRepository.findFirstByLeastContract_IdAndBillingPeriodAndInvoiceTypeAndInvoiceReasonAndStatusNotOrderByIdDesc(
                 item.getLeaseContract().getId(),
                 run.getBillingPeriod(),
-                InvoiceType.UTILITY,
+                invoiceType,
                 run.getInvoiceReason(),
                 InvoiceStatus.VOIDED
         );
@@ -749,17 +837,142 @@ public class UtilityBillingRunService {
     private UtilityBillingRunEntity requireEditableRun(Long runId) {
         UtilityBillingRunEntity run = runRepository.findById(runId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
-        if (run.getStatus() == UtilityBillingRunStatus.INVOICES_CREATED
-                || run.getStatus() == UtilityBillingRunStatus.CANCELLED) {
+        if (isRunActuallyPublished(run) || run.getStatus() == UtilityBillingRunStatus.CANCELLED) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return run;
     }
 
+    private boolean hasBlockingWarning(UtilityBillingRunItemEntity item) {
+        return item != null
+                && (item.getStatus() == UtilityBillingRunItemStatus.WARNING
+                || (item.getWarningMessage() != null && !item.getWarningMessage().isBlank()));
+    }
+
     private boolean hasBillableReadings(UtilityBillingRunItemEntity item) {
         return item.getLeaseContract() != null
                 && item.getElectricityReading() != null
+                && item.getElectricityCurrent() != null
                 && notNegative(item.getElectricityUsage());
+    }
+
+    private boolean hasIssuedInvoices(Long runId) {
+        if (runId == null) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM utility_billing_run_items item
+                JOIN invoices invoice ON invoice.invoice_id = item.invoice_id
+                WHERE item.run_id = ?
+                  AND invoice.status <> 'VOIDED'
+                """, Integer.class, runId);
+        return count != null && count > 0;
+    }
+
+    private boolean hasBlockingWarnings(Long runId) {
+        if (runId == null) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM utility_billing_run_items
+                WHERE run_id = ?
+                  AND (
+                        status = 'WARNING'
+                     OR (warning_message IS NOT NULL AND TRIM(warning_message) <> '')
+                  )
+                """, Integer.class, runId);
+        return count != null && count > 0;
+    }
+
+    private boolean isRunActuallyPublished(UtilityBillingRunEntity run) {
+        if (run == null || run.getStatus() != UtilityBillingRunStatus.INVOICES_CREATED) {
+            return false;
+        }
+        return hasIssuedInvoices(run.getId()) || !hasBlockingWarnings(run.getId());
+    }
+
+    private UtilityBillingRunStatus effectiveRunStatus(UtilityBillingRunEntity run) {
+        if (run == null || run.getStatus() != UtilityBillingRunStatus.INVOICES_CREATED) {
+            return run == null ? null : run.getStatus();
+        }
+        return isRunActuallyPublished(run)
+                ? UtilityBillingRunStatus.INVOICES_CREATED
+                : UtilityBillingRunStatus.PREVIEWED;
+    }
+
+    private RentCharge buildRentCharge(LeaseContractEntity contract, YearMonth period) {
+        RentCharge charge = calculateRentCharge(contract, period);
+        if (charge.amount() <= 0 || hasRoomRentLineForContractAndPeriod(contract.getId(), period.toString())) {
+            return RentCharge.empty();
+        }
+        return charge;
+    }
+
+    private RentCharge calculateRentCharge(LeaseContractEntity contract, YearMonth period) {
+        if (contract == null || period == null) {
+            return RentCharge.empty();
+        }
+        LocalDate rentStartDate = contract.getRentStartDate() != null
+                ? contract.getRentStartDate()
+                : contract.getStartDate();
+        int cycleMonths = paymentCycleMonths(contract);
+        if (rentStartDate == null
+                || !isPaymentCycleStart(period, YearMonth.from(rentStartDate), cycleMonths)) {
+            return RentCharge.empty();
+        }
+        long monthlyRent = safe(contract.getMonthlyRent());
+        return monthlyRent <= 0
+                ? RentCharge.empty()
+                : new RentCharge(
+                        monthlyRent,
+                        monthlyRent * cycleMonths,
+                        cycleMonths,
+                        periods(period, cycleMonths)
+                );
+    }
+
+    private int paymentCycleMonths(LeaseContractEntity contract) {
+        return contract == null || contract.getPaymentCycleMonths() == null
+                ? 1
+                : Math.max(contract.getPaymentCycleMonths(), 1);
+    }
+
+    private boolean hasRoomRentLineForContractAndPeriod(Long contractId, String billingPeriod) {
+        if (contractId == null || billingPeriod == null) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*)
+                FROM invoices invoice
+                JOIN invoice_lines line ON line.invoice_id = invoice.invoice_id
+                WHERE invoice.lease_contract_id = ?
+                  AND invoice.billing_period = ?
+                  AND invoice.status <> 'VOIDED'
+                  AND line.line_type = 'ROOM_RENT'
+                """, Integer.class, contractId, billingPeriod);
+        return count != null && count > 0;
+    }
+
+    private boolean isPaymentCycleStart(YearMonth billingPeriod, YearMonth chargeStartPeriod, int cycleMonths) {
+        return isServiceFeeDue(billingPeriod, chargeStartPeriod, cycleMonths);
+    }
+
+    private String periodList(YearMonth start, int months) {
+        return periodList(periods(start, months));
+    }
+
+    private List<YearMonth> periods(YearMonth start, int months) {
+        List<YearMonth> periods = new ArrayList<>();
+        for (int index = 0; index < Math.max(months, 1); index++) {
+            periods.add(start.plusMonths(index));
+        }
+        return periods;
+    }
+
+    private String periodList(List<YearMonth> periods) {
+        return periods.stream().map(YearMonth::toString).collect(Collectors.joining(", "));
     }
 
     private ServiceFeeCharge buildServiceFeeCharge(
@@ -782,14 +995,12 @@ public class UtilityBillingRunService {
         }
 
         UtilityTariffSnapshot tariff = readTariff(propertyId, UtilityType.SERVICE_FEE, period.atEndOfMonth());
-        int paymentCycleMonths = contract.getPaymentCycleMonths() == null
-                ? 1
-                : Math.max(contract.getPaymentCycleMonths(), 1);
+        int paymentCycleMonths = paymentCycleMonths(contract);
         LocalDate rentStartDate = contract.getRentStartDate() != null
                 ? contract.getRentStartDate()
                 : contract.getStartDate();
         if (rentStartDate != null
-                && !isServiceFeeDue(period, YearMonth.from(rentStartDate), paymentCycleMonths)) {
+                && !isPaymentCycleStart(period, YearMonth.from(rentStartDate), paymentCycleMonths)) {
             return ServiceFeeCharge.empty();
         }
         return new ServiceFeeCharge(
@@ -807,6 +1018,16 @@ public class UtilityBillingRunService {
         }
         long monthsSinceChargeStart = ChronoUnit.MONTHS.between(chargeStartPeriod, billingPeriod);
         return monthsSinceChargeStart >= 0 && monthsSinceChargeStart % paymentCycleMonths == 0;
+    }
+
+    static UtilityBillingRunItemStatus resolveItemStatus(boolean hasWarnings, boolean canInvoice, long subtotal) {
+        if (hasWarnings) {
+            return UtilityBillingRunItemStatus.WARNING;
+        }
+        if (!canInvoice || subtotal <= 0) {
+            return UtilityBillingRunItemStatus.SKIPPED;
+        }
+        return UtilityBillingRunItemStatus.READY;
     }
 
     private int activeOccupantCount(Long contractId) {
@@ -1003,13 +1224,14 @@ public class UtilityBillingRunService {
     }
 
     private UtilityBillingRunResponse toResponse(UtilityBillingRunEntity run, List<UtilityBillingRunItemEntity> items) {
+        UtilityBillingRunStatus responseStatus = effectiveRunStatus(run);
         return new UtilityBillingRunResponse(
                 run.getId(),
                 run.getProperty() == null ? null : run.getProperty().getId(),
                 run.getProperty() == null ? null : run.getProperty().getName(),
                 run.getBillingPeriod(),
                 run.getInvoiceReason() == null ? null : run.getInvoiceReason().name(),
-                run.getStatus() == null ? null : run.getStatus().name(),
+                responseStatus == null ? null : responseStatus.name(),
                 run.getTotalRooms(),
                 run.getReadyCount(),
                 run.getWarningCount(),
@@ -1024,6 +1246,24 @@ public class UtilityBillingRunService {
     }
 
     private UtilityBillingRunResponse.Item toItemResponse(UtilityBillingRunItemEntity item) {
+        YearMonth billingPeriod = requirePeriod(item.getRun().getBillingPeriod());
+        RentCharge calculatedRentCharge = calculateRentCharge(item.getLeaseContract(), billingPeriod);
+        long invoicedRentAmount = item.getInvoice() == null
+                ? 0L
+                : invoiceLineRepository.findByInvoice_IdOrderByIdAsc(item.getInvoice().getId()).stream()
+                .filter(line -> line.getLineType() == InvoiceLineType.ROOM_RENT)
+                .mapToLong(this::lineAmount)
+                .sum();
+        RentCharge previewRentCharge = item.getInvoice() == null
+                ? buildRentCharge(item.getLeaseContract(), billingPeriod)
+                : RentCharge.empty();
+        long roomRentAmount = invoicedRentAmount > 0 ? invoicedRentAmount : previewRentCharge.amount();
+        boolean hasCycleCharge = roomRentAmount > 0
+                || safe(item.getServiceFeeAmount()) > 0
+                || Boolean.TRUE.equals(item.getServiceFeeLineRequired());
+        List<String> payablePeriods = hasCycleCharge
+                ? calculatedRentCharge.periods().stream().map(YearMonth::toString).toList()
+                : List.of(billingPeriod.toString());
         return new UtilityBillingRunResponse.Item(
                 item.getId(),
                 item.getRoom() == null ? null : item.getRoom().getId(),
@@ -1055,7 +1295,12 @@ public class UtilityBillingRunService {
                 item.getAdjustmentReason(),
                 item.getStatus() == null ? null : item.getStatus().name(),
                 item.getInvoice() == null ? null : item.getInvoice().getId(),
-                item.getInvoice() == null ? null : item.getInvoice().getInvoiceCode()
+                item.getInvoice() == null ? null : item.getInvoice().getInvoiceCode(),
+                item.getInvoice() == null || item.getInvoice().getInvoiceType() == null
+                        ? (roomRentAmount > 0 ? InvoiceType.RENT.name() : InvoiceType.UTILITY.name())
+                        : item.getInvoice().getInvoiceType().name(),
+                roomRentAmount,
+                payablePeriods
         );
     }
 
@@ -1111,6 +1356,15 @@ public class UtilityBillingRunService {
         return value == null ? 0L : value;
     }
 
+    private long lineAmount(InvoiceLineEntity line) {
+        if (line == null) {
+            return 0L;
+        }
+        return line.getAmount() == null
+                ? safe(line.getUnitPrice()) * (line.getQuantity() == null ? 1L : line.getQuantity())
+                : line.getAmount();
+    }
+
     private String valueText(BigDecimal value) {
         return safe(value).stripTrailingZeros().toPlainString();
     }
@@ -1130,6 +1384,17 @@ public class UtilityBillingRunService {
     }
 
     private record UtilityTariffSnapshot(long unitPrice, long freeAllowance, Long serviceFeeWaiveElectricityThreshold) {
+    }
+
+    private record RentCharge(
+            long monthlyAmount,
+            long amount,
+            int months,
+            List<YearMonth> periods
+    ) {
+        static RentCharge empty() {
+            return new RentCharge(0L, 0L, 0, List.of());
+        }
     }
 
     private record ServiceFeeCharge(

@@ -20,11 +20,14 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReposit
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.ActivateLeaseContractRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -55,6 +58,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
     JdbcTemplate jdbcTemplate;
     LeaseContractWorkflowSupport workflowSupport;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
+    JpaContractHandoverRecordRepository handoverRecordRepository;
 
     @Override
     public LeaseContractManagementResponse execute(
@@ -62,36 +66,48 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
             ActivateLeaseContractRequest request
     ) {
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
+                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
         if (contract.getStatus() == LeaseStatus.ACTIVE) {
             return getLeaseContractManagementUseCase.findOne(leaseContractId);
         }
-        workflowSupport.ensureNotRoomTransferManagedContract(leaseContractId);
-        if (contract.getStatus() != LeaseStatus.DRAFT && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        boolean transferReSignContract = workflowSupport.isRoomTransferRenewalContract(contract);
+        workflowSupport.ensureNotRoomTransferManagedContract(leaseContractId, transferReSignContract);
+        if (contract.getStatus() != LeaseStatus.DRAFT
+                && contract.getStatus() != LeaseStatus.PENDING_SIGNATURE
+                && !(transferReSignContract
+                && (contract.getStatus() == LeaseStatus.CONFIRMED
+                || contract.getStatus() == LeaseStatus.SIGNED))) {
+            throw new AppException(ApiErrorCode.CONTRACT_ACTIVATION_STATUS_INVALID, contract.getStatus());
         }
         if (contract.getSignedFile() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.CONTRACT_SIGNED_FILE_REQUIRED);
         }
         if (contract.getPrimaryTenantProfile() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.CONTRACT_PRIMARY_TENANT_REQUIRED);
         }
         if (contract.getStartDate() == null || contract.getEndDate() == null || contract.getEndDate().isBefore(contract.getStartDate())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.CONTRACT_DATES_INVALID);
         }
         RoomEntity room = contract.getRoom();
         if (room == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.CONTRACT_ROOM_REQUIRED);
+        }
+
+        boolean transferTargetContract = transferReSignContract
+                && isTransferTargetContract(contract.getId());
+        if (transferTargetContract && !hasConfirmedSignedMoveInHandover(contract.getId())) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_NOT_CONFIRMED, HandoverType.MOVE_IN);
         }
 
         boolean renewalActivation = contract.getPreviousContract() != null
                 && (room.getCurrentStatus() == RoomStatus.OCCUPIED
-                || room.getCurrentStatus() == RoomStatus.EXPIRED);
+                || room.getCurrentStatus() == RoomStatus.EXPIRED
+                || (transferReSignContract && room.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER));
         if (!renewalActivation
                 && room.getCurrentStatus() != RoomStatus.RESERVED
                 && room.getCurrentStatus() != RoomStatus.VACANT
                 && room.getCurrentStatus() != RoomStatus.ON_HOLD) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.CONTRACT_ROOM_STATUS_INVALID, room.getCurrentStatus());
         }
         Long previousContractId = contract.getPreviousContract() != null
                 ? contract.getPreviousContract().getId()
@@ -106,18 +122,28 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
 //            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
 //        }
         if (previousContract != null) {
-            workflowSupport.copyContractOccupants(previousContract, contract);
+            if (transferReSignContract) {
+                workflowSupport.copyTransferContractOccupants(previousContract, contract);
+            } else {
+                workflowSupport.copyContractOccupants(previousContract, contract);
+            }
+            // A transfer can create two child contracts from the same old contract.
+            // Activating the first child marks that shared parent RENEWED, but the
+            // second child must still be activatable from the same transfer.
             boolean legacyPrematureRenewal = previousContract.getStatus() == LeaseStatus.RENEWED
-                    && List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE).contains(contract.getStatus());
+                    && (transferReSignContract
+                    || List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE).contains(contract.getStatus()));
             if (!legacyPrematureRenewal
                     && !List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
                     .contains(previousContract.getStatus())) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST);
+                throw new AppException(ApiErrorCode.CONTRACT_PREVIOUS_STATUS_INVALID, previousContract.getStatus());
             }
-            previousContract.setStatus(LeaseStatus.RENEWED);
-            leaseContractRepository.saveAndFlush(previousContract);
+            if (!transferReSignContract) {
+                previousContract.setStatus(LeaseStatus.RENEWED);
+                leaseContractRepository.saveAndFlush(previousContract);
+            }
         }
-        if (contract.getPreviousContract() == null) {
+        if (contract.getPreviousContract() == null || transferReSignContract) {
             saveContractStartReading(room, contract, request);
         }
         log.info("Test");
@@ -126,7 +152,9 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         if (contract.getRentStartDate() == null) {
             contract.setRentStartDate(workflowSupport.resolveRentStartDate(contract.getStartDate()));
         }
-        leaseContractRepository.save(contract);
+        // Flush before the JDBC synchronization below so the just-activated
+        // contract is visible when checking both transfer contracts.
+        leaseContractRepository.saveAndFlush(contract);
 
         RoomStatus fromStatus = room.getCurrentStatus();
         room.setCurrentStatus(RoomStatus.OCCUPIED);
@@ -134,9 +162,94 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         workflowSupport.appendRoomStatusHistory(room.getId(), fromStatus, RoomStatus.OCCUPIED, "Kích hoạt hợp đồng thuê: " + contract.getContractCode());
         workflowSupport.appendContractEvent(contract.getId(), "SIGNED", "Kích hoạt hợp đồng thuê");
         if (previousContract != null) {
-            workflowSupport.appendContractEvent(previousContract.getId(), "RENEWED", "Đã tái ký hợp đồng; mã hợp đồng mới=" + contract.getId());
+            workflowSupport.appendContractEvent(
+                    previousContract.getId(),
+                    transferReSignContract ? "OCCUPANT_CHANGED" : "RENEWED",
+                    (transferReSignContract
+                            ? "Đã kích hoạt hợp đồng con trong luồng chuyển phòng; mã hợp đồng mới="
+                            : "Đã tái ký hợp đồng; mã hợp đồng mới=") + contract.getId()
+            );
+        }
+        if (transferReSignContract) {
+            advanceTransferRequestAfterChildActivation(contract.getId());
         }
         return getLeaseContractManagementUseCase.findOne(contract.getId());
+    }
+
+    private void advanceTransferRequestAfterChildActivation(Long leaseContractId) {
+        jdbcTemplate.query("""
+                        SELECT room_transfer_request_id, new_contract_id, replacement_old_contract_id
+                        FROM room_transfer_requests
+                        WHERE (new_contract_id = ? OR replacement_old_contract_id = ?)
+                          AND status IN ('WAITING_CONTRACT_CONFIRMATION', 'WAITING_SIGNING', 'WAITING_CONTRACT_SIGNING', 'WAITING_TRANSFER_DATE')
+                        ORDER BY room_transfer_request_id DESC
+                        LIMIT 1
+                        """,
+                rs -> {
+                    if (!rs.next()) {
+                        return;
+                    }
+                    long requestId = rs.getLong("room_transfer_request_id");
+                    Long newContractId = getLongOrNull(rs, "new_contract_id");
+                    Long replacementContractId = getLongOrNull(rs, "replacement_old_contract_id");
+                    List<Long> requiredContractIds = java.util.stream.Stream.of(newContractId, replacementContractId)
+                            .filter(java.util.Objects::nonNull)
+                            .distinct()
+                            .toList();
+                    if (requiredContractIds.isEmpty()) {
+                        return;
+                    }
+                    String placeholders = String.join(",", requiredContractIds.stream().map(id -> "?").toList());
+                    Integer activeContractCount = jdbcTemplate.queryForObject(
+                            "SELECT COUNT(*) FROM lease_contracts "
+                                    + "WHERE lease_contract_id IN (" + placeholders + ") "
+                                    + "AND status = 'ACTIVE' "
+                                    + "AND signed_file_id IS NOT NULL",
+                            Integer.class,
+                            requiredContractIds.toArray()
+                    );
+                    if (activeContractCount == null || activeContractCount != requiredContractIds.size()) {
+                        return;
+                    }
+                    int updatedRows = jdbcTemplate.update("""
+                                    UPDATE room_transfer_requests
+                                    SET status = 'READY_FOR_HANDOVER', reservation_expires_at = NULL
+                                    WHERE room_transfer_request_id = ?
+                                      AND status IN ('WAITING_CONTRACT_CONFIRMATION', 'WAITING_SIGNING', 'WAITING_CONTRACT_SIGNING', 'WAITING_TRANSFER_DATE')
+                                    """,
+                            requestId
+                    );
+                    if (updatedRows > 0) {
+                        log.info("Transfer request {} is ready for handover after all child contracts were activated",
+                                requestId);
+                    }
+                },
+                leaseContractId,
+                leaseContractId
+        );
+    }
+
+    private Long getLongOrNull(java.sql.ResultSet resultSet, String column) throws java.sql.SQLException {
+        long value = resultSet.getLong(column);
+        return resultSet.wasNull() ? null : value;
+    }
+
+    private boolean isTransferTargetContract(Long leaseContractId) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM room_transfer_requests
+                        WHERE new_contract_id = ?
+                          AND status NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED', 'COMPLETED')
+                        """, Integer.class, leaseContractId);
+        return count != null && count > 0;
+    }
+
+    private boolean hasConfirmedSignedMoveInHandover(Long leaseContractId) {
+        return handoverRecordRepository.existsByContract_IdAndHandoverTypeAndStatusAndSignedDocumentIsNotNull(
+                leaseContractId,
+                HandoverType.MOVE_IN,
+                HandoverStatus.CONFIRMED
+        );
     }
 
     private MeterReadingEntity saveContractStartReading(
@@ -149,7 +262,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
                 ? input.getCurrentValue()
                 : contract.getActivationElectricityValue();
         if (currentValue == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.CONTRACT_ACTIVATION_READING_REQUIRED);
         }
 
         LocalDate readingDate = input != null && input.getReadingDate() != null
@@ -160,6 +273,15 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         }
         contract.setActivationElectricityValue(currentValue);
         contract.setActivationReadingDate(readingDate);
+
+        BigDecimal previousValue = meterReadingRepository
+                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                        room.getId(), MeterType.ELECTRICITY, ReadingStatus.VOIDED)
+                .map(MeterReadingEntity::getCurrentValue)
+                .orElse(BigDecimal.ZERO);
+        if (currentValue.compareTo(previousValue) < 0) {
+            throw new AppException(ApiErrorCode.CONTRACT_ACTIVATION_READING_INVALID, currentValue, previousValue);
+        }
 
         MeterEntity meter = meterRepository
                 .findFirstByRoom_IdAndMeterTypeAndStatus(room.getId(), MeterType.ELECTRICITY, MeterStatus.ACTIVE)
@@ -183,11 +305,6 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
             }
         }
 
-        BigDecimal previousValue = meterReadingRepository
-                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
-                        room.getId(), MeterType.ELECTRICITY, ReadingStatus.VOIDED)
-                .map(MeterReadingEntity::getCurrentValue)
-                .orElse(BigDecimal.ZERO);
         MeterReadingEntity reading = MeterReadingEntity.builder()
                 .meter(meter)
                 .room(room)

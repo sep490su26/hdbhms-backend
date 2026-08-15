@@ -37,6 +37,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.Per
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaPersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
+import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaTenantAccountProvisioningRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.maintenance.application.port.out.MaintenanceCostRepository;
 import com.sep490.hdbhms.maintenance.application.service.MaintenanceTicketCodeService;
@@ -67,10 +68,12 @@ import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.CreateMainte
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.RejectMaintenanceTicketRequest;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.ReportMaintenanceNotFixedRequest;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.ReviewMaintenanceTicketRequest;
+import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.TenantRepairDecisionRequest;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.request.UpdateMaintenanceTicketProgressRequest;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketDetailsResponse;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.MaintenanceTicketResponse;
 import com.sep490.hdbhms.maintenance.infrastructure.web.dto.response.InternalMaintenanceCostResponse;
+import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
@@ -107,8 +110,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -142,6 +147,7 @@ public class MaintenanceTicketController {
     MaintenanceTicketCodeService maintenanceTicketCodeService;
     MaintenanceCostRepository maintenanceCostRepository;
     JpaRolePromotionRepository jpaRolePromotionRepository;
+    JpaTenantAccountProvisioningRepository jpaTenantAccountProvisioningRepository;
     JpaRoomRepository jpaRoomRepository;
     JpaPropertyRepository jpaPropertyRepository;
     JpaLeaseContractRepository jpaLeaseContractRepository;
@@ -163,6 +169,7 @@ public class MaintenanceTicketController {
     LeaseContractQueryService leaseContractQueryService;
     IssuedInvoiceChargeService issuedInvoiceChargeService;
     ScheduledBillingChargeService scheduledBillingChargeService;
+    BusinessNotificationPublisher notificationPublisher;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -354,15 +361,15 @@ public class MaintenanceTicketController {
         assertManagerOrOwner(requireRole());
         MaintenanceTicket ticket = findTicket(id);
         assertManagerCanAccessTicket(ticket);
-        if (ticket.getStatus() != MaintenanceTicketStatus.ACCEPTED
-                && ticket.getStatus() != MaintenanceTicketStatus.IN_PROGRESS) {
+        if (ticket.getStatus() != MaintenanceTicketStatus.IN_PROGRESS) {
+            if (ticket.getStatus() == MaintenanceTicketStatus.ACCEPTED
+                    || ticket.getStatus() == MaintenanceTicketStatus.WAITING_TENANT_DECISION) {
+                throw new AppException(ApiErrorCode.MIGRATED_CHI_BAT_DAU_XU_LY_SAU_KHI_KHACH_DONG_Y);
+            }
             throw invalidTransition(ticket.getStatus(), MaintenanceTicketStatus.IN_PROGRESS);
         }
-        MaintenanceTicketStatus toStatus = ticket.getStatus() == MaintenanceTicketStatus.ACCEPTED
-                ? MaintenanceTicketStatus.IN_PROGRESS
-                : MaintenanceTicketStatus.IN_PROGRESS;
         MaintenanceTicket saved = maintenanceTicketRepository.save(ticket.toBuilder()
-                .status(toStatus)
+                .status(MaintenanceTicketStatus.IN_PROGRESS)
                 .assignedToId(ticket.getAssignedToId() == null ? currentUserId() : ticket.getAssignedToId())
                 .workerName(resolveRepairmanName(request, ticket.getWorkerName()))
                 .repairmanPhone(firstNonBlank(request == null ? null : request.getRepairmanPhone(), ticket.getRepairmanPhone()))
@@ -371,11 +378,38 @@ public class MaintenanceTicketController {
                         firstNonBlank(request == null ? null : request.getRootCause(), readRootCause(ticket.getRepairItems()))
                 ))
                 .build());
-        MaintenanceTicketAction action = ticket.getStatus() == MaintenanceTicketStatus.ACCEPTED
-                ? MaintenanceTicketAction.START_PROGRESS
-                : MaintenanceTicketAction.UPDATE_REPAIR_INFO;
+        MaintenanceTicketAction action = MaintenanceTicketAction.UPDATE_REPAIR_INFO;
         recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(), action,
                 firstNonBlank(request == null ? null : request.getNote(), "Đang xử lý phiếu sự cố"));
+        return response(saved);
+    }
+
+    @PostMapping("/{id}/repair-decision")
+    @Transactional
+    public ApiResponse<MaintenanceTicketDetailsResponse> decideRepair(
+            @PathVariable Long id,
+            @Valid @RequestBody TenantRepairDecisionRequest request
+    ) {
+        MaintenanceTicket ticket = findTicket(id);
+        assertTenantCanActOnRoomTicket(ticket);
+        requireStatus(ticket, MaintenanceTicketStatus.WAITING_TENANT_DECISION,
+                ApiErrorCode.MIGRATED_CHI_QUYET_DINH_KHI_PHIEU_CHO_KHACH);
+        if (request == null || request.getApproved() == null) {
+            throw new AppException(ApiErrorCode.MIGRATED_CHI_QUYET_DINH_KHI_PHIEU_CHO_KHACH);
+        }
+        boolean approved = Boolean.TRUE.equals(request.getApproved());
+        String reason = firstNonBlank(request.getReason());
+        if (!approved && reason.isBlank()) {
+            throw new AppException(ApiErrorCode.MIGRATED_KHACH_THUE_PHAI_NHAP_LY_DO_KHI_KHONG_DONG_Y_SUA);
+        }
+        MaintenanceTicket saved = maintenanceTicketRepository.save(ticket.toBuilder()
+                .status(approved ? MaintenanceTicketStatus.IN_PROGRESS : MaintenanceTicketStatus.REJECTED)
+                .rejectionReason(approved ? null : reason)
+                .build());
+        recordEvent(saved.getId(), ticket.getStatus(), saved.getStatus(),
+                approved ? MaintenanceTicketAction.TENANT_APPROVE_REPAIR : MaintenanceTicketAction.TENANT_REJECT_REPAIR,
+                approved ? "Khách thuê đồng ý phương án sửa chữa." : reason);
+        notifyManagerRepairDecision(saved, approved, reason);
         return response(saved);
     }
 
@@ -398,7 +432,24 @@ public class MaintenanceTicketController {
             throw new AppException(ApiErrorCode.MIGRATED_KHONG_THE_CAP_NHAT_THONG_TIN_XU_LY_O_TRANG_THAI_NAY);
         }
         MaintenanceTicketStatus fromStatus = ticket.getStatus();
+        if (fromStatus == MaintenanceTicketStatus.ACCEPTED) {
+            String repairmanName = firstNonBlank(
+                    request == null ? null : request.getRepairmanName(),
+                    request == null ? null : request.getWorkerName()
+            );
+            Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
+            String repairItems = firstNonBlank(request == null ? null : request.getRepairItems());
+            if (repairmanName.isBlank() || repairItems.isBlank() || amount == null) {
+                throw new AppException(ApiErrorCode.MIGRATED_THIEU_THONG_TIN_PHUONG_AN_SUA_CHUA);
+            }
+            if (amount < 0) {
+                throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_THUC_TE_KHONG_UOC_AM);
+            }
+        }
         MaintenanceTicketStatus toStatus = fromStatus == MaintenanceTicketStatus.ACCEPTED
+                && ticket.getTicketScope() == TicketScope.TENANT_ROOM
+                ? MaintenanceTicketStatus.WAITING_TENANT_DECISION
+                : fromStatus == MaintenanceTicketStatus.ACCEPTED
                 ? MaintenanceTicketStatus.IN_PROGRESS
                 : fromStatus;
         MaintenanceTicket saved = saveRepairInformation(ticket, request, toStatus);
@@ -406,8 +457,15 @@ public class MaintenanceTicketController {
         if (saved.getStatus() == MaintenanceTicketStatus.COMPLETED) {
             syncOwnerMaintenanceExpense(saved);
         }
-        recordEvent(saved.getId(), fromStatus, saved.getStatus(), MaintenanceTicketAction.UPDATE_REPAIR_INFO,
+        recordEvent(saved.getId(), fromStatus, saved.getStatus(),
+                fromStatus == MaintenanceTicketStatus.ACCEPTED && toStatus == MaintenanceTicketStatus.WAITING_TENANT_DECISION
+                        ? MaintenanceTicketAction.SEND_REPAIR_PROPOSAL
+                        : MaintenanceTicketAction.UPDATE_REPAIR_INFO,
                 firstNonBlank(request == null ? null : request.getCompletionNote(), "Cập nhật thông tin xử lý"));
+        if (fromStatus == MaintenanceTicketStatus.ACCEPTED
+                && toStatus == MaintenanceTicketStatus.WAITING_TENANT_DECISION) {
+            notifyTenantRepairProposal(saved, request);
+        }
         return response(saved);
     }
 
@@ -421,7 +479,7 @@ public class MaintenanceTicketController {
         MaintenanceTicket ticket = findTicket(id);
         assertManagerCanAccessTicket(ticket);
         requireStatus(ticket, MaintenanceTicketStatus.IN_PROGRESS, ApiErrorCode.MIGRATED_CHI_HOAN_TAT_KHI_PHIEU_ANG_XU_LY);
-        Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
+        Long amount = resolveMaintenanceCostAmount(ticket, request);
         if (amount != null && amount < 0) {
             throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_THUC_TE_KHONG_UOC_AM);
         }
@@ -1025,17 +1083,53 @@ public class MaintenanceTicketController {
     }
 
     private boolean shouldChargeTenant(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
-        if (request == null) {
-            return false;
-        }
         if (ticket.getTicketScope() == TicketScope.PROPERTY_OPERATION) {
             return false;
         }
-        if (Boolean.TRUE.equals(request.getChargeToTenant())) {
+        if (request != null && Boolean.TRUE.equals(request.getChargeToTenant())) {
             return true;
         }
-        return request.getPaidBy() == PaidBy.TENANT
-                || request.getCostResponsibility() == CostResponsibility.TENANT;
+        if (request != null && request.getCostResponsibility() != null
+                && request.getCostResponsibility() != CostResponsibility.UNDECIDED) {
+            return request.getCostResponsibility() == CostResponsibility.TENANT;
+        }
+        if (request != null && request.getPaidBy() != null) {
+            return request.getPaidBy() == PaidBy.TENANT;
+        }
+        MaintenanceCostEntity existingCost = latestMaintenanceCost(ticket.getId());
+        return existingCost != null
+                && (existingCost.getPaidBy() == PaidBy.TENANT
+                || existingCost.getCostResponsibility() == CostResponsibility.TENANT);
+    }
+
+    private Long resolveMaintenanceCostAmount(
+            MaintenanceTicket ticket,
+            CompleteMaintenanceTicketRequest request
+    ) {
+        Long requestedAmount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
+        if (requestedAmount != null) {
+            return requestedAmount;
+        }
+        MaintenanceCostEntity existingCost = latestMaintenanceCost(ticket.getId());
+        return existingCost == null ? null : existingCost.getAmount();
+    }
+
+    private String resolveMaintenanceCostDescription(
+            MaintenanceTicket ticket,
+            CompleteMaintenanceTicketRequest request
+    ) {
+        String requestedDescription = request == null
+                ? null
+                : firstNonBlank(request.getCostDescription(), request.getRepairItems(), request.getCompletionNote());
+        if (!requestedDescription.isBlank()) {
+            return requestedDescription;
+        }
+        MaintenanceCostEntity existingCost = latestMaintenanceCost(ticket.getId());
+        return firstNonBlank(
+                existingCost == null ? null : existingCost.getDescription(),
+                ticket.getTitle(),
+                "Boi thuong chi phi bao tri"
+        );
     }
 
     @PostMapping("/{id}/invoice/issue")
@@ -1078,7 +1172,7 @@ public class MaintenanceTicketController {
     }
 
     private void scheduleMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
-        Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
+        Long amount = resolveMaintenanceCostAmount(ticket, request);
         if (amount == null || amount <= 0) {
             throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_BOI_THUONG_PHAI_LON_HON_0);
         }
@@ -1091,17 +1185,17 @@ public class MaintenanceTicketController {
                 room,
                 contract,
                 InvoiceLineType.MAINTENANCE_COMPENSATION,
-                firstNonBlank(request.getCostDescription(), request.getCompletionNote(), "Bồi thường chi phí bảo trì"),
+                resolveMaintenanceCostDescription(ticket, request),
                 amount,
                 IssuedInvoiceChargeService.SOURCE_MAINTENANCE_TICKET,
                 ticket.getId(),
-                request.getBillingPeriod(),
+                request == null ? null : request.getBillingPeriod(),
                 jpaUserRepository.getReferenceById(currentUserId())
         );
     }
 
     private void issueMaintenanceCompensation(MaintenanceTicket ticket, CompleteMaintenanceTicketRequest request) {
-        Long amount = request == null ? null : firstNonNull(request.getActualCost(), request.getAmount());
+        Long amount = resolveMaintenanceCostAmount(ticket, request);
         if (amount == null || amount <= 0) {
             throw new AppException(ApiErrorCode.MIGRATED_CHI_PHI_BOI_THUONG_PHAI_LON_HON_0);
         }
@@ -1114,7 +1208,7 @@ public class MaintenanceTicketController {
                 room,
                 contract,
                 InvoiceLineType.MAINTENANCE_COMPENSATION,
-                firstNonBlank(request.getCostDescription(), request.getCompletionNote(), "Bồi thường chi phí bảo trì"),
+                resolveMaintenanceCostDescription(ticket, request),
                 amount,
                 ticket.getId(),
                 jpaUserRepository.getReferenceById(currentUserId())
@@ -1655,6 +1749,7 @@ public class MaintenanceTicketController {
         return switch (ticket.getStatus()) {
             case PENDING_ACCEPTANCE -> "Chờ tiếp nhận";
             case ACCEPTED -> "Đã tiếp nhận";
+            case WAITING_TENANT_DECISION -> "Chờ khách quyết định sửa";
             case IN_PROGRESS -> "Đang xử lý";
             case WAITING_CONFIRMATION -> "Chờ xác nhận";
             case COMPLETED -> "Hoàn tất xử lý";
@@ -1828,6 +1923,96 @@ public class MaintenanceTicketController {
     private boolean isTenantCharge(CostInfo cost) {
         return cost.paidBy() == PaidBy.TENANT
                 || cost.costResponsibility() == CostResponsibility.TENANT;
+    }
+
+    private void notifyTenantRepairProposal(
+            MaintenanceTicket ticket,
+            CompleteMaintenanceTicketRequest request
+    ) {
+        if (ticket == null
+                || ticket.getTicketScope() != TicketScope.TENANT_ROOM
+                || ticket.getRoomId() == null) {
+            return;
+        }
+
+        LeaseContractEntity contract = resolveTenantContract(ticket);
+        if (contract == null || contract.getPrimaryTenantProfile() == null) {
+            return;
+        }
+
+        Long tenantUserId = contract.getPrimaryTenantProfile().getUser() == null
+                ? null
+                : contract.getPrimaryTenantProfile().getUser().getId();
+        if (tenantUserId == null) {
+            tenantUserId = jpaTenantAccountProvisioningRepository
+                    .findByTenantProfileId(contract.getPrimaryTenantProfile().getId())
+                    .map(provisioning -> provisioning.getUserId())
+                    .orElse(null);
+        }
+        if (tenantUserId == null) {
+            return;
+        }
+
+        RoomInfo room = findRoomInfo(ticket);
+        Long amount = resolveMaintenanceCostAmount(ticket, request);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("ticketId", ticket.getId());
+        data.put("ticketCode", firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()));
+        data.put("roomCode", room.roomCode());
+        data.put("roomName", firstNonBlank(room.roomName(), room.roomCode(), "phòng thuê"));
+        data.put("propertyName", room.propertyName());
+        data.put("workerName", firstNonBlank(ticket.getWorkerName(), "quản lý chưa cập nhật"));
+        data.put("repairItems", firstNonBlank(readRepairItems(ticket.getRepairItems()), "chưa cập nhật"));
+        data.put("costAmount", amount == null ? 0L : amount);
+        data.put("targetRoute", "/dashboard/maintenance/" + ticket.getId());
+        notificationPublisher.publish(
+                "MAINTENANCE_REPAIR_PROPOSAL_SENT",
+                tenantUserId,
+                "MAINTENANCE_TICKET",
+                ticket.getId(),
+                data
+        );
+    }
+
+    private void notifyManagerRepairDecision(
+            MaintenanceTicket ticket,
+            boolean approved,
+            String reason
+    ) {
+        Long recipientUserId = firstNonNull(ticket.getAssignedToId(), ticket.getCreatedById());
+        if (recipientUserId == null) {
+            return;
+        }
+
+        RoomInfo room = findRoomInfo(ticket);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("ticketId", ticket.getId());
+        data.put("ticketCode", firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()));
+        data.put("roomCode", room.roomCode());
+        data.put("roomName", firstNonBlank(room.roomName(), room.roomCode(), "phòng thuê"));
+        data.put("reason", firstNonBlank(reason, "Không có lý do bổ sung."));
+        data.put("targetRoute", "/dashboard/maintenance/" + ticket.getId());
+        notificationPublisher.publish(
+                approved
+                        ? "MAINTENANCE_REPAIR_APPROVED"
+                        : "MAINTENANCE_REPAIR_REJECTED",
+                recipientUserId,
+                "MAINTENANCE_TICKET",
+                ticket.getId(),
+                data
+        );
+    }
+
+    private LeaseContractEntity resolveTenantContract(MaintenanceTicket ticket) {
+        if (ticket.getContractId() != null) {
+            return jpaLeaseContractRepository.findById(ticket.getContractId()).orElse(null);
+        }
+        return jpaLeaseContractRepository
+                .findFirstByRoom_IdAndStatusInAndDeletedAtIsNullOrderByIdDesc(
+                        ticket.getRoomId(),
+                        INVOICEABLE_CONTRACT_STATUSES
+                )
+                .orElse(null);
     }
 
     private List<Long> uniqueIds(List<Long> values) {

@@ -98,6 +98,54 @@ public class LeaseContractWorkflowSupport {
         ensureContractOccupants(newContract);
     }
 
+    void copyTransferContractOccupants(LeaseContractEntity oldContract, LeaseContractEntity newContract) {
+        jdbcTemplate.update("""
+                        INSERT INTO contract_occupants (
+                            contract_id, tenant_id, tenant_profile_id, occupant_role,
+                            move_in_date, move_out_date, status, created_at
+                        )
+                        SELECT DISTINCT ?, source_occupant.tenant_id, source_occupant.tenant_profile_id,
+                               source_occupant.occupant_role, ?, NULL, 'ACTIVE', NOW(6)
+                        FROM contract_occupants source_occupant
+                        JOIN room_transfer_requests transfer_request
+                          ON transfer_request.new_contract_id = ?
+                          OR transfer_request.replacement_old_contract_id = ?
+                        WHERE source_occupant.contract_id = ?
+                          AND source_occupant.status = 'ACTIVE'
+                          AND (
+                              (
+                                  transfer_request.new_contract_id = ?
+                                  AND JSON_CONTAINS(
+                                      transfer_request.transferring_tenant_profile_ids,
+                                      JSON_ARRAY(source_occupant.tenant_profile_id)
+                                  )
+                              )
+                              OR (
+                                  transfer_request.replacement_old_contract_id = ?
+                                  AND NOT JSON_CONTAINS(
+                                      transfer_request.transferring_tenant_profile_ids,
+                                      JSON_ARRAY(source_occupant.tenant_profile_id)
+                                  )
+                              )
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM contract_occupants existing_occupant
+                              WHERE existing_occupant.contract_id = ?
+                                AND existing_occupant.tenant_profile_id <=> source_occupant.tenant_profile_id
+                          )
+                        """,
+                newContract.getId(),
+                newContract.getStartDate(),
+                newContract.getId(),
+                newContract.getId(),
+                oldContract.getId(),
+                newContract.getId(),
+                newContract.getId(),
+                newContract.getId()
+        );
+        ensureContractOccupants(newContract);
+    }
+
     boolean hasOtherActiveContract(Long roomId, Long contractId, Long previousContractId) {
         String statusPlaceholders = String.join(",", BLOCKING_ACTIVE_CONTRACT_STATUSES.stream().map(status -> "?").toList());
         List<Object> args = new java.util.ArrayList<>();
@@ -117,22 +165,40 @@ public class LeaseContractWorkflowSupport {
     }
 
     void ensureNotRoomTransferManagedContract(Long leaseContractId) {
+        ensureNotRoomTransferManagedContract(leaseContractId, false);
+    }
+
+    void ensureNotRoomTransferManagedContract(Long leaseContractId, boolean allowTransferRenewal) {
+        if (allowTransferRenewal && isRoomTransferRenewalContract(leaseContractId)) {
+            return;
+        }
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*) FROM room_transfer_requests
                         WHERE (new_contract_id = ? OR replacement_old_contract_id = ?)
                           AND status NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED', 'COMPLETED')
                         """, Integer.class, leaseContractId, leaseContractId);
         if (count != null && count > 0) {
-            throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
+            throw new AppException(ApiErrorCode.CONTRACT_TRANSFER_WORKFLOW_CONFLICT);
         }
     }
 
-    boolean isHolderReplacementLiquidation(Long contractId) {
+    boolean isRoomTransferRenewalContract(LeaseContractEntity contract) {
+        return contract != null
+                && contract.getPreviousContract() != null
+                && isRoomTransferRenewalContract(contract.getId());
+    }
+
+    private boolean isRoomTransferRenewalContract(Long leaseContractId) {
         Integer count = jdbcTemplate.queryForObject("""
-                        SELECT COUNT(*) FROM contract_liquidations
-                        WHERE contract_id = ? AND reason LIKE '%PRIMARY_LEAVES_CO_OCCUPANT_STAYS%'
-                          AND status NOT IN ('COMPLETED', 'CANCELLED')
-                        """, Integer.class, contractId);
+                        SELECT COUNT(*)
+                        FROM lease_contracts contract
+                        JOIN room_transfer_requests transfer_request
+                          ON transfer_request.new_contract_id = contract.lease_contract_id
+                          OR transfer_request.replacement_old_contract_id = contract.lease_contract_id
+                        WHERE contract.lease_contract_id = ?
+                          AND contract.previous_contract_id IS NOT NULL
+                          AND transfer_request.status NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED', 'COMPLETED')
+                        """, Integer.class, leaseContractId);
         return count != null && count > 0;
     }
 

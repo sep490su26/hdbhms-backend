@@ -38,6 +38,7 @@ public record LeaseContractQueryDetailsResponse(
         String transferContractRole,
         Boolean transferActivationLocked,
         boolean canRenew,
+        String canRenewBlockedReason,
         boolean canLiquidate,
         boolean canSendAccount,
         String accountProvisioningStatus,

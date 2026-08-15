@@ -103,8 +103,6 @@ public class RoomTransferService implements RoomTransferUseCase {
     static final int TRANSFER_RESERVATION_GRACE_DAYS = 1;
     static final int TARGET_HOLDER_APPROVAL_TIMEOUT_DAYS = 7;
     static final int SOURCE_HOLDER_NOMINATION_TIMEOUT_DAYS = 3;
-    static final int TRANSFER_BLOCKED_START_DAY_OF_MONTH = 1;
-    static final int TRANSFER_BLOCKED_END_DAY_OF_MONTH = 5;
     static final String ACTION_REVIEW_REQUEST = "REVIEW_REQUEST";
     static final String ACTION_SOURCE_HOLDER_REJECTED = "SOURCE_HOLDER_REJECTED";
     static final String ACTION_SOURCE_HOLDER_NOMINATION_EXPIRED = "SOURCE_HOLDER_NOMINATION_EXPIRED";
@@ -153,16 +151,16 @@ public class RoomTransferService implements RoomTransferUseCase {
                 command.targetRoomId()
         );
         LocalDate requestedTransferDate = command.requestedTransferDate() == null && bypassCreateValidation
-                ? LocalDate.now()
-                : command.requestedTransferDate();
+                ? LocalDate.now().withDayOfMonth(1)
+                : normalizeTransferMonth(command.requestedTransferDate());
 
         if (!bypassCreateValidation) {
             validateSourceContract(sourceContract, requesterProfile.getId());
             if (roomTransferRequestRepository.existsOpenByOldContractId(sourceContract.getId(), OPEN_TRANSFER_STATUSES)) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_OPEN_REQUEST_EXISTS);
             }
             if (sourceContract.getRoomId().equals(targetRoom.getId())) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST);
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_SOURCE_TARGET_SAME);
             }
         }
         Optional<LeaseContract> targetActiveLeaseContractResult = leaseContractRepository
@@ -192,7 +190,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             ensureRequesterIsCurrentOccupant(requesterProfile.getId(), activeOccupants);
             ensureTransferredProfilesBelongToContract(transferringProfileIds, activeOccupants);
             validateTransferEligibilityWindow(sourceContract, transferringProfileIds, activeOccupants);
-            validateDestinationAvailability(targetRoom, transferringProfileIds.size(), requestedTransferDate, null);
+            validateDestinationAvailability(targetRoom, transferringProfileIds.size(), requestedTransferDate, null, null);
         }
         LocalDateTime eligibilityCheckedAt = LocalDateTime.now();
         DebtSnapshotDetails debtSnapshot = readDebtSnapshotDetails(sourceContract);
@@ -282,7 +280,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         validateSettlementType(difference, command.settlementType());
         if (isWaitingForImmediateDifferencePayment(request, difference)) {
             if (command.settlementType() != SettlementType.TENANT_PAY_MORE) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_DIFFERENCE_PAYMENT_REQUIRED);
             }
             request.setStatus(TransferRequestStatus.WAITING_TENANT_CONFIRMATION);
             roomTransferRepository.save(request);
@@ -326,19 +324,19 @@ public class RoomTransferService implements RoomTransferUseCase {
             return;
         }
         if (difference > 0 && settlementType == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_SETTLEMENT_REQUIRED);
         }
         if (difference > 0
                 && settlementType != SettlementType.TENANT_PAY_MORE
                 && settlementType != SettlementType.ADD_TO_NEXT_INVOICE) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_SETTLEMENT_INVALID);
         }
         if (difference < 0 && settlementType == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_SETTLEMENT_REQUIRED);
         }
         if (difference < 0
                 && settlementType != SettlementType.CREDIT_NEXT_CONTRACT) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_SETTLEMENT_INVALID);
         }
     }
 
@@ -383,17 +381,17 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
 
         TransferSettlement settlement = transferSettlementRepository.findLatestByTransferRequestId(request.getId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST_STATE));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_DIFFERENCE_PAYMENT_REQUIRED));
 
         Long invoiceId = settlement.getTransferDifferenceInvoiceId();
         if (invoiceId == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_DIFFERENCE_PAYMENT_REQUIRED);
         }
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST_STATE));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_DIFFERENCE_PAYMENT_REQUIRED));
         if (invoice.getStatus() != InvoiceStatus.PAID) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_DIFFERENCE_PAYMENT_REQUIRED);
         }
     }
 
@@ -415,7 +413,8 @@ public class RoomTransferService implements RoomTransferUseCase {
                 targetRoom,
                 request.getTransferringTenantProfileIds().size(),
                 request.getRequestedTransferDate(),
-                request.getId()
+                request.getId(),
+                null
         );
         reserveTargetCapacity(request, targetRoom);
 
@@ -462,24 +461,24 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
 
         if (!oldContract.getPrimaryTenantProfileId().equals(requesterProfile.getId())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         if (!holderNominationRequired(oldContract, request, activeOccupants)) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         Set<Long> remainingProfileIds = new HashSet<>(remainingProfileIds(request, activeOccupants));
         Long nominatedHolderProfileId = command.nominatedHolderProfileId();
 
         if (Objects.equals(nominatedHolderProfileId, oldContract.getPrimaryTenantProfileId())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         personProfileRepository.findById(nominatedHolderProfileId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.NOMINATED_PERSON_NOT_FOUND));
         if (!remainingProfileIds.contains(nominatedHolderProfileId)) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         request.setNominatedHolderProfileId(nominatedHolderProfileId);
@@ -547,7 +546,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         requireStatus(request, TransferRequestStatus.WAITING_SIGNING, TransferRequestStatus.WAITING_CONTRACT_SIGNING);
         List<LeaseContract> contracts = requiredSigningContracts(request);
         if (contracts.isEmpty()) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, "required", "missing");
         }
         for (LeaseContract contract : contracts) {
             requireSignedTransferContract(contract);
@@ -564,6 +563,11 @@ public class RoomTransferService implements RoomTransferUseCase {
         RoomTransferRequest request = getTransfer(requestId);
         if (!currentUserHasAnyRole("ROLE_OWNER", "ROLE_MANAGER")) {
             throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
+        }
+        // The request detail can remain open while contract activation advances
+        // it. Treat a repeated signing click as a harmless no-op in that case.
+        if (request.getStatus() == TransferRequestStatus.READY_FOR_HANDOVER) {
+            return;
         }
         requireStatus(request, TransferRequestStatus.WAITING_SIGNING, TransferRequestStatus.WAITING_CONTRACT_SIGNING);
         List<LeaseContract> contracts = requiredSigningContracts(request);
@@ -590,7 +594,8 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private boolean isSignedTransferContract(LeaseContract contract) {
-        return contract.getStatus() == LeaseStatus.SIGNED && contract.getSignedFileId() != null;
+        return (contract.getStatus() == LeaseStatus.SIGNED || contract.getStatus() == LeaseStatus.ACTIVE)
+                && contract.getSignedFileId() != null;
     }
 
     private boolean currentUserHasAnyRole(String... roles) {
@@ -610,7 +615,11 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (request.getStatus() != TransferRequestStatus.WAITING_CONTRACT_CONFIRMATION
                 && request.getStatus() != TransferRequestStatus.WAITING_SIGNING
                 && request.getStatus() != TransferRequestStatus.WAITING_CONTRACT_SIGNING) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(
+                    ApiErrorCode.ROOM_TRANSFER_INVALID_STATE,
+                    request.getStatus(),
+                    "WAITING_CONTRACT_CONFIRMATION, WAITING_SIGNING, WAITING_CONTRACT_SIGNING"
+            );
         }
         requireTransferringTenant(request, tenantUserId);
         cancelGeneratedTransferContracts(request);
@@ -626,14 +635,14 @@ public class RoomTransferService implements RoomTransferUseCase {
         requireStatus(request, TransferRequestStatus.WAITING_HOLDER_RESPONSE);
 
         if (request.getNominatedHolderProfileId() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         PersonProfile tenantProfile = personProfileRepository.findByUserId(command.tenantId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
 
         if (!request.getNominatedHolderProfileId().equals(tenantProfile.getId())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         TargetTransferType transferType = Optional.ofNullable(request.getTargetTransferType())
@@ -657,14 +666,14 @@ public class RoomTransferService implements RoomTransferUseCase {
         requireStatus(request, TransferRequestStatus.WAITING_HOLDER_RESPONSE);
 
         if (request.getNominatedHolderProfileId() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         PersonProfile tenantProfile = personProfileRepository.findByUserId(tenantUserId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
 
         if (!request.getNominatedHolderProfileId().equals(tenantProfile.getId())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_PARTICIPANT_INVALID);
         }
 
         request.setNominatedHolderProfileId(null);
@@ -678,14 +687,14 @@ public class RoomTransferService implements RoomTransferUseCase {
     public void approveTargetHolderTransfer(Long requestId, Long holderUserId) {
         RoomTransferRequest request = getTransfer(requestId);
         if (request.getTargetTransferType() != TargetTransferType.OTHER_CONTRACT) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_HOLDER_APPROVAL_REQUIRED);
         }
         requireStatus(request, TransferRequestStatus.WAITING_TARGET_HOLDER_APPROVAL);
         LeaseContract targetContract = getContract(request.getTargetContractId());
         PersonProfile holderProfile = personProfileRepository.findByUserId(holderUserId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (!holderProfile.getId().equals(targetContract.getPrimaryTenantProfileId())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_HOLDER_APPROVAL_REQUIRED);
         }
         request.setTargetHolderApprovedById(holderUserId);
         request.setTargetHolderApprovedAt(LocalDateTime.now());
@@ -698,14 +707,14 @@ public class RoomTransferService implements RoomTransferUseCase {
     public void rejectTargetHolderTransfer(Long requestId, Long holderUserId) {
         RoomTransferRequest request = getTransfer(requestId);
         if (request.getTargetTransferType() != TargetTransferType.OTHER_CONTRACT) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_HOLDER_APPROVAL_REQUIRED);
         }
         requireStatus(request, TransferRequestStatus.WAITING_TARGET_HOLDER_APPROVAL);
         LeaseContract targetContract = getContract(request.getTargetContractId());
         PersonProfile holderProfile = personProfileRepository.findByUserId(holderUserId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (!holderProfile.getId().equals(targetContract.getPrimaryTenantProfileId())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_HOLDER_APPROVAL_REQUIRED);
         }
         request.setTargetHolderRejectedAt(LocalDateTime.now());
         releaseTargetCapacity(request);
@@ -789,7 +798,8 @@ public class RoomTransferService implements RoomTransferUseCase {
                     targetRoom,
                     transferringProfileIds.size(),
                     request.getRequestedTransferDate(),
-                    request.getId()
+                    request.getId(),
+                    null
             );
         } catch (RuntimeException exception) {
             eligible = false;
@@ -830,7 +840,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         ensureHolderNominationResolved(oldContract, request, oldOccupants);
         boolean sourceRoomWillBeEmpty = remainingProfileIds.isEmpty();
         if (!sourceRoomWillBeEmpty && safe(command.oldRoomCompensationAmount()) > 0) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_COMPENSATION_NOT_ALLOWED);
         }
         SubmitHandoverResponse transferOutHandover = submitTransferOutHandover(command, oldContract.getId(), sourceRoomWillBeEmpty);
         Long oldRoomFinalInvoiceId = transferSettlementRepository.findLatestByTransferRequestId(request.getId())
@@ -872,7 +882,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         requireStatus(request, TransferRequestStatus.WAITING_TRANSFER_DATE, TransferRequestStatus.READY_FOR_HANDOVER);
         ExecuteTransferCommand.TransferHandoverData payload = command.transferOutHandover();
         if (payload == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_NOT_CONFIRMED, "TRANSFER_OUT");
         }
         validateTransferHandoverDate(payload, "bàn giao phòng cũ");
         Room oldRoom = roomRepository.findById(request.getOldRoomId())
@@ -918,7 +928,16 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         validateTargetRoomStatusForExecution(targetRoom, request);
         validateTargetRoomOccupancyForExecution(targetRoom, request);
-        validateDestinationAvailability(targetRoom, request.getTransferringTenantProfileIds().size(), LocalDate.now(), request.getId());
+        Long activatedTransferContractId = transferType == TargetTransferType.NEW_CONTRACT
+                ? request.getNewContractId()
+                : null;
+        validateDestinationAvailability(
+                targetRoom,
+                request.getTransferringTenantProfileIds().size(),
+                LocalDate.now(),
+                request.getId(),
+                activatedTransferContractId
+        );
 
         List<ContractOccupant> oldOccupants = activeOccupants(oldContract.getId());
         List<Long> remainingProfileIds = remainingProfileIds(request, oldOccupants);
@@ -939,7 +958,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                     executeIntoNewContract(request, executeCommand, oldContract, oldRoom, targetRoom, oldOccupants, remainingProfileIds);
             case OTHER_CONTRACT ->
                     executeIntoExistingContract(request, executeCommand, oldContract, oldRoom, targetRoom, oldOccupants, remainingProfileIds);
-            default -> throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            default -> throw new AppException(ApiErrorCode.ROOM_TRANSFER_TYPE_INVALID);
         }
 
         request.setStatus(TransferRequestStatus.EXECUTED);
@@ -949,22 +968,22 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private void validateRequestedTransferDate(LocalDate requestedTransferDate) {
-        LocalDate today = LocalDate.now();
         if (requestedTransferDate == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_DATE_INVALID);
         }
-        if (requestedTransferDate.isBefore(today)) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        LocalDate currentMonth = LocalDate.now().withDayOfMonth(1);
+        if (requestedTransferDate.withDayOfMonth(1).isBefore(currentMonth)) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_DATE_INVALID);
         }
-        int dayOfMonth = requestedTransferDate.getDayOfMonth();
-        if (dayOfMonth >= TRANSFER_BLOCKED_START_DAY_OF_MONTH && dayOfMonth <= TRANSFER_BLOCKED_END_DAY_OF_MONTH) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
-        }
+    }
+
+    private LocalDate normalizeTransferMonth(LocalDate transferDate) {
+        return transferDate == null ? null : transferDate.withDayOfMonth(1);
     }
 
     private void validateSourceContract(LeaseContract sourceContract, Long requesterProfileId) {
         if (sourceContract.getStatus() != LeaseStatus.ACTIVE) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_SOURCE_CONTRACT_INVALID);
         }
         if (!sourceContract.getPrimaryTenantProfileId().equals(requesterProfileId)
                 && contractOccupantRepository.findFirstByContract_IdAndTenantProfile_IdAndStatus(
@@ -972,7 +991,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 requesterProfileId,
                 OccupantStatus.ACTIVE
         ).isEmpty()) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_SOURCE_CONTRACT_INVALID);
         }
     }
 
@@ -1205,10 +1224,10 @@ public class RoomTransferService implements RoomTransferUseCase {
             Optional<LeaseContract> targetActiveLeaseContractResult
     ) {
         if (targetRoom.getCurrentStatus() == RoomStatus.OCCUPIED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetActiveLeaseContractResult.isPresent() && targetRoom.getCurrentStatus() != RoomStatus.SOON_VACANT) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetActiveLeaseContractResult
                 .map(LeaseContract::getPrimaryTenantProfileId)
@@ -1243,13 +1262,13 @@ public class RoomTransferService implements RoomTransferUseCase {
     private Room validateTargetRoomStatusForNewTransfer(Room targetRoom, LocalDate requestedTransferDate) {
         targetRoom = releaseExpiredReservationIfPossible(targetRoom);
         if (targetRoom.getCurrentStatus() == RoomStatus.OCCUPIED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER
                 || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetRoom.getCurrentStatus() == RoomStatus.SOON_VACANT
                 && contractOccupantRepository.countActiveOccupantsByRoomId(targetRoom.getId()) > 0) {
@@ -1257,8 +1276,8 @@ public class RoomTransferService implements RoomTransferUseCase {
                     .findFirstActiveContract(targetRoom.getId(), DESTINATION_BLOCKING_CONTRACT_STATUSES)
                     .map(entity -> entity.getExpectedVacantDate() == null ? entity.getEndDate() : entity.getExpectedVacantDate())
                     .orElse(LocalDate.now());
-            if (requestedTransferDate.isBefore(availableDate)) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            if (requestedTransferDate.withDayOfMonth(1).isBefore(availableDate.withDayOfMonth(1))) {
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
             }
         }
 
@@ -1268,13 +1287,13 @@ public class RoomTransferService implements RoomTransferUseCase {
     private Room validateTargetRoomStatusForExistingContractTransfer(Room targetRoom) {
         targetRoom = releaseExpiredReservationIfPossible(targetRoom);
         if (targetRoom.getCurrentStatus() != RoomStatus.OCCUPIED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER
                 || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         return targetRoom;
     }
@@ -1283,13 +1302,13 @@ public class RoomTransferService implements RoomTransferUseCase {
         targetRoom = releaseExpiredReservationIfPossible(targetRoom);
         if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
                 || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetRoom.getCurrentStatus() == RoomStatus.RESERVED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetRoom.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER && safe(request.getReservedSlots()) <= 0) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
     }
 
@@ -1300,8 +1319,19 @@ public class RoomTransferService implements RoomTransferUseCase {
             return;
         }
         long activeOccupants = contractOccupantRepository.countActiveOccupantsByRoomId(targetRoom.getId());
+        if (request.getNewContractId() != null) {
+            activeOccupants = jdbcTemplate.queryForObject("""
+                            SELECT COUNT(*)
+                            FROM contract_occupants occupant
+                            JOIN lease_contracts contract
+                              ON contract.lease_contract_id = occupant.contract_id
+                            WHERE contract.room_id = ?
+                              AND contract.lease_contract_id <> ?
+                              AND occupant.status = 'ACTIVE'
+                            """, Long.class, targetRoom.getId(), request.getNewContractId());
+        }
         if (activeOccupants > 0) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_CAPACITY_EXCEEDED);
         }
     }
 
@@ -1464,11 +1494,11 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private RoomTransferRequest confirmExistingContractTransfer(RoomTransferRequest request, Long tenantUserId) {
         if (request.getTargetContractId() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, "target", "missing");
         }
         LeaseContract targetContract = getContract(request.getTargetContractId());
         if (targetContract.getStatus() != LeaseStatus.ACTIVE) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, targetContract.getId(), targetContract.getStatus());
         }
 
         Room targetRoom = roomRepository.findById(request.getTargetRoomId())
@@ -1498,7 +1528,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             return;
         }
         if (contract.getStatus() != LeaseStatus.CONFIRMED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, contract.getId(), contract.getStatus());
         }
     }
 
@@ -1524,13 +1554,18 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (contract.getSignedFileId() == null) {
             throw new AppException(ApiErrorCode.SIGNED_TRANSFER_CONTRACT_FILE_REQUIRED);
         }
+        // Transfer re-sign contracts may already be activated from contract
+        // management. Activation is the final signing step for that path.
+        if (contract.getStatus() == LeaseStatus.ACTIVE) {
+            return;
+        }
         if (contract.getStatus() == LeaseStatus.CONFIRMED) {
             contract.signContract();
             leaseContractRepository.save(contract);
             return;
         }
         if (contract.getStatus() != LeaseStatus.SIGNED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, contract.getId(), contract.getStatus());
         }
     }
 
@@ -1538,11 +1573,14 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (contract.getSignedFileId() == null) {
             throw new AppException(ApiErrorCode.SIGNED_TRANSFER_CONTRACTS_REQUIRED_FOR_COMPLETION);
         }
+        if (contract.getStatus() == LeaseStatus.ACTIVE) {
+            return;
+        }
         if (contract.getStatus() == LeaseStatus.CONFIRMED || contract.getStatus() == LeaseStatus.PENDING_SIGNATURE) {
             throw new AppException(ApiErrorCode.TRANSFER_CONTRACTS_MUST_BE_CONFIRMED_INDIVIDUALLY);
         }
         if (contract.getStatus() != LeaseStatus.SIGNED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, contract.getId(), contract.getStatus());
         }
     }
 
@@ -1563,7 +1601,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         TargetTransferType transferType = Optional.ofNullable(request.getTargetTransferType())
                 .orElse(TargetTransferType.NEW_CONTRACT);
         if (transferType != TargetTransferType.NEW_CONTRACT) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TYPE_INVALID);
         }
         LeaseContract oldContract = getContract(request.getOldContractId());
         List<ContractOccupant> activeOccupants = activeOccupants(oldContract.getId());
@@ -1587,7 +1625,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         List<ContractOccupant> activeOccupants = activeOccupants(oldContract.getId());
         if (holderNominationRequired(oldContract, request, activeOccupants)
                 && request.getNominatedHolderProfileId() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         Long newHolderProfileId = request.getTransferringTenantProfileIds().contains(oldContract.getPrimaryTenantProfileId())
@@ -1663,10 +1701,10 @@ public class RoomTransferService implements RoomTransferUseCase {
                 ? request.getNominatedHolderProfileId()
                 : oldContract.getPrimaryTenantProfileId();
         if (replacementHolderProfileId == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
         if (!remainingProfileIds.contains(replacementHolderProfileId)) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
 
         String oldRoomCode = roomRepository.findById(oldContract.getRoomId())
@@ -1705,8 +1743,9 @@ public class RoomTransferService implements RoomTransferUseCase {
             List<Long> remainingProfileIds
     ) {
         LeaseContract newContract = getContract(request.getNewContractId());
-        if (newContract.getStatus() != LeaseStatus.SIGNED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+        boolean newContractAlreadyActivated = newContract.getStatus() == LeaseStatus.ACTIVE;
+        if (newContract.getStatus() != LeaseStatus.SIGNED && !newContractAlreadyActivated) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, newContract.getId(), newContract.getStatus());
         }
         LocalDate executionDate = submitTransferInHandover(command.transferInHandover(), newContract.getId(), true);
         moveTransferredOccupantsToNewContract(request, newContract, oldOccupants, executionDate);
@@ -1723,7 +1762,9 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
 
         alignTransferContractStart(newContract, executionDate);
-        newContract.activateContract();
+        if (!newContractAlreadyActivated) {
+            newContract.activateContract();
+        }
         targetRoom.occupyRoom();
         leaseContractRepository.save(newContract);
         roomRepository.save(targetRoom);
@@ -1753,17 +1794,19 @@ public class RoomTransferService implements RoomTransferUseCase {
     ) {
         LeaseContract targetContract = getContract(request.getTargetContractId());
         if (targetContract.getStatus() != LeaseStatus.ACTIVE) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, targetContract.getId(), targetContract.getStatus());
         }
         if (request.getTargetTransferType() == TargetTransferType.OTHER_CONTRACT
                 && request.getTargetHolderApprovedAt() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_HOLDER_APPROVAL_REQUIRED);
         }
         if (request.getNewContractId() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, "transfer-agreement", "missing");
         }
-        if (getContract(request.getNewContractId()).getStatus() != LeaseStatus.SIGNED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+        LeaseContract transferAgreement = getContract(request.getNewContractId());
+        if (transferAgreement.getStatus() != LeaseStatus.SIGNED
+                && transferAgreement.getStatus() != LeaseStatus.ACTIVE) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, transferAgreement.getId(), transferAgreement.getStatus());
         }
         LocalDate executionDate = submitTransferInHandover(command.transferInHandover(), targetContract.getId(), false);
 
@@ -1792,16 +1835,19 @@ public class RoomTransferService implements RoomTransferUseCase {
             LocalDate executionDate
     ) {
         if (request.getReplacementOldContractId() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, "replacement-old", "missing");
         }
         LeaseContract replacementContract = getContract(request.getReplacementOldContractId());
-        if (replacementContract.getStatus() != LeaseStatus.SIGNED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+        boolean replacementAlreadyActivated = replacementContract.getStatus() == LeaseStatus.ACTIVE;
+        if (replacementContract.getStatus() != LeaseStatus.SIGNED && !replacementAlreadyActivated) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, replacementContract.getId(), replacementContract.getStatus());
         }
         moveRemainingOccupantsToReplacementContract(request, replacementContract, oldOccupants, remainingProfileIds, executionDate);
         oldContract.markTransferred();
         alignTransferContractStart(replacementContract, executionDate);
-        replacementContract.activateContract();
+        if (!replacementAlreadyActivated) {
+            replacementContract.activateContract();
+        }
         leaseContractRepository.save(replacementContract);
     }
 
@@ -1813,6 +1859,9 @@ public class RoomTransferService implements RoomTransferUseCase {
             LocalDate executionDate
     ) {
         Set<Long> remainingIds = new HashSet<>(remainingProfileIds);
+        Set<Long> replacementActiveProfileIds = new HashSet<>(activeOccupants(replacementContract.getId()).stream()
+                .map(ContractOccupant::getTenantProfileId)
+                .toList());
         List<ContractOccupant> replacementOccupants = new ArrayList<>();
         for (ContractOccupant oldOccupant : oldOccupants) {
             Long profileId = oldOccupant.getTenantProfileId();
@@ -1820,6 +1869,9 @@ public class RoomTransferService implements RoomTransferUseCase {
                 continue;
             }
             oldOccupant.moveOut(executionDate);
+            if (replacementActiveProfileIds.contains(profileId)) {
+                continue;
+            }
             replacementOccupants.add(ContractOccupant.builder()
                     .contractId(replacementContract.getId())
                     .tenantId(oldOccupant.getTenantId())
@@ -1939,25 +1991,44 @@ public class RoomTransferService implements RoomTransferUseCase {
             Room targetRoom,
             int incomingCount,
             LocalDate requestedTransferDate,
-            Long excludedTransferRequestId
+            Long excludedTransferRequestId,
+            Long alreadyCountedContractId
     ) {
         long currentDestinationOccupancy = contractOccupantRepository.countActiveOccupantsByRoomId(targetRoom.getId());
+        long alreadyCountedIncoming = 0;
+        if (alreadyCountedContractId != null) {
+            alreadyCountedIncoming = jdbcTemplate.queryForObject("""
+                            SELECT COUNT(*)
+                            FROM contract_occupants occupant
+                            JOIN lease_contracts contract
+                              ON contract.lease_contract_id = occupant.contract_id
+                            WHERE contract.room_id = ?
+                              AND contract.lease_contract_id = ?
+                              AND occupant.status = 'ACTIVE'
+                            """,
+                    Long.class,
+                    targetRoom.getId(),
+                    alreadyCountedContractId
+            );
+            currentDestinationOccupancy -= alreadyCountedIncoming;
+        }
         long reservedSlots = roomTransferRequestRepository.sumActiveReservedSlotsByRoomId(
                 targetRoom.getId(),
                 ACTIVE_RESERVATION_STATUSES,
                 LocalDateTime.now(),
                 excludedTransferRequestId
         );
-        if (currentDestinationOccupancy + reservedSlots + incomingCount > targetRoom.getMaxOccupants()) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        long remainingIncoming = Math.max(0, incomingCount - alreadyCountedIncoming);
+        if (currentDestinationOccupancy + reservedSlots + remainingIncoming > targetRoom.getMaxOccupants()) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_CAPACITY_EXCEEDED);
         }
         if (targetRoom.getCurrentStatus() == RoomStatus.SOON_VACANT && currentDestinationOccupancy > 0) {
             LocalDate availableDate = leaseContractRepository
                     .findFirstActiveContract(targetRoom.getId(), DESTINATION_BLOCKING_CONTRACT_STATUSES)
                     .map(entity -> entity.getExpectedVacantDate() == null ? entity.getEndDate() : entity.getExpectedVacantDate())
                     .orElse(LocalDate.now());
-            if (requestedTransferDate.isBefore(availableDate)) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            if (requestedTransferDate.withDayOfMonth(1).isBefore(availableDate.withDayOfMonth(1))) {
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
             }
         }
     }
@@ -2017,19 +2088,19 @@ public class RoomTransferService implements RoomTransferUseCase {
         boolean isOccupant = activeOccupants.stream()
                 .anyMatch(occupant -> occupant.getTenantProfileId().equals(requesterProfileId));
         if (!isOccupant) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_PARTICIPANT_INVALID);
         }
     }
 
     private void ensureTransferredProfilesBelongToContract(List<Long> transferringProfileIds, List<ContractOccupant> activeOccupants) {
         if (transferringProfileIds.isEmpty()) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_PARTICIPANT_INVALID);
         }
         Set<Long> activeProfileIds = new HashSet<>(activeOccupants.stream()
                 .map(ContractOccupant::getTenantProfileId)
                 .toList());
         if (!activeProfileIds.containsAll(transferringProfileIds)) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_PARTICIPANT_INVALID);
         }
     }
 
@@ -2038,7 +2109,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
         if (request.getTransferringTenantProfileIds() == null
                 || !request.getTransferringTenantProfileIds().contains(tenantProfile.getId())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_PARTICIPANT_INVALID);
         }
     }
 
@@ -2058,7 +2129,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     ) {
         if (holderNominationRequired(oldContract, request, activeOccupants)
                 && request.getNominatedHolderProfileId() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
     }
 
@@ -2073,17 +2144,21 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
         Long nominatedHolderProfileId = request.getNominatedHolderProfileId();
         if (nominatedHolderProfileId == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
         if (!remainingProfileIds(request, activeOccupants).contains(nominatedHolderProfileId)) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
         }
     }
 
     private void requireHolderNominationOpenStatus(RoomTransferRequest request) {
         if (request.getStatus() != TransferRequestStatus.MANAGER_APPROVED
                 && request.getStatus() != TransferRequestStatus.WAITING_NEW_CONTRACT) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(
+                    ApiErrorCode.ROOM_TRANSFER_INVALID_STATE,
+                    request.getStatus(),
+                    "MANAGER_APPROVED, WAITING_NEW_CONTRACT"
+            );
         }
     }
 
@@ -2102,6 +2177,9 @@ public class RoomTransferService implements RoomTransferUseCase {
             LocalDate executionDate
     ) {
         Set<Long> transferringIds = new HashSet<>(request.getTransferringTenantProfileIds());
+        Set<Long> newContractActiveProfileIds = new HashSet<>(activeOccupants(newContract.getId()).stream()
+                .map(ContractOccupant::getTenantProfileId)
+                .toList());
         List<ContractOccupant> newOccupants = new ArrayList<>();
         for (ContractOccupant oldOccupant : oldOccupants) {
             Long profileId = oldOccupant.getTenantProfileId();
@@ -2109,6 +2187,9 @@ public class RoomTransferService implements RoomTransferUseCase {
                 continue;
             }
             oldOccupant.moveOut(executionDate);
+            if (newContractActiveProfileIds.contains(profileId)) {
+                continue;
+            }
 
             newOccupants.add(ContractOccupant.builder()
                     .contractId(newContract.getId())
@@ -2166,7 +2247,9 @@ public class RoomTransferService implements RoomTransferUseCase {
                 ? 1
                 : Math.max(1, oldContract.getPaymentCycleMonths());
 
-        LocalDate transferDate = requestedTransferDate == null ? LocalDate.now() : requestedTransferDate;
+        LocalDate transferDate = requestedTransferDate == null
+                ? LocalDate.now().withDayOfMonth(1)
+                : requestedTransferDate.withDayOfMonth(1);
         LocalDate cycleStart = Optional.ofNullable(oldContract.getRentStartDate())
                 .or(() -> Optional.ofNullable(oldContract.getStartDate()))
                 .orElse(transferDate.withDayOfMonth(1));
@@ -2229,7 +2312,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                     .orElse(SettlementType.TENANT_PAY_MORE);
             if (settlementType == SettlementType.ADD_TO_NEXT_INVOICE) {
                 if (newContract == null) {
-                    throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+                    throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, "new", "missing");
                 }
                 Invoice invoice = createNextRentInvoiceWithTransferSurcharge(
                         request,
@@ -2269,7 +2352,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         } else if (difference < 0) {
             // New room is cheaper — tenant gets credit applied to next month's rent
             if (newContract == null) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_CONTRACT_STATE_INVALID, "new", "missing");
             }
             long credit = Math.abs(difference);
             createNextRentInvoiceWithTransferCredit(request, newContract, targetRoom, credit, executorId);
@@ -2295,7 +2378,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         }
         validateTransferHandoverDate(payload, "transfer-out");
         if (sourceRoomWillBeEmpty && (payload.assets() == null || payload.assets().isEmpty())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_ASSETS_REQUIRED);
         }
         return manageContractHandoverService.submitHandover(
                 oldContractId,
@@ -2332,18 +2415,32 @@ public class RoomTransferService implements RoomTransferUseCase {
             HandoverType handoverType,
             String missingMessage
     ) {
-        ContractHandoverDetailsResponse handover;
-        try {
-            handover = manageContractHandoverService.getHandoverDetails(contractId, handoverType);
-        } catch (AppException exception) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+        // Do not catch getHandoverDetails(...) here: its AppException would
+        // mark the surrounding completion transaction rollback-only. The
+        // Optional lookup keeps the MOVE_IN fallback transaction-safe.
+        ContractHandoverDetailsResponse handover = manageContractHandoverService
+                .findHandoverDetails(contractId, handoverType)
+                .orElse(null);
+        boolean transferInNeedsMoveInFallback = handoverType == HandoverType.TRANSFER_IN
+                && (handover == null
+                || handover.getStatus() != HandoverStatus.CONFIRMED
+                || handover.getElectricity() == null);
+        if (transferInNeedsMoveInFallback) {
+            handover = manageContractHandoverService
+                    .findHandoverDetails(contractId, HandoverType.MOVE_IN)
+                    .orElse(null);
+        }
+        if (handover == null) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_NOT_CONFIRMED, handoverType);
         }
         if (handover.getStatus() != HandoverStatus.CONFIRMED) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_NOT_CONFIRMED, handoverType);
         }
         Long electricityReadingId = handover.getElectricity() == null ? null : handover.getElectricity().getId();
-        if (electricityReadingId == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+        boolean reusedMoveInHandover = handoverType == HandoverType.TRANSFER_IN
+                && handover.getHandoverType() == HandoverType.MOVE_IN;
+        if (electricityReadingId == null && !reusedMoveInHandover) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_ELECTRICITY_REQUIRED);
         }
         return SubmitHandoverResponse.builder()
                 .handoverRecordId(handover.getHandoverRecordId())
@@ -2377,14 +2474,14 @@ public class RoomTransferService implements RoomTransferUseCase {
             ExecuteTransferCommand.MeterReadingData input
     ) {
         if (input == null || input.currentValue() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_ELECTRICITY_REQUIRED);
         }
         LocalDate readingDate = input.readingDate() == null ? LocalDate.now() : input.readingDate();
         BigDecimal previousValue = readLatestRoomReading(roomId, utilityType);
         BigDecimal currentValue = input.currentValue();
         BigDecimal usage = currentValue.subtract(previousValue);
         if (usage.compareTo(BigDecimal.ZERO) < 0) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_METER_READING_INVALID);
         }
 
         UtilityTariffSnapshot tariff = readUtilityTariff(propertyId, utilityType, readingDate);
@@ -2508,9 +2605,9 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private void requirePaidInvoice(Long invoiceId, String unpaidMessage) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST_STATE));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_FINAL_INVOICE_UNPAID, invoiceId));
         if (invoice.getStatus() != InvoiceStatus.PAID) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_FINAL_INVOICE_UNPAID, invoiceId);
         }
     }
 
@@ -2630,7 +2727,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     ) {
         LocalDate handoverDate = payload.handoverDate();
         if (handoverDate == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_DATE_INVALID, handoverName);
         }
         validateDateNotFuture(handoverDate, handoverName + " - bàn giao");
         validateMeterReadingDate(payload.electricity(), handoverName + " - chỉ số điện");
@@ -2648,7 +2745,7 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private void validateDateNotFuture(LocalDate date, String fieldName) {
         if (date.isAfter(LocalDate.now())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_DATE_INVALID, fieldName);
         }
     }
 
@@ -2657,7 +2754,7 @@ public class RoomTransferService implements RoomTransferUseCase {
             HandoverType handoverType
     ) {
         if (payload.electricity() == null) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_ELECTRICITY_REQUIRED);
         }
         SubmitHandoverRequest request = new SubmitHandoverRequest();
         request.setHandoverType(handoverType);
@@ -2726,7 +2823,7 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         if (existingInvoiceId.isPresent()) {
             return invoiceRepository.findById(existingInvoiceId.get())
-                    .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST_STATE));
+                    .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_INVOICE_NOT_FOUND));
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -2759,7 +2856,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .build());
         issuedInvoiceChargeService.issueDraftInvoice(invoice.getId());
         return invoiceRepository.findById(invoice.getId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.INVALID_REQUEST_STATE));
+                .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_INVOICE_NOT_FOUND));
     }
 
     private Invoice createNextRentInvoiceWithTransferSurcharge(
@@ -2995,7 +3092,11 @@ public class RoomTransferService implements RoomTransferUseCase {
 
     private void requireStatus(RoomTransferRequest request, TransferRequestStatus... expectedStatuses) {
         if (Arrays.stream(expectedStatuses).noneMatch(s -> s == request.getStatus())) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+            throw new AppException(
+                    ApiErrorCode.ROOM_TRANSFER_INVALID_STATE,
+                    request.getStatus(),
+                    Arrays.toString(expectedStatuses)
+            );
         }
     }
 
@@ -3034,7 +3135,8 @@ public class RoomTransferService implements RoomTransferUseCase {
     }
 
     private RoomTransferRequest syncSignedTransferContractStatus(RoomTransferRequest request) {
-        if (request.getStatus() != TransferRequestStatus.WAITING_SIGNING
+        if (request.getStatus() != TransferRequestStatus.WAITING_CONTRACT_CONFIRMATION
+                && request.getStatus() != TransferRequestStatus.WAITING_SIGNING
                 && request.getStatus() != TransferRequestStatus.WAITING_CONTRACT_SIGNING) {
             return request;
         }

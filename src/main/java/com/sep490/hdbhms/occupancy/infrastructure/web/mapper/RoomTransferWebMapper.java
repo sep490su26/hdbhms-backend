@@ -14,8 +14,11 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.SettlementType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TargetTransferType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.CreateTransferRequestRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.RoomTransferResponse;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractHandoverRecordRepository;
 import org.mapstruct.Mapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -44,6 +47,9 @@ public abstract class RoomTransferWebMapper {
 
     @Autowired
     protected TransferSettlementRepository transferSettlementRepository;
+
+    @Autowired
+    protected JpaContractHandoverRecordRepository handoverRecordRepository;
 
     @Autowired
     protected JdbcTemplate jdbcTemplate;
@@ -381,8 +387,8 @@ public abstract class RoomTransferWebMapper {
                 ? 1
                 : Math.max(1, oldContract.getPaymentCycleMonths());
         java.time.LocalDate transferDate = request.getRequestedTransferDate() == null
-                ? java.time.LocalDate.now()
-                : request.getRequestedTransferDate();
+                ? java.time.LocalDate.now().withDayOfMonth(1)
+                : request.getRequestedTransferDate().withDayOfMonth(1);
         java.time.LocalDate cycleStart = java.util.Optional.ofNullable(oldContract.getRentStartDate())
                 .or(() -> java.util.Optional.ofNullable(oldContract.getStartDate()))
                 .orElse(transferDate.withDayOfMonth(1));
@@ -571,8 +577,21 @@ public abstract class RoomTransferWebMapper {
     }
 
     private Boolean isTransferInHandoverRequired(RoomTransferRequest request) {
-        return request.getTargetTransferType() == TargetTransferType.NEW_CONTRACT
-                && request.getStatus() == TransferRequestStatus.WAITING_EXECUTION;
+        if (request.getTargetTransferType() != TargetTransferType.NEW_CONTRACT
+                || request.getStatus() != TransferRequestStatus.WAITING_EXECUTION) {
+            return false;
+        }
+        Long targetContractId = request.getNewContractId();
+        if (targetContractId == null) {
+            return true;
+        }
+        // The new-room handover is completed during activation. Do not expose
+        // a second transfer-in form after the contract activation flow saved it.
+        return !handoverRecordRepository.existsByContract_IdAndHandoverTypeAndStatusAndSignedDocumentIsNotNull(
+                targetContractId,
+                HandoverType.MOVE_IN,
+                HandoverStatus.CONFIRMED
+        );
     }
 
     private Boolean isRoomHandoverRequired(RoomTransferRequest request, Boolean sourceRoomWillBeEmptyAfterTransfer) {

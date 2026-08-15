@@ -54,6 +54,15 @@ public class SendDepositFormRequest {
     @NotNull(message = "Vui lòng nhập chu kỳ thanh toán")
     @ValidPaymentCycle(message = "Chu kỳ thanh toán chỉ nhận 1 hoặc 3 tháng")
     Integer paymentCycleMonths;
+
+    @AssertTrue(message = "Thời hạn hợp đồng phải là bội số của chu kỳ thanh toán")
+    public boolean isContractTermMonthsValid() {
+        return contractTermMonths == null
+                || paymentCycleMonths == null
+                || paymentCycleMonths <= 0
+                || contractTermMonths % paymentCycleMonths == 0;
+    }
+
     @NotNull(message = "Vui lòng nhập số người ở")
     @Min(value = 1, message = "Số người ở phải lớn hơn 0")
     @Max(value = 3, message = "Số người ở không được vượt quá giá trị tối đa")

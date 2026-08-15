@@ -412,6 +412,35 @@ public class NotificationTemplateDefaults {
                     "Khoản hoàn cọc [[${depositRefundAmount}]] VND cho hợp đồng [[${contractCode}]] phòng [[${roomCode}]] đã được chủ trọ duyệt. Sau khi nhận tiền, vui lòng xác nhận đã nhận tiền."
             ),
             definitionForChannels(
+                    "LIQUIDATION_DEPOSIT_FORFEITURE_CONFIRMATION_REQUIRED",
+                    "Xác nhận mất cọc thanh lý hợp đồng",
+                    "Gửi cho khách thuê khi khoản tiền cọc bị khấu trừ và cần xác nhận chấp nhận mất cọc.",
+                    "CHANGE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "requestId",
+                            "requestCode",
+                            "contractId",
+                            "contractCode",
+                            "roomCode",
+                            "depositForfeitureAmount",
+                            "depositForfeitureReason",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "requestId", 680965088362758L,
+                            "requestCode", "TLHD_P403_14_08_2026",
+                            "contractId", 403L,
+                            "contractCode", "HDT_P403_01_09_2025",
+                            "roomCode", "403",
+                            "depositForfeitureAmount", 2300000L,
+                            "depositForfeitureReason", "Bồi thường hư hỏng tài sản",
+                            "targetRoute", "/requests"
+                    ),
+                    "Cần xác nhận khoản mất cọc",
+                    "Khoản mất cọc [[${depositForfeitureAmount}]] VND của hợp đồng [[${contractCode}]] phòng [[${roomCode}]] đang chờ bạn xác nhận chấp nhận. Lý do: [[${depositForfeitureReason}]]."
+            ),
+            definitionForChannels(
                     "EXPENSE_APPROVAL_REQUESTED",
                     "Yêu cầu chi cần duyệt",
                     "Gửi cho chủ trọ khi quản lý tạo yêu cầu chi.",
@@ -601,6 +630,116 @@ public class NotificationTemplateDefaults {
                     leaseManagerSampleData("Cần chốt ngày giờ bàn giao."),
                     "Cần chốt bàn giao phòng [[${roomName}]]",
                     "Hợp đồng [[${contractCode}]] sắp đến hạn [[${endDate}]]. Hạn công việc [[${dueDate}]]. Lý do: [[${reason}]]."
+            ),
+            definitionForChannels(
+                    "CONTRACT_EXPIRING_SOON_REVIEW",
+                    "Hợp đồng sắp hết hạn cần theo dõi",
+                    "Gửi cho chủ trọ hoặc quản lý khi hợp đồng sắp hết hạn nhưng khách thuê chưa ghi nhận ý định.",
+                    "CONTRACT",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "contractId",
+                            "contractCode",
+                            "roomId",
+                            "roomName",
+                            "roomCode",
+                            "propertyName",
+                            "endDate",
+                            "tenantIntention",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "contractId", 123L,
+                            "contractCode", "HDT_P403_01_09_2025",
+                            "roomId", 403L,
+                            "roomName", "Phòng 403",
+                            "roomCode", "403",
+                            "propertyName", "Nhà trọ Hải Đăng 1",
+                            "endDate", "2026-09-30",
+                            "tenantIntention", null,
+                            "targetRoute", "/dashboard/contracts/123"
+                    ),
+                    "Hợp đồng phòng [[${roomCode}]] sắp hết hạn",
+                    "Hợp đồng [[${contractCode}]] của phòng [[${roomCode}]] sẽ hết hạn vào [[${endDate}]]. Khách thuê chưa ghi nhận ý định; vui lòng theo dõi và xử lý khi có phản hồi."
+            ),
+            definitionForChannels(
+                    "MAINTENANCE_REPAIR_PROPOSAL_SENT",
+                    "Có phương án sửa chữa cần quyết định",
+                    "Gửi cho khách thuê khi quản lý đã nhập người sửa và chi phí dự kiến.",
+                    "MAINTENANCE_TICKET",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "ticketId",
+                            "ticketCode",
+                            "roomCode",
+                            "roomName",
+                            "propertyName",
+                            "workerName",
+                            "repairItems",
+                            "costAmount",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "ticketId", 201L,
+                            "ticketCode", "SC_P201_14_08_2026",
+                            "roomCode", "201",
+                            "roomName", "Phòng 201",
+                            "propertyName", "Nhà trọ Hải Đăng",
+                            "workerName", "Nguyễn Văn sửa",
+                            "repairItems", "Thay khóa cửa phòng",
+                            "costAmount", 450000L,
+                            "targetRoute", "/dashboard/maintenance/201"
+                    ),
+                    "Phương án sửa chữa phòng [[${roomName}]]",
+                    "Quản lý đã gửi phương án sửa chữa phiếu [[${ticketCode}]]. Người sửa: [[${workerName}]]. Chi phí dự kiến: [[${costAmount}]] VNĐ. Vui lòng mở phiếu để quyết định."
+            ),
+            definitionForChannels(
+                    "MAINTENANCE_REPAIR_APPROVED",
+                    "Khách thuê đã đồng ý sửa chữa",
+                    "Gửi cho quản lý khi khách thuê đồng ý phương án sửa chữa.",
+                    "MAINTENANCE_TICKET",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "ticketId",
+                            "ticketCode",
+                            "roomCode",
+                            "roomName",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "ticketId", 201L,
+                            "ticketCode", "SC_P201_14_08_2026",
+                            "roomCode", "201",
+                            "roomName", "Phòng 201",
+                            "targetRoute", "/dashboard/maintenance/201"
+                    ),
+                    "Khách thuê đồng ý sửa chữa",
+                    "Khách thuê phòng [[${roomName}]] đã đồng ý phương án của phiếu [[${ticketCode}]]. Bạn có thể bắt đầu cập nhật tiến độ xử lý."
+            ),
+            definitionForChannels(
+                    "MAINTENANCE_REPAIR_REJECTED",
+                    "Khách thuê không đồng ý sửa chữa",
+                    "Gửi cho quản lý khi khách thuê từ chối phương án sửa chữa.",
+                    "MAINTENANCE_TICKET",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "ticketId",
+                            "ticketCode",
+                            "roomCode",
+                            "roomName",
+                            "reason",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "ticketId", 201L,
+                            "ticketCode", "SC_P201_14_08_2026",
+                            "roomCode", "201",
+                            "roomName", "Phòng 201",
+                            "reason", "Khách chưa đồng ý mức chi phí dự kiến.",
+                            "targetRoute", "/dashboard/maintenance/201"
+                    ),
+                    "Khách thuê không đồng ý sửa chữa",
+                    "Khách thuê phòng [[${roomName}]] không đồng ý phương án của phiếu [[${ticketCode}]]. Lý do: [[${reason}]]."
             )
     );
 

@@ -151,6 +151,36 @@ public class ChangeRequestController {
                 .build();
     }
 
+    @PostMapping("/{id}/liquidation/deposit-forfeiture/confirm")
+    @PreAuthorize("hasRole('TENANT')")
+    public ApiResponse<ChangeRequestResponse> confirmLiquidationDepositForfeiture(@PathVariable Long id) {
+        ChangeRequest request = useCase.confirmLiquidationDepositForfeiture(
+                id,
+                AuthUtils.getCurrentAuthenticationId()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .code(0)
+                .data(toResponse(request))
+                .build();
+    }
+
+    @PostMapping("/{id}/liquidation/deposit-forfeiture/dispute")
+    @PreAuthorize("hasRole('TENANT')")
+    public ApiResponse<ChangeRequestResponse> disputeLiquidationDepositForfeiture(
+            @PathVariable Long id,
+            @RequestBody(required = false) DepositRefundDisputeRequest request
+    ) {
+        ChangeRequest changeRequest = useCase.disputeLiquidationDepositForfeiture(
+                id,
+                AuthUtils.getCurrentAuthenticationId(),
+                request == null ? null : request.reason()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .code(0)
+                .data(toResponse(changeRequest))
+                .build();
+    }
+
     private void assertCanResolve(ChangeRequest request) {
         if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);

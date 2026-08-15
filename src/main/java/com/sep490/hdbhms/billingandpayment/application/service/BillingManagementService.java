@@ -405,8 +405,9 @@ public class BillingManagementService {
         setDate(row, 6, item.contractStartDate());
         setDate(row, 7, item.contractEndDate());
         setNumber(row, 8, item.paymentCycleMonths());
-        setFormula(row, 9, "D" + excelRow + "*I" + excelRow);
-        setFormula(row, 10, "C" + excelRow + "*E" + excelRow + "*I" + excelRow);
+        // Use the issued invoice lines so non-cycle months do not show rent/service again.
+        setNumber(row, 9, item.rentAmount());
+        setNumber(row, 10, item.serviceAmount());
         setNumber(row, 11, item.electricityPrevious());
         setNumber(row, 12, item.electricityCurrent());
         setFormula(row, 13, "M" + excelRow + "-L" + excelRow);
@@ -1113,6 +1114,7 @@ public class BillingManagementService {
         private LocalDate contractEndDate;
         private Integer paymentCycleMonths = 1;
         private LocalDateTime latestIssueDate;
+        private final List<String> payablePeriods = new ArrayList<>();
 
         private InvoiceExcelRowBuilder(
                 InvoiceEntity invoice,
@@ -1138,6 +1140,7 @@ public class BillingManagementService {
             electricityAmount += sumLines(invoice, InvoiceLineType.ELECTRICITY);
             discountAmount += safe(invoice.getDiscountAmount());
             totalAmount += safe(invoice.getTotalAmount());
+            addPayablePeriods(invoice, exportContract);
 
             if (latestIssueDate == null
                 || (invoice.getIssueDate() != null && invoice.getIssueDate().isAfter(latestIssueDate))) {
@@ -1177,6 +1180,25 @@ public class BillingManagementService {
             paymentCycleMonths = occupantCount <= 0 ? 0 : configuredCycle;
         }
 
+        private void addPayablePeriods(InvoiceEntity invoice, LeaseContractEntity contract) {
+            if (invoice.getBillingPeriod() == null || invoice.getBillingPeriod().isBlank()) {
+                return;
+            }
+            YearMonth start = YearMonth.parse(invoice.getBillingPeriod().trim());
+            boolean cycleCharge = invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId()).stream()
+                    .anyMatch(line -> line.getLineType() == InvoiceLineType.ROOM_RENT
+                            || line.getLineType() == InvoiceLineType.SERVICE_FEE);
+            int months = cycleCharge && contract != null && contract.getPaymentCycleMonths() != null
+                    ? Math.max(contract.getPaymentCycleMonths(), 1)
+                    : 1;
+            for (int index = 0; index < months; index++) {
+                String period = start.plusMonths(index).toString();
+                if (!payablePeriods.contains(period)) {
+                    payablePeriods.add(period);
+                }
+            }
+        }
+
         private InvoiceExcelRow toRow() {
             BigDecimal usage = electricityCurrent.subtract(electricityPrevious);
             long serviceUnits = (long) occupantCount * Math.max(paymentCycleMonths, 1);
@@ -1207,7 +1229,7 @@ public class BillingManagementService {
                     0L,
                     discountAmount,
                     totalAmount,
-                    ""
+                    payablePeriods.isEmpty() ? "" : "Ky tinh tien: " + String.join(", ", payablePeriods)
             );
         }
     }

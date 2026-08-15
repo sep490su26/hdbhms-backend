@@ -8,6 +8,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceLineEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
@@ -106,6 +107,7 @@ public class LeaseContractManagementService {
     JpaContractHandoverRecordRepository handoverRecordRepository;
     JpaInvoiceRepository invoiceRepository;
     JpaInvoiceLineRepository invoiceLineRepository;
+    IssuedInvoiceChargeService issuedInvoiceChargeService;
     JpaMeterRepository meterRepository;
     JpaMeterReadingRepository meterReadingRepository;
     RoomCommitmentChecker roomCommitmentChecker;
@@ -421,6 +423,7 @@ public class LeaseContractManagementService {
         requireNoUnpaidInvoicesForLiquidation(contract.getId());
         if (!holderReplacement) {
             requireConfirmedMoveOutHandover(contract.getId());
+            requireLiquidationDepositForfeitureConfirmed(contract, liquidation);
             requireLiquidationDepositRefundConfirmed(contract, liquidation);
         }
 
@@ -587,6 +590,10 @@ public class LeaseContractManagementService {
         liquidation.setDepositRefundAmount(depositSettlement.refundAmount());
         liquidation.setStatus(LiquidationStatus.DRAFT);
         contractLiquidationRepository.save(liquidation);
+
+        if (!holderReplacement) {
+            ensureLiquidationDepositForfeitureRequest(contract, liquidation);
+        }
 
         contract.setStatus(LeaseStatus.TERMINATION_PENDING);
         contract.setTenantIntention("MOVE_OUT");
@@ -1069,6 +1076,7 @@ public class LeaseContractManagementService {
         liquidation.setFinalInvoice(finalInvoice);
         contractLiquidationRepository.save(liquidation);
         if (!holderReplacement) {
+            ensureLiquidationDepositForfeitureRequest(contract, liquidation);
             ensureLiquidationDepositRefundRequest(contract, liquidation);
         }
 
@@ -1167,14 +1175,16 @@ public class LeaseContractManagementService {
                     .billingPeriod(billingPeriod)
                     .issueDate(now)
                     .dueDate(now.plusDays(7))
-                    .status(issue ? InvoiceStatus.ISSUED : InvoiceStatus.DRAFT)
+                    // Issue after all liquidation lines are persisted so the shared payment flow
+                    // can create the payment intent with the final invoice amount.
+                    .status(InvoiceStatus.DRAFT)
                     .subtotalAmount(subtotal)
                     .discountAmount(0L)
                     .totalAmount(totalAmount)
                     .paidAmount(0L)
                     .remainingAmount(totalAmount)
                     .createdBy(AuthUtils.getCurrentAuthenticationId() == null ? null : UserEntity.builder().id(AuthUtils.getCurrentAuthenticationId()).build())
-                    .issuedAt(issue ? now : null)
+                    .issuedAt(null)
                     .build());
         } else {
             invoice.setInvoiceType(InvoiceType.FINAL_SETTLEMENT);
@@ -1182,13 +1192,13 @@ public class LeaseContractManagementService {
             invoice.setBillingPeriod(billingPeriod);
             invoice.setIssueDate(invoice.getIssueDate() == null ? now : invoice.getIssueDate());
             invoice.setDueDate(invoice.getDueDate() == null || issue ? now.plusDays(7) : invoice.getDueDate());
-            invoice.setStatus(issue ? InvoiceStatus.ISSUED : InvoiceStatus.DRAFT);
+            invoice.setStatus(InvoiceStatus.DRAFT);
             invoice.setSubtotalAmount(subtotal);
             invoice.setDiscountAmount(0L);
             invoice.setTotalAmount(totalAmount);
             invoice.setPaidAmount(0L);
             invoice.setRemainingAmount(totalAmount);
-            invoice.setIssuedAt(issue ? now : null);
+            invoice.setIssuedAt(null);
             invoice = invoiceRepository.save(invoice);
             invoiceLineRepository.deleteAll(invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId()));
         }
@@ -1206,7 +1216,16 @@ public class LeaseContractManagementService {
                     .sourceId(liquidation.getId())
                     .build());
         }
-        return invoiceRepository.save(invoice);
+        invoice = invoiceRepository.save(invoice);
+        if (!issue) {
+            return invoice;
+        }
+        if (totalAmount <= 0) {
+            invoice.setStatus(InvoiceStatus.ISSUED);
+            invoice.setIssuedAt(now);
+            return invoiceRepository.save(invoice);
+        }
+        return issuedInvoiceChargeService.issueDraftInvoice(invoice.getId()).invoice();
     }
 
     private String buildLiquidationInvoiceCode(Long contractId, String billingPeriod, LocalDateTime now) {
@@ -1264,6 +1283,41 @@ public class LeaseContractManagementService {
                         ? null
                         : contract.getPrimaryTenantProfile().getUser().getId()
         );
+    }
+
+    private ExpenseRequestService.LiquidationDepositForfeitureLink ensureLiquidationDepositForfeitureRequest(
+            LeaseContractEntity contract,
+            ContractLiquidationEntity liquidation
+    ) {
+        RoomEntity room = contract.getRoom();
+        return expenseRequestService.ensureLiquidationDepositForfeitureRequest(
+                contract.getId(),
+                contract.getContractCode(),
+                room == null || room.getProperty() == null ? null : room.getProperty().getId(),
+                room == null ? null : room.getId(),
+                room == null ? null : room.getRoomCode(),
+                liquidation.getDepositDeductionAmount(),
+                liquidation.getDepositDeductionReason(),
+                liquidation.getLiquidationDate(),
+                AuthUtils.getCurrentAuthenticationId(),
+                contract.getPrimaryTenantProfile() == null || contract.getPrimaryTenantProfile().getUser() == null
+                        ? null
+                        : contract.getPrimaryTenantProfile().getUser().getId()
+        );
+    }
+
+    private void requireLiquidationDepositForfeitureConfirmed(
+            LeaseContractEntity contract,
+            ContractLiquidationEntity liquidation
+    ) {
+        if (safe(liquidation.getDepositDeductionAmount()) <= 0) {
+            return;
+        }
+        ExpenseRequestService.LiquidationDepositForfeitureLink forfeitureLink =
+                expenseRequestService.getLiquidationDepositForfeitureLink(contract.getId());
+        if (!"TENANT_CONFIRMED".equals(forfeitureLink.status())) {
+            throw new AppException(ApiErrorCode.LIQUIDATION_DEPOSIT_FORFEITURE_CONFIRMATION_REQUIRED);
+        }
     }
 
     private void requireLiquidationDepositRefundConfirmed(
@@ -1518,12 +1572,16 @@ public class LeaseContractManagementService {
         }
 
         RoomStatus previousRoomStatus = room.getCurrentStatus();
+        RoomCommitmentChecker.Blocker blocker =
+                roomCommitmentChecker.checkRenewBlockers(
+                        room.getId(),
+                        oldContract.getId(),
+                        oldContract.getEndDate()
+                );
+        if (blocker != RoomCommitmentChecker.Blocker.NONE) {
+            throwRenewBlocked(blocker);
+        }
         if (previousRoomStatus == RoomStatus.SOON_VACANT) {
-            RoomCommitmentChecker.Blocker blocker =
-                    roomCommitmentChecker.checkRenewBlockers(room.getId(), oldContract.getId());
-            if (blocker != RoomCommitmentChecker.Blocker.NONE) {
-                throwRenewBlocked(blocker);
-            }
             oldContract.setTenantIntention("RENEW");
             oldContract.setExpectedVacantDate(null);
             oldContract.setIntentionRecordedAt(LocalDateTime.now());
@@ -1771,11 +1829,13 @@ public class LeaseContractManagementService {
             }
         } else {
             contract.setExpectedVacantDate(null);
-            if ("RENEW".equals(normalizedIntention)
-                    && (room.getCurrentStatus() == RoomStatus.SOON_VACANT
-                    || room.getCurrentStatus() == RoomStatus.RESERVED)) {
+            if ("RENEW".equals(normalizedIntention)) {
                 RoomCommitmentChecker.Blocker blocker =
-                        roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
+                        roomCommitmentChecker.checkRenewBlockers(
+                                room.getId(),
+                                contract.getId(),
+                                contract.getEndDate()
+                        );
                 if (blocker != RoomCommitmentChecker.Blocker.NONE) {
                     throwRenewBlocked(blocker);
                 }
@@ -2028,7 +2088,7 @@ public class LeaseContractManagementService {
 //                throw new AppException(ApiErrorCode.MIGRATED_PHONG_DANG_CO_HOP_DONG_HIEU_LUC_KHAC);
 //            }
 //            RoomCommitmentChecker.Blocker blocker =
-//                    roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId());
+//                    roomCommitmentChecker.checkRenewBlockers(room.getId(), contract.getId(), contract.getEndDate());
 //            if (blocker != RoomCommitmentChecker.Blocker.NONE) {
 //                throwRenewBlocked(blocker);
 //            }
@@ -2670,12 +2730,21 @@ public class LeaseContractManagementService {
                 : contractStatus;
         LeaseStatus parsedContractStatus = parseEnum(LeaseStatus.class, effectiveContractStatus);
         RoomCommitmentChecker.Blocker renewBlocker =
-                resolveRenewBlocker(roomId, leaseContractId, renewedContractId, parsedContractStatus);
+                resolveRenewBlocker(
+                        roomId,
+                        leaseContractId,
+                        renewedContractId,
+                        parsedContractStatus,
+                        toLocalDate(rs, "end_date")
+                );
         Long liquidationFinalInvoiceId = getLongOrNull(rs, "liquidation_final_invoice_id");
         LiquidationInvoiceSummary liquidationInvoiceSummary = liquidationInvoiceSummary(liquidationFinalInvoiceId);
         ExpenseRequestService.LiquidationDepositRefundLink refundLink = depositRow
                 ? ExpenseRequestService.LiquidationDepositRefundLink.empty()
                 : expenseRequestService.getLiquidationDepositRefundLink(leaseContractId);
+        ExpenseRequestService.LiquidationDepositForfeitureLink forfeitureLink = depositRow
+                ? ExpenseRequestService.LiquidationDepositForfeitureLink.empty()
+                : expenseRequestService.getLiquidationDepositForfeitureLink(leaseContractId);
         return LeaseContractManagementResponse.builder()
                 .sourceType(rs.getString("source_type"))
                 .leaseContractId(leaseContractId)
@@ -2724,7 +2793,11 @@ public class LeaseContractManagementService {
                 .transferContractRole(sourceTransferCompleted && transferContractRole == null
                         ? "OLD_CONTRACT"
                         : transferContractRole)
-                .transferActivationLocked(isTransferActivationLocked(transferRequestId, transferStatus))
+                .transferActivationLocked(isTransferActivationLocked(
+                        transferRequestId,
+                        transferStatus,
+                        getLongOrNull(rs, "previous_contract_id")
+                ))
                 .contractStatus(parsedContractStatus)
                 .workflowStatus(resolveWorkflow(effectiveContractStatus, signedFileId != null ? signedFileId : contractFileId))
                 .depositStatus(rs.getString("deposit_status"))
@@ -2764,6 +2837,10 @@ public class LeaseContractManagementService {
                 .liquidationDepositRefundedAmount(refundLink.refundedAmount())
                 .liquidationDepositRefundedAt(refundLink.refundedAt())
                 .liquidationDepositRefundTransactionRef(refundLink.transactionRef())
+                .liquidationDepositForfeitureRequestId(forfeitureLink.liquidationChangeRequestId())
+                .liquidationDepositForfeitureStatus(forfeitureLink.status())
+                .liquidationDepositForfeitureConfirmedBy(forfeitureLink.confirmedBy())
+                .liquidationDepositForfeitureConfirmedAt(forfeitureLink.confirmedAt())
                 .accountProvisioned(userId != null)
                 .emailAvailable(rs.getString("email") != null && !rs.getString("email").isBlank())
                 .build();
@@ -2773,7 +2850,8 @@ public class LeaseContractManagementService {
             Long roomId,
             Long leaseContractId,
             Long renewedContractId,
-            LeaseStatus contractStatus
+            LeaseStatus contractStatus,
+            LocalDate contractEndDate
     ) {
         if (roomId == null
                 || leaseContractId == null
@@ -2781,7 +2859,7 @@ public class LeaseContractManagementService {
                 || !isRenewableContractStatus(contractStatus)) {
             return RoomCommitmentChecker.Blocker.NONE;
         }
-        return roomCommitmentChecker.checkRenewBlockers(roomId, leaseContractId);
+        return roomCommitmentChecker.checkRenewBlockers(roomId, leaseContractId, contractEndDate);
     }
 
     private boolean canRenewFromBlocker(
@@ -2831,8 +2909,15 @@ public class LeaseContractManagementService {
         }
     }
 
-    private boolean isTransferActivationLocked(Long transferRequestId, String transferStatus) {
+    private boolean isTransferActivationLocked(
+            Long transferRequestId,
+            String transferStatus,
+            Long previousContractId
+    ) {
         if (transferRequestId == null) {
+            return false;
+        }
+        if (previousContractId != null) {
             return false;
         }
         return !"EXECUTED".equals(transferStatus);

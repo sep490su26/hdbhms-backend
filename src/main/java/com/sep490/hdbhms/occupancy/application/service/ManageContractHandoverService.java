@@ -78,7 +78,7 @@ public class ManageContractHandoverService {
     @Transactional
     public HandoverMeterReadingsResponse createHandoverReadings(Long contractId, HandoverMeterReadingsRequest request, HandoverType handoverType) {
         if (handoverType == HandoverType.MOVE_IN) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+            throw new AppException(ApiErrorCode.CONTRACT_HANDOVER_TYPE_INVALID);
         }
         LeaseContractEntity contract = leaseContractRepository.findByIdAndDeletedAtIsNull(contractId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_NOT_FOUND));
@@ -228,7 +228,7 @@ public class ManageContractHandoverService {
         MeterReadingEntity electricReading = null;
         if (handoverType != HandoverType.MOVE_IN) {
             if (request.getElectricity() == null) {
-                throw new AppException(ApiErrorCode.INVALID_REQUEST);
+                throw new AppException(ApiErrorCode.CONTRACT_HANDOVER_ELECTRICITY_REQUIRED);
             }
             electricReading = createOrUpdateReading(contract.getRoom(), MeterType.ELECTRICITY, toReadingInput(request.getElectricity()), record.getElectricityReading());
             if (handoverType == HandoverType.TRANSFER_OUT || handoverType == HandoverType.TRANSFER_IN) {

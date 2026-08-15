@@ -23,8 +23,15 @@ public class RoomCommitmentChecker {
         FUTURE_CONTRACT_EXISTS
     }
 
-    public Blocker checkRenewBlockers(Long roomId, Long currentContractId) {
-        if (isReserved(roomId)) {
+    public Blocker checkRenewBlockers(
+            Long roomId,
+            Long currentContractId,
+            LocalDate contractEndDate
+    ) {
+        // A future tenant can only displace a renewal once the current lease is
+        // inside its final calendar month.
+        if (hasLessThanOneMonthRemaining(contractEndDate)
+                && isReserved(roomId, currentContractId)) {
             return Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT;
         }
         if (hasApprovedTransfer(roomId)) {
@@ -54,18 +61,53 @@ public class RoomCommitmentChecker {
         );
     }
 
-    private boolean isReserved(Long roomId) {
+    private boolean isReserved(Long roomId, Long currentContractId) {
         Integer count = jdbcTemplate.queryForObject("""
                         SELECT COUNT(*)
                         FROM rooms
                         WHERE room_id = ?
-                          AND current_status = 'RESERVED'
                           AND deleted_at IS NULL
+                          AND (
+                              current_status = 'RESERVED'
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM room_holds hold
+                                  WHERE hold.room_id = rooms.room_id
+                                    AND (
+                                        (
+                                            hold.status IN ('ACTIVE', 'PAYMENT_PROCESSING')
+                                            AND hold.expires_at > NOW(6)
+                                        )
+                                        OR hold.status = 'CONFIRMED'
+                                    )
+                              )
+                              OR EXISTS (
+                                  SELECT 1
+                                  FROM deposit_forms deposit
+                                  WHERE deposit.room_id = rooms.room_id
+                                    AND deposit.deposit_status IN ('PAID', 'CONFIRMED', 'EXTENDED')
+                                    AND (
+                                        deposit.depositor_person_profile_id IS NULL
+                                        OR NOT EXISTS (
+                                            SELECT 1
+                                            FROM lease_contracts current_contract
+                                            WHERE current_contract.lease_contract_id = ?
+                                              AND current_contract.primary_tenant_profile_id = deposit.depositor_person_profile_id
+                                        )
+                                    )
+                              )
+                          )
                         """,
                 Integer.class,
-                roomId
+                roomId,
+                currentContractId
         );
         return count != null && count > 0;
+    }
+
+    private boolean hasLessThanOneMonthRemaining(LocalDate contractEndDate) {
+        return contractEndDate != null
+                && contractEndDate.isBefore(LocalDate.now().plusMonths(1));
     }
 
     private boolean hasApprovedTransfer(Long roomId) {

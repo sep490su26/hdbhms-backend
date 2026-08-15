@@ -56,7 +56,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 
 @RestController
@@ -312,7 +311,6 @@ public class MeterReadingController {
 
         return batchStatus.getRooms().stream()
                 .filter(Objects::nonNull)
-                .filter(MeterReadingController::requiresImportTemplateEntry)
                 .map(room -> new ImportTemplateRow(
                         room.getRoomCode(),
                         displayRoomName(room),
@@ -325,11 +323,6 @@ public class MeterReadingController {
     private static String displayRoomName(BatchMeterReadingStatusResponse.RoomBatchStatus room) {
         String roomName = room.getRoomName() == null ? "" : room.getRoomName().trim();
         return roomName.isBlank() ? room.getRoomCode() : roomName;
-    }
-
-    private static boolean requiresImportTemplateEntry(BatchMeterReadingStatusResponse.RoomBatchStatus room) {
-        String status = room.getStatus() == null ? "" : room.getStatus().trim().toLowerCase(Locale.ROOT);
-        return !"synced".equals(status);
     }
 
     private static CellStyle createHeaderStyle(Workbook workbook) {

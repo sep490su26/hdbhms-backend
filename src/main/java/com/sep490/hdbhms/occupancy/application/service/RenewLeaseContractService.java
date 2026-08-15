@@ -76,12 +76,16 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
         }
 
         RoomStatus previousRoomStatus = room.getCurrentStatus();
+        RoomCommitmentChecker.Blocker blocker =
+                roomCommitmentChecker.checkRenewBlockers(
+                        room.getId(),
+                        oldContract.getId(),
+                        oldContract.getEndDate()
+                );
+        if (blocker != RoomCommitmentChecker.Blocker.NONE) {
+            throwRenewBlocked(blocker);
+        }
         if (previousRoomStatus == RoomStatus.SOON_VACANT) {
-            RoomCommitmentChecker.Blocker blocker =
-                    roomCommitmentChecker.checkRenewBlockers(room.getId(), oldContract.getId());
-            if (blocker != RoomCommitmentChecker.Blocker.NONE) {
-                throwRenewBlocked(blocker);
-            }
             oldContract.setTenantIntention("RENEW");
             oldContract.setExpectedVacantDate(null);
             oldContract.setIntentionRecordedAt(java.time.LocalDateTime.now());

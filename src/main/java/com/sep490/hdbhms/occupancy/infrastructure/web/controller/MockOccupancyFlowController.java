@@ -658,11 +658,7 @@ public class MockOccupancyFlowController {
     }
 
     private LocalDate nextAllowedRoomTransferDate() {
-        LocalDate date = LocalDate.now().plusDays(7);
-        while (date.getDayOfMonth() >= 1 && date.getDayOfMonth() <= 5) {
-            date = date.plusDays(1);
-        }
-        return date;
+        return LocalDate.now().plusMonths(1).withDayOfMonth(1);
     }
 
     private Long resolvePrimaryTenantUserId(Long contractId) {

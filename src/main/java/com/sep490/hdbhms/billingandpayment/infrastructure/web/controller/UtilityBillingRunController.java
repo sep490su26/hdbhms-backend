@@ -32,10 +32,11 @@ public class UtilityBillingRunController {
     public ApiResponse<List<UtilityBillingRunResponse>> listRuns(
             @RequestParam(required = false) String billingPeriod,
             @RequestParam(required = false) Long propertyId,
-            @RequestParam(required = false) String status
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String invoiceReason
     ) {
         return ApiResponse.<List<UtilityBillingRunResponse>>builder()
-                .data(utilityBillingRunService.listRuns(billingPeriod, propertyId, status))
+                .data(utilityBillingRunService.listRuns(billingPeriod, propertyId, status, invoiceReason))
                 .build();
     }
 

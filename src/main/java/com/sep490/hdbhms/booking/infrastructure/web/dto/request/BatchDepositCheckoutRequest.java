@@ -75,9 +75,21 @@ public class BatchDepositCheckoutRequest {
     @Positive(message = "Số tháng đặt cọc phải lớn hơn 0")
     Integer depositMonths;
 
+    @NotNull(message = "Vui lòng nhập thời hạn hợp đồng")
+    @Min(value = 6, message = "Thời hạn hợp đồng tối thiểu là 6 tháng.")
+    Integer contractTermMonths;
+
     @NotNull(message = "Vui lòng nhập chu kỳ thanh toán")
     @ValidPaymentCycle(message = "Chu kỳ thanh toán chỉ nhận 1 hoặc 3 tháng")
     Integer paymentCycleMonths;
+
+    @AssertTrue(message = "Thời hạn hợp đồng phải là bội số của chu kỳ thanh toán")
+    public boolean isContractTermMonthsValid() {
+        return contractTermMonths == null
+                || paymentCycleMonths == null
+                || paymentCycleMonths <= 0
+                || contractTermMonths % paymentCycleMonths == 0;
+    }
 
     @AssertTrue(message = "Ngày dự kiến vào ở chỉ được tối đa 14 ngày kể từ hôm nay")
     public boolean isExpectedMoveInDateWithinAllowedRange() {

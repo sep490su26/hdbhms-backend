@@ -32,12 +32,20 @@ public interface JpaChangeRequestRepository extends JpaRepository<ChangeRequestE
            "OR (c.requestType = com.sep490.hdbhms.changerequest.domain.value_objects.RequestType.CONTRACT_LIQUIDATION " +
            "AND EXISTS (SELECT contract.id FROM LeaseContractEntity contract " +
            "WHERE contract.id = c.targetId " +
-           "AND contract.primaryTenantProfile.user.id = :requesterId)) " +
+           "AND (contract.primaryTenantProfile.user.id = :requesterId " +
+           "OR EXISTS (SELECT provisioning.id FROM TenantAccountProvisioningEntity provisioning " +
+           "WHERE provisioning.tenantProfileId = contract.primaryTenantProfile.id " +
+           "AND provisioning.userId = :requesterId " +
+           "AND provisioning.status <> com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus.DISABLED)))) " +
            "OR (c.requestType = :roomTransferType " +
            "AND EXISTS (SELECT r.id FROM RoomTransferRequestEntity r " +
            "WHERE r.id = c.targetId " +
            "AND (r.requester.user.id = :requesterId " +
-           "OR r.oldContract.primaryTenantProfile.user.id = :requesterId)))) " +
+           "OR r.oldContract.primaryTenantProfile.user.id = :requesterId " +
+           "OR EXISTS (SELECT provisioning.id FROM TenantAccountProvisioningEntity provisioning " +
+           "WHERE provisioning.tenantProfileId = r.oldContract.primaryTenantProfile.id " +
+           "AND provisioning.userId = :requesterId " +
+           "AND provisioning.status <> com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus.DISABLED))))) " +
            "AND (:type IS NULL OR c.requestType = :type) " +
            "AND (:status IS NULL OR c.status = :status) " +
            "AND (:search IS NULL OR c.requestCode LIKE %:search% OR c.title LIKE %:search%)")
