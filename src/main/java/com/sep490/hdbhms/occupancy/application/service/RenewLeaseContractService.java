@@ -51,6 +51,7 @@ public class RenewLeaseContractService implements RenewLeaseContractUseCase {
                 .contains(oldContract.getStatus())) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, oldContract.getId());
         if (leaseContractRepository.existsByPreviousContract_IdAndDeletedAtIsNull(oldContract.getId())) {
             throw new AppException(ApiErrorCode.OPERATION_CONFLICT);
         }

@@ -153,6 +153,7 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         if (!bypassCreateValidation) {
             validateSourceContract(sourceContract, requesterProfile.getId());
+            LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, sourceContract.getId());
             if (roomTransferRequestRepository.existsOpenByOldContractId(sourceContract.getId(), OPEN_TRANSFER_STATUSES)) {
                 throw new AppException(ApiErrorCode.ROOM_TRANSFER_OPEN_REQUEST_EXISTS);
             }
@@ -190,6 +191,13 @@ public class RoomTransferService implements RoomTransferUseCase {
             validateTransferEligibilityWindow(sourceContract, transferringProfileIds, activeOccupants);
             validateDestinationAvailability(targetRoom, transferringProfileIds.size(), requestedTransferDate, null, null);
         }
+        Long nominatedHolderProfileId = resolveReplacementHolderAtCreation(
+                sourceContract,
+                transferringProfileIds,
+                activeOccupants,
+                command.nominatedHolderProfileId(),
+                bypassCreateValidation
+        );
         LocalDateTime eligibilityCheckedAt = LocalDateTime.now();
         DebtSnapshotDetails debtSnapshot = readDebtSnapshotDetails(sourceContract);
         Long debtSnapshotId = saveDebtSnapshot(sourceContract, debtSnapshot, eligibilityCheckedAt.toLocalDate());
@@ -216,6 +224,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .oldRoomId(sourceContract.getRoomId())
                 .targetRoomId(targetRoom.getId())
                 .transferringTenantProfileIds(transferringProfileIds)
+                .nominatedHolderProfileId(nominatedHolderProfileId)
                 .targetTransferType(targetTransferType)
                 .targetContractId(targetTransferType == TargetTransferType.NEW_CONTRACT
                         ? null
@@ -361,6 +370,12 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         LeaseContract oldContract = getContract(request.getOldContractId());
         List<ContractOccupant> activeOccupants = activeOccupants(oldContract.getId());
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, oldContract.getId());
+        validateTransferEligibilityWindow(
+                oldContract,
+                request.getTransferringTenantProfileIds(),
+                activeOccupants
+        );
         request.setPositiveDifferenceSettlementType(command.positiveDifferenceSettlementType());
         request.setApprovedById(command.managerId());
         request.setApprovedAt(LocalDateTime.now());
@@ -377,6 +392,12 @@ public class RoomTransferService implements RoomTransferUseCase {
     private void advanceApprovedTransfer(RoomTransferRequest request, Long actorId) {
         LeaseContract oldContract = getContract(request.getOldContractId());
         List<ContractOccupant> activeOccupants = activeOccupants(oldContract.getId());
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, oldContract.getId());
+        validateTransferEligibilityWindow(
+                oldContract,
+                request.getTransferringTenantProfileIds(),
+                activeOccupants
+        );
         Room targetRoom = roomRepository.findById(request.getTargetRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         TargetTransferType transferType = Optional.ofNullable(request.getTargetTransferType())
@@ -783,6 +804,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         List<String> blockingReasons = new ArrayList<>();
 
         try {
+            LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, sourceContract.getId());
             ensureAllOccupantsTransferWhenRoomIsBooked(sourceContract, transferringProfileIds, activeOccupants);
             validateTransferEligibilityWindow(sourceContract, transferringProfileIds, activeOccupants);
             targetRoom = validateTargetRoomForTransferType(targetRoom, transferType, request.getRequestedTransferDate());
@@ -828,6 +850,12 @@ public class RoomTransferService implements RoomTransferUseCase {
 
         LeaseContract oldContract = getContract(request.getOldContractId());
         List<ContractOccupant> oldOccupants = activeOccupants(oldContract.getId());
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, oldContract.getId());
+        validateTransferEligibilityWindow(
+                oldContract,
+                request.getTransferringTenantProfileIds(),
+                oldOccupants
+        );
         ensureAllOccupantsTransferWhenRoomIsBooked(
                 oldContract,
                 request.getTransferringTenantProfileIds(),
@@ -946,6 +974,12 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
 
         List<ContractOccupant> oldOccupants = activeOccupants(oldContract.getId());
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, oldContract.getId());
+        validateTransferEligibilityWindow(
+                oldContract,
+                request.getTransferringTenantProfileIds(),
+                oldOccupants
+        );
         ensureAllOccupantsTransferWhenRoomIsBooked(
                 oldContract,
                 request.getTransferringTenantProfileIds(),
@@ -1034,9 +1068,9 @@ public class RoomTransferService implements RoomTransferUseCase {
         long totalDays = java.time.temporal.ChronoUnit.DAYS.between(contractStart, contractEnd) + 1;
         long stayedDays = Math.max(0, java.time.temporal.ChronoUnit.DAYS.between(contractStart, today) + 1);
         long requiredDays = Math.ceilDiv(totalDays * 2, 3);
-//        if (stayedDays < requiredDays) {
-//            throw new AppException(ApiErrorCode.INVALID_REQUEST);
-//        }
+        if (stayedDays < requiredDays) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_MINIMUM_TENURE_NOT_REACHED);
+        }
     }
 
     private DebtSnapshotDetails readDebtSnapshotDetails(LeaseContract sourceContract) {
@@ -2047,6 +2081,52 @@ public class RoomTransferService implements RoomTransferUseCase {
             return List.of(requesterProfileId);
         }
         return requestedProfileIds.stream().distinct().toList();
+    }
+
+    private Long resolveReplacementHolderAtCreation(
+            LeaseContract sourceContract,
+            List<Long> transferringProfileIds,
+            List<ContractOccupant> activeOccupants,
+            Long requestedProfileId,
+            boolean allowImplicitSelection
+    ) {
+        Long currentHolderProfileId = sourceContract.getPrimaryTenantProfileId();
+        boolean currentHolderLeaves = currentHolderProfileId != null
+                && transferringProfileIds.contains(currentHolderProfileId);
+        List<Long> remainingProfileIds = activeOccupants.stream()
+                .map(ContractOccupant::getTenantProfileId)
+                .filter(Objects::nonNull)
+                .filter(profileId -> !transferringProfileIds.contains(profileId))
+                .distinct()
+                .toList();
+
+        if (!currentHolderLeaves) {
+            if (requestedProfileId != null) {
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
+            }
+            return null;
+        }
+        if (remainingProfileIds.isEmpty()) {
+            if (requestedProfileId != null) {
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
+            }
+            return null;
+        }
+        if (requestedProfileId != null) {
+            if (!remainingProfileIds.contains(requestedProfileId)) {
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
+            }
+            return requestedProfileId;
+        }
+        if (remainingProfileIds.size() == 1) {
+            return remainingProfileIds.getFirst();
+        }
+        return allowImplicitSelection ? null :
+                throwHolderNominationRequired();
+    }
+
+    private Long throwHolderNominationRequired() {
+        throw new AppException(ApiErrorCode.ROOM_TRANSFER_HOLDER_NOMINATION_REQUIRED);
     }
 
     private void ensureRequesterIsCurrentOccupant(Long requesterProfileId, List<ContractOccupant> activeOccupants) {

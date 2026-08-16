@@ -131,7 +131,8 @@ class ChangeRequestServiceTest {
                           "depositRefundStatus":"APPROVED_WAITING_TENANT_CONFIRMATION",
                           "depositRefundAmount":2000000,
                           "finalInvoicePaid":true,
-                          "liquidationChecklist":{"depositRefundConfirmed":false,"finalInvoicePaid":true}
+                          "handoverConfirmed":true,
+                          "liquidationChecklist":{"handoverConfirmed":true,"depositRefundConfirmed":false,"finalInvoicePaid":true}
                         }
                         """)
                 .targetType(TargetType.CONTRACT)
@@ -154,7 +155,7 @@ class ChangeRequestServiceTest {
         assertEquals("TENANT_CONFIRMED", payload.get("depositRefundStatus"));
         assertEquals(2000000, payload.get("depositRefundedAmount"));
         assertTrue(payload.containsKey("depositRefundedAt"));
-        assertEquals("WAITING_SIGNED_DOCUMENT", payload.get("liquidationStage"));
+        assertEquals("READY_TO_COMPLETE", payload.get("liquidationStage"));
         verify(repository).save(request);
     }
 
@@ -175,7 +176,8 @@ class ChangeRequestServiceTest {
                           "liquidationStage":"WAITING_DEPOSIT_REFUND",
                           "depositRefundStatus":"APPROVED_WAITING_TENANT_CONFIRMATION",
                           "depositRefundAmount":2000000,
-                          "finalInvoicePaid":true
+                          "finalInvoicePaid":true,
+                          "handoverConfirmed":true
                         }
                         """)
                 .targetType(TargetType.CONTRACT)
@@ -224,7 +226,8 @@ class ChangeRequestServiceTest {
                           "depositForfeitureReason":"Hu hong tai san",
                           "finalInvoicePaid":true,
                           "depositRefundStatus":"NOT_REQUIRED",
-                          "liquidationChecklist":{"depositForfeitureConfirmed":false,"finalInvoicePaid":true}
+                          "handoverConfirmed":true,
+                          "liquidationChecklist":{"handoverConfirmed":true,"depositForfeitureConfirmed":false,"finalInvoicePaid":true}
                         }
                         """)
                 .targetType(TargetType.CONTRACT)
@@ -245,7 +248,7 @@ class ChangeRequestServiceTest {
 
         Map<String, Object> payload = objectMapper.readValue(request.getRequestPayload(), Map.class);
         assertEquals("TENANT_CONFIRMED", payload.get("depositForfeitureStatus"));
-        assertEquals("WAITING_SIGNED_DOCUMENT", payload.get("liquidationStage"));
+        assertEquals("READY_TO_COMPLETE", payload.get("liquidationStage"));
         assertTrue(request.getRequestPayload().contains("\"depositForfeitureConfirmed\":true"));
         verify(repository).save(request);
     }

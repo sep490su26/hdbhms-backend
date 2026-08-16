@@ -26,7 +26,7 @@ final class RecurringSystemJobSchedule {
         EXPRESSIONS.put(TaskType.EXPIRED_ROOM_HOLD_RECONCILE, "FIXED_DELAY:PT60S");
         EXPRESSIONS.put(TaskType.VISIT_REQUEST_TRASH_CLEANUP, "DAILY:03:00");
         EXPRESSIONS.put(TaskType.ROOM_TRANSFER_TIMEOUT, "HOURLY:00");
-        EXPRESSIONS.put(TaskType.CONTRACT_LIFECYCLE_SCAN, "DAILY:00:05");
+        EXPRESSIONS.put(TaskType.CONTRACT_LIFECYCLE_SCAN, "DAILY:16:00");
     }
 
     private RecurringSystemJobSchedule() {
@@ -57,7 +57,7 @@ final class RecurringSystemJobSchedule {
             case NOTIFICATION_OUTBOX_DISPATCH, EXPIRED_ROOM_HOLD_RECONCILE -> after.plusSeconds(60);
             case VISIT_REQUEST_TRASH_CLEANUP -> nextDaily(after, LocalTime.of(3, 0));
             case ROOM_TRANSFER_TIMEOUT -> after.truncatedTo(ChronoUnit.HOURS).plusHours(1);
-            case CONTRACT_LIFECYCLE_SCAN -> nextDaily(after, LocalTime.of(0, 5));
+            case CONTRACT_LIFECYCLE_SCAN -> nextDaily(after, LocalTime.of(16, 0));
             default -> throw new AppException(ApiErrorCode.UNSUPPORTED_RECURRING_TASK);
         };
     }

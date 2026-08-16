@@ -132,6 +132,7 @@ public enum     ApiErrorCode {
     ROOM_LIQUIDATION_BLOCKED_BY_BOOKING(40442, "Room liquidation blocked by booking", "Không thể thanh lý vì phòng sắp trống đã có khách khác đặt hoặc giữ chỗ.", HttpStatus.CONFLICT),
     ROOM_CO_OCCUPANT_ADD_BLOCKED_BY_BOOKING(40443, "Co-occupant addition blocked by booking", "Không thể thêm người ở cùng vì phòng sắp trống đã có khách khác đặt hoặc giữ chỗ.", HttpStatus.CONFLICT),
     ROOM_TRANSFER_ALL_OCCUPANTS_REQUIRED(40444, "All occupants must transfer", "Phòng sắp trống đã có khách khác đặt hoặc giữ chỗ; bắt buộc chuyển toàn bộ người đang ở.", HttpStatus.CONFLICT),
+    ROOM_TRANSFER_MINIMUM_TENURE_NOT_REACHED(40445, "Room transfer minimum tenure not reached", "Chưa đủ 2/3 thời hạn hợp đồng để thực hiện chuyển phòng.", HttpStatus.CONFLICT),
     ROOM_TRANSFER_INVOICE_NOT_FOUND(40437, "Room transfer invoice not found", "Không tìm thấy hóa đơn phát sinh trong luồng chuyển phòng.", HttpStatus.NOT_FOUND),
 
     // --- OCCUPANCY: LEASE & CONTRACT (407xx) ---
@@ -155,6 +156,7 @@ public enum     ApiErrorCode {
     CONTRACT_ROOM_REQUIRED(40717, "Contract room required", "Hợp đồng phải được gắn với một phòng trước khi kích hoạt.", HttpStatus.BAD_REQUEST),
     CONTRACT_ROOM_STATUS_INVALID(40718, "Contract room status invalid", "Không thể kích hoạt hợp đồng khi phòng đang ở trạng thái %s.", HttpStatus.BAD_REQUEST),
     CONTRACT_PREVIOUS_STATUS_INVALID(40719, "Previous contract status invalid", "Không thể tái ký hợp đồng cũ từ trạng thái %s.", HttpStatus.BAD_REQUEST),
+    CONTRACT_OUTSTANDING_DEBT(40726, "Contract has outstanding debt", "Hợp đồng còn công nợ %s VNĐ. Vui lòng thanh toán hết công nợ trước khi thực hiện thao tác.", HttpStatus.CONFLICT),
     CONTRACT_ACTIVATION_READING_REQUIRED(40720, "Contract activation reading required", "Cần nhập chỉ số điện đầu kỳ trước khi kích hoạt hợp đồng.", HttpStatus.BAD_REQUEST),
     CONTRACT_ACTIVATION_READING_INVALID(40721, "Contract activation reading invalid", "Chỉ số điện đầu kỳ (%s) không được nhỏ hơn chỉ số mới nhất (%s).", HttpStatus.BAD_REQUEST),
     CONTRACT_TRANSFER_WORKFLOW_CONFLICT(40722, "Contract transfer workflow conflict", "Hợp đồng đang thuộc một luồng chuyển phòng chưa hoàn tất.", HttpStatus.CONFLICT),

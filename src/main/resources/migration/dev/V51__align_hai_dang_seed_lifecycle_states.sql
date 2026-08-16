@@ -72,7 +72,7 @@ SET current_status = CASE room_code
         ELSE current_status
     END,
     public_note = CASE room_code
-        WHEN '402' THEN 'Hợp đồng sắp hết hạn ngày 15/08/2026, đang chờ khách phản hồi ý định.'
+        WHEN '402' THEN 'Hợp đồng sắp hết hạn ngày 15/09/2026, đang chờ khách phản hồi ý định.'
         WHEN '403' THEN 'Hợp đồng sắp hết hạn ngày 30/09/2026; chưa bắt đầu thanh lý.'
         ELSE public_note
     END,

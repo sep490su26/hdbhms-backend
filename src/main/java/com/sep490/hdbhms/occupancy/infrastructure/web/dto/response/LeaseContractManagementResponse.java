@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.infrastructure.web.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.BillingInvoiceLineResponse;
+import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
@@ -63,6 +64,7 @@ public class LeaseContractManagementResponse {
     Boolean canRenew;
     String canRenewBlockedReason;
     Boolean canLiquidate;
+    String canLiquidateBlockedReason;
     Long transferRequestId;
     String transferRequestCode;
     String transferStatus;
@@ -82,6 +84,11 @@ public class LeaseContractManagementResponse {
     LocalDateTime signedFileUploadedAt;
     Long signedUploadedById;
     Long handoverSignedFileId;
+    Long moveOutHandoverRecordId;
+    HandoverStatus moveOutHandoverStatus;
+    LocalDateTime moveOutHandoverDate;
+    Long moveOutHandoverElectricityReadingId;
+    Long moveOutHandoverSignedFileId;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
 

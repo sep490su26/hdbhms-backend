@@ -300,6 +300,9 @@ public class ManageContractHandoverService {
         }
         softDeleteAssets(roomId, request.getDeletedAssetIds());
         InvoiceEntity compensationInvoice = createMoveOutCompensationInvoiceIfNeeded(contract, record, damageItems);
+        if (handoverType == HandoverType.MOVE_OUT) {
+            expenseRequestService.syncLiquidationHandoverConfirmed(contractId, record.getId());
+        }
 
         return SubmitHandoverResponse.builder()
                 .handoverRecordId(record.getId())

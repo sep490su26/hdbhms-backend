@@ -30,6 +30,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +73,7 @@ public class ContractLifecycleChangeRequestService {
     ObjectMapper objectMapper;
     ChangeRequestNotificationService changeRequestNotificationService;
     RoomCommitmentChecker roomCommitmentChecker;
+    JdbcTemplate jdbcTemplate;
 
     @Transactional
     public ChangeRequest submitLiquidationRequest(
@@ -86,6 +88,7 @@ public class ContractLifecycleChangeRequestService {
         UserPrincipal principal = currentPrincipal();
         LeaseContractEntity contract = getContract(leaseContractId);
         assertLifecycleAllowed(contract, RequestType.CONTRACT_LIQUIDATION);
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
         return createChangeRequest(
                 principal,
                 contract,
@@ -118,6 +121,7 @@ public class ContractLifecycleChangeRequestService {
         UserPrincipal principal = currentPrincipal();
         LeaseContractEntity contract = getContract(leaseContractId);
         assertLifecycleAllowed(contract, RequestType.CONTRACT_RENEWAL);
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
         return createChangeRequest(
                 principal,
                 contract,

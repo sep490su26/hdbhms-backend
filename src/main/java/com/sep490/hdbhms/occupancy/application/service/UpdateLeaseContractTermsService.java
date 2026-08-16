@@ -17,6 +17,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
     JpaRoomRepository roomRepository;
     LeaseContractWorkflowSupport workflowSupport;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
+    JdbcTemplate jdbcTemplate;
 
     @Override
     public LeaseContractManagementResponse execute(UpdateLeaseContractTermsCommand command) {
@@ -48,6 +50,10 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
         ).contains(contract.getStatus())) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
+        LeaseContractEntity debtContract = contract.getPreviousContract() == null
+                ? contract
+                : contract.getPreviousContract();
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, debtContract.getId());
 
         workflowSupport.validateContractTerms(
                 command.startDate(),

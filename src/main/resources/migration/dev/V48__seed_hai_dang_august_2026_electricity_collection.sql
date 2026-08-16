@@ -497,6 +497,7 @@ WHERE manager_task_id = @task403
 
 UPDATE hdbhms.lease_contracts
 SET status = 'EXPIRING_SOON',
+    end_date = '2026-08-30',
     tenant_intention = NULL,
     expected_vacant_date = NULL,
     intention_recorded_at = NULL,
@@ -505,7 +506,7 @@ WHERE lease_contract_id = @c403;
 
 UPDATE hdbhms.rooms
 SET current_status = 'OCCUPIED',
-    public_note = 'Seed: Room 403 contract expires on 2026-09-30; liquidation flow has not started.',
+    public_note = 'Seed: Room 403 contract expires on 2026-08-30; liquidation flow has not started.',
     internal_note = 'No liquidation intention, request, task, or settlement exists yet.',
     updated_at = '2026-08-01 08:00:00'
 WHERE room_id = @r403;
@@ -892,68 +893,68 @@ CREATE TEMPORARY TABLE tmp_hdd1_excel_occupants (
 INSERT INTO tmp_hdd1_excel_occupants
     (room_code, occupant_no, full_name, email, phone, dob, gender)
 VALUES
-    ('101', 1, 'Nguyễn Minh Quân', 'nguyen.minh.quan.101@haidang1.local', '0901101001', '1998-03-12', 'MALE'),
-    ('101', 2, 'Trần Ngọc Anh', 'tran.ngoc.anh.101@haidang1.local', '0901101002', '1999-08-21', 'FEMALE'),
-    ('102', 1, 'Lê Hoàng Nam', 'le.hoang.nam.102@haidang1.local', '0901102001', '1997-06-18', 'MALE'),
-    ('103', 1, 'Phạm Gia Huy', 'pham.gia.huy.103@haidang1.local', '0901103001', '2000-02-04', 'MALE'),
-    ('104', 1, 'Vũ Ngọc Mai', 'vu.ngoc.mai.104@haidang1.local', '0901104001', '1998-11-23', 'FEMALE'),
-    ('104', 2, 'Trần Thu Hà', 'tran.thu.ha.104@haidang1.local', '0901104002', '1997-05-16', 'FEMALE'),
-    ('105', 1, 'Phạm Quốc Bảo', 'pham.quoc.bao.105@haidang1.local', '0901105001', '1996-09-09', 'MALE'),
-    ('105', 2, 'Hoàng Mỹ Linh', 'hoang.my.linh.105@haidang1.local', '0901105002', '1999-01-27', 'FEMALE'),
-    ('106', 1, 'Đặng Thành Nam', 'dang.thanh.nam.106@haidang1.local', '0901106001', '1998-07-11', 'MALE'),
-    ('201', 1, 'Bùi Đức Long', 'bui.duc.long.201@haidang1.local', '0901201001', '1997-12-02', 'MALE'),
-    ('202', 1, 'Nguyễn Thùy Dương', 'nguyen.thuy.duong.202@haidang1.local', '0901202001', '1999-04-19', 'FEMALE'),
-    ('202', 2, 'Phan Minh Đức', 'phan.minh.duc.202@haidang1.local', '0901202002', '1998-10-30', 'MALE'),
-    ('202', 3, 'Lê Ngọc Lan', 'le.ngoc.lan.202@haidang1.local', '0901202003', '2000-06-07', 'FEMALE'),
-    ('203', 1, 'Đỗ Hoàng Anh', 'do.hoang.anh.203@haidang1.local', '0901203001', '1997-03-25', 'MALE'),
-    ('204', 1, 'Trịnh Hải Yến', 'trinh.hai.yen.204@haidang1.local', '0901204001', '1998-02-14', 'FEMALE'),
-    ('205', 1, 'Võ Minh Khang', 'vo.minh.khang.205@haidang1.local', '0901205001', '1996-08-06', 'MALE'),
-    ('206', 1, 'Nguyễn Anh Tuấn', 'nguyen.anh.tuan.206@haidang1.local', '0901206001', '1997-01-22', 'MALE'),
-    ('206', 2, 'Đặng Thu Trang', 'dang.thu.trang.206@haidang1.local', '0901206002', '1999-09-13', 'FEMALE'),
-    ('207', 1, 'Trần Đức Duy', 'tran.duc.duy.207@haidang1.local', '0901207001', '1998-12-18', 'MALE'),
-    ('207', 2, 'Nguyễn Khánh Linh', 'nguyen.khanh.linh.207@haidang1.local', '0901207002', '2000-03-29', 'FEMALE'),
-    ('208', 1, 'Phạm Hồng Sơn', 'pham.hong.son.208@haidang1.local', '0901208001', '1996-05-08', 'MALE'),
-    ('208', 2, 'Lê Quỳnh Chi', 'le.quynh.chi.208@haidang1.local', '0901208002', '1999-11-01', 'FEMALE'),
-    ('301', 1, 'Nguyễn Văn Khải', 'nguyen.van.khai.301@haidang1.local', '0901301001', '1995-07-17', 'MALE'),
-    ('301', 2, 'Bùi Thanh Hà', 'bui.thanh.ha.301@haidang1.local', '0901301002', '1998-04-05', 'FEMALE'),
-    ('301', 3, 'Trần Gia Bảo', 'tran.gia.bao.301@haidang1.local', '0901301003', '2000-01-31', 'MALE'),
-    ('302', 1, 'Đỗ Minh Tâm', 'do.minh.tam.302@haidang1.local', '0901302001', '1997-10-12', 'MALE'),
-    ('302', 2, 'Phạm Ngọc Hân', 'pham.ngoc.han.302@haidang1.local', '0901302002', '1999-06-26', 'FEMALE'),
-    ('302', 3, 'Nguyễn Đức Anh', 'nguyen.duc.anh.302@haidang1.local', '0901302003', '1998-08-15', 'MALE'),
-    ('303', 1, 'Lê Quốc Việt', 'le.quoc.viet.303@haidang1.local', '0901303001', '1996-02-20', 'MALE'),
-    ('305', 1, 'Hoàng Anh Tuấn', 'hoang.anh.tuan.305@haidang1.local', '0901305001', '1997-09-28', 'MALE'),
-    ('306', 1, 'Nguyễn Thị Mai', 'nguyen.thi.mai.306@haidang1.local', '0901306001', '1998-12-10', 'FEMALE'),
-    ('306', 2, 'Trần Văn Phúc', 'tran.van.phuc.306@haidang1.local', '0901306002', '1996-03-03', 'MALE'),
-    ('307', 1, 'Vũ Thành Đạt', 'vu.thanh.dat.307@haidang1.local', '0901307001', '1999-05-24', 'MALE'),
-    ('307', 2, 'Phạm Thùy Linh', 'pham.thuy.linh.307@haidang1.local', '0901307002', '2000-09-18', 'FEMALE'),
-    ('308', 1, 'Nguyễn Hải Đăng', 'nguyen.hai.dang.308@haidang1.local', '0901308001', '1997-11-11', 'MALE'),
-    ('401', 1, 'Nguyễn Văn Hùng', 'nguyen.van.hung.401@haidang1.local', '0901401001', '1995-04-27', 'MALE'),
-    ('401', 2, 'Trần Thị Hương', 'tran.thi.huong.401@haidang1.local', '0901401002', '1998-07-02', 'FEMALE'),
-    ('401', 3, 'Phạm Minh Châu', 'pham.minh.chau.401@haidang1.local', '0901401003', '1999-12-22', 'FEMALE'),
-     ('402', 1, 'Nguyễn Đức Thịnh', 'nguyen.duc.thinh.402@haidang1.local', '0901402001', '1996-06-15', 'MALE'),
-     ('402', 2, 'Lê Thu Trang', 'le.thu.trang.402@haidang1.local', '0901402002', '1998-10-08', 'FEMALE'),
-     ('402', 3, 'Võ Thanh Tùng', 'vo.thanh.tung.402@haidang1.local', '0901402003', '1997-01-09', 'MALE'),
-     ('403', 1, 'Nguyen Duc Thinh', 'nguyen.duc.thinh.403@haidang1.local', '0901403001', '1996-06-15', 'MALE'),
-     ('405', 1, 'Dương Minh Đức', 'duong.minh.duc.405@haidang1.local', '0901405001', '1996-05-30', 'MALE'),
-    ('406', 1, 'Nguyễn Hoài Nam', 'nguyen.hoai.nam.406@haidang1.local', '0901406001', '1999-02-17', 'MALE'),
-    ('408', 1, 'Phạm Thị Hoa', 'pham.thi.hoa.408@haidang1.local', '0901408001', '1997-08-25', 'FEMALE'),
-    ('501', 1, 'Lê Văn Phúc', 'le.van.phuc.501@haidang1.local', '0901501001', '1995-11-14', 'MALE'),
-    ('501', 2, 'Nguyễn Thị Hạnh', 'nguyen.thi.hanh.501@haidang1.local', '0901501002', '1998-03-06', 'FEMALE'),
-    ('502', 1, 'Hoàng Văn Nam', 'hoang.van.nam.502@haidang1.local', '0901502001', '1997-07-19', 'MALE'),
-    ('502', 2, 'Trần Ngọc Bích', 'tran.ngoc.bich.502@haidang1.local', '0901502002', '1999-02-11', 'FEMALE'),
-    ('503', 1, 'Bùi Minh Khoa', 'bui.minh.khoa.503@haidang1.local', '0901503001', '1996-10-21', 'MALE'),
-    ('504', 1, 'Nguyễn Thị Vân', 'nguyen.thi.van.504@haidang1.local', '0901504001', '1998-06-03', 'FEMALE'),
-    ('505', 1, 'Phan Quốc Khánh', 'phan.quoc.khanh.505@haidang1.local', '0901505001', '1997-09-07', 'MALE'),
-    ('506', 1, 'Đặng Văn Hòa', 'dang.van.hoa.506@haidang1.local', '0901506001', '1996-12-16', 'MALE'),
-    ('507', 1, 'Nguyễn Minh Khôi', 'nguyen.minh.khoi.507@haidang1.local', '0901507001', '1998-01-28', 'MALE'),
-    ('507', 2, 'Trần Diệu Linh', 'tran.dieu.linh.507@haidang1.local', '0901507002', '2000-05-12', 'FEMALE');
+    ('101', 1, 'Nguyễn Minh Quân', 'nguyen.minh.quan.101@haidang1.local', '0987346215', '1998-03-12', 'MALE'),
+    ('101', 2, 'Trần Ngọc Anh', 'tran.ngoc.anh.101@haidang1.local', '0912865074', '1999-08-21', 'FEMALE'),
+    ('102', 1, 'Lê Hoàng Nam', 'le.hoang.nam.102@haidang1.local', '0975128436', '1997-06-18', 'MALE'),
+    ('103', 1, 'Phạm Gia Huy', 'pham.gia.huy.103@haidang1.local', '0328694175', '2000-02-04', 'MALE'),
+    ('104', 1, 'Vũ Ngọc Mai', 'vu.ngoc.mai.104@haidang1.local', '0931786402', '1998-11-23', 'FEMALE'),
+    ('104', 2, 'Trần Thu Hà', 'tran.thu.ha.104@haidang1.local', '0864597231', '1997-05-16', 'FEMALE'),
+    ('105', 1, 'Phạm Quốc Bảo', 'pham.quoc.bao.105@haidang1.local', '0906831574', '1996-09-09', 'MALE'),
+    ('105', 2, 'Hoàng Mỹ Linh', 'hoang.my.linh.105@haidang1.local', '0397246815', '1999-01-27', 'FEMALE'),
+    ('106', 1, 'Đặng Thành Nam', 'dang.thanh.nam.106@haidang1.local', '0981564307', '1998-07-11', 'MALE'),
+    ('201', 1, 'Bùi Đức Long', 'bui.duc.long.201@haidang1.local', '0917382056', '1997-12-02', 'MALE'),
+    ('202', 1, 'Nguyễn Thùy Dương', 'nguyen.thuy.duong.202@haidang1.local', '0974683192', '1999-04-19', 'FEMALE'),
+    ('202', 2, 'Phan Minh Đức', 'phan.minh.duc.202@haidang1.local', '0325147896', '1998-10-30', 'MALE'),
+    ('202', 3, 'Lê Ngọc Lan', 'le.ngoc.lan.202@haidang1.local', '0936251478', '2000-06-07', 'FEMALE'),
+    ('203', 1, 'Đỗ Hoàng Anh', 'do.hoang.anh.203@haidang1.local', '0861739542', '1997-03-25', 'MALE'),
+    ('204', 1, 'Trịnh Hải Yến', 'trinh.hai.yen.204@haidang1.local', '0908452761', '1998-02-14', 'FEMALE'),
+    ('205', 1, 'Võ Minh Khang', 'vo.minh.khang.205@haidang1.local', '0396815304', '1996-08-06', 'MALE'),
+    ('206', 1, 'Nguyễn Anh Tuấn', 'nguyen.anh.tuan.206@haidang1.local', '0982374165', '1997-01-22', 'MALE'),
+    ('206', 2, 'Đặng Thu Trang', 'dang.thu.trang.206@haidang1.local', '0916048273', '1999-09-13', 'FEMALE'),
+    ('207', 1, 'Trần Đức Duy', 'tran.duc.duy.207@haidang1.local', '0978153602', '1998-12-18', 'MALE'),
+    ('207', 2, 'Nguyễn Khánh Linh', 'nguyen.khanh.linh.207@haidang1.local', '0327469185', '2000-03-29', 'FEMALE'),
+    ('208', 1, 'Phạm Hồng Sơn', 'pham.hong.son.208@haidang1.local', '0934526718', '1996-05-08', 'MALE'),
+    ('208', 2, 'Lê Quỳnh Chi', 'le.quynh.chi.208@haidang1.local', '0862389405', '1999-11-01', 'FEMALE'),
+    ('301', 1, 'Nguyễn Văn Khải', 'nguyen.van.khai.301@haidang1.local', '0918526407', '1995-07-17', 'MALE'),
+    ('301', 2, 'Bùi Thanh Hà', 'bui.thanh.ha.301@haidang1.local', '0905718642', '1998-04-05', 'FEMALE'),
+    ('301', 3, 'Trần Gia Bảo', 'tran.gia.bao.301@haidang1.local', '0398152746', '2000-01-31', 'MALE'),
+    ('302', 1, 'Đỗ Minh Tâm', 'do.minh.tam.302@haidang1.local', '0918526407', '1997-10-12', 'MALE'),
+    ('302', 2, 'Phạm Ngọc Hân', 'pham.ngoc.han.302@haidang1.local', '0986041735', '1999-06-26', 'FEMALE'),
+    ('302', 3, 'Nguyễn Đức Anh', 'nguyen.duc.anh.302@haidang1.local', '0973265841', '1998-08-15', 'MALE'),
+    ('303', 1, 'Lê Quốc Việt', 'le.quoc.viet.303@haidang1.local', '0918526407', '1996-02-20', 'MALE'),
+    ('305', 1, 'Hoàng Anh Tuấn', 'hoang.anh.tuan.305@haidang1.local', '0329584176', '1997-09-28', 'MALE'),
+    ('306', 1, 'Nguyễn Thị Mai', 'nguyen.thi.mai.306@haidang1.local', '0937061528', '1998-12-10', 'FEMALE'),
+    ('306', 2, 'Trần Văn Phúc', 'tran.van.phuc.306@haidang1.local', '0865147932', '1996-03-03', 'MALE'),
+    ('307', 1, 'Vũ Thành Đạt', 'vu.thanh.dat.307@haidang1.local', '0903186574', '1999-05-24', 'MALE'),
+    ('307', 2, 'Phạm Thùy Linh', 'pham.thuy.linh.307@haidang1.local', '0394628150', '2000-09-18', 'FEMALE'),
+    ('308', 1, 'Nguyễn Hải Đăng', 'nguyen.hai.dang.308@haidang1.local', '0987451036', '1997-11-11', 'MALE'),
+    ('401', 1, 'Nguyễn Văn Hùng', 'nguyen.van.hung.401@haidang1.local', '0912736845', '1995-04-27', 'MALE'),
+    ('401', 2, 'Trần Thị Hương', 'tran.thi.huong.401@haidang1.local', '0976382051', '1998-07-02', 'FEMALE'),
+    ('401', 3, 'Phạm Minh Châu', 'pham.minh.chau.401@haidang1.local', '0328174962', '1999-12-22', 'FEMALE'),
+     ('402', 1, 'Nguyễn Đức Thịnh', 'nguyen.duc.thinh.402@haidang1.local', '0935841607', '1996-06-15', 'MALE'),
+     ('402', 2, 'Lê Thu Trang', 'le.thu.trang.402@haidang1.local', '0869273154', '1998-10-08', 'FEMALE'),
+     ('402', 3, 'Võ Thanh Tùng', 'vo.thanh.tung.402@haidang1.local', '0907524816', '1997-01-09', 'MALE'),
+     ('403', 1, 'Nguyen Duc Thinh', 'nguyen.duc.thinh.403@haidang1.local', '0395317684', '1996-06-15', 'MALE'),
+     ('405', 1, 'Dương Minh Đức', 'duong.minh.duc.405@haidang1.local', '0981682057', '1996-05-30', 'MALE'),
+    ('406', 1, 'Nguyễn Hoài Nam', 'nguyen.hoai.nam.406@haidang1.local', '0917463925', '1999-02-17', 'MALE'),
+    ('408', 1, 'Phạm Thị Hoa', 'pham.thi.hoa.408@haidang1.local', '0974806153', '1997-08-25', 'FEMALE'),
+    ('501', 1, 'Lê Văn Phúc', 'le.van.phuc.501@haidang1.local', '0326951748', '1995-11-14', 'MALE'),
+    ('501', 2, 'Nguyễn Thị Hạnh', 'nguyen.thi.hanh.501@haidang1.local', '0932618574', '1998-03-06', 'FEMALE'),
+    ('502', 1, 'Hoàng Văn Nam', 'hoang.van.nam.502@haidang1.local', '0864739201', '1997-07-19', 'MALE'),
+    ('502', 2, 'Trần Ngọc Bích', 'tran.ngoc.bich.502@haidang1.local', '0906842157', '1999-02-11', 'FEMALE'),
+    ('503', 1, 'Bùi Minh Khoa', 'bui.minh.khoa.503@haidang1.local', '0397824605', '1996-10-21', 'MALE'),
+    ('504', 1, 'Nguyễn Thị Vân', 'nguyen.thi.van.504@haidang1.local', '0985137642', '1998-06-03', 'FEMALE'),
+    ('505', 1, 'Phan Quốc Khánh', 'phan.quoc.khanh.505@haidang1.local', '0916284057', '1997-09-07', 'MALE'),
+    ('506', 1, 'Đặng Văn Hòa', 'dang.van.hoa.506@haidang1.local', '0973518264', '1996-12-16', 'MALE'),
+    ('507', 1, 'Nguyễn Minh Khôi', 'nguyen.minh.khoi.507@haidang1.local', '0328741659', '1998-01-28', 'MALE'),
+    ('507', 2, 'Trần Diệu Linh', 'tran.dieu.linh.507@haidang1.local', '0937195206', '2000-05-12', 'FEMALE');
 
 -- One tenant account intentionally holds three rooms so account-level room
 -- filtering and contract visibility can be exercised with realistic data.
 UPDATE tmp_hdd1_excel_occupants
 SET full_name = 'Nguyễn Văn Khải',
     email = 'nguyen.van.khai@haidang1.local',
-    phone = '0901309001',
+    phone = '0918526407',
     dob = '1995-07-17',
     gender = 'MALE'
 WHERE (room_code = '301' AND occupant_no = 1)
@@ -1013,19 +1014,19 @@ VALUES
 UPDATE hdbhms.person_profiles
 SET full_name = 'Nguyễn Văn Minh',
     email = 'nguyen.van.minh@haidang1.local',
-    phone = '0901000001'
+    phone = '0946128375'
 WHERE email = 'seed.tenant@hdbhms.local';
 
 UPDATE hdbhms.person_profiles
 SET full_name = 'Đỗ Thị Lan',
     email = 'do.thi.lan@haidang1.local',
-    phone = '0901000002'
+    phone = '0385726409'
 WHERE email = 'seed.tenant405.co@hdbhms.local';
 
 UPDATE hdbhms.person_profiles
 SET full_name = 'Đặng Thị Hương',
     email = 'dang.thi.huong@haidang1.local',
-    phone = '0901000003'
+    phone = '0874319652'
 WHERE email = 'seed.tenant507.stay@hdbhms.local';
 
 -- Keep the legacy demo users linked to the realistic profiles above.
@@ -1349,8 +1350,93 @@ WHERE room.property_id = @property_id
       'WAITING_NEW_CONTRACT',
       'WAITING_CONTRACT_CONFIRMATION',
       'WAITING_SIGNING',
-      'WAITING_EXECUTION'
-  );
+       'WAITING_EXECUTION'
+   );
+
+-- Keep four rooms in the soon-vacant branch. Rooms 301-303 share the
+-- Nguyễn Văn Khải account; room 402 keeps its existing tenant scenario.
+UPDATE hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+SET contract.status = 'EXPIRING_SOON',
+    contract.end_date = CASE room.room_code
+        WHEN '301' THEN '2026-09-30'
+        WHEN '302' THEN '2026-10-15'
+        WHEN '303' THEN '2026-10-31'
+        WHEN '402' THEN '2026-09-15'
+    END,
+    contract.tenant_intention = NULL,
+    contract.expected_vacant_date = NULL,
+    contract.intention_recorded_at = NULL,
+    contract.updated_at = @now
+WHERE room.property_id = @property_id
+  AND room.room_code IN ('301', '302', '303', '402')
+  AND contract.deleted_at IS NULL
+  AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING');
+
+UPDATE hdbhms.rooms
+SET current_status = 'SOON_VACANT',
+    public_note = CASE room_code
+        WHEN '301' THEN 'Hợp đồng sắp hết hạn ngày 30/09/2026, đang chờ khách phản hồi ý định.'
+        WHEN '302' THEN 'Hợp đồng sắp hết hạn ngày 15/10/2026, đang chờ khách phản hồi ý định.'
+        WHEN '303' THEN 'Hợp đồng sắp hết hạn ngày 31/10/2026, đang chờ khách phản hồi ý định.'
+        WHEN '402' THEN 'Hợp đồng sắp hết hạn ngày 15/09/2026, đang chờ khách phản hồi ý định.'
+    END,
+    internal_note = 'Chưa ghi nhận ý định gia hạn, chuyển phòng hoặc chuyển đi.',
+    updated_at = @now
+WHERE property_id = @property_id
+  AND room_code IN ('301', '302', '303', '402')
+  AND deleted_at IS NULL;
+
+-- Rebuild expiry reminders after changing the dates so no notification keeps
+-- the previous room, recipient, or expiry date.
+DELETE delivery
+FROM hdbhms.notification_deliveries delivery
+JOIN hdbhms.notification_outbox notification
+  ON notification.notification_outbox_id = delivery.outbox_id
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = notification.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+WHERE notification.target_type = 'CONTRACT'
+  AND notification.event_type IN (
+      'CONTRACT_EXPIRING_SOON_REVIEW',
+      'LEASE_EXPIRY_REMINDER_FIRST',
+      'LEASE_EXPIRY_REMINDER_SECOND',
+      'LEASE_EXPIRY_REMINDER_FINAL'
+  )
+  AND room.property_id = @property_id
+  AND room.room_code IN ('301', '302', '303', '402')
+  AND contract.status = 'EXPIRING_SOON';
+
+DELETE notification
+FROM hdbhms.notification_outbox notification
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = notification.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+WHERE notification.target_type = 'CONTRACT'
+  AND notification.event_type IN (
+      'CONTRACT_EXPIRING_SOON_REVIEW',
+      'LEASE_EXPIRY_REMINDER_FIRST',
+      'LEASE_EXPIRY_REMINDER_SECOND',
+      'LEASE_EXPIRY_REMINDER_FINAL'
+  )
+  AND room.property_id = @property_id
+  AND room.room_code IN ('301', '302', '303', '402')
+  AND contract.status = 'EXPIRING_SOON';
+
+DELETE tracker
+FROM hdbhms.reminder_trackers tracker
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = tracker.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+WHERE tracker.reminder_key = 'LEASE_EXPIRY_INTENTION'
+  AND tracker.target_type = 'CONTRACT'
+  AND room.property_id = @property_id
+  AND room.room_code IN ('301', '302', '303', '402')
+  AND contract.status = 'EXPIRING_SOON';
 
 -- Room 404 is empty in the July-August workbook, so the old renewal branch
 -- from the lifecycle demo must not remain actionable.
@@ -2295,9 +2381,8 @@ WHERE COALESCE(request_property.property_id, request_payload_property.property_i
         AND existing_notification.channel = notification_channel.channel
   );
 
--- Room 402 has an expiring contract with no tenant intention yet. Notify the
--- owner and manager to monitor it without fabricating a manager task before
--- the tenant chooses renewal, transfer, or move-out.
+-- Notify the owner and manager about expiring contracts without fabricating a
+-- manager task before each tenant chooses renewal, transfer, or move-out.
 INSERT INTO hdbhms.notification_outbox
     (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
      retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
@@ -2347,7 +2432,7 @@ CROSS JOIN (
     UNION ALL
     SELECT 'PUSH' AS channel
 ) notification_channel
-WHERE contract.lease_contract_id = @c402
+WHERE room.room_code IN ('301', '302', '303', '402')
   AND contract.status = 'EXPIRING_SOON'
   AND contract.tenant_intention IS NULL
   AND recipient.recipient_user_id IS NOT NULL
@@ -2445,14 +2530,14 @@ UPDATE hdbhms.lease_contracts contract
 JOIN hdbhms.rooms room
   ON room.room_id = contract.room_id
 SET contract.status = 'EXPIRING_SOON',
+    contract.end_date = '2026-08-30',
     contract.tenant_intention = NULL,
     contract.expected_vacant_date = NULL,
     contract.intention_recorded_at = NULL,
     contract.updated_at = @hdd1_seed_now
 WHERE room.property_id = @hdd1_property_id
   AND contract.contract_code = 'HDT_P405_01_11_2025'
-  AND contract.status = 'ACTIVE'
-  AND contract.end_date = '2026-10-31';
+  AND contract.end_date IN ('2026-10-31', '2026-08-30');
 
 -- Rebuild the Hai Dang demo reminder timeline from the contract end date.
 -- The previous seed used a fixed 30-day interval, which skipped calendar milestones.
@@ -2593,6 +2678,63 @@ WHERE notification.event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
   AND contract.status = 'EXPIRING_SOON'
   AND contract.tenant_intention IS NULL
   AND contract.end_date >= DATE(@hdd1_seed_now);
+
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'LEASE_EXPIRY_REMINDER_FIRST',
+    'CONTRACT',
+    contract.lease_contract_id,
+    tenant_user.user_id,
+    'PUSH',
+    CONCAT('Hợp đồng ', contract.contract_code, ' sắp hết hạn'),
+    CONCAT(
+        'Phòng ', room.room_code,
+        ' tại ', property.name,
+        ' sẽ hết hạn vào ', contract.end_date,
+        '. Bạn muốn gia hạn, chuyển phòng hay chuyển đi?'
+    ),
+    JSON_OBJECT(
+        'contractId', contract.lease_contract_id,
+        'contractCode', contract.contract_code,
+        'roomId', room.room_id,
+        'roomName', room.name,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'endDate', contract.end_date,
+        'daysRemaining', DATEDIFF(contract.end_date, DATE_SUB(contract.end_date, INTERVAL 3 MONTH)),
+        'stage', 'FIRST',
+        'targetRoute', '/contract'
+    ),
+    'SENT', 0, 3,
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00'),
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00'),
+    CONCAT(DATE_SUB(contract.end_date, INTERVAL 3 MONTH), ' 09:00:00'),
+    FALSE
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = room.property_id
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = contract.primary_tenant_profile_id
+JOIN hdbhms.users tenant_user
+  ON tenant_user.user_id = profile.user_id
+WHERE room.property_id = @hdd1_property_id
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND contract.end_date >= DATE(@hdd1_seed_now)
+  AND DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_seed_now)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = 'LEASE_EXPIRY_REMINDER_FIRST'
+        AND existing_notification.target_type = 'CONTRACT'
+        AND existing_notification.target_id = contract.lease_contract_id
+        AND existing_notification.recipient_user_id = tenant_user.user_id
+        AND existing_notification.channel = 'PUSH'
+  );
 
 INSERT INTO hdbhms.notification_outbox
     (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,

@@ -45,6 +45,8 @@ public class LeaseContractDetailsResponse {
     LocalDateTime occupantIntentionRecordedAt;
     Boolean canRenew;
     String canRenewBlockedReason;
+    Boolean canLiquidate;
+    String canLiquidateBlockedReason;
     LocalDateTime signedAt;
     LocalDateTime createdAt;
 }

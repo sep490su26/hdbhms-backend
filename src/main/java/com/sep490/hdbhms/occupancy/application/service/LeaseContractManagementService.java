@@ -226,8 +226,48 @@ public class LeaseContractManagementService {
                           AND handover.handover_type = 'MOVE_IN'
                         ORDER BY handover.contract_handover_record_id DESC
                         LIMIT 1
-                    ) AS handover_signed_file_id,
-                    lc.created_at,
+                     ) AS handover_signed_file_id,
+                     (
+                         SELECT handover.contract_handover_record_id
+                         FROM contract_handover_records handover
+                         WHERE handover.contract_id = lc.lease_contract_id
+                           AND handover.handover_type = 'MOVE_OUT'
+                         ORDER BY handover.contract_handover_record_id DESC
+                         LIMIT 1
+                     ) AS move_out_handover_record_id,
+                     (
+                         SELECT handover.status
+                         FROM contract_handover_records handover
+                         WHERE handover.contract_id = lc.lease_contract_id
+                           AND handover.handover_type = 'MOVE_OUT'
+                         ORDER BY handover.contract_handover_record_id DESC
+                         LIMIT 1
+                     ) AS move_out_handover_status,
+                     (
+                         SELECT handover.handover_date
+                         FROM contract_handover_records handover
+                         WHERE handover.contract_id = lc.lease_contract_id
+                           AND handover.handover_type = 'MOVE_OUT'
+                         ORDER BY handover.contract_handover_record_id DESC
+                         LIMIT 1
+                     ) AS move_out_handover_date,
+                     (
+                         SELECT handover.electricity_reading_id
+                         FROM contract_handover_records handover
+                         WHERE handover.contract_id = lc.lease_contract_id
+                           AND handover.handover_type = 'MOVE_OUT'
+                         ORDER BY handover.contract_handover_record_id DESC
+                         LIMIT 1
+                     ) AS move_out_handover_electricity_reading_id,
+                     (
+                         SELECT handover.signed_document_id
+                         FROM contract_handover_records handover
+                         WHERE handover.contract_id = lc.lease_contract_id
+                           AND handover.handover_type = 'MOVE_OUT'
+                         ORDER BY handover.contract_handover_record_id DESC
+                         LIMIT 1
+                     ) AS move_out_handover_signed_file_id,
+                     lc.created_at,
                     u.user_id AS user_id,
                     u.last_login_at
                 FROM lease_contracts lc
@@ -307,6 +347,11 @@ public class LeaseContractManagementService {
                     NULL AS signed_uploaded_by,
                     NULL AS signed_at,
                     NULL AS handover_signed_file_id,
+                    NULL AS move_out_handover_record_id,
+                    NULL AS move_out_handover_status,
+                    NULL AS move_out_handover_date,
+                    NULL AS move_out_handover_electricity_reading_id,
+                    NULL AS move_out_handover_signed_file_id,
                     df.created_at,
                     u.user_id AS user_id,
                     u.last_login_at
@@ -389,6 +434,7 @@ public class LeaseContractManagementService {
             throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_CHUA_GAN_PHONG);
         }
         ensureLiquidationAllowedForRoomCommitment(contract);
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
         String finalReason = reason == null || reason.isBlank()
@@ -553,6 +599,7 @@ public class LeaseContractManagementService {
             throw new AppException(ApiErrorCode.MIGRATED_HOP_ONG_CHUA_GAN_PHONG);
         }
         ensureLiquidationAllowedForRoomCommitment(contract);
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
         String finalReason = reason == null || reason.isBlank()
@@ -595,6 +642,8 @@ public class LeaseContractManagementService {
 
         if (!holderReplacement) {
             ensureLiquidationDepositForfeitureRequest(contract, liquidation);
+            // Create the refund workflow immediately after the liquidation request is approved.
+            ensureLiquidationDepositRefundRequest(contract, liquidation);
         }
 
         contract.setStatus(LeaseStatus.TERMINATION_PENDING);
@@ -1037,6 +1086,7 @@ public class LeaseContractManagementService {
                 && contract.getStatus() != LeaseStatus.EXPIRED) {
             throw new AppException(ApiErrorCode.MIGRATED_HA_P_A_A_NG_CH_A_THA_LA_P_HA_S_THANH_LA);
         }
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
 
         Long depositAmount = resolveLiquidationDepositAmount(contract);
         ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contract.getId())
@@ -1058,6 +1108,9 @@ public class LeaseContractManagementService {
                 : "Khách không tiếp tục thuê phòng."
                 : reason.trim();
         boolean holderReplacement = isHolderReplacementLiquidation(contract.getId());
+        if (!holderReplacement) {
+            requireConfirmedMoveOutHandover(contract.getId());
+        }
         applyLiquidationDraftValues(
                 liquidation,
                 contract,
@@ -1080,7 +1133,6 @@ public class LeaseContractManagementService {
         contractLiquidationRepository.save(liquidation);
         if (!holderReplacement) {
             ensureLiquidationDepositForfeitureRequest(contract, liquidation);
-            ensureLiquidationDepositRefundRequest(contract, liquidation);
         }
 
         contract.setStatus(LeaseStatus.TERMINATION_PENDING);
@@ -1253,19 +1305,7 @@ public class LeaseContractManagementService {
     }
 
     private void requireNoUnpaidInvoicesForLiquidation(Long contractId) {
-        Integer count = jdbcTemplate.queryForObject("""
-                        SELECT COUNT(*)
-                        FROM invoices
-                        WHERE lease_contract_id = ?
-                          AND status NOT IN ('PAID', 'VOIDED')
-                          AND remaining_amount > 0
-                        """,
-                Integer.class,
-                contractId
-        );
-        if (count != null && count > 0) {
-            throw new AppException(ApiErrorCode.MIGRATED_KHACH_THUE_CAN_THANH_TOAN_HET_HOA_DON_CON_NO_TRUOC_KHI_H_4B2B98);
-        }
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contractId);
     }
 
     private ExpenseRequestService.LiquidationDepositRefundLink ensureLiquidationDepositRefundRequest(
@@ -2318,6 +2358,46 @@ public class LeaseContractManagementService {
                                 ORDER BY handover.contract_handover_record_id DESC
                                 LIMIT 1
                             ) AS handover_signed_file_id,
+                            (
+                                SELECT handover.contract_handover_record_id
+                                FROM contract_handover_records handover
+                                WHERE handover.contract_id = lc.lease_contract_id
+                                  AND handover.handover_type = 'MOVE_OUT'
+                                ORDER BY handover.contract_handover_record_id DESC
+                                LIMIT 1
+                            ) AS move_out_handover_record_id,
+                            (
+                                SELECT handover.status
+                                FROM contract_handover_records handover
+                                WHERE handover.contract_id = lc.lease_contract_id
+                                  AND handover.handover_type = 'MOVE_OUT'
+                                ORDER BY handover.contract_handover_record_id DESC
+                                LIMIT 1
+                            ) AS move_out_handover_status,
+                            (
+                                SELECT handover.handover_date
+                                FROM contract_handover_records handover
+                                WHERE handover.contract_id = lc.lease_contract_id
+                                  AND handover.handover_type = 'MOVE_OUT'
+                                ORDER BY handover.contract_handover_record_id DESC
+                                LIMIT 1
+                            ) AS move_out_handover_date,
+                            (
+                                SELECT handover.electricity_reading_id
+                                FROM contract_handover_records handover
+                                WHERE handover.contract_id = lc.lease_contract_id
+                                  AND handover.handover_type = 'MOVE_OUT'
+                                ORDER BY handover.contract_handover_record_id DESC
+                                LIMIT 1
+                            ) AS move_out_handover_electricity_reading_id,
+                            (
+                                SELECT handover.signed_document_id
+                                FROM contract_handover_records handover
+                                WHERE handover.contract_id = lc.lease_contract_id
+                                  AND handover.handover_type = 'MOVE_OUT'
+                                ORDER BY handover.contract_handover_record_id DESC
+                                LIMIT 1
+                            ) AS move_out_handover_signed_file_id,
                             lc.created_at,
                             u.user_id AS user_id,
                             u.last_login_at
@@ -2758,6 +2838,10 @@ public class LeaseContractManagementService {
                         parsedContractStatus,
                         toLocalDate(rs, "end_date")
                 );
+        long outstandingDebt = leaseContractId == null
+                ? 0L
+                : LeaseContractDebtPolicy.outstandingAmount(jdbcTemplate, leaseContractId);
+        String debtBlockedReason = LeaseContractDebtPolicy.blockingReason(outstandingDebt);
         boolean liquidationBlockedByBooking = leaseContractId != null
                 && roomCommitmentChecker.isSoonVacantBookingCase(
                 roomId,
@@ -2808,13 +2892,22 @@ public class LeaseContractManagementService {
                 .renewedContractCode(rs.getString("renewed_contract_code"))
                 .tenantIntention(rs.getString("tenant_intention"))
                 .expectedVacantDate(toLocalDate(rs, "expected_vacant_date"))
-                .canRenew(canRenewFromBlocker(leaseContractId, renewedContractId, parsedContractStatus, renewBlocker))
-                .canRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
+                .canRenew(canRenewFromBlocker(leaseContractId, renewedContractId, parsedContractStatus, renewBlocker)
+                        && outstandingDebt == 0)
+                .canRenewBlockedReason(debtBlockedReason != null
+                        ? debtBlockedReason
+                        : renewBlocker == RoomCommitmentChecker.Blocker.NONE
                         ? null
                         : renewBlockedReason(renewBlocker))
                 .canLiquidate(leaseContractId != null
                         && isLiquidatableContractStatus(parsedContractStatus)
-                        && !liquidationBlockedByBooking)
+                        && !liquidationBlockedByBooking
+                        && outstandingDebt == 0)
+                .canLiquidateBlockedReason(debtBlockedReason != null
+                        ? debtBlockedReason
+                        : liquidationBlockedByBooking
+                        ? ApiErrorCode.ROOM_LIQUIDATION_BLOCKED_BY_BOOKING.getDetails()
+                        : null)
                 .transferRequestId(transferRequestId)
                 .transferRequestCode(rs.getString("transfer_request_code"))
                 .transferStatus(transferStatus)
@@ -2838,6 +2931,11 @@ public class LeaseContractManagementService {
                 .signedFileUploadedAt(toLocalDateTime(rs, "signed_file_uploaded_at"))
                 .signedUploadedById(getLongOrNull(rs, "signed_uploaded_by"))
                 .handoverSignedFileId(getLongOrNull(rs, "handover_signed_file_id"))
+                .moveOutHandoverRecordId(getLongOrNull(rs, "move_out_handover_record_id"))
+                .moveOutHandoverStatus(parseEnum(HandoverStatus.class, rs.getString("move_out_handover_status")))
+                .moveOutHandoverDate(toLocalDateTime(rs, "move_out_handover_date"))
+                .moveOutHandoverElectricityReadingId(getLongOrNull(rs, "move_out_handover_electricity_reading_id"))
+                .moveOutHandoverSignedFileId(getLongOrNull(rs, "move_out_handover_signed_file_id"))
                 .signedAt(toLocalDateTime(rs, "signed_at"))
                 .createdAt(toLocalDateTime(rs, "created_at"))
                 .liquidationId(getLongOrNull(rs, "liquidation_id"))

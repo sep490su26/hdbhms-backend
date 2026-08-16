@@ -27,6 +27,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.TransferRequestStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.ContractHandoverDetailsResponse;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.SubmitHandoverResponse;
 import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
+import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +41,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Optional;
 import java.util.Set;
 import java.lang.reflect.Method;
+import java.time.LocalDate;
+import java.util.List;
+import java.lang.reflect.InvocationTargetException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -207,6 +211,31 @@ class RoomTransferServiceSigningTest {
         assertEquals(HandoverType.MOVE_IN, result.getHandoverType());
         assertEquals(HandoverStatus.CONFIRMED, result.getStatus());
         verify(handoverService, never()).getHandoverDetails(any(), any());
+    }
+
+    @Test
+    void transferEligibilityRequiresTwoThirdsOfContractTerm() throws Exception {
+        RoomTransferService service = newService(
+                mock(LeaseContractRepository.class),
+                mock(RoomRepository.class),
+                mock(RoomTransferRepository.class)
+        );
+        LeaseContract contract = LeaseContract.builder()
+                .startDate(LocalDate.now().minusMonths(3))
+                .endDate(LocalDate.now().plusMonths(9))
+                .build();
+        Method validator = RoomTransferService.class.getDeclaredMethod(
+                "validateTransferEligibilityWindow", LeaseContract.class, List.class, List.class
+        );
+        validator.setAccessible(true);
+
+        InvocationTargetException thrown = assertThrows(
+                InvocationTargetException.class,
+                () -> validator.invoke(service, contract, List.of(), List.of())
+        );
+
+        assertEquals(ApiErrorCode.ROOM_TRANSFER_MINIMUM_TENURE_NOT_REACHED,
+                ((AppException) thrown.getCause()).getApiErrorCode());
     }
 
     private static RoomTransferRequest transferRequest() {

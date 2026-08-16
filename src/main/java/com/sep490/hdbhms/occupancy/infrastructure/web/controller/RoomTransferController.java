@@ -52,6 +52,7 @@ public class RoomTransferController {
                 command.targetRoomId(),
                 command.requestedTransferDate(),
                 command.transferredTenantProfileIds(),
+                command.nominatedHolderProfileId(),
                 command.reason()
         );
 

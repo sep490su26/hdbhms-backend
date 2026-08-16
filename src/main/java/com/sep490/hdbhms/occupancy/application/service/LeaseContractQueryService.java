@@ -194,8 +194,48 @@ public class LeaseContractQueryService {
                                 WHEN lc.previous_contract_id IS NOT NULL THEN FALSE
                                 WHEN tr.status = 'EXECUTED' THEN FALSE
                                 ELSE TRUE
-                            END AS transfer_activation_locked,
-                            (
+        END AS transfer_activation_locked,
+        (
+            SELECT handover.contract_handover_record_id
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_record_id,
+        (
+            SELECT handover.status
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_status,
+        (
+            SELECT handover.handover_date
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_date,
+        (
+            SELECT handover.electricity_reading_id
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_electricity_reading_id,
+        (
+            SELECT handover.signed_document_id
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_signed_file_id,
+        (
                                 SELECT renewed.lease_contract_id
                                 FROM lease_contracts renewed
                                 WHERE renewed.previous_contract_id = lc.lease_contract_id
@@ -464,8 +504,48 @@ public class LeaseContractQueryService {
                                 WHEN lc.previous_contract_id IS NOT NULL THEN FALSE
                                 WHEN tr.status = 'EXECUTED' THEN FALSE
                                 ELSE TRUE
-                            END AS transfer_activation_locked,
-                            (
+        END AS transfer_activation_locked,
+        (
+            SELECT handover.contract_handover_record_id
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_record_id,
+        (
+            SELECT handover.status
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_status,
+        (
+            SELECT handover.handover_date
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_date,
+        (
+            SELECT handover.electricity_reading_id
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_electricity_reading_id,
+        (
+            SELECT handover.signed_document_id
+            FROM contract_handover_records handover
+            WHERE handover.contract_id = lc.lease_contract_id
+              AND handover.handover_type = 'MOVE_OUT'
+            ORDER BY handover.contract_handover_record_id DESC
+            LIMIT 1
+        ) AS move_out_handover_signed_file_id,
+        (
                                 SELECT renewed.lease_contract_id
                                 FROM lease_contracts renewed
                                 WHERE renewed.previous_contract_id = lc.lease_contract_id
@@ -736,6 +816,7 @@ public class LeaseContractQueryService {
         Long previousContractId = getLongOrNull(rs, "previous_contract_id");
         Long renewedContractId = getLongOrNull(rs, "renewed_contract_id");
         LocalDate endDate = toLocalDate(rs, "end_date");
+        long outstandingDebt = LeaseContractDebtPolicy.outstandingAmount(jdbcTemplate, rs.getLong("contract_id"));
         RoomCommitmentChecker.Blocker renewBlocker = resolveRenewBlocker(
                 rs.getLong("room_id"),
                 rs.getLong("contract_id"),
@@ -745,7 +826,8 @@ public class LeaseContractQueryService {
         );
         boolean canRenew = renewedContractId == null
                 && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED).contains(status)
-                && renewBlocker == RoomCommitmentChecker.Blocker.NONE;
+                && renewBlocker == RoomCommitmentChecker.Blocker.NONE
+                && outstandingDebt == 0;
         boolean liquidationBlockedByBooking = roomCommitmentChecker.isSoonVacantBookingCase(
                 rs.getLong("room_id"),
                 rs.getLong("contract_id"),
@@ -756,7 +838,8 @@ public class LeaseContractQueryService {
                 LeaseStatus.EXPIRING_SOON,
                 LeaseStatus.EXPIRED,
                 LeaseStatus.TERMINATION_PENDING
-        ).contains(status) && !liquidationBlockedByBooking;
+        ).contains(status) && !liquidationBlockedByBooking && outstandingDebt == 0;
+        String debtBlockedReason = LeaseContractDebtPolicy.blockingReason(outstandingDebt);
         boolean addCoOccupantAllowedStatus = List.of(
                 LeaseStatus.ACTIVE,
                 LeaseStatus.EXPIRING_SOON
@@ -799,12 +882,21 @@ public class LeaseContractQueryService {
                 toLocalDate(rs, "transfer_requested_date"),
                 rs.getString("transfer_contract_role"),
                 rs.getBoolean("transfer_activation_locked"),
+                getLongOrNull(rs, "move_out_handover_record_id"),
+                rs.getString("move_out_handover_status"),
+                toLocalDateTime(rs, "move_out_handover_date"),
+                getLongOrNull(rs, "move_out_handover_electricity_reading_id"),
+                getLongOrNull(rs, "move_out_handover_signed_file_id"),
                 canRenew,
-                renewBlocker == RoomCommitmentChecker.Blocker.NONE
+                debtBlockedReason != null
+                        ? debtBlockedReason
+                        : renewBlocker == RoomCommitmentChecker.Blocker.NONE
                         ? null
                         : renewBlockedReason(renewBlocker),
                 canLiquidate,
-                liquidationBlockedByBooking
+                debtBlockedReason != null
+                        ? debtBlockedReason
+                        : liquidationBlockedByBooking
                         ? "Phòng sắp trống đã có khách khác đặt hoặc giữ chỗ; không thể thanh lý."
                         : null,
                 addCoOccupantAllowedStatus && !liquidationBlockedByBooking,
@@ -868,6 +960,11 @@ public class LeaseContractQueryService {
                 details.transferRequestedDate(),
                 details.transferContractRole(),
                 details.transferActivationLocked(),
+                details.moveOutHandoverRecordId(),
+                details.moveOutHandoverStatus(),
+                details.moveOutHandoverDate(),
+                details.moveOutHandoverElectricityReadingId(),
+                details.moveOutHandoverSignedFileId(),
                 details.canRenew(),
                 details.canRenewBlockedReason(),
                 details.canLiquidate(),

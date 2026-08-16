@@ -65,6 +65,7 @@ public abstract class RoomTransferWebMapper {
                 request.targetRoomId(),
                 request.expectedTransferDate(),
                 request.transferredTenantProfileIds(),
+                request.nominatedHolderProfileId(),
                 request.reason()
         );
     }

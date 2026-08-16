@@ -37,6 +37,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseLiquid
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UploadSignedLeaseContractFileUseCase;
 import com.sep490.hdbhms.occupancy.application.service.ContractLifecycleChangeRequestService;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractDocumentService;
+import com.sep490.hdbhms.occupancy.application.service.LeaseContractDebtPolicy;
 import com.sep490.hdbhms.occupancy.application.service.LeaseContractQueryService;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
@@ -565,10 +566,34 @@ public class LeaseContractController {
                         leaseContractId,
                         response.getEndDate()
                 );
-        response.setCanRenew(canRecordIntention && renewBlocker == RoomCommitmentChecker.Blocker.NONE);
-        response.setCanRenewBlockedReason(renewBlocker == RoomCommitmentChecker.Blocker.NONE
+        long outstandingDebt = LeaseContractDebtPolicy.outstandingAmount(jdbcTemplate, leaseContractId);
+        String debtBlockedReason = LeaseContractDebtPolicy.blockingReason(outstandingDebt);
+        response.setCanRenew(canRecordIntention
+                && renewBlocker == RoomCommitmentChecker.Blocker.NONE
+                && outstandingDebt == 0);
+        response.setCanRenewBlockedReason(debtBlockedReason != null
+                ? debtBlockedReason
+                : renewBlocker == RoomCommitmentChecker.Blocker.NONE
                 ? null
                 : renewBlockedMessage(renewBlocker));
+        boolean liquidationBlockedByBooking = response.getRoom() != null
+                && response.getRoom().getId() != null
+                && roomCommitmentChecker.isSoonVacantBookingCase(
+                response.getRoom().getId(),
+                leaseContractId,
+                response.getEndDate()
+        );
+        response.setCanLiquidate(List.of(
+                LeaseStatus.ACTIVE,
+                LeaseStatus.EXPIRING_SOON,
+                LeaseStatus.EXPIRED,
+                LeaseStatus.TERMINATION_PENDING
+        ).contains(response.getStatus()) && !liquidationBlockedByBooking && outstandingDebt == 0);
+        response.setCanLiquidateBlockedReason(debtBlockedReason != null
+                ? debtBlockedReason
+                : liquidationBlockedByBooking
+                ? ApiErrorCode.ROOM_LIQUIDATION_BLOCKED_BY_BOOKING.getDetails()
+                : null);
     }
 
     private List<LeaseContractQueryDetailsResponse.OccupantInfo> findTenantContractOccupants(Long leaseContractId) {

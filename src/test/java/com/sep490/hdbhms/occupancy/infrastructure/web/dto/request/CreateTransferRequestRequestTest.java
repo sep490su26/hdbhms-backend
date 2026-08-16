@@ -16,6 +16,7 @@ class CreateTransferRequestRequestTest {
                 LocalDate.of(2026, 8, 19),
                 LocalDate.of(2026, 8, 22),
                 null,
+                null,
                 null
         );
 
@@ -28,6 +29,7 @@ class CreateTransferRequestRequestTest {
         var request = new CreateTransferRequestRequest(
                 10L,
                 20L,
+                null,
                 null,
                 null,
                 null,

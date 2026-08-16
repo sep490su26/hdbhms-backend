@@ -86,12 +86,8 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         payload.put("depositRefundConfirmedAt", confirmedAt.toString());
         payload.put("depositRefundedAmount", payload.get("depositRefundAmount"));
         payload.put("depositRefundedAt", confirmedAt.toString());
-        if (isFinalInvoicePaid(payload) && "WAITING_DEPOSIT_REFUND".equals(payload.get("liquidationStage"))) {
-            payload.put("liquidationStage", "WAITING_SIGNED_DOCUMENT");
-        } else if (!isFinalInvoicePaid(payload)) {
-            payload.put("liquidationStage", "WAITING_PAYMENT");
-        }
         markChecklist(payload, "depositRefundConfirmed", true);
+        payload.put("liquidationStage", liquidationStageAfterTenantSettlement(payload));
         request.updateRequestPayload(writePayload(payload));
         return repository.save(request);
     }
@@ -180,7 +176,6 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         checklist.put("finalInvoicePaid", false);
         checklist.put("depositRefundConfirmed", holderReplacement);
         checklist.put("depositForfeitureConfirmed", holderReplacement);
-        checklist.put("signedDocumentUploaded", false);
         if (holderReplacement) {
             checklist.put("replacementContractSigned", false);
         }
@@ -247,7 +242,13 @@ public class ChangeRequestService implements ChangeRequestUseCase {
     }
 
     private String liquidationStageAfterTenantSettlement(Map<String, Object> payload) {
-        if (!"TENANT_CONFIRMED".equals(payload.get("depositForfeitureStatus"))) {
+        if (!isLiquidationHandoverConfirmed(payload)) {
+            return "WAITING_HANDOVER";
+        }
+        Object forfeitureStatus = payload.get("depositForfeitureStatus");
+        if (forfeitureStatus != null
+                && !"NOT_REQUIRED".equals(forfeitureStatus)
+                && !"TENANT_CONFIRMED".equals(forfeitureStatus)) {
             return "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION";
         }
         if (!isFinalInvoicePaid(payload)) {
@@ -259,7 +260,20 @@ public class ChangeRequestService implements ChangeRequestUseCase {
                 && !"NOT_REQUIRED".equals(refundStatus)) {
             return "WAITING_DEPOSIT_REFUND";
         }
-        return "WAITING_SIGNED_DOCUMENT";
+        return "READY_TO_COMPLETE";
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isLiquidationHandoverConfirmed(Map<String, Object> payload) {
+        if (Boolean.TRUE.equals(payload.get("handoverConfirmed"))) {
+            return true;
+        }
+        Object rawChecklist = payload.get("liquidationChecklist");
+        if (rawChecklist instanceof Map<?, ?> raw) {
+            Object value = ((Map<String, Object>) raw).get("handoverConfirmed");
+            return Boolean.TRUE.equals(value);
+        }
+        return false;
     }
 
     private Long toLong(Object value) {

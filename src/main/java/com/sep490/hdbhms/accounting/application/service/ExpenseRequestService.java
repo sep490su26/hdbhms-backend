@@ -762,6 +762,28 @@ public class ExpenseRequestService {
         }
     }
 
+    /**
+     * Keeps the liquidation request checklist in sync with the canonical MOVE_OUT handover record.
+     */
+    @Transactional
+    public void syncLiquidationHandoverConfirmed(Long contractId, Long handoverRecordId) {
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        if (sourceRequest == null || sourceRequest.getStatus() == RequestStatus.COMPLETED) {
+            return;
+        }
+        Map<String, Object> payload = payloadMap(sourceRequest.getRequestPayload());
+        payload.put("handoverConfirmed", true);
+        if (handoverRecordId != null) {
+            payload.put("moveOutHandoverRecordId", handoverRecordId);
+        }
+        markChecklist(payload, "handoverConfirmed", true);
+        boolean finalInvoicePaid = syncFinalInvoicePaid(payload);
+        String refundStatus = Objects.toString(payload.get("depositRefundStatus"), "");
+        payload.put("liquidationStage", liquidationStageAfterSettlementSync(payload, finalInvoicePaid, refundStatus));
+        sourceRequest.setRequestPayload(toJson(payload));
+        changeRequestRepository.save(sourceRequest);
+    }
+
     private void syncLinkedLiquidationRefund(
             OperatingExpenseEntity expense,
             ChangeRequestEntity expenseChangeRequest
@@ -927,6 +949,9 @@ public class ExpenseRequestService {
             boolean finalInvoicePaid,
             String refundStatus
     ) {
+        if (!isLiquidationHandoverConfirmed(payload)) {
+            return "WAITING_HANDOVER";
+        }
         String forfeitureStatus = Objects.toString(payload.get("depositForfeitureStatus"), "NOT_REQUIRED");
         if ("PENDING_TENANT_CONFIRMATION".equals(forfeitureStatus)
                 || "DISPUTED".equals(forfeitureStatus)) {
@@ -935,10 +960,26 @@ public class ExpenseRequestService {
         if (!finalInvoicePaid) {
             return "WAITING_PAYMENT";
         }
-        if ("TENANT_CONFIRMED".equals(refundStatus) || "NOT_REQUIRED".equals(refundStatus)) {
-            return "WAITING_SIGNED_DOCUMENT";
+        if (refundStatus == null
+                || refundStatus.isBlank()
+                || "TENANT_CONFIRMED".equals(refundStatus)
+                || "NOT_REQUIRED".equals(refundStatus)) {
+            return "READY_TO_COMPLETE";
         }
         return "WAITING_DEPOSIT_REFUND";
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean isLiquidationHandoverConfirmed(Map<String, Object> payload) {
+        if (Boolean.TRUE.equals(payload.get("handoverConfirmed"))) {
+            return true;
+        }
+        Object rawChecklist = payload.get("liquidationChecklist");
+        if (rawChecklist instanceof Map<?, ?> raw) {
+            Object value = ((Map<String, Object>) raw).get("handoverConfirmed");
+            return Boolean.TRUE.equals(value);
+        }
+        return false;
     }
 
     private void notifyTenantForfeitureConfirmation(

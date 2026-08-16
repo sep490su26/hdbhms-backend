@@ -118,7 +118,7 @@ public class MockOccupancyFlowController {
             markRecurringSchedulerDue(
                     "CONTRACT_LIFECYCLE_SCAN",
                     "SYSTEM_JOB:CONTRACT_LIFECYCLE_SCAN",
-                    "DAILY:00:05",
+                    "DAILY:16:00",
                     schedulerNow()
             );
             markRecurringSchedulerDue(
@@ -192,7 +192,7 @@ public class MockOccupancyFlowController {
         markRecurringSchedulerDue(
                 "CONTRACT_LIFECYCLE_SCAN",
                 "SYSTEM_JOB:CONTRACT_LIFECYCLE_SCAN",
-                "DAILY:00:05",
+                "DAILY:16:00",
                 schedulerNow()
         );
         return ApiResponse.<Map<String, Object>>builder()
@@ -356,6 +356,7 @@ public class MockOccupancyFlowController {
                 targetRoomId,
                 requestedTransferDate == null ? nextAllowedRoomTransferDate() : requestedTransferDate,
                 transferredTenantProfileIds == null ? List.of() : transferredTenantProfileIds,
+                null,
                 reason == null || reason.isBlank() ? "Tạo yêu cầu chuyển phòng mẫu" : reason
         ));
         return ApiResponse.<MockRoomTransferStateResponse>builder()
@@ -384,6 +385,7 @@ public class MockOccupancyFlowController {
                 resolvedTargetRoomId,
                 requestedTransferDate == null ? nextAllowedRoomTransferDate() : requestedTransferDate,
                 List.of(),
+                null,
                 reason == null || reason.isBlank() ? "Tạo yêu cầu chuyển phòng mẫu" : reason
         ));
         return ApiResponse.<MockRoomTransferStateResponse>builder()
