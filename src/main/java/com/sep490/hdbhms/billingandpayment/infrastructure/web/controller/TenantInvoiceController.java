@@ -53,7 +53,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -162,29 +161,29 @@ public class TenantInvoiceController {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         InvoiceEntity invoice = requireTenantVisibleInvoice(invoiceId, userId);
         InvoiceLineEntity line = jpaInvoiceLineRepository.findById(lineId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_DONG_HOA_ON));
+                .orElseThrow(() -> new AppException(ApiErrorCode.BILLING_INVOICE_LINE_NOT_FOUND));
         if (line.getInvoice() == null || !invoice.getId().equals(line.getInvoice().getId())) {
-            throw new AppException(ApiErrorCode.MIGRATED_DONG_HOA_ON_KHONG_THUOC_HOA_ON_A_CHON);
+            throw new AppException(ApiErrorCode.BILLING_INVOICE_LINE_NOT_IN_SELECTED_INVOICE);
         }
         if (!supportsMeterReview(invoice)) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHI_HO_TRO_KHIEU_NAI_HOA_ON_IEN_NUOC);
+            throw new AppException(ApiErrorCode.BILLING_UTILITY_INVOICE_COMPLAINT_UNSUPPORTED);
         }
         if (!isReviewableInvoice(invoice)) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHI_CO_THE_KHIEU_NAI_HOA_ON_IEN_NUOC_CHUA_THANH_TOAN);
+            throw new AppException(ApiErrorCode.BILLING_UTILITY_INVOICE_MUST_BE_UNPAID_FOR_COMPLAINT);
         }
         if (!isUtilityMeterLine(line)) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHI_CO_THE_KHIEU_NAI_DONG_IEN_HOAC_NUOC);
+            throw new AppException(ApiErrorCode.BILLING_UTILITY_INVOICE_LINE_TYPE_INVALID);
         }
         MeterReadingEntity reading = line.getMeterReading();
         if (reading == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_DONG_HOA_ON_CHUA_LIEN_KET_CHI_SO_IEN_NUOC);
+            throw new AppException(ApiErrorCode.BILLING_INVOICE_LINE_METER_READING_LINK_MISSING);
         }
         BigDecimal reportedValue = request == null ? null : request.reportedCurrentValue();
         if (reportedValue == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_NHAP_CHI_SO_BAN_CHO_LA_UNG);
+            throw new AppException(ApiErrorCode.BILLING_METER_READING_PROPOSAL_REQUIRED);
         }
         if (reading.getPreviousValue() != null && reportedValue.compareTo(reading.getPreviousValue()) < 0) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHI_SO_E_XUAT_KHONG_UOC_NHO_HON_CHI_SO_CU);
+            throw new AppException(ApiErrorCode.BILLING_METER_READING_PROPOSAL_BELOW_PREVIOUS);
         }
         if (jpaChangeRequestRepository.existsByRequestTypeAndTargetTypeAndTargetIdAndStatusIn(
                 RequestType.METER_READING_CORRECTION,
@@ -192,15 +191,15 @@ public class TenantInvoiceController {
                 reading.getId(),
                 OPEN_REVIEW_STATUSES
         )) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHI_SO_NAY_ANG_CO_KHIEU_NAI_CHO_XU_LY);
+            throw new AppException(ApiErrorCode.BILLING_METER_READING_COMPLAINT_PENDING);
         }
 
         UserEntity requester = jpaUserRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_TAI_KHOAN));
+                .orElseThrow(() -> new AppException(ApiErrorCode.BILLING_ACCOUNT_NOT_FOUND));
         FileMetadataEntity evidence = request == null || request.evidenceFileId() == null
                 ? null
                 : jpaFileMetadataRepository.findById(request.evidenceFileId())
-                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_TEP_MINH_CHUNG));
+                .orElseThrow(() -> new AppException(ApiErrorCode.BILLING_EVIDENCE_FILE_NOT_FOUND));
 
         ChangeRequestEntity created = jpaChangeRequestRepository.save(ChangeRequestEntity.builder()
                 .requestCode(RequestCodeBuilder.nextAvailable(
@@ -655,7 +654,7 @@ public class TenantInvoiceController {
                 .stream()
                 .filter(invoice -> invoice.getId().equals(invoiceId))
                 .findFirst()
-                .orElseThrow(() -> new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_HOA_ON));
+                .orElseThrow(() -> new AppException(ApiErrorCode.BILLING_INVOICE_NOT_FOUND));
     }
 
     private boolean isReviewableInvoice(InvoiceEntity invoice) {
@@ -738,7 +737,7 @@ public class TenantInvoiceController {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (Exception exception) {
-            throw new AppException(ApiErrorCode.MIGRATED_KHONG_THE_LUU_DU_LIEU_KHIEU_NAI);
+            throw new AppException(ApiErrorCode.COMPLAINT_DATA_NOT_FOUND);
         }
     }
 

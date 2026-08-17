@@ -171,7 +171,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 () -> service.uploadSignedFile(99L, pdfFile(), false)
         );
 
-        assertEquals(ApiErrorCode.MIGRATED_HOP_DONG_THUE_DA_CO_FILE_DA_KY_GUI_REPLACE_TRUE_NEU_MUON_5BEFFD,
+        assertEquals(ApiErrorCode.LEASE_SIGNED_FILE_ALREADY_EXISTS,
                 exception.getApiErrorCode());
     }
 
@@ -196,7 +196,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 () -> service.activate(99L)
         );
 
-        assertEquals(ApiErrorCode.MIGRATED_CAN_UPLOAD_FILE_HOP_DONG_DA_KY_TRUOC_KHI_KICH_HOAT,
+        assertEquals(ApiErrorCode.LEASE_SIGNED_FILE_REQUIRED_FOR_ACTIVATION,
                 exception.getApiErrorCode());
     }
 
@@ -237,7 +237,7 @@ class LeaseContractManagementServiceSignedFileTest {
                 () -> service.activate(99L)
         );
 
-        assertEquals(ApiErrorCode.MIGRATED_CAN_HOAN_THANH_BAN_GIAO_PHONG_NHAP_SO_IEN_VA_UPLOAD_BIEN_6ACA66,
+        assertEquals(ApiErrorCode.LEASE_ACTIVATION_HANDOVER_REQUIRED,
                 exception.getApiErrorCode());
         var sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate, times(2)).queryForObject(

@@ -47,7 +47,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -148,7 +147,7 @@ public class BillingManagementService {
     ) {
         String normalizedPeriod = normalizeOptionalPeriod(billingPeriod);
         if (normalizedPeriod == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_VUI_LONG_CHON_MOT_KY_THANG_CU_THE_DE_XUAT_EXCEL);
+            throw new AppException(ApiErrorCode.BILLING_EXCEL_PERIOD_REQUIRED);
         }
         InvoiceStatus parsedStatus = parseInvoiceStatus(status);
         InvoiceType parsedType = parseInvoiceType(invoiceType);
@@ -161,12 +160,12 @@ public class BillingManagementService {
                 ))
                 .toList();
         if (invoices.isEmpty()) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHUA_CO_HOA_ON_E_XUAT);
+            throw new AppException(ApiErrorCode.BILLING_INVOICE_EXPORT_DATA_EMPTY);
         }
 
         List<InvoiceExcelRow> rows = buildInvoiceExcelRows(invoices);
         if (rows.isEmpty()) {
-            throw new AppException(ApiErrorCode.MIGRATED_KHONG_CO_HOA_ON_GAN_VOI_PHONG_E_XUAT);
+            throw new AppException(ApiErrorCode.BILLING_INVOICE_ROOM_EXPORT_DATA_EMPTY);
         }
 
         try {
@@ -176,7 +175,7 @@ public class BillingManagementService {
                     invoiceExcelFilename(normalizedPeriod)
             );
         } catch (IOException exception) {
-            throw new AppException(ApiErrorCode.MIGRATED_XUAT_FILE_EXCEL_THAT_BAI);
+            throw new AppException(ApiErrorCode.FAILED_EXPORT_EXCEL);
         }
     }
 
@@ -931,7 +930,7 @@ public class BillingManagementService {
 
         long effectiveRent = requirePositiveAmount(request.overrideMonthlyRent(), "Giá không hợp lệ");
         if (effectiveRent > listedRent) {
-            throw new AppException(ApiErrorCode.MIGRATED_GIA_KHUYEN_MAI_PHAI_THAP_HON_GIA_NIEM_YET_CO_BAN_CUA_PHONG);
+            throw new AppException(ApiErrorCode.ROOM_PROMOTIONAL_PRICE_MUST_BE_BELOW_LIST_PRICE);
         }
         return listedRent - effectiveRent;
     }

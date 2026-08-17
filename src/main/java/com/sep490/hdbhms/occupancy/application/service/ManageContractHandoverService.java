@@ -461,7 +461,8 @@ public class ManageContractHandoverService {
         if (deductionAmount > 0) {
             ExpenseRequestService.LiquidationDepositForfeitureLink forfeitureLink =
                     expenseRequestService.getLiquidationDepositForfeitureLink(contractId);
-            if (!"TENANT_CONFIRMED".equals(forfeitureLink.status())) {
+            if (!"TENANT_CONFIRMED".equals(forfeitureLink.status())
+                    && !"AUTOMATICALLY_FORFEITED".equals(forfeitureLink.status())) {
                 throw new AppException(ApiErrorCode.CONTRACT_HANDOVER_DEPOSIT_SETTLEMENT_REQUIRED);
             }
         }

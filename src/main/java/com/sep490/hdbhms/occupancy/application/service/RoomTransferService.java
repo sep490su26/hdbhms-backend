@@ -1273,7 +1273,7 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (targetRoom.getCurrentStatus() == RoomStatus.OCCUPIED) {
             throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
-        if (targetActiveLeaseContractResult.isPresent() && targetRoom.getCurrentStatus() != RoomStatus.SOON_VACANT) {
+        if (targetActiveLeaseContractResult.isPresent()) {
             throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetActiveLeaseContractResult
@@ -1314,18 +1314,9 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED
                 || targetRoom.getCurrentStatus() == RoomStatus.RESERVED_FOR_TRANSFER
-                || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
+                || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD
+                || targetRoom.getCurrentStatus() == RoomStatus.SOON_VACANT) {
             throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
-        }
-        if (targetRoom.getCurrentStatus() == RoomStatus.SOON_VACANT
-                && contractOccupantRepository.countActiveOccupantsByRoomId(targetRoom.getId()) > 0) {
-            LocalDate availableDate = leaseContractRepository
-                    .findFirstActiveContract(targetRoom.getId(), DESTINATION_BLOCKING_CONTRACT_STATUSES)
-                    .map(entity -> entity.getExpectedVacantDate() == null ? entity.getEndDate() : entity.getExpectedVacantDate())
-                    .orElse(LocalDate.now());
-            if (requestedTransferDate.withDayOfMonth(1).isBefore(availableDate.withDayOfMonth(1))) {
-                throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
-            }
         }
 
         return targetRoom;
@@ -1348,7 +1339,8 @@ public class RoomTransferService implements RoomTransferUseCase {
     private void validateTargetRoomStatusForExecution(Room targetRoom, RoomTransferRequest request) {
         targetRoom = releaseExpiredReservationIfPossible(targetRoom);
         if (targetRoom.getCurrentStatus() == RoomStatus.EXPIRED
-                || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD) {
+                || targetRoom.getCurrentStatus() == RoomStatus.ON_HOLD
+                || targetRoom.getCurrentStatus() == RoomStatus.SOON_VACANT) {
             throw new AppException(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID, targetRoom.getCurrentStatus());
         }
         if (targetRoom.getCurrentStatus() == RoomStatus.RESERVED) {

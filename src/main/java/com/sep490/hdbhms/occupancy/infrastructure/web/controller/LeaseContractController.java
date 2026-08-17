@@ -197,12 +197,12 @@ public class LeaseContractController {
         assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
         LeaseContractManagementResponse contract = getLeaseContractManagementUseCase.findOne(leaseContractId);
         if (contract.getSignedFileId() == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHUA_CO_BAN_HOP_DONG_THUE_DA_KY);
+            throw new AppException(ApiErrorCode.LEASE_SIGNED_CONTRACT_NOT_FOUND);
         }
 
         FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(contract.getSignedFileId()));
         if (fileData == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_FILE_HOP_DONG_THUE_DA_KY);
+            throw new AppException(ApiErrorCode.SIGNED_CONTRACT_FILE_NOT_FOUND);
         }
         String contentType = fileData.contentType() == null
                 ? org.springframework.http.MediaType.APPLICATION_OCTET_STREAM_VALUE
@@ -786,7 +786,7 @@ public class LeaseContractController {
 
     private OccupantScope currentActiveOccupant(Long leaseContractId, Long userId) {
         if (userId == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHUA_DANG_NHAP);
+            throw new AppException(ApiErrorCode.AUTHENTICATION_REQUIRED);
         }
         return jdbcTemplate.query("""
                         SELECT co.contract_occupant_id, co.tenant_profile_id
@@ -805,7 +805,7 @@ public class LeaseContractController {
                         """,
                 rs -> {
                     if (!rs.next()) {
-                        throw new AppException(ApiErrorCode.MIGRATED_BAN_KHONG_PHAI_NGUOI_O_CUNG_CUA_HOP_DONG_NAY);
+                        throw new AppException(ApiErrorCode.LEASE_CO_OCCUPANT_ACCESS_DENIED);
                     }
                     return new OccupantScope(
                             rs.getLong("contract_occupant_id"),
@@ -858,7 +858,7 @@ public class LeaseContractController {
         if (List.of("FOLLOW_PRIMARY_MOVE_OUT", "JOIN_RENEWAL").contains(normalized)) {
             return normalized;
         }
-        throw new AppException(ApiErrorCode.MIGRATED_Y_DINH_NGUOI_O_CUNG_KHONG_HOP_LE);
+        throw new AppException(ApiErrorCode.LEASE_CO_OCCUPANT_INTENT_INVALID);
     }
 
     private String blankToNull(String value) {

@@ -590,13 +590,42 @@ public class NotificationTemplateDefaults {
             definitionForChannels(
                     "LEASE_EXPIRY_REMINDER_FINAL",
                     "Nhắc lần cuối hợp đồng sắp hết hạn",
-                    "Gửi lần cuối cho khách thuê và kích hoạt công việc cho quản lý.",
+                    "Gửi lần cuối cho khách thuê trước khi áp dụng chính sách mất cọc tự động.",
                     "CONTRACT",
                     List.of(NotificationChannel.PUSH),
                     leaseReminderVariables(),
                     leaseReminderSampleData("FINAL"),
                     "Nhắc lần cuối về hợp đồng [[${contractCode}]]",
                     "Hợp đồng phòng [[${roomName}]] sắp hết hạn vào [[${endDate}]]. Vui lòng phản hồi để tránh chậm xử lý bàn giao hoặc gia hạn."
+            ),
+            definitionForChannels(
+                    "LEASE_DEPOSIT_FORFEITED_AUTOMATICALLY",
+                    "Tự động mất cọc do không phản hồi",
+                    "Gửi cho khách thuê khi đã quá một ngày kể từ lần nhắc cuối mà vẫn không có phản hồi.",
+                    "CHANGE_REQUEST",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "requestId",
+                            "requestCode",
+                            "contractId",
+                            "contractCode",
+                            "roomCode",
+                            "depositForfeitureAmount",
+                            "depositForfeitureReason",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "requestId", 680965088362759L,
+                            "requestCode", "TLHD_P403_15_08_2026",
+                            "contractId", 403L,
+                            "contractCode", "HDT_P403_01_09_2025",
+                            "roomCode", "403",
+                            "depositForfeitureAmount", 2300000L,
+                            "depositForfeitureReason", "Không phản hồi sau 3 lần thông báo hợp đồng sắp hết hạn",
+                            "targetRoute", "/requests"
+                    ),
+                    "Hợp đồng [[${contractCode}]] đã bị mất cọc",
+                    "Do bạn không phản hồi sau 3 lần thông báo về hợp đồng phòng [[${roomCode}]], khoản cọc [[${depositForfeitureAmount}]] VND đã được ghi nhận là mất cọc tự động."
             ),
             definitionForChannels(
                     "LEASE_EXPIRY_MANAGER_VISIT_REQUIRED",

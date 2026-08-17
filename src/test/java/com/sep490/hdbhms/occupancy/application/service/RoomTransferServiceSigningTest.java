@@ -14,6 +14,7 @@ import com.sep490.hdbhms.occupancy.application.port.out.ContractOccupantReposito
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.property.application.port.out.RoomRepository;
 import com.sep490.hdbhms.property.domain.model.Room;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomTransferRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.RoomTransferRequestRepository;
 import com.sep490.hdbhms.occupancy.application.port.out.TenantRepository;
@@ -235,6 +236,30 @@ class RoomTransferServiceSigningTest {
         );
 
         assertEquals(ApiErrorCode.ROOM_TRANSFER_MINIMUM_TENURE_NOT_REACHED,
+                ((AppException) thrown.getCause()).getApiErrorCode());
+    }
+
+    @Test
+    void soonVacantRoomCannotBeTargetForNewTransfer() throws Exception {
+        RoomTransferService service = newService(
+                mock(LeaseContractRepository.class),
+                mock(RoomTransferRepository.class)
+        );
+        Method validator = RoomTransferService.class.getDeclaredMethod(
+                "validateTargetRoomStatusForNewTransfer", Room.class, LocalDate.class
+        );
+        validator.setAccessible(true);
+
+        InvocationTargetException thrown = assertThrows(
+                InvocationTargetException.class,
+                () -> validator.invoke(
+                        service,
+                        Room.builder().id(405L).currentStatus(RoomStatus.SOON_VACANT).build(),
+                        LocalDate.now().plusMonths(1).withDayOfMonth(1)
+                )
+        );
+
+        assertEquals(ApiErrorCode.ROOM_TRANSFER_TARGET_ROOM_INVALID,
                 ((AppException) thrown.getCause()).getApiErrorCode());
     }
 

@@ -248,7 +248,8 @@ public class ChangeRequestService implements ChangeRequestUseCase {
         Object forfeitureStatus = payload.get("depositForfeitureStatus");
         if (forfeitureStatus != null
                 && !"NOT_REQUIRED".equals(forfeitureStatus)
-                && !"TENANT_CONFIRMED".equals(forfeitureStatus)) {
+                && !"TENANT_CONFIRMED".equals(forfeitureStatus)
+                && !"AUTOMATICALLY_FORFEITED".equals(forfeitureStatus)) {
             return "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION";
         }
         if (!isFinalInvoicePaid(payload)) {

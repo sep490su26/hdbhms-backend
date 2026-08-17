@@ -21,7 +21,6 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -134,12 +133,12 @@ public class ContractHandoverController {
         assertOwnerOrAssignedManagerCanAccessContract(contractId);
         var filenameContext = handoverDocumentService.getFilenameContext(contractId, type);
         if (filenameContext.signedFileId() == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_CHUA_CO_BIEN_BAN_BAN_GIAO_DA_KY);
+            throw new AppException(ApiErrorCode.LEASE_SIGNED_HANDOVER_DOCUMENT_NOT_FOUND);
         }
 
         FileDataResponse fileData = downloadFileUseCase.execute(new DownloadFileQuery(filenameContext.signedFileId()));
         if (fileData == null) {
-            throw new AppException(ApiErrorCode.MIGRATED_KHONG_TIM_THAY_BIEN_BAN_BAN_GIAO_DA_KY);
+            throw new AppException(ApiErrorCode.SIGNED_HANDOVER_CONTRACT_NOT_FOUND);
         }
         String contentType = fileData.contentType() == null
                 ? org.springframework.http.MediaType.APPLICATION_OCTET_STREAM_VALUE

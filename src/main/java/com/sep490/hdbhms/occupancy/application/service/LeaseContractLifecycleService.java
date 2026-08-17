@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Slf4j
@@ -168,7 +169,7 @@ public class LeaseContractLifecycleService {
     }
 
     private void resolveToReleaseRoom(LeaseContract contract, LocalDate today) {
-        boolean is1MonthLeft = !today.isBefore(contract.getEndDate().minusMonths(1));
+        boolean is1MonthLeft = !today.isBefore(contract.getEndDate().minusMonths(1).minus(1, ChronoUnit.DAYS));
         //TODO: Nếu còn 1 tháng cuối thì thực hiện chuyển phòng về sắp trống để tranh giữ phòng giữa guest và tenant
         if (is1MonthLeft) {
             releaseRoomPort.execute(contract.getRoomId());

@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.ManagerTaskStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.ManagerTaskEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaManagerTaskRepository;
@@ -11,11 +12,14 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUse
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
 import com.sep490.hdbhms.occupancy.domain.model.LeaseContract;
+import com.sep490.hdbhms.occupancy.domain.value_objects.LiquidationStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ReminderTrackerStatus;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractLiquidationEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ReminderTrackerEntity;
-import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
+import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaContractLiquidationRepository;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaReminderTrackerRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -56,6 +60,9 @@ public class LeaseExpiryReminderService {
     JpaManagerTaskRepository managerTaskRepository;
     JpaUserRepository userRepository;
     BusinessNotificationPublisher notificationPublisher;
+    com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContractRepository leaseContractEntityRepository;
+    JpaContractLiquidationRepository contractLiquidationRepository;
+    ExpenseRequestService expenseRequestService;
     JdbcTemplate jdbcTemplate;
     ObjectMapper objectMapper;
 
@@ -141,6 +148,9 @@ public class LeaseExpiryReminderService {
 
         int sentCount = tracker.getSentCount() == null ? 0 : tracker.getSentCount();
         if (sentCount >= 3) {
+            if (isReminderDue(tracker, today)) {
+                automaticallyForfeitDeposit(contract, today);
+            }
             tracker.setNextDueAt(null);
             reminderTrackerRepository.save(tracker);
             return;
@@ -172,29 +182,66 @@ public class LeaseExpiryReminderService {
         tracker.setMetadata(metadata(contract, stage.name()));
 
         if (stage == ReminderStage.FINAL) {
-            TaskCreation taskCreation = ensureManagerTask(
-                    MANAGER_VISIT_TASK,
-                    "Cần gặp trực tiếp khách về hợp đồng sắp hết hạn",
-                    "Khách chưa phản hồi sau 3 lần nhắc về ý định hợp đồng. Cần gặp trực tiếp để chốt gia hạn, chuyển phòng hoặc chuyển đi.",
-                    contract,
-                    today.plusDays(1)
-            );
-            tracker.setRelatedTask(taskCreation.task());
-            tracker.setNextDueAt(null);
-            publishManagerNotification(
-                    "LEASE_EXPIRY_MANAGER_VISIT_REQUIRED",
-                    taskCreation.task(),
-                    contract,
-                    "Khách chưa phản hồi sau 3 lần nhắc.",
-                    today
-            );
-
-            //TODO: Add release room logic when reached final reminder
-//            contract.getRoom().setCurrentStatus(RoomStatus.SOON_VACANT);
+            // Apply the forfeiture one day after the final reminder.
+            tracker.setNextDueAt(today.plusDays(1).atStartOfDay());
         } else {
             tracker.setNextDueAt(reminderDate(contract.getEndDate(), stage.next()).atStartOfDay());
         }
         reminderTrackerRepository.save(tracker);
+    }
+
+    private void automaticallyForfeitDeposit(LeaseContract contract, LocalDate today) {
+        long depositAmount = contract.getDepositAmount() == null ? 0L : contract.getDepositAmount();
+        if (depositAmount <= 0L) {
+            return;
+        }
+
+        LeaseContractEntity contractEntity = leaseContractEntityRepository.findById(contract.getId()).orElse(null);
+        if (contractEntity == null || contractEntity.getRoom() == null) {
+            log.warn("Skipping automatic lease deposit forfeiture because the contract or room is missing. contractId={}", contract.getId());
+            return;
+        }
+
+        ContractLiquidationEntity liquidation = contractLiquidationRepository
+                .findByContract_Id(contract.getId())
+                .orElseGet(() -> ContractLiquidationEntity.builder()
+                        .contract(contractEntity)
+                        .build());
+        if (liquidation.getStatus() == LiquidationStatus.CONFIRMED) {
+            return;
+        }
+
+        String reason = "Tự động mất cọc do khách thuê không phản hồi sau 3 lần thông báo hợp đồng sắp hết hạn.";
+        liquidation.setLiquidationDate(today);
+        liquidation.setReason(reason);
+        liquidation.setDepositAmount(depositAmount);
+        liquidation.setDepositDeductionAmount(depositAmount);
+        liquidation.setDepositDeductionReason(reason);
+        liquidation.setDepositRefundAmount(0L);
+        liquidation.setStatus(LiquidationStatus.DRAFT);
+        contractLiquidationRepository.saveAndFlush(liquidation);
+
+        LeaseReminderContext context = reminderContext(contract);
+        Long actorId = managerRecipientIds(contract).stream().findFirst()
+                .orElseGet(() -> userRepository.findFirstByRoleAndDeletedAtIsNullOrderByIdAsc(Role.OWNER)
+                        .map(UserEntity::getId)
+                        .orElse(null));
+        if (actorId == null) {
+            throw new IllegalStateException("Cannot automatically forfeit a lease deposit without an owner account");
+        }
+
+        expenseRequestService.automaticallyForfeitLiquidationDeposit(
+                contract.getId(),
+                contract.getContractCode(),
+                context.propertyId(),
+                context.roomId(),
+                context.roomCode(),
+                depositAmount,
+                reason,
+                today,
+                actorId,
+                context.primaryTenantUserId()
+        );
     }
 
     private LocalDate reminderDate(LocalDate endDate, ReminderStage stage) {

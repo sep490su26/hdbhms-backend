@@ -457,6 +457,80 @@ public class ExpenseRequestService {
             Long currentUserId,
             Long tenantUserId
     ) {
+        return ensureLiquidationDepositForfeitureRequest(
+                contractId,
+                contractCode,
+                propertyId,
+                roomId,
+                roomCode,
+                amount,
+                reason,
+                liquidationDate,
+                currentUserId,
+                tenantUserId,
+                true
+        );
+    }
+
+    @Transactional
+    public LiquidationDepositForfeitureLink automaticallyForfeitLiquidationDeposit(
+            Long contractId,
+            String contractCode,
+            Long propertyId,
+            Long roomId,
+            String roomCode,
+            Long amount,
+            String reason,
+            LocalDate liquidationDate,
+            Long currentUserId,
+            Long tenantUserId
+    ) {
+        LiquidationDepositForfeitureLink link = ensureLiquidationDepositForfeitureRequest(
+                contractId,
+                contractCode,
+                propertyId,
+                roomId,
+                roomCode,
+                amount,
+                reason,
+                liquidationDate,
+                currentUserId,
+                tenantUserId,
+                false
+        );
+        ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
+        if (sourceRequest == null || link.liquidationChangeRequestId() == null) {
+            return link;
+        }
+
+        Map<String, Object> sourcePayload = payloadMap(sourceRequest.getRequestPayload());
+        sourcePayload.put("depositForfeitureStatus", "AUTOMATICALLY_FORFEITED");
+        sourcePayload.put("depositForfeitureAutomaticallyAt", LocalDateTime.now().toString());
+        sourcePayload.put("liquidationStage", liquidationStageAfterSettlementSync(
+                sourcePayload,
+                syncFinalInvoicePaid(sourcePayload),
+                Objects.toString(sourcePayload.get("depositRefundStatus"), "")
+        ));
+        markChecklist(sourcePayload, "depositForfeitureConfirmed", true);
+        sourceRequest.setRequestPayload(toJson(sourcePayload));
+        changeRequestRepository.save(sourceRequest);
+        notifyTenantAutomaticForfeiture(sourceRequest, sourcePayload);
+        return toLiquidationDepositForfeitureLink(sourceRequest, sourcePayload);
+    }
+
+    private LiquidationDepositForfeitureLink ensureLiquidationDepositForfeitureRequest(
+            Long contractId,
+            String contractCode,
+            Long propertyId,
+            Long roomId,
+            String roomCode,
+            Long amount,
+            String reason,
+            LocalDate liquidationDate,
+            Long currentUserId,
+            Long tenantUserId,
+            boolean notifyPendingTenant
+    ) {
         ChangeRequestEntity sourceRequest = findLatestLiquidationRequest(contractId).orElse(null);
         long forfeitureAmount = safeAmount(amount);
         String forfeitureReason = reason == null || reason.isBlank() ? null : reason.trim();
@@ -525,7 +599,7 @@ public class ExpenseRequestService {
         sourcePayload.put("depositForfeitureAmount", forfeitureAmount);
         sourcePayload.put("depositForfeitureReason", forfeitureReason);
         sourcePayload.put("liquidationDate", liquidationDate);
-        boolean notifyTenant = sourceCreated;
+        boolean notifyTenant = notifyPendingTenant && sourceCreated;
         if (forfeitureAmount <= 0) {
             boolean wasBlocking = "PENDING_TENANT_CONFIRMATION".equals(currentStatus)
                     || "DISPUTED".equals(currentStatus);
@@ -538,6 +612,14 @@ public class ExpenseRequestService {
                         Objects.toString(sourcePayload.get("depositRefundStatus"), "")
                 ));
             }
+        } else if ("AUTOMATICALLY_FORFEITED".equals(currentStatus)) {
+            sourcePayload.put("depositForfeitureStatus", "AUTOMATICALLY_FORFEITED");
+            markChecklist(sourcePayload, "depositForfeitureConfirmed", true);
+            sourcePayload.put("liquidationStage", liquidationStageAfterSettlementSync(
+                    sourcePayload,
+                    syncFinalInvoicePaid(sourcePayload),
+                    Objects.toString(sourcePayload.get("depositRefundStatus"), "")
+            ));
         } else if (!sameDecision || (!"TENANT_CONFIRMED".equals(currentStatus)
                 && !"PENDING_TENANT_CONFIRMATION".equals(currentStatus)
                 && !"DISPUTED".equals(currentStatus))) {
@@ -549,7 +631,7 @@ public class ExpenseRequestService {
             sourcePayload.remove("depositForfeitureDisputeReason");
             markChecklist(sourcePayload, "depositForfeitureConfirmed", false);
             sourcePayload.put("liquidationStage", "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION");
-            notifyTenant = true;
+            notifyTenant = notifyPendingTenant;
         } else if ("PENDING_TENANT_CONFIRMATION".equals(currentStatus)
                 || "DISPUTED".equals(currentStatus)) {
             sourcePayload.put("liquidationStage", "WAITING_DEPOSIT_FORFEITURE_CONFIRMATION");
@@ -992,6 +1074,32 @@ public class ExpenseRequestService {
         }
         notificationPublisher.publish(
                 "LIQUIDATION_DEPOSIT_FORFEITURE_CONFIRMATION_REQUIRED",
+                tenantUserId,
+                "CHANGE_REQUEST",
+                sourceRequest.getId(),
+                payload(
+                        "requestId", sourceRequest.getId(),
+                        "requestCode", sourceRequest.getRequestCode(),
+                        "contractId", payload.get("contractId"),
+                        "contractCode", payload.get("contractCode"),
+                        "roomCode", payload.get("roomCode"),
+                        "depositForfeitureAmount", payload.get("depositForfeitureAmount"),
+                        "depositForfeitureReason", payload.get("depositForfeitureReason"),
+                        "targetRoute", "/requests"
+                )
+        );
+    }
+
+    private void notifyTenantAutomaticForfeiture(
+            ChangeRequestEntity sourceRequest,
+            Map<String, Object> payload
+    ) {
+        Long tenantUserId = toLong(payload.get("primaryTenantUserId"));
+        if (tenantUserId == null && sourceRequest.getRequester() != null) {
+            tenantUserId = sourceRequest.getRequester().getId();
+        }
+        notificationPublisher.publish(
+                "LEASE_DEPOSIT_FORFEITED_AUTOMATICALLY",
                 tenantUserId,
                 "CHANGE_REQUEST",
                 sourceRequest.getId(),

@@ -308,7 +308,7 @@ public class ContractLifecycleChangeRequestService {
                         contract.getId(),
                         contract.getEndDate()
                 ) != RoomCommitmentChecker.Blocker.NONE) {
-            throw new AppException(ApiErrorCode.MIGRATED_PHONG_DA_CO_KHACH_KHAC_DAT_COC_GIU_CHO_KHONG_THE_GIA_HAN_BEF683);
+            throw new AppException(ApiErrorCode.LEASE_RENEWAL_ROOM_RESERVED_BY_OTHER_TENANT);
         }
         if (requestType == RequestType.ADD_CO_OCCUPANT && !ADD_CO_OCCUPANT_STATUSES.contains(contract.getStatus())) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
