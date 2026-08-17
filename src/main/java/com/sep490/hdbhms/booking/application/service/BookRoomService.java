@@ -89,16 +89,16 @@ public class BookRoomService implements BookRoomUseCase {
                     depositForm.getRoomId(),
                     LocalDateTime.now().plusMinutes(ROOM_HOLD_DURATION_MINUTES)
             );
-//            try {
-//                roomHold = roomHoldRepository.save(roomHold);
-//            } catch (DataIntegrityViolationException ex) {
-//                throw new AppException(ApiErrorCode.ROOM_DEPOSIT_HOLD_ACTIVE);
-//            }
+            try {
+                roomHold = roomHoldRepository.save(roomHold);
+            } catch (DataIntegrityViolationException ex) {
+                throw new AppException(ApiErrorCode.ROOM_DEPOSIT_HOLD_ACTIVE);
+            }
             Room room = roomRepository.findById(depositForm.getRoomId())
                     .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
-//            room.holdRoom();
+            room.holdRoom();
             roomRepository.save(room);
-//            createRoomHoldTaskPort.execute(roomHold);
+            createRoomHoldTaskPort.execute(roomHold);
             return sendDepositPaymentPort.execute(depositForm, roomHold);
         } catch (IOException e) {
             throw new AppException(ApiErrorCode.FILE_UPLOAD_FAILED, e);

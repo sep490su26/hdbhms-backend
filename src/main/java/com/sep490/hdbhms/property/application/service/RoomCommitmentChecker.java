@@ -29,8 +29,8 @@ public class RoomCommitmentChecker {
             LocalDate contractEndDate
     ) {
         // A future tenant can only displace a renewal once the current lease is
-        // inside its final calendar month.
-        if (hasLessThanOneMonthRemaining(contractEndDate)
+        // inside its last 3 calendar months.
+        if (hasLessThanThreeMonthRemaining(contractEndDate)
                 && isReserved(roomId, currentContractId)) {
             return Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT;
         }
@@ -53,7 +53,7 @@ public class RoomCommitmentChecker {
             LocalDate contractEndDate
     ) {
         return isSoonVacant(roomId)
-                && hasLessThanOneMonthRemaining(contractEndDate)
+                && hasLessThanThreeMonthRemaining(contractEndDate)
                 && isReserved(roomId, currentContractId);
     }
 
@@ -129,9 +129,9 @@ public class RoomCommitmentChecker {
         return count != null && count > 0;
     }
 
-    private boolean hasLessThanOneMonthRemaining(LocalDate contractEndDate) {
+    private boolean hasLessThanThreeMonthRemaining(LocalDate contractEndDate) {
         return contractEndDate != null
-                && contractEndDate.isBefore(LocalDate.now().plusMonths(1));
+                && contractEndDate.isBefore(LocalDate.now().plusMonths(3));
     }
 
     private boolean isSoonVacant(Long roomId) {
