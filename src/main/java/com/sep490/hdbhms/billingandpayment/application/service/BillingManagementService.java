@@ -29,6 +29,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.Manua
 import com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.RentOverrideResponse;
 import com.sep490.hdbhms.accounting.application.service.ExpenseRequestService;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
+import com.sep490.hdbhms.billingandpayment.application.port.out.InvoicePaymentNotificationPort;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 import com.sep490.hdbhms.occupancy.domain.value_objects.ContractEventType;
@@ -116,6 +117,7 @@ public class BillingManagementService {
     JpaLeaseContractRepository leaseContractRepository;
     JpaRoomRepository roomRepository;
     JpaUserRepository userRepository;
+    InvoicePaymentNotificationPort invoicePaymentNotificationPort;
     BusinessNotificationPublisher notificationPublisher;
     JdbcTemplate jdbcTemplate;
     ExpenseRequestService expenseRequestService;
@@ -699,6 +701,9 @@ public class BillingManagementService {
         invoice = invoiceRepository.save(invoice);
         cancelPendingPaymentIntents(invoice);
         notifyInvoicePayment(invoice, amount, currentUserId);
+        if (invoice.getStatus() == InvoiceStatus.PAID) {
+            invoicePaymentNotificationPort.execute(invoice.getId(), amount);
+        }
         if (invoice.getStatus() == InvoiceStatus.PAID && invoice.getInvoiceType() == InvoiceType.FINAL_SETTLEMENT) {
             expenseRequestService.syncLiquidationFinalInvoicePaid(
                     invoice.getLeastContract() == null ? null : invoice.getLeastContract().getId()

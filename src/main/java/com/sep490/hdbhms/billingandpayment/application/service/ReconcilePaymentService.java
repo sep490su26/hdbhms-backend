@@ -4,6 +4,7 @@ import com.sep490.hdbhms.billingandpayment.application.port.in.command.Reconcile
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.CompleteInvoiceUseCase;
 import com.sep490.hdbhms.billingandpayment.application.port.in.usecase.ReconcilePaymentUseCase;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceRepository;
+import com.sep490.hdbhms.billingandpayment.application.port.out.InvoicePaymentNotificationPort;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentAllocationRepository;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.application.port.out.PaymentTransactionRepository;
@@ -34,6 +35,7 @@ import java.util.Objects;
 public class ReconcilePaymentService implements ReconcilePaymentUseCase {
     InvoiceRepository invoiceRepository;
     CompleteInvoiceUseCase completeInvoiceUseCase;
+    InvoicePaymentNotificationPort invoicePaymentNotificationPort;
     PaymentIntentRepository paymentIntentRepository;
     PaymentAllocationRepository paymentAllocationRepository;
     PaymentTransactionRepository paymentTransactionRepository;
@@ -130,6 +132,7 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
         paymentTransaction.setMatched();
         paymentTransactionRepository.save(paymentTransaction);
         completeInvoiceUseCase.execute(invoice, paymentAllocation);
+        invoicePaymentNotificationPort.execute(invoice.getId(), paymentAllocation.getAmount());
     }
 
     private boolean isExpired(PaymentIntent paymentIntent, LocalDateTime transactionTime) {
@@ -188,6 +191,7 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
         paymentTransaction.setMatched();
         paymentTransactionRepository.save(paymentTransaction);
         completeInvoiceUseCase.execute(invoice, paymentAllocation);
+        invoicePaymentNotificationPort.execute(invoice.getId(), paymentAllocation.getAmount());
         return true;
     }
 
