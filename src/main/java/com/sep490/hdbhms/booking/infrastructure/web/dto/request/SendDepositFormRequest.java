@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.booking.infrastructure.web.dto.request;
 
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
+import com.sep490.hdbhms.shared.validator.Age;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -23,6 +24,7 @@ public class SendDepositFormRequest {
     String fullName;
     @NotNull(message = "Vui lòng nhập ngày sinh")
     @PastOrPresent(message = "Ngày sinh không được ở tương lai")
+    @Age(age = 18, message = "Phải từ 18 tuổi trở lên")
     LocalDate dob;
     @NotBlank(message = "Vui lòng chọn giới tính")
     String gender;
@@ -75,11 +77,6 @@ public class SendDepositFormRequest {
     @NotNull(message = "Vui lòng nhập ngày dự kiến đến ký")
     @FutureOrPresent(message = "Ngày dự kiến đến ký không được ở quá khứ")
     LocalDate expectedLeaseSignDate;
-
-    @AssertTrue(message = "Phải từ 18 tuổi trở lên")
-    public boolean isAdult() {
-        return dob == null || !dob.plusYears(18).isAfter(LocalDate.now());
-    }
 
     @AssertTrue(message = "Ngày dự kiến đến ở phải diễn ra sau ngày dự kiến đến ký")
     public boolean isExpectedMoveInAfterLeaseSign() {

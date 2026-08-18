@@ -3,6 +3,7 @@ package com.sep490.hdbhms.booking.infrastructure.web.dto.request;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
+import com.sep490.hdbhms.shared.validator.Age;
 import com.sep490.hdbhms.shared.validator.ValidPaymentCycle;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -34,6 +35,7 @@ public class BatchDepositCheckoutRequest {
 
     @NotNull(message = "Vui lòng nhập ngày sinh")
     @PastOrPresent(message = "Ngày sinh không được ở tương lai")
+    @Age(age = 18, message = "Phải từ 18 tuổi trở lên")
     LocalDate dob;
 
     @NotBlank(message = "Vui lòng chọn giới tính")
