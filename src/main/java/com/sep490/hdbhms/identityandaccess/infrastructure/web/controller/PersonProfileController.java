@@ -6,11 +6,15 @@ import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.file.application.port.in.query.GetFileMetadataFromIdQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.GetFileMetadataFromIdUseCase;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
+import com.sep490.hdbhms.identityandaccess.application.port.in.command.UpdateMyPersonProfileCommand;
 import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.GetMyPersonProfileUseCase;
+import com.sep490.hdbhms.identityandaccess.application.port.in.usecase.UpdateMyPersonProfileUseCase;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
+import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.request.UpdateMyPersonProfileRequest;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.dto.response.PersonProfileResponse;
 import com.sep490.hdbhms.identityandaccess.infrastructure.web.mapper.PersonProfileWebMapper;
 import com.sep490.hdbhms.shared.types.dto.response.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -18,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +41,7 @@ import java.util.List;
 public class PersonProfileController {
     PersonProfileWebMapper personProfileWebMapper;
     GetMyPersonProfileUseCase getMyPersonProfileUseCase;
+    UpdateMyPersonProfileUseCase updateMyPersonProfileUseCase;
     GetFileMetadataFromIdUseCase getFileMetadataFromIdUseCase;
     JdbcTemplate jdbcTemplate;
 
@@ -62,7 +69,25 @@ public class PersonProfileController {
 
     @GetMapping("/me")
     public ApiResponse<PersonProfileResponse> getMyPersonProfile() {
-        PersonProfile personProfile = getMyPersonProfileUseCase.execute();
+        return ApiResponse.<PersonProfileResponse>builder()
+                .data(toResponse(getMyPersonProfileUseCase.execute()))
+                .build();
+    }
+
+    @PutMapping("/me")
+    public ApiResponse<PersonProfileResponse> updateMyPersonProfile(
+            @Valid @RequestBody UpdateMyPersonProfileRequest request
+    ) {
+        PersonProfile personProfile = updateMyPersonProfileUseCase.execute(
+                new UpdateMyPersonProfileCommand(request.contactPhone(), request.email())
+        );
+        return ApiResponse.<PersonProfileResponse>builder()
+                .message("Cập nhật hồ sơ thành công")
+                .data(toResponse(personProfile))
+                .build();
+    }
+
+    private PersonProfileResponse toResponse(PersonProfile personProfile) {
         FileMetadata fileMetadata = getFileMetadataFromIdUseCase.execute(
                 new GetFileMetadataFromIdQuery(personProfile.getPortraitFileId())
         );
@@ -72,9 +97,7 @@ public class PersonProfileController {
         );
         response.setIdentityDocument(getIdentityDocument(personProfile.getId()));
 
-        return ApiResponse.<PersonProfileResponse>builder()
-                .data(response)
-                .build();
+        return response;
     }
 
     private PersonProfileResponse.IdentityDocumentResponse getIdentityDocument(Long profileId) {

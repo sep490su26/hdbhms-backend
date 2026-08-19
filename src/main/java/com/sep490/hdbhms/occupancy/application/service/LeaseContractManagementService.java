@@ -394,6 +394,7 @@ public class LeaseContractManagementService {
         if (contract.getSignedFile() != null && !replace) {
             throw new AppException(ApiErrorCode.LEASE_SIGNED_FILE_ALREADY_EXISTS);
         }
+        validateSignedFileName(contract, file);
         Long currentUserId = AuthUtils.getCurrentAuthenticationId();
         var metadata = uploadFileService.execute(new UploadFileCommand(
                 currentUserId,
@@ -409,6 +410,26 @@ public class LeaseContractManagementService {
         contract.setSignedUploadedBy(currentUserId != null ? UserEntity.builder().id(currentUserId).build() : null);
         leaseContractRepository.save(contract);
         return findOne(contract.getId());
+    }
+
+    private void validateSignedFileName(LeaseContractEntity contract, MultipartFile file) {
+        String contractCode = contract.getContractCode() == null
+                ? ""
+                : contract.getContractCode().trim();
+        String originalFilename = file == null ? "" : file.getOriginalFilename();
+        String filename = originalFilename == null ? "" : originalFilename.trim();
+        int lastSeparator = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
+        String leafFilename = filename.substring(lastSeparator + 1);
+        int extensionIndex = leafFilename.lastIndexOf('.');
+        String baseFilename = extensionIndex > 0
+                ? leafFilename.substring(0, extensionIndex)
+                : leafFilename;
+
+        if (contractCode.isBlank()
+                || baseFilename.isBlank()
+                || !baseFilename.trim().equalsIgnoreCase(contractCode)) {
+            throw new AppException(ApiErrorCode.LEASE_SIGNED_FILE_NAME_MISMATCH, contractCode);
+        }
     }
 
     public LeaseContractManagementResponse liquidate(

@@ -335,6 +335,7 @@ public enum     ApiErrorCode {
     LEASE_CONTRACT_NOT_FOUND_FOR_LIQUIDATION(70077, "LEASE_CONTRACT_NOT_FOUND_FOR_LIQUIDATION", "Không tìm thấy hợp đồng thuê.", HttpStatus.NOT_FOUND),
     LEASE_ALREADY_LIQUIDATED(70078, "LEASE_ALREADY_LIQUIDATED", "Hợp đồng đã được thanh lý.", HttpStatus.BAD_REQUEST),
     LEASE_LIQUIDATION_STATUS_INVALID(70079, "LEASE_LIQUIDATION_STATUS_INVALID", "Chỉ thanh lý hợp đồng đang hiệu lực, sắp hết hạn, hết hạn hoặc chờ thanh lý.", HttpStatus.BAD_REQUEST),
+    LEASE_SIGNED_FILE_NAME_MISMATCH(70080, "LEASE_SIGNED_FILE_NAME_MISMATCH", "Tên file hợp đồng đã ký phải khớp mã hợp đồng %s (không tính phần mở rộng).", HttpStatus.BAD_REQUEST),
     LEASE_ROOM_REQUIRED(70080, "LEASE_ROOM_REQUIRED", "Hợp đồng chưa gắn phòng.", HttpStatus.BAD_REQUEST),
     LEASE_LIQUIDATION_RECORD_REQUIRED(70081, "LEASE_LIQUIDATION_RECORD_REQUIRED", "Vui lòng lập hồ sơ thanh lý trước khi hoàn tất.", HttpStatus.BAD_REQUEST),
     LEASE_REPLACEMENT_CONTRACT_REQUIRED_FOR_REMAINING_OCCUPANTS(70082, "LEASE_REPLACEMENT_CONTRACT_REQUIRED_FOR_REMAINING_OCCUPANTS", "Vui lòng lập hợp đồng thay thế cho người ở lại trước khi hoàn tất thanh lý.", HttpStatus.CONFLICT),

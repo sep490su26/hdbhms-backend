@@ -116,16 +116,36 @@ public class LeaseExpiryReminderService {
             return;
         }
 
-        Long recipientUserId = primaryTenantUserId(contract);
-        if (recipientUserId == null) {
-            log.warn("Skipping lease expiry reminder because the primary tenant has no account. contractId={}", contract.getId());
+        Map<Long, String> recipientAudiences = reminderRecipientAudiences(contract);
+        if (recipientAudiences.isEmpty()) {
+            log.warn("Skipping lease expiry reminder because no active tenant account was found. contractId={}", contract.getId());
             return;
         }
 
+        for (Map.Entry<Long, String> recipient : recipientAudiences.entrySet()) {
+            processRecipientReminder(
+                    contract,
+                    today,
+                    firstReminderDate,
+                    recipient.getKey(),
+                    recipient.getValue(),
+                    PRIMARY_TENANT_AUDIENCE.equals(recipient.getValue())
+            );
+        }
+    }
+
+    private void processRecipientReminder(
+            LeaseContract contract,
+            LocalDate today,
+            LocalDate firstReminderDate,
+            Long recipientUserId,
+            String audience,
+            boolean primaryTenant
+    ) {
         ReminderTrackerEntity tracker = findActiveTracker(
                 LEASE_EXPIRY_INTENTION,
                 contract.getId(),
-                PRIMARY_TENANT_AUDIENCE,
+                audience,
                 recipientUserId
         );
         if (tracker == null) {
@@ -133,7 +153,7 @@ public class LeaseExpiryReminderService {
                     .reminderKey(LEASE_EXPIRY_INTENTION)
                     .targetType(CONTRACT_TARGET)
                     .targetId(contract.getId())
-                    .audience(PRIMARY_TENANT_AUDIENCE)
+                    .audience(audience)
                     .recipientUser(UserEntity.builder().id(recipientUserId).build())
                     .status(ReminderTrackerStatus.ACTIVE)
                     .sentCount(0)
@@ -148,7 +168,8 @@ public class LeaseExpiryReminderService {
 
         int sentCount = tracker.getSentCount() == null ? 0 : tracker.getSentCount();
         if (sentCount >= 3) {
-            if (isReminderDue(tracker, today)) {
+            // Only the primary tenant's tracker controls the existing deposit policy.
+            if (primaryTenant) {
                 automaticallyForfeitDeposit(contract, today);
             }
             tracker.setNextDueAt(null);
@@ -427,10 +448,6 @@ public class LeaseExpiryReminderService {
         );
     }
 
-    private Long primaryTenantUserId(LeaseContract contract) {
-        return reminderContext(contract).primaryTenantUserId();
-    }
-
     private Long propertyId(LeaseContract contract) {
         return reminderContext(contract).propertyId();
     }
@@ -468,6 +485,59 @@ public class LeaseExpiryReminderService {
         data.put("endDate", String.valueOf(contract.getEndDate()));
         data.put("daysRemaining", ChronoUnit.DAYS.between(today, contract.getEndDate()));
         return data;
+    }
+
+    private Map<Long, String> reminderRecipientAudiences(LeaseContract contract) {
+        return jdbcTemplate.query("""
+                        SELECT
+                            COALESCE(direct_user.user_id, provisioned_user.user_id) AS recipient_user_id,
+                            recipient_profiles.audience
+                        FROM (
+                            SELECT lc.primary_tenant_profile_id AS profile_id,
+                                   'PRIMARY_TENANT' AS audience
+                            FROM lease_contracts lc
+                            WHERE lc.lease_contract_id = ?
+                            UNION ALL
+                            SELECT co.tenant_profile_id AS profile_id,
+                                   'CO_OCCUPANT' AS audience
+                            FROM contract_occupants co
+                            WHERE co.contract_id = ?
+                              AND co.occupant_role = 'CO_OCCUPANT'
+                              AND co.status = 'ACTIVE'
+                        ) recipient_profiles
+                        JOIN person_profiles profile
+                          ON profile.person_profile_id = recipient_profiles.profile_id
+                         AND profile.deleted_at IS NULL
+                        LEFT JOIN users direct_user
+                          ON direct_user.user_id = profile.user_id
+                         AND direct_user.deleted_at IS NULL
+                        LEFT JOIN tenant_account_provisionings provisioning
+                          ON provisioning.tenant_profile_id = profile.person_profile_id
+                         AND provisioning.status <> 'DISABLED'
+                        LEFT JOIN users provisioned_user
+                          ON provisioned_user.user_id = provisioning.user_id
+                         AND provisioned_user.deleted_at IS NULL
+                        WHERE COALESCE(direct_user.user_id, provisioned_user.user_id) IS NOT NULL
+                        ORDER BY CASE recipient_profiles.audience
+                                     WHEN 'PRIMARY_TENANT' THEN 0
+                                     ELSE 1
+                                 END,
+                                 recipient_user_id
+                        """,
+                rs -> {
+                    Map<Long, String> recipients = new LinkedHashMap<>();
+                    while (rs.next()) {
+                        Long recipientUserId = rs.getObject("recipient_user_id", Long.class);
+                        if (recipientUserId != null) {
+                            // Keep the primary audience if one account is linked to both profiles.
+                            recipients.putIfAbsent(recipientUserId, rs.getString("audience"));
+                        }
+                    }
+                    return recipients;
+                },
+                contract.getId(),
+                contract.getId()
+        );
     }
 
     private String metadata(LeaseContract contract, String stage) {
@@ -509,12 +579,15 @@ public class LeaseExpiryReminderService {
                             room.name AS room_name,
                             property.property_id,
                             property.name AS property_name,
-                            user_account.user_id AS primary_tenant_user_id
+                             COALESCE(user_account.user_id, provisioning.user_id) AS primary_tenant_user_id
                         FROM lease_contracts lc
                         LEFT JOIN rooms room ON room.room_id = lc.room_id
                         LEFT JOIN properties property ON property.property_id = room.property_id
                         LEFT JOIN person_profiles profile ON profile.person_profile_id = lc.primary_tenant_profile_id
                         LEFT JOIN users user_account ON user_account.user_id = profile.user_id
+                        LEFT JOIN tenant_account_provisionings provisioning
+                            ON provisioning.tenant_profile_id = profile.person_profile_id
+                           AND provisioning.status <> 'DISABLED'
                         WHERE lc.lease_contract_id = ?
                         LIMIT 1
                         """,
