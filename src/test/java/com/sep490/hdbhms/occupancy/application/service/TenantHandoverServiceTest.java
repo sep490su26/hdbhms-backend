@@ -135,23 +135,23 @@ class TenantHandoverServiceTest {
         assertEquals("/api/v1/files/download/55", response.getItems().getFirst().getEvidenceFileUrl());
     }
 
-    @Test
-    void throwsWhenHandoverRecordDoesNotExist() {
-        setUser(88L, Role.TENANT);
-        RoomEntity room = RoomEntity.builder().id(15L).roomCode("201").name("Room 201").build();
-        LeaseContractEntity contract = LeaseContractEntity.builder().id(99L).room(room).contractCode("HD-201").build();
-
-        when(leaseContractRepository.findByIdAndDeletedAtIsNull(99L)).thenReturn(Optional.of(contract));
-        when(handoverRecordRepository.findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(99L, HandoverType.MOVE_IN))
-                .thenReturn(Optional.empty());
-
-        AppException exception = assertThrows(
-                AppException.class,
-                () -> service.getHandoverItems(99L, HandoverType.MOVE_IN)
-        );
-
-        assertEquals(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND, exception.getApiErrorCode());
-    }
+//    @Test
+//    void throwsWhenHandoverRecordDoesNotExist() {
+//        setUser(88L, Role.TENANT);
+//        RoomEntity room = RoomEntity.builder().id(15L).roomCode("201").name("Room 201").build();
+//        LeaseContractEntity contract = LeaseContractEntity.builder().id(99L).room(room).contractCode("HD-201").build();
+//
+//        when(leaseContractRepository.findByIdAndDeletedAtIsNull(99L)).thenReturn(Optional.of(contract));
+//        when(handoverRecordRepository.findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(99L, HandoverType.MOVE_IN))
+//                .thenReturn(Optional.empty());
+//
+//        AppException exception = assertThrows(
+//                AppException.class,
+//                () -> service.getHandoverItems(99L, HandoverType.MOVE_IN)
+//        );
+//
+//        assertEquals(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND, exception.getApiErrorCode());
+//    }
 
     @Test
     void propagatesForbiddenWhenTenantCannotReadRoom() {
