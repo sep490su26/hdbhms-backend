@@ -2,6 +2,7 @@ package com.sep490.hdbhms.notification.infrastructure.persistence.mapper;
 
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
+import com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel;
 import com.sep490.hdbhms.notification.infrastructure.persistence.entity.NotificationOutboxEntity;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,11 @@ public class NotificationOutboxPersistenceMapper {
 
     public NotificationOutboxEntity toEntity(NotificationOutbox domain) {
         if (domain == null) return null;
+        if (domain.getRecipientUserId() == null
+                && domain.getChannel() != NotificationChannel.EMAIL
+                && domain.getChannel() != NotificationChannel.SMS) {
+            throw new IllegalStateException("A non-email notification requires a recipient user");
+        }
         return NotificationOutboxEntity.builder()
                 .id(domain.getId())
                 .eventType(domain.getEventType())
