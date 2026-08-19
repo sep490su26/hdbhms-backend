@@ -137,7 +137,7 @@ public class TenantInvoiceController {
         );
 
         List<TenantInvoiceResponse> history = jpaInvoiceRepository
-                .findTenantVisibleInvoices(userId, visibleStatuses)
+                .findTenantElectricityHistoryInvoices(userId, visibleStatuses)
                 .stream()
                 .filter(invoice -> contractId == null
                         || invoice.getLeastContract() != null

@@ -29,8 +29,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChangeRequestService implements ChangeRequestUseCase {
-    static final String LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS = "PRIMARY_LEAVES_CO_OCCUPANT_STAYS";
-
     ChangeRequestRepository repository;
     List<ChangeRequestDecisionHandler> decisionHandlers;
     PermissionGrantService permissionGrantService;
@@ -163,22 +161,14 @@ public class ChangeRequestService implements ChangeRequestUseCase {
 
     private String withLiquidationStage(String payloadJson) {
         Map<String, Object> data = payloadMap(payloadJson);
-        Object liquidationMode = data.get("liquidationMode");
-        boolean holderReplacement = liquidationMode != null
-                && LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS
-                .equalsIgnoreCase(liquidationMode.toString().trim());
-        String stage = holderReplacement ? "WAITING_REPLACEMENT_CONTRACT" : "WAITING_HANDOVER";
-        data.put("liquidationStage", stage);
-        data.put("depositRefundStatus", holderReplacement ? "NOT_REQUIRED" : "PENDING");
+        data.put("liquidationStage", "WAITING_HANDOVER");
+        data.put("depositRefundStatus", "PENDING");
         data.put("depositForfeitureStatus", "NOT_REQUIRED");
         Map<String, Object> checklist = new LinkedHashMap<>();
-        checklist.put("handoverConfirmed", holderReplacement);
+        checklist.put("handoverConfirmed", false);
         checklist.put("finalInvoicePaid", false);
-        checklist.put("depositRefundConfirmed", holderReplacement);
-        checklist.put("depositForfeitureConfirmed", holderReplacement);
-        if (holderReplacement) {
-            checklist.put("replacementContractSigned", false);
-        }
+        checklist.put("depositRefundConfirmed", false);
+        checklist.put("depositForfeitureConfirmed", false);
         checklist.put("canConfirm", false);
         data.put("liquidationChecklist", checklist);
         return writePayload(data);

@@ -49,11 +49,7 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
             startLeaseLiquidationProcessingUseCase.execute(new StartLeaseLiquidationProcessingCommand(
                     request.getTargetId(),
                     localDate(payload.get("liquidationDate")),
-                    string(payload.get("reason")),
-                    string(payload.get("liquidationMode")),
-                    longList(payload.get("leavingProfileIds")),
-                    longList(payload.get("stayingProfileIds")),
-                    longValue(payload.get("replacementPrimaryTenantProfileId"))
+                    string(payload.get("reason"))
             ));
             return;
         }
@@ -114,15 +110,6 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
     private Long longValue(Object value) {
         if (value instanceof Number number) return number.longValue();
         return value == null ? null : Long.parseLong(value.toString());
-    }
-
-    private List<Long> longList(Object value) {
-        if (!(value instanceof List<?> values)) {
-            return List.of();
-        }
-        return values.stream()
-                .map(this::longValue)
-                .toList();
     }
 
     private Integer intValue(Object value) {

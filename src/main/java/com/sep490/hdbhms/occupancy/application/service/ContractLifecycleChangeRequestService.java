@@ -79,11 +79,7 @@ public class ContractLifecycleChangeRequestService {
     public ChangeRequest submitLiquidationRequest(
             Long leaseContractId,
             LocalDate liquidationDate,
-            String reason,
-            String liquidationMode,
-            List<Long> leavingProfileIds,
-            List<Long> stayingProfileIds,
-            Long replacementPrimaryTenantProfileId
+            String reason
     ) {
         UserPrincipal principal = currentPrincipal();
         LeaseContractEntity contract = getContract(leaseContractId);
@@ -98,11 +94,7 @@ public class ContractLifecycleChangeRequestService {
                 liquidationPayload(
                         contract,
                         liquidationDate,
-                        reason,
-                        liquidationMode,
-                        leavingProfileIds,
-                        stayingProfileIds,
-                        replacementPrimaryTenantProfileId
+                        reason
                 )
         );
     }
@@ -226,27 +218,11 @@ public class ContractLifecycleChangeRequestService {
     private Map<String, Object> liquidationPayload(
             LeaseContractEntity contract,
             LocalDate liquidationDate,
-            String reason,
-            String liquidationMode,
-            List<Long> leavingProfileIds,
-            List<Long> stayingProfileIds,
-            Long replacementPrimaryTenantProfileId
+            String reason
     ) {
         Map<String, Object> payload = basePayload("CONTRACT_LIQUIDATION", contract);
         payload.put("liquidationDate", liquidationDate == null ? LocalDate.now() : liquidationDate);
         payload.put("reason", reason);
-        if (liquidationMode != null && !liquidationMode.isBlank()) {
-            payload.put("liquidationMode", liquidationMode.trim());
-        }
-        if (leavingProfileIds != null && !leavingProfileIds.isEmpty()) {
-            payload.put("leavingProfileIds", leavingProfileIds);
-        }
-        if (stayingProfileIds != null && !stayingProfileIds.isEmpty()) {
-            payload.put("stayingProfileIds", stayingProfileIds);
-        }
-        if (replacementPrimaryTenantProfileId != null) {
-            payload.put("replacementPrimaryTenantProfileId", replacementPrimaryTenantProfileId);
-        }
         return payload;
     }
 

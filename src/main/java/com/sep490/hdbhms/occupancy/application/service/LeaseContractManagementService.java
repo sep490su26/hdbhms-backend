@@ -587,18 +587,6 @@ public class LeaseContractManagementService {
             LocalDate liquidationDate,
             String reason
     ) {
-        return startLiquidationProcessing(leaseContractId, liquidationDate, reason, null, List.of(), List.of(), null);
-    }
-
-    public LeaseContractManagementResponse startLiquidationProcessing(
-            Long leaseContractId,
-            LocalDate liquidationDate,
-            String reason,
-            String liquidationMode,
-            List<Long> leavingProfileIds,
-            List<Long> stayingProfileIds,
-            Long replacementPrimaryTenantProfileId
-    ) {
         lockContractAndRoom(leaseContractId);
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.LEASE_CONTRACT_NOT_FOUND_FOR_LIQUIDATION));
@@ -626,16 +614,8 @@ public class LeaseContractManagementService {
                 ? "Khách không tiếp tục thuê phòng."
                 : reason.trim();
         Long depositAmount = resolveLiquidationDepositAmount(contract);
-
-        boolean holderReplacement = isHolderReplacementMode(liquidationMode);
-        HolderReplacementPlan holderReplacementPlan = holderReplacement
-                ? validateHolderReplacementLiquidation(
-                contract,
-                leavingProfileIds,
-                stayingProfileIds,
-                replacementPrimaryTenantProfileId
-        )
-                : null;
+        boolean holderReplacement = false;
+        HolderReplacementPlan holderReplacementPlan = null;
 
         ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contract.getId())
                 .orElseGet(() -> ContractLiquidationEntity.builder()
@@ -652,7 +632,7 @@ public class LeaseContractManagementService {
                 contract,
                 finalLiquidationDate,
                 depositAmount,
-                holderReplacement
+                false
         );
         liquidation.setDepositDeductionAmount(depositSettlement.deductionAmount());
         liquidation.setDepositDeductionReason(depositSettlement.deductionReason());
@@ -660,15 +640,13 @@ public class LeaseContractManagementService {
         liquidation.setStatus(LiquidationStatus.DRAFT);
         contractLiquidationRepository.save(liquidation);
 
-        if (!holderReplacement) {
-            ensureLiquidationDepositForfeitureRequest(contract, liquidation);
-            // Create the refund workflow immediately after the liquidation request is approved.
-            ensureLiquidationDepositRefundRequest(contract, liquidation);
-        }
+        ensureLiquidationDepositForfeitureRequest(contract, liquidation);
+        // Create the refund workflow immediately after the liquidation request is approved.
+        ensureLiquidationDepositRefundRequest(contract, liquidation);
 
         contract.setStatus(LeaseStatus.TERMINATION_PENDING);
         contract.setTenantIntention("MOVE_OUT");
-        contract.setExpectedVacantDate(holderReplacement ? null : finalLiquidationDate);
+        contract.setExpectedVacantDate(finalLiquidationDate);
         contract.setIntentionRecordedAt(LocalDateTime.now());
         leaseContractRepository.saveAndFlush(contract);
 
@@ -949,34 +927,7 @@ public class LeaseContractManagementService {
     }
 
     private boolean isHolderReplacementLiquidation(Long contractId) {
-        Integer count = jdbcTemplate.queryForObject("""
-                        SELECT COUNT(*)
-                        FROM change_requests
-                        WHERE request_type = 'CONTRACT_LIQUIDATION'
-                          AND target_type = 'CONTRACT'
-                          AND target_id = ?
-                          AND status IN ('PENDING', 'PROCESSING', 'APPROVED', 'COMPLETED')
-                          AND JSON_UNQUOTE(JSON_EXTRACT(request_payload, '$.liquidationMode')) = ?
-                        """,
-                Integer.class,
-                contractId,
-                LIQUIDATION_MODE_PRIMARY_LEAVES_CO_OCCUPANT_STAYS
-        );
-        if (count != null && count > 0) {
-            return true;
-        }
-        return leaseContractRepository.findById(contractId)
-                .flatMap(contract -> latestReplacementContract(contractId)
-                        .filter(replacement -> replacement.getRoom() != null
-                                && contract.getRoom() != null
-                                && Objects.equals(replacement.getRoom().getId(), contract.getRoom().getId()))
-                        .filter(replacement -> replacement.getPrimaryTenantProfile() != null
-                                && contract.getPrimaryTenantProfile() != null
-                                && !Objects.equals(
-                                replacement.getPrimaryTenantProfile().getId(),
-                                contract.getPrimaryTenantProfile().getId()
-                        )))
-                .isPresent();
+        return false;
     }
 
     private Optional<LeaseContractEntity> latestReplacementContract(Long oldContractId) {

@@ -21,11 +21,7 @@ public class StartLeaseLiquidationProcessingService implements StartLeaseLiquida
         return leaseContractManagementService.startLiquidationProcessing(
                 command.leaseContractId(),
                 command.liquidationDate(),
-                command.reason(),
-                command.liquidationMode(),
-                command.leavingProfileIds(),
-                command.stayingProfileIds(),
-                command.replacementPrimaryTenantProfileId()
+                command.reason()
         );
     }
 }

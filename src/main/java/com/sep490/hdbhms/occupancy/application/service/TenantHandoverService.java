@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -42,30 +43,30 @@ public class TenantHandoverService {
         leaseContractQueryService.assertCurrentUserCanReadContract(contractId);
         leaseContractQueryService.assertCurrentUserCanReadRoom(roomId);
 
-        ContractHandoverRecordEntity record = handoverRecordRepository
-                .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, type)
-                .orElseThrow(() -> new AppException(ApiErrorCode.CONTRACT_HANDOVER_RECORD_NOT_FOUND));
+        Optional<ContractHandoverRecordEntity> record = handoverRecordRepository
+                .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, type);
 
-        List<ContractHandoverDetailsResponse.HandoverItemDetails> items =
-                handoverItemRepository.findWithEvidenceFileByHandoverRecordId(record.getId()).stream()
+        List<ContractHandoverDetailsResponse.HandoverItemDetails> items = record
+                .map(handover -> handoverItemRepository.findWithEvidenceFileByHandoverRecordId(handover.getId()).stream()
                         .map(this::mapHandoverItem)
-                        .toList();
-
-        if (items.isEmpty()) {
-            items = roomAssetRepository.findActiveByRoomId(roomId).stream()
-                    .map(this::mapRoomAsset)
-                    .toList();
-        }
+                        .toList())
+                .filter(handoverItems -> !handoverItems.isEmpty())
+                .orElseGet(() -> roomAssetRepository.findActiveByRoomId(roomId).stream()
+                        .map(this::mapRoomAsset)
+                        .toList());
 
         return ContractHandoverDetailsResponse.builder()
-                .handoverRecordId(record.getId())
-                .handoverType(record.getHandoverType())
-                .status(record.getStatus())
-                .handoverDate(record.getHandoverDate())
-                .note(record.getNote())
-                .signedDocumentId(record.getSignedDocument() != null ? record.getSignedDocument().getId() : null)
-                .signedDocumentUrl(fileDownloadUrl(record.getSignedDocument()))
-                .electricity(mapReading(record.getElectricityReading()))
+                .handoverRecordId(record.map(ContractHandoverRecordEntity::getId).orElse(null))
+                .handoverType(record.map(ContractHandoverRecordEntity::getHandoverType).orElse(null))
+                .status(record.map(ContractHandoverRecordEntity::getStatus).orElse(null))
+                .handoverDate(record.map(ContractHandoverRecordEntity::getHandoverDate).orElse(null))
+                .note(record.map(ContractHandoverRecordEntity::getNote).orElse(null))
+                .signedDocumentId(record.map(ContractHandoverRecordEntity::getSignedDocument)
+                        .map(FileMetadataEntity::getId).orElse(null))
+                .signedDocumentUrl(record.map(ContractHandoverRecordEntity::getSignedDocument)
+                        .map(this::fileDownloadUrl).orElse(null))
+                .electricity(record.map(ContractHandoverRecordEntity::getElectricityReading)
+                        .map(this::mapReading).orElse(null))
                 .items(items)
                 .build();
     }

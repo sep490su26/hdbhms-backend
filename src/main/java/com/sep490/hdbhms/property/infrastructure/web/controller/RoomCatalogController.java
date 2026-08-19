@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.property.infrastructure.web.controller;
 
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.property.domain.model.RoomImage;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomRepository;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 
 @RestController
@@ -37,6 +39,7 @@ public class RoomCatalogController {
     JpaRoomImageRepository roomImageRepository;
     RoomImagePersistenceMapper roomImagePersistenceMapper;
     RoomImageWebMapper roomImageWebMapper;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @GetMapping("/api/v1/rooms")
     public ApiResponse<PageResponse<RoomResponse>> getRooms(
@@ -128,10 +131,18 @@ public class RoomCatalogController {
                 .areaM2(room.getAreaM2())
                 .maxOccupants(room.getMaxOccupants())
                 .currentStatus(room.getCurrentStatus())
+                .expectedVacantDate(expectedVacantDate(room))
                 .positionX(room.getPositionX())
                 .positionY(room.getPositionY())
                 .firstImageUrl(imageResponses.isEmpty() ? null : imageResponses.get(0).getUrl())
                 .images(imageResponses)
                 .build();
+    }
+
+    private LocalDate expectedVacantDate(RoomEntity room) {
+        if (room.getCurrentStatus() != RoomStatus.SOON_VACANT) {
+            return null;
+        }
+        return roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId()).orElse(null);
     }
 }

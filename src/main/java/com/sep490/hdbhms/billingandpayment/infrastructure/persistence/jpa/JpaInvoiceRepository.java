@@ -135,4 +135,46 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
             @Param("userId") Long userId,
             @Param("statuses") Collection<InvoiceStatus> statuses
     );
+
+    @Query("""
+            SELECT DISTINCT invoice
+            FROM InvoiceEntity invoice
+            LEFT JOIN FETCH invoice.room room
+            LEFT JOIN FETCH room.property property
+            LEFT JOIN FETCH invoice.leastContract contract
+            LEFT JOIN contract.primaryTenantProfile primaryProfile
+            WHERE invoice.status IN :statuses
+              AND contract IS NOT NULL
+              AND (
+                    primaryProfile.user.id = :userId
+                    OR EXISTS (
+                        SELECT provisioning.id
+                        FROM TenantAccountProvisioningEntity provisioning
+                        WHERE provisioning.tenantProfileId = primaryProfile.id
+                          AND provisioning.userId = :userId
+                          AND provisioning.status <> com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus.DISABLED
+                    )
+                    OR EXISTS (
+                        SELECT occupant.id
+                        FROM ContractOccupantEntity occupant
+                        WHERE occupant.contract = contract
+                          AND occupant.status = com.sep490.hdbhms.occupancy.domain.value_objects.OccupantStatus.ACTIVE
+                          AND (
+                                occupant.tenantProfile.user.id = :userId
+                                OR EXISTS (
+                                    SELECT provisioning.id
+                                    FROM TenantAccountProvisioningEntity provisioning
+                                    WHERE provisioning.tenantProfileId = occupant.tenantProfile.id
+                                      AND provisioning.userId = :userId
+                                      AND provisioning.status <> com.sep490.hdbhms.identityandaccess.domain.value_objects.TenantAccountProvisioningStatus.DISABLED
+                                )
+                          )
+                    )
+              )
+            ORDER BY invoice.dueDate ASC, invoice.id DESC
+            """)
+    List<InvoiceEntity> findTenantElectricityHistoryInvoices(
+            @Param("userId") Long userId,
+            @Param("statuses") Collection<InvoiceStatus> statuses
+    );
 }

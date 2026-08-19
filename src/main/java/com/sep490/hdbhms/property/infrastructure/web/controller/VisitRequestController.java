@@ -20,6 +20,7 @@ import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.property.domain.model.VisitRequest;
 import com.sep490.hdbhms.property.domain.value_objects.VisitRequestStatus;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.CreateVisitRequestRequest;
+import com.sep490.hdbhms.property.infrastructure.web.dto.request.VisitRequestUpdateRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.VisitRequestStatusUpdateRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.VisitRequestDetailsResponse;
 import com.sep490.hdbhms.property.infrastructure.web.dto.response.VisitRequestResponse;
@@ -201,6 +202,49 @@ public class VisitRequestController {
         findVisitRequest(id);
         visitRequestRepository.deleteById(id);
         return ApiResponse.<Void>builder().build();
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("@visitRequestAccessGuard.canManage(authentication)")
+    public ApiResponse<VisitRequestDetailsResponse> updateVisitRequest(
+            @PathVariable Long id,
+            @Valid @RequestBody VisitRequestUpdateRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        VisitRequest current = findVisitRequest(id);
+        assertCanAccessVisitRequest(principal, current);
+
+        Room room = getRoomOrNull(request.getRoomId());
+        if (room != null && !Objects.equals(room.getPropertyId(), request.getPropertyId())) {
+            throw new AppException(ApiErrorCode.VISIT_002);
+        }
+
+        // Validate the target scope too, so a manager cannot move a request outside assigned properties.
+        assertCanAccessProperty(principal, request.getPropertyId());
+        getPropertyOrNull(request.getPropertyId());
+
+        VisitRequest updated = VisitRequest.builder()
+                .id(current.getId())
+                .propertyId(request.getPropertyId())
+                .roomId(request.getRoomId())
+                .visitorName(request.getCustomerName())
+                .visitorPhone(request.getPhone())
+                .visitorEmail(current.getVisitorEmail())
+                .preferredStart(request.getAppointmentAt())
+                .status(request.getStatus() == null ? current.getStatus() : request.getStatus())
+                .notes(request.getNote())
+                .createdAt(current.getCreatedAt())
+                .updatedAt(current.getUpdatedAt())
+                .deletedAt(current.getDeletedAt())
+                .deletedByUserId(current.getDeletedByUserId())
+                .build();
+        updated = visitRequestRepository.save(updated);
+
+        Property property = getPropertyForVisitRequest(updated, room);
+        return ApiResponse.<VisitRequestDetailsResponse>builder()
+                .message("Cập nhật lịch xem phòng thành công")
+                .data(visitRequestWebMapper.toDetailsResponse(updated, property, room))
+                .build();
     }
 
     @PatchMapping("/{id}/status")

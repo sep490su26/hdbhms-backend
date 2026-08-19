@@ -320,11 +320,7 @@ public class LeaseContractController {
         ChangeRequest changeRequest = contractLifecycleChangeRequestService.submitLiquidationRequest(
                 leaseContractId,
                 request == null ? null : request.liquidationDate(),
-                request == null ? null : request.reason(),
-                request == null ? null : request.liquidationMode(),
-                request == null ? null : request.leavingProfileIds(),
-                request == null ? null : request.stayingProfileIds(),
-                request == null ? null : request.replacementPrimaryTenantProfileId()
+                request == null ? null : request.reason()
         );
         return ApiResponse.<ChangeRequestResponse>builder()
                 .data(toChangeRequestResponse(changeRequest))
@@ -551,14 +547,6 @@ public class LeaseContractController {
                 && response.getEndDate() != null
                 && !LocalDate.now().isBefore(response.getEndDate().minusMonths(3));
         response.setCanRecordIntention(canRecordIntention);
-        if (!isPrimary && isOccupant) {
-            response.setCanRecordOccupantIntention(
-                    List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.TERMINATION_PENDING)
-                            .contains(response.getStatus())
-            );
-            enrichCurrentOccupantIntention(response, leaseContractId, userId);
-        }
-
         RoomCommitmentChecker.Blocker renewBlocker = response.getRoom() == null || response.getRoom().getId() == null
                 ? RoomCommitmentChecker.Blocker.NONE
                 : roomCommitmentChecker.checkRenewBlockers(
@@ -960,10 +948,6 @@ public class LeaseContractController {
     public record LeaseContractLiquidationRequest(
             LocalDate liquidationDate,
             String reason,
-            String liquidationMode,
-            List<Long> leavingProfileIds,
-            List<Long> stayingProfileIds,
-            Long replacementPrimaryTenantProfileId,
             @Valid
             List<LeaseContractLiquidationChargeRequest> charges
     ) {
