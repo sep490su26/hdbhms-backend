@@ -139,6 +139,7 @@ public class GetBatchMeterReadingsService {
                     .roomName(room.getName())
                     .electricityPrevious(currElec != null ? currElec.getPreviousValue() : (prevElec != null ? prevElec.getCurrentValue() : null))
                     .electricityCurrent(currElec != null ? currElec.getCurrentValue() : null)
+                    .electricityRolloverCount(currElec != null ? currElec.getRolloverCount() : null)
                     .electricityPhotoId(currElec != null && currElec.getPhotoFile() != null ? currElec.getPhotoFile().getId() : null)
                     .status(status)
                     .syncTime(currElec != null ? currElec.getCreatedAt() : null)
@@ -219,7 +220,8 @@ public class GetBatchMeterReadingsService {
         // A previously approved bad reading must still be visible as a warning.
         if (reading.getPreviousValue() != null
                 && reading.getCurrentValue() != null
-                && reading.getCurrentValue().compareTo(reading.getPreviousValue()) < 0) {
+                && reading.getCurrentValue().compareTo(reading.getPreviousValue()) < 0
+                && (reading.getRolloverCount() == null || reading.getRolloverCount() == 0)) {
             warnings.add(BatchMeterReadingStatusResponse.ReadingWarning.builder()
                     .meterType("ELECTRICITY")
                     .type("NEGATIVE_USAGE")

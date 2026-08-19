@@ -38,6 +38,7 @@ import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.id.SnowflakeIdGenerator;
@@ -127,6 +128,7 @@ public class RoomTransferService implements RoomTransferUseCase {
     JdbcTemplate jdbcTemplate;
     ObjectMapper objectMapper;
     RoomCommitmentChecker roomCommitmentChecker;
+    MeterUsageCalculator meterUsageCalculator;
 
     @Override
     @Transactional
@@ -1083,7 +1085,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                     COUNT(DISTINCT CASE WHEN invoice_type = 'UTILITY' THEN billing_period END) AS utility_debt_months
                 FROM invoices
                 WHERE lease_contract_id = ?
-                  AND status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
+                  AND status IN ('ISSUED', 'OVERDUE')
                   AND COALESCE(remaining_amount, 0) > 0
                 """, sourceContract.getId());
         long rentDebt = safeNumber(row.get("rent_debt_amount"));
@@ -2508,12 +2510,19 @@ public class RoomTransferService implements RoomTransferUseCase {
             throw new AppException(ApiErrorCode.ROOM_TRANSFER_HANDOVER_ELECTRICITY_REQUIRED);
         }
         LocalDate readingDate = input.readingDate() == null ? LocalDate.now() : input.readingDate();
-        BigDecimal previousValue = readLatestRoomReading(roomId, utilityType);
+        MeterSnapshot previous = readLatestMeterSnapshot(roomId, utilityType);
+        BigDecimal previousValue = previous.currentValue();
         BigDecimal currentValue = input.currentValue();
-        BigDecimal usage = currentValue.subtract(previousValue);
-        if (usage.compareTo(BigDecimal.ZERO) < 0) {
+        MeterUsageCalculator.Calculation calculation = meterUsageCalculator.calculate(
+                previousValue,
+                currentValue,
+                previous.counterCapacity(),
+                currentValue.compareTo(previousValue) < 0 ? null : 0
+        );
+        if (!calculation.valid()) {
             throw new AppException(ApiErrorCode.ROOM_TRANSFER_METER_READING_INVALID);
         }
+        BigDecimal usage = calculation.usage();
 
         UtilityTariffSnapshot tariff = readUtilityTariff(propertyId, utilityType, readingDate);
         BigDecimal billableUsage = usage.subtract(BigDecimal.valueOf(tariff.freeAllowance()));
@@ -2532,21 +2541,28 @@ public class RoomTransferService implements RoomTransferUseCase {
         );
     }
 
-    private BigDecimal readLatestRoomReading(Long roomId, UtilityType utilityType) {
+    private MeterSnapshot readLatestMeterSnapshot(Long roomId, UtilityType utilityType) {
         return jdbcTemplate.query("""
-                        SELECT reading.current_value
+                        SELECT reading.current_value, meter.counter_capacity
                         FROM meter_readings reading
                         JOIN meters meter ON meter.meter_id = reading.meter_id
                         WHERE reading.room_id = ?
                           AND meter.meter_type = ?
+                          AND meter.status = 'ACTIVE'
                           AND reading.status <> 'VOIDED'
                         ORDER BY reading.reading_date DESC, reading.created_at DESC, reading.meter_reading_id DESC
                         LIMIT 1
                         """,
-                (rs, rowNum) -> rs.getBigDecimal("current_value"),
+                (rs, rowNum) -> new MeterSnapshot(
+                        rs.getBigDecimal("current_value"),
+                        rs.getBigDecimal("counter_capacity")
+                ),
                 roomId,
                 utilityType.name()
-        ).stream().findFirst().orElse(BigDecimal.ZERO);
+        ).stream().findFirst().orElse(new MeterSnapshot(BigDecimal.ZERO, BigDecimal.valueOf(100000)));
+    }
+
+    private record MeterSnapshot(BigDecimal currentValue, BigDecimal counterCapacity) {
     }
 
     private ServiceFeeCharge buildTransferServiceFeeCharge(

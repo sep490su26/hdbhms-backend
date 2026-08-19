@@ -66,17 +66,16 @@ public class Invoice {
     }
 
     public void applyAmount(long amountInDong) {
-        if (status == InvoiceStatus.VOIDED || status == InvoiceStatus.DRAFT) {
+        if (status != InvoiceStatus.ISSUED && status != InvoiceStatus.OVERDUE) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
-        this.paidAmount += amountInDong;
-        this.remainingAmount = this.totalAmount - this.paidAmount;
-
-        if (this.remainingAmount <= 0) {
-            this.status = InvoiceStatus.PAID;
-        } else if (this.paidAmount > 0) {
-            this.status = InvoiceStatus.PARTIALLY_PAID;
+        long outstanding = this.remainingAmount == null ? 0L : this.remainingAmount;
+        if (amountInDong <= 0 || amountInDong != outstanding) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
         }
+        this.paidAmount = this.totalAmount;
+        this.remainingAmount = 0L;
+        this.status = InvoiceStatus.PAID;
     }
 
     public void issue() {

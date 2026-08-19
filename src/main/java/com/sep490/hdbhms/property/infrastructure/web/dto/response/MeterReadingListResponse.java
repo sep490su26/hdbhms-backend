@@ -42,6 +42,7 @@ public class MeterReadingListResponse {
         BigDecimal previousValue;
         BigDecimal currentValue;
         BigDecimal usageAmount;
+        Integer rolloverCount;
         LocalDate readingDate;
         ReadingSource source;
         ReadingStatus status;

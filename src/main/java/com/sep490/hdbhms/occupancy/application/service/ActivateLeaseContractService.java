@@ -8,6 +8,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseCont
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.application.service.MeterReadingPeriod;
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingPurpose;
@@ -59,6 +60,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
     LeaseContractWorkflowSupport workflowSupport;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
     JpaContractHandoverRecordRepository handoverRecordRepository;
+    MeterUsageCalculator meterUsageCalculator;
 
     @Override
     public LeaseContractManagementResponse execute(
@@ -274,23 +276,30 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         contract.setActivationElectricityValue(currentValue);
         contract.setActivationReadingDate(readingDate);
 
-        BigDecimal previousValue = meterReadingRepository
-                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
-                        room.getId(), MeterType.ELECTRICITY, ReadingStatus.VOIDED)
-                .map(MeterReadingEntity::getCurrentValue)
-                .orElse(BigDecimal.ZERO);
-        if (currentValue.compareTo(previousValue) < 0) {
-            throw new AppException(ApiErrorCode.CONTRACT_ACTIVATION_READING_INVALID, currentValue, previousValue);
-        }
-
-        MeterEntity meter = meterRepository
-                .findFirstByRoom_IdAndMeterTypeAndStatus(room.getId(), MeterType.ELECTRICITY, MeterStatus.ACTIVE)
-                .orElseGet(() -> meterRepository.save(MeterEntity.builder()
+        var activeMeter = meterRepository
+                .findFirstByRoom_IdAndMeterTypeAndStatus(room.getId(), MeterType.ELECTRICITY, MeterStatus.ACTIVE);
+        MeterEntity meter = activeMeter.orElseGet(() -> meterRepository.save(MeterEntity.builder()
                         .room(room)
                         .meterType(MeterType.ELECTRICITY)
                         .status(MeterStatus.ACTIVE)
                         .installedAt(LocalDate.now())
                         .build()));
+        BigDecimal previousValue = activeMeter.isPresent()
+                ? meterReadingRepository
+                .findFirstByMeter_IdAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                        meter.getId(), ReadingStatus.VOIDED)
+                .map(MeterReadingEntity::getCurrentValue)
+                .orElse(BigDecimal.ZERO)
+                : BigDecimal.ZERO;
+        MeterUsageCalculator.Calculation usage = meterUsageCalculator.calculate(
+                previousValue,
+                currentValue,
+                meter.getCounterCapacity(),
+                currentValue.compareTo(previousValue) < 0 ? null : 0
+        );
+        if (!usage.valid()) {
+            throw new AppException(ApiErrorCode.CONTRACT_ACTIVATION_READING_INVALID, currentValue, previousValue);
+        }
         String readingPeriod = MeterReadingPeriod.from(readingDate);
         int nextRevision = 1;
         var periodReading = meterReadingRepository
@@ -312,6 +321,8 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
                 .revisionNo(nextRevision)
                 .previousValue(previousValue)
                 .currentValue(currentValue)
+                .rolloverCount(usage.rolloverCount())
+                .counterCapacitySnapshot(usage.rolloverCount() > 0 ? usage.counterCapacity() : BigDecimal.ZERO)
                 .readingDate(readingDate)
                 .purpose(ReadingPurpose.CONTRACT_START)
                 .status(ReadingStatus.CONFIRMED)

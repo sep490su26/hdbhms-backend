@@ -16,6 +16,10 @@ public interface JpaMeterReadingRepository extends JpaRepository<MeterReadingEnt
             MeterType meterType,
             ReadingStatus excludedStatus
     );
+    Optional<MeterReadingEntity> findFirstByMeter_IdAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+            Long meterId,
+            ReadingStatus excludedStatus
+    );
     Optional<MeterReadingEntity> findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(Long meterId, String readingPeriod);
     Optional<MeterReadingEntity> findByMeter_IdAndBatchId(Long meterId, Long batchId);
     List<MeterReadingEntity> findByMeter_IdAndReadingDateBeforeOrderByReadingDateDesc(Long meterId, java.time.LocalDate readingDate);

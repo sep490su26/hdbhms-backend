@@ -97,7 +97,7 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
         if (
                 invoice.getStatus() != InvoiceStatus.ISSUED
-                        && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID
+                        && invoice.getStatus() != InvoiceStatus.OVERDUE
         ) {
             paymentTransaction.reject();
             paymentTransactionRepository.save(paymentTransaction);
@@ -174,7 +174,7 @@ public class ReconcilePaymentService implements ReconcilePaymentUseCase {
         Invoice invoice = invoiceRepository.findById(paymentIntent.getInvoiceId()).orElse(null);
         if (invoice == null
                 || (invoice.getStatus() != InvoiceStatus.ISSUED
-                && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID)
+                && invoice.getStatus() != InvoiceStatus.OVERDUE)
                 || !isValidFullPayment(command, paymentIntent, invoice)) {
             return false;
         }

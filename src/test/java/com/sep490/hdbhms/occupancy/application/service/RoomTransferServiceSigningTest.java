@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.application.port.out.InvoiceRepository;
@@ -327,7 +329,8 @@ class RoomTransferServiceSigningTest {
                 mock(ApplicationEventPublisher.class),
                 mock(JdbcTemplate.class),
                 mock(ObjectMapper.class),
-                mock(RoomCommitmentChecker.class)
+                mock(RoomCommitmentChecker.class),
+                new MeterUsageCalculator()
         );
     }
 

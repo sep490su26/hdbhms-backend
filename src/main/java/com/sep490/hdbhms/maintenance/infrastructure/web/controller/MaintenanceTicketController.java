@@ -1727,7 +1727,6 @@ public class MaintenanceTicketController {
         return switch (invoiceStatus) {
             case DRAFT -> "DRAFT";
             case ISSUED -> "PENDING_PAYMENT";
-            case PARTIALLY_PAID -> "PARTIALLY_PAID";
             case PAID -> "PAID";
             case OVERDUE -> "OVERDUE";
             case VOIDED -> "VOIDED";
@@ -1737,7 +1736,6 @@ public class MaintenanceTicketController {
     private String billingStatusLabel(String status) {
         return switch (firstNonBlank(status)) {
             case "DRAFT" -> "Chờ phát hành";
-            case "PARTIALLY_PAID" -> "Thanh toán một phần";
             case "PAID" -> "Đã thanh toán";
             case "OVERDUE" -> "Quá hạn";
             case "VOIDED" -> "Đã hủy";

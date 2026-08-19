@@ -94,7 +94,6 @@ public class BillingManagementService {
     static final List<String> INVOICE_EXCEL_FLOOR_CODES = List.of("F1", "F2", "F3", "F4", "F5");
     static final List<InvoiceStatus> OVERDUE_WARNING_STATUSES = List.of(
             InvoiceStatus.ISSUED,
-            InvoiceStatus.PARTIALLY_PAID,
             InvoiceStatus.OVERDUE
     );
     static final List<NotificationChannel> OVERDUE_WARNING_CHANNELS = List.of(
@@ -413,10 +412,11 @@ public class BillingManagementService {
         setNumber(row, 11, item.electricityPrevious());
         setNumber(row, 12, item.electricityCurrent());
         setFormula(row, 13, "M" + excelRow + "-L" + excelRow);
-        setFormula(row, 14, "N" + excelRow + "*3500");
+        // Export the persisted line amount so the workbook follows the invoice tariff.
+        setNumber(row, 14, item.electricityAmount());
         setNumber(row, 15, item.previousDebt());
         setNumber(row, 16, item.discountAmount());
-        setFormula(row, 17, "J" + excelRow + "+K" + excelRow + "+O" + excelRow + "+P" + excelRow + "-Q" + excelRow);
+        setNumber(row, 17, item.totalAmount());
         setText(row, 18, item.note());
     }
 
@@ -661,14 +661,12 @@ public class BillingManagementService {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
 
-        if (invoice.getStatus() == InvoiceStatus.PAID) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
-        }
-        if (invoice.getStatus() == InvoiceStatus.DRAFT || invoice.getStatus() == InvoiceStatus.VOIDED) {
+        if (invoice.getStatus() != InvoiceStatus.ISSUED
+                && invoice.getStatus() != InvoiceStatus.OVERDUE) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         long remaining = safe(invoice.getRemainingAmount());
-        if (amount > remaining) {
+        if (amount != remaining) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
@@ -693,11 +691,9 @@ public class BillingManagementService {
                 .allocatedBy(userRepository.getReferenceById(currentUserId))
                 .build());
 
-        long paidAmount = safe(invoice.getPaidAmount()) + amount;
-        long nextRemaining = Math.max(safe(invoice.getTotalAmount()) - paidAmount, 0L);
-        invoice.setPaidAmount(paidAmount);
-        invoice.setRemainingAmount(nextRemaining);
-        invoice.setStatus(nextRemaining == 0L ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID);
+        invoice.setPaidAmount(safe(invoice.getTotalAmount()));
+        invoice.setRemainingAmount(0L);
+        invoice.setStatus(InvoiceStatus.PAID);
         invoice = invoiceRepository.save(invoice);
         cancelPendingPaymentIntents(invoice);
         notifyInvoicePayment(invoice, amount, currentUserId);
@@ -832,7 +828,7 @@ public class BillingManagementService {
         if (recipients.isEmpty()) {
             return;
         }
-        String eventType = invoice.getStatus() == InvoiceStatus.PAID ? "INVOICE_PAID" : "INVOICE_PARTIALLY_PAID";
+        String eventType = "INVOICE_PAID";
         Map<String, Object> data = invoiceNotificationData(invoice, actorUserId);
         data.put("paymentAmount", paidAmount);
         for (Long recipientId : recipients) {
@@ -914,8 +910,9 @@ public class BillingManagementService {
         invoice.setDiscountAmount(discountAmount);
         invoice.setTotalAmount(nextTotal);
         invoice.setRemainingAmount(nextTotal - safe(invoice.getPaidAmount()));
-        if (invoice.getPaidAmount() != null && invoice.getPaidAmount() > 0) {
-            invoice.setStatus(invoice.getRemainingAmount() == 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID);
+        if (invoice.getPaidAmount() != null && invoice.getPaidAmount() > 0
+                && invoice.getRemainingAmount() == 0) {
+            invoice.setStatus(InvoiceStatus.PAID);
         }
         invoiceRepository.save(invoice);
     }

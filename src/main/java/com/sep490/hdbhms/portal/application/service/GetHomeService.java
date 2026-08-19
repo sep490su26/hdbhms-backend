@@ -138,7 +138,8 @@ public class GetHomeService implements GetHomeUseCase {
                         MIN(due_date) AS nearest_due_date
                     FROM invoices
                     WHERE lease_contract_id = ? 
-                      AND status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
+                      AND status IN ('ISSUED', 'OVERDUE')
+                      AND remaining_amount > 0
                     """,
                     rs -> {
                         if (rs.next()) {

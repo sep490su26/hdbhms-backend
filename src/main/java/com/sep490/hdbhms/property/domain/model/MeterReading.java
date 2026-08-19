@@ -29,6 +29,12 @@ public class MeterReading {
     BigDecimal previousValue;
     @Setter
     BigDecimal currentValue;
+    @Setter
+    @Builder.Default
+    Integer rolloverCount = 0;
+    @Setter
+    @Builder.Default
+    BigDecimal counterCapacitySnapshot = BigDecimal.ZERO;
     BigDecimal usageAmount;
     LocalDate readingDate;
     @Setter

@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -18,6 +19,8 @@ public class Meter {
     Long roomId;
     MeterType meterType;
     String meterCode;
+    @Builder.Default
+    BigDecimal counterCapacity = BigDecimal.valueOf(100000);
     @Builder.Default
     MeterStatus status = MeterStatus.ACTIVE;
     LocalDate installedAt;

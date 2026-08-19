@@ -36,6 +36,8 @@ public class MeterReadingPersistenceMapper {
                 .revisionNo(entity.getRevisionNo())
                 .previousValue(entity.getPreviousValue())
                 .currentValue(entity.getCurrentValue())
+                .rolloverCount(entity.getRolloverCount())
+                .counterCapacitySnapshot(entity.getCounterCapacitySnapshot())
                 .usageAmount(entity.getUsageAmount())
                 .readingDate(entity.getReadingDate())
                 .photoFileId(entity.getPhotoFile() != null ? entity.getPhotoFile().getId() : null)
@@ -71,6 +73,8 @@ public class MeterReadingPersistenceMapper {
                 .revisionNo(domain.getRevisionNo())
                 .previousValue(domain.getPreviousValue())
                 .currentValue(domain.getCurrentValue())
+                .rolloverCount(domain.getRolloverCount())
+                .counterCapacitySnapshot(domain.getCounterCapacitySnapshot())
                 .readingDate(domain.getReadingDate())
                 .photoFile(domain.getPhotoFileId() != null
                         ? jpaFileMetadataRepository.findById(domain.getPhotoFileId())

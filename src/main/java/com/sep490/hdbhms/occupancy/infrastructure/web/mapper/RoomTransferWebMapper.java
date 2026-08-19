@@ -260,7 +260,7 @@ public abstract class RoomTransferWebMapper {
                     COUNT(DISTINCT CASE WHEN invoice_type = 'UTILITY' THEN billing_period END) AS utility_debt_months
                 FROM invoices
                 WHERE lease_contract_id = ?
-                  AND status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
+                  AND status IN ('ISSUED', 'OVERDUE')
                   AND COALESCE(remaining_amount, 0) > 0
                 """, request.getOldContractId());
 

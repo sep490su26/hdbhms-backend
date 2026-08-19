@@ -17,4 +17,7 @@ public class ProgressiveRoomReadingRequest {
     BigDecimal electricityValue;
 
     Long electricityPhotoId;
+
+    @PositiveOrZero
+    Integer rolloverCount;
 }

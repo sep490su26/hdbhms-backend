@@ -86,13 +86,8 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
               AND invoice.room IS NOT NULL
               AND invoice.invoiceType IN :invoiceTypes
               AND (:propertyId IS NULL OR property.id = :propertyId)
-              AND (
-                    invoice.status IN :statuses
-                    OR (
-                        invoice.status = com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus.ISSUED
-                        AND invoice.dueDate < CURRENT_TIMESTAMP
-                    )
-              )
+              AND invoice.status IN :statuses
+              AND invoice.dueDate < CURRENT_TIMESTAMP
             ORDER BY property.name ASC, room.roomCode ASC, invoice.dueDate ASC
             """)
     List<InvoiceEntity> findDebtDashboardInvoices(

@@ -98,6 +98,7 @@ public class GetMeterReadingsService {
                 .previousValue(e.getPreviousValue())
                 .currentValue(e.getCurrentValue())
                 .usageAmount(e.getUsageAmount())
+                .rolloverCount(e.getRolloverCount())
                 .readingDate(e.getReadingDate())
                 .source(e.getSource())
                 .status(e.getStatus())

@@ -8,6 +8,7 @@ public record SubmitSingleMeterReadingCommand(
         String readingPeriod,
         LocalDate readingDate,
         BigDecimal electricityValue,
-        Long electricityPhotoId
+        Long electricityPhotoId,
+        Integer rolloverCount
 ) {
 }

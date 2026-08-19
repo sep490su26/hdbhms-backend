@@ -70,7 +70,7 @@ class GetDashboardServiceTest {
     }
 
     @Test
-    void dashboardQueriesPaidInvoicesWithoutPaymentAllocations() {
+    void dashboardQueriesConfirmedPaymentsByTransactionTime() {
         PropertyEntity property = property(1L, "A");
         FloorEntity floor = floor(11L, property, "F1");
         RoomEntity room = room(101L, property, floor, RoomStatus.OCCUPIED);
@@ -86,12 +86,13 @@ class GetDashboardServiceTest {
 
         service.execute(new GetDashboardQuery(7L, Role.OWNER));
 
-        assertFalse(jdbcTemplate.sql().stream().anyMatch(sql -> sql.contains("payment_allocations")));
+        assertTrue(jdbcTemplate.sql().stream().anyMatch(sql -> sql.contains("payment_allocations")));
+        assertTrue(jdbcTemplate.sql().stream().anyMatch(sql -> sql.contains("payment_transactions")));
         assertTrue(jdbcTemplate.sql().stream().anyMatch(sql ->
                 sql.contains("FROM invoices invoice")
-                        && sql.contains("SUM(invoice.paid_amount)")
+                        && sql.contains("SUM(allocation.amount)")
                         && sql.contains("invoice.invoice_type <> 'DEPOSIT'")
-                        && sql.contains("invoice.updated_at >= ?")
+                        && sql.contains("payment.transaction_time >= ?")
         ));
         assertTrue(jdbcTemplate.sql().stream().anyMatch(sql ->
                 sql.contains("FROM visit_requests visit")

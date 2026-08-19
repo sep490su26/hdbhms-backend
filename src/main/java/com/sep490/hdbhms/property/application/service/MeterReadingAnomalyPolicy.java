@@ -23,6 +23,7 @@ public class MeterReadingAnomalyPolicy {
             MeterType meterType,
             BigDecimal previousValue,
             BigDecimal currentValue,
+            Integer rolloverCount,
             BigDecimal previousCycleUsage
     ) {
         List<DetectedAnomaly> anomalies = new ArrayList<>();
@@ -34,7 +35,7 @@ public class MeterReadingAnomalyPolicy {
             return anomalies;
         }
 
-        if (current.compareTo(previous) < 0) {
+        if (current.compareTo(previous) < 0 && (rolloverCount == null || rolloverCount == 0)) {
             anomalies.add(new DetectedAnomaly(
                     AnomalyType.NEGATIVE_USAGE,
                     AnomalySeverity.HIGH,

@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 class RevenueReportServiceTest {
 
     @Test
-    void revenueReportQueriesPaidInvoicesWithoutPaymentAllocations() {
+    void revenueReportQueriesConfirmedPaymentsByTransactionTime() {
         JpaPropertyRepository properties = mock(JpaPropertyRepository.class);
         when(properties.findAllByDeletedAtIsNull()).thenReturn(List.of(property(1L)));
         RecordingJdbcTemplate jdbcTemplate = new RecordingJdbcTemplate();
@@ -34,13 +34,13 @@ class RevenueReportServiceTest {
 
         service.getRevenueReport(7L, Role.OWNER, "month", "2026-07");
 
-        assertFalse(jdbcTemplate.sql().stream().anyMatch(sql -> sql.contains("payment_allocations")));
-        assertFalse(jdbcTemplate.sql().stream().anyMatch(sql -> sql.contains("payment_transactions")));
+        assertTrue(jdbcTemplate.sql().stream().anyMatch(sql -> sql.contains("payment_allocations")));
+        assertTrue(jdbcTemplate.sql().stream().anyMatch(sql -> sql.contains("payment_transactions")));
         assertTrue(jdbcTemplate.sql().stream().anyMatch(sql ->
                 sql.contains("FROM invoices invoice")
-                        && sql.contains("invoice.paid_amount *")
+                        && sql.contains("allocation.amount *")
                         && sql.contains("invoice.invoice_type <> 'DEPOSIT'")
-                        && sql.contains("invoice.updated_at >= ?")
+                        && sql.contains("payment.transaction_time >= ?")
         ));
     }
 

@@ -13,7 +13,8 @@ public record SubmitBatchMeterReadingsCommand(
     public record RoomReading(
             Long roomId,
             BigDecimal electricityValue,
-            Long electricityPhotoId
+            Long electricityPhotoId,
+            Integer rolloverCount
     ) {
     }
 }

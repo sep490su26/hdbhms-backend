@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
+
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.billingandpayment.application.service.IssuedInvoiceChargeService;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
@@ -91,7 +93,8 @@ class LeaseContractManagementServiceDraftTest {
                 mock(JpaMeterReadingRepository.class),
                 mock(RoomCommitmentChecker.class),
                 mock(LeaseExpiryReminderService.class),
-                mock(ExpenseRequestService.class)
+                mock(ExpenseRequestService.class),
+                new MeterUsageCalculator()
         );
 
         AppException exception = assertThrows(
@@ -126,7 +129,8 @@ class LeaseContractManagementServiceDraftTest {
                 mock(JpaMeterReadingRepository.class),
                 mock(RoomCommitmentChecker.class),
                 mock(LeaseExpiryReminderService.class),
-                mock(ExpenseRequestService.class)
+                mock(ExpenseRequestService.class),
+                new MeterUsageCalculator()
         );
 
         assertEquals(1, service.deactivateTenantAccountsWithoutValidContract(99L));

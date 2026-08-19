@@ -10,7 +10,8 @@ public interface SubmitMeterReadingUseCase {
     void submitBatchReadings(SubmitBatchMeterReadingsCommand command);
 
     Long startBatch(String period, Long propertyId);
-    void saveProgressiveRoomReading(Long batchId, Long roomId, java.math.BigDecimal electricityValue, Long elecPhotoId);
+    void saveProgressiveRoomReading(Long batchId, Long roomId, java.math.BigDecimal electricityValue,
+                                    Long elecPhotoId, Integer rolloverCount);
     MeterReadingExcelImportResponse importExcel(Long batchId, MultipartFile file);
     void resolveRoomReadingAnomalies(Long batchId, Long roomId);
     void confirmBatch(Long batchId);

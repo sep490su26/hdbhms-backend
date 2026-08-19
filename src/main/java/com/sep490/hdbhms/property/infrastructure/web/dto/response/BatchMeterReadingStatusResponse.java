@@ -42,6 +42,7 @@ public class BatchMeterReadingStatusResponse {
         
         BigDecimal electricityPrevious;
         BigDecimal electricityCurrent;
+        Integer electricityRolloverCount;
         Long electricityPhotoId;
         
         String status; // e.g., "pending", "synced"

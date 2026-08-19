@@ -63,6 +63,14 @@ public class MeterReadingEntity {
     @Column(name = "current_value", nullable = false, precision = 12, scale = 3)
     BigDecimal currentValue;
 
+    @Column(name = "rollover_count", nullable = false)
+    @Builder.Default
+    Integer rolloverCount = 0;
+
+    @Column(name = "counter_capacity_snapshot", nullable = false, precision = 15, scale = 3)
+    @Builder.Default
+    BigDecimal counterCapacitySnapshot = BigDecimal.ZERO;
+
     @Column(name = "usage_amount", insertable = false, updatable = false, precision = 12, scale = 3)
     BigDecimal usageAmount;  // generated column
 

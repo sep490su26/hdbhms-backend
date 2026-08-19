@@ -1,5 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
+
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
@@ -49,7 +51,8 @@ class ManageContractHandoverServiceTest {
             mock(JpaInvoiceRepository.class),
             mock(JpaInvoiceLineRepository.class),
             mock(JdbcTemplate.class),
-            mock(RoomCommitmentChecker.class)
+            mock(RoomCommitmentChecker.class),
+            new MeterUsageCalculator()
     );
 
     @Test

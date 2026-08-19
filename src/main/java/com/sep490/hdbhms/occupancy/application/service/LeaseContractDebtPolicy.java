@@ -17,7 +17,7 @@ public final class LeaseContractDebtPolicy {
                         SELECT COALESCE(SUM(remaining_amount), 0)
                         FROM invoices
                         WHERE lease_contract_id = ?
-                          AND status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
+                          AND status IN ('ISSUED', 'OVERDUE')
                           AND COALESCE(remaining_amount, 0) > 0
                         """,
                 Long.class,

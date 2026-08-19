@@ -107,7 +107,6 @@ public class TenantInvoiceController {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         EnumSet<InvoiceStatus> visibleStatuses = EnumSet.of(
                 InvoiceStatus.ISSUED,
-                InvoiceStatus.PARTIALLY_PAID,
                 InvoiceStatus.PAID,
                 InvoiceStatus.OVERDUE
         );
@@ -131,7 +130,6 @@ public class TenantInvoiceController {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         EnumSet<InvoiceStatus> visibleStatuses = EnumSet.of(
                 InvoiceStatus.ISSUED,
-                InvoiceStatus.PARTIALLY_PAID,
                 InvoiceStatus.PAID,
                 InvoiceStatus.OVERDUE
         );
@@ -310,7 +308,6 @@ public class TenantInvoiceController {
             return false;
         }
         return invoice.getStatus() == InvoiceStatus.ISSUED
-                || invoice.getStatus() == InvoiceStatus.PARTIALLY_PAID
                 || invoice.getStatus() == InvoiceStatus.OVERDUE;
     }
 
@@ -557,7 +554,6 @@ public class TenantInvoiceController {
             return PaymentInfo.empty();
         }
         if (invoice.getStatus() != InvoiceStatus.ISSUED
-                && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID
                 && invoice.getStatus() != InvoiceStatus.OVERDUE) {
             return PaymentInfo.empty();
         }
@@ -647,7 +643,6 @@ public class TenantInvoiceController {
     private InvoiceEntity requireTenantVisibleInvoice(Long invoiceId, Long userId) {
         return jpaInvoiceRepository.findTenantVisibleInvoices(userId, EnumSet.of(
                         InvoiceStatus.ISSUED,
-                        InvoiceStatus.PARTIALLY_PAID,
                         InvoiceStatus.PAID,
                         InvoiceStatus.OVERDUE
                 ))

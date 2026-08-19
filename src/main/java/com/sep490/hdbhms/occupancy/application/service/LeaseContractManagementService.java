@@ -1,6 +1,7 @@
 package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 
@@ -112,6 +113,7 @@ public class LeaseContractManagementService {
     RoomCommitmentChecker roomCommitmentChecker;
     LeaseExpiryReminderService leaseExpiryReminderService;
     ExpenseRequestService expenseRequestService;
+    MeterUsageCalculator meterUsageCalculator;
 
     @Transactional(readOnly = true)
     public List<LeaseContractManagementResponse> findAllForManagement() {
@@ -1179,7 +1181,7 @@ public class LeaseContractManagementService {
                 ).orElse(null);
         LocalDateTime now = LocalDateTime.now();
         if (invoice != null && invoice.getStatus() != InvoiceStatus.DRAFT) {
-            if (safe(invoice.getPaidAmount()) > 0 || invoice.getStatus() == InvoiceStatus.PAID || invoice.getStatus() == InvoiceStatus.PARTIALLY_PAID) {
+            if (safe(invoice.getPaidAmount()) > 0 || invoice.getStatus() == InvoiceStatus.PAID) {
                 throw new AppException(ApiErrorCode.LEASE_LIQUIDATION_INVOICE_PAID_IMMUTABLE);
             }
             invoice.setStatus(InvoiceStatus.VOIDED);
@@ -1454,9 +1456,6 @@ public class LeaseContractManagementService {
         if (charge.previousValue() == null || charge.currentValue() == null) {
             return null;
         }
-        if (charge.currentValue().compareTo(charge.previousValue()) < 0) {
-            throw new AppException(ApiErrorCode.LEASE_HANDOVER_METER_READING_BELOW_PREVIOUS);
-        }
         MeterType meterType = MeterType.ELECTRICITY;
         RoomEntity room = contract.getRoom();
         LocalDate readingDate = liquidationDate == null ? LocalDate.now() : liquidationDate;
@@ -1469,6 +1468,15 @@ public class LeaseContractManagementService {
                         .status(MeterStatus.ACTIVE)
                         .installedAt(readingDate)
                         .build()));
+        MeterUsageCalculator.Calculation usage = meterUsageCalculator.calculate(
+                charge.previousValue(),
+                charge.currentValue(),
+                activeMeter.getCounterCapacity(),
+                charge.currentValue().compareTo(charge.previousValue()) < 0 ? null : 0
+        );
+        if (!usage.valid()) {
+            throw new AppException(ApiErrorCode.LEASE_HANDOVER_METER_READING_BELOW_PREVIOUS);
+        }
 
         int nextRevision = 1;
         var existingPeriodReading = meterReadingRepository
@@ -1491,6 +1499,8 @@ public class LeaseContractManagementService {
                 .revisionNo(nextRevision)
                 .previousValue(charge.previousValue())
                 .currentValue(charge.currentValue())
+                .rolloverCount(usage.rolloverCount())
+                .counterCapacitySnapshot(usage.rolloverCount() > 0 ? usage.counterCapacity() : BigDecimal.ZERO)
                 .readingDate(readingDate)
                 .purpose(ReadingPurpose.MOVE_OUT)
                 .status(ReadingStatus.CONFIRMED)

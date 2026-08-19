@@ -16,6 +16,7 @@ import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUse
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
@@ -64,6 +65,7 @@ public class MockUtilityInvoiceService {
     JpaMeterReadingRepository meterReadingRepository;
     JpaUtilityTariffRepository utilityTariffRepository;
     JpaInvoiceRepository invoiceRepository;
+    MeterUsageCalculator meterUsageCalculator;
     JpaInvoiceLineRepository invoiceLineRepository;
     JpaUserRepository userRepository;
     SnowflakeIdGenerator snowflakeIdGenerator;
@@ -190,8 +192,20 @@ public class MockUtilityInvoiceService {
     ) {
         BigDecimal previousValue = reading.getPreviousValue() == null ? BigDecimal.ZERO : reading.getPreviousValue();
         BigDecimal currentValue = reading.getCurrentValue() == null ? BigDecimal.ZERO : reading.getCurrentValue();
-        BigDecimal usage = currentValue.subtract(previousValue);
-        if (usage.compareTo(BigDecimal.ZERO) < 0) {
+        BigDecimal counterCapacity = reading.getRolloverCount() != null
+                && reading.getRolloverCount() > 0
+                && reading.getCounterCapacitySnapshot() != null
+                && reading.getCounterCapacitySnapshot().signum() > 0
+                ? reading.getCounterCapacitySnapshot()
+                : reading.getMeter().getCounterCapacity();
+        MeterUsageCalculator.Calculation calculation = meterUsageCalculator.calculate(
+                previousValue,
+                currentValue,
+                counterCapacity,
+                reading.getRolloverCount()
+        );
+        BigDecimal usage = calculation.usage();
+        if (!calculation.valid()) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 

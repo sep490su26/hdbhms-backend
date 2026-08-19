@@ -46,5 +46,8 @@ public class BatchMeterReadingRequest {
         BigDecimal electricityValue;
 
         Long electricityPhotoId;
+
+        @PositiveOrZero(message = "Rollover count must not be negative")
+        Integer rolloverCount;
     }
 }

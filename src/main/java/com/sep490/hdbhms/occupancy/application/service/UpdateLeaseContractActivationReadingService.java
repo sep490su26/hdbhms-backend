@@ -8,8 +8,11 @@ import com.sep490.hdbhms.occupancy.infrastructure.persistence.jpa.JpaLeaseContra
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.request.UpdateLeaseContractActivationReadingRequest;
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
+import com.sep490.hdbhms.property.domain.value_objects.MeterStatus;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterReadingRepository;
+import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaMeterRepository;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -30,8 +33,10 @@ public class UpdateLeaseContractActivationReadingService
 
     JpaLeaseContractRepository leaseContractRepository;
     JpaMeterReadingRepository meterReadingRepository;
+    JpaMeterRepository meterRepository;
     LeaseContractWorkflowSupport workflowSupport;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
+    MeterUsageCalculator meterUsageCalculator;
 
     @Override
     public LeaseContractManagementResponse execute(
@@ -56,15 +61,27 @@ public class UpdateLeaseContractActivationReadingService
             if (contract.getRoom() == null) {
                 throw new AppException(ApiErrorCode.CONTRACT_ROOM_REQUIRED);
             }
-            BigDecimal previousValue = meterReadingRepository
-                    .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
-                            contract.getRoom().getId(),
-                            MeterType.ELECTRICITY,
+            var activeMeter = meterRepository.findFirstByRoom_IdAndMeterTypeAndStatus(
+                    contract.getRoom().getId(),
+                    MeterType.ELECTRICITY,
+                    MeterStatus.ACTIVE
+            ).orElse(null);
+            var latestReading = activeMeter == null
+                    ? null
+                    : meterReadingRepository.findFirstByMeter_IdAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                            activeMeter.getId(),
                             ReadingStatus.VOIDED
-                    )
-                    .map(reading -> reading.getCurrentValue())
-                    .orElse(BigDecimal.ZERO);
-            if (request.getCurrentValue().compareTo(previousValue) < 0) {
+                    ).orElse(null);
+            BigDecimal previousValue = latestReading == null ? BigDecimal.ZERO : latestReading.getCurrentValue();
+            BigDecimal capacity = latestReading == null || latestReading.getMeter() == null
+                    ? BigDecimal.valueOf(100000)
+                    : latestReading.getMeter().getCounterCapacity();
+            if (!meterUsageCalculator.calculate(
+                    previousValue,
+                    request.getCurrentValue(),
+                    capacity,
+                    request.getCurrentValue().compareTo(previousValue) < 0 ? null : 0
+            ).valid()) {
                 throw new AppException(ApiErrorCode.INVALID_METER_READING_VALUE);
             }
             contract.setActivationElectricityValue(request.getCurrentValue());

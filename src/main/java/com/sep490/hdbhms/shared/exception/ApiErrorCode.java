@@ -231,6 +231,7 @@ public enum     ApiErrorCode {
     METER_READING_EXCEL_VALUE_REQUIRED(40920, "Meter reading Excel value required", "Dòng Excel %s của phòng %s đang thiếu chỉ số điện mới.", HttpStatus.BAD_REQUEST),
     METER_READING_EXCEL_VALUE_INVALID(40921, "Meter reading Excel value invalid", "Dòng Excel %s của phòng %s có chỉ số điện mới không phải là số.", HttpStatus.BAD_REQUEST),
     METER_READING_EXCEL_VALUE_NEGATIVE(40922, "Meter reading Excel value negative", "Dòng Excel %s của phòng %s có chỉ số điện mới không được âm.", HttpStatus.BAD_REQUEST),
+    METER_READING_EXCEL_ROLLOVER_COUNT_INVALID(40928, "Meter reading Excel rollover count invalid", "Dòng Excel %s của phòng %s có số lần quay vòng không hợp lệ.", HttpStatus.BAD_REQUEST),
     METER_READING_EXCEL_DUPLICATE_ROOM(40923, "Meter reading Excel duplicate room", "Phòng %s bị lặp tại dòng Excel %s. Mỗi phòng chỉ được xuất hiện một lần.", HttpStatus.BAD_REQUEST),
     METER_READING_EXCEL_ROOM_NOT_FOUND(40924, "Meter reading Excel room not found", "Không tìm thấy phòng %s trong hệ thống (dòng Excel %s).", HttpStatus.NOT_FOUND),
     METER_READING_EXCEL_ROOM_WRONG_PROPERTY(40925, "Meter reading Excel room wrong property", "Phòng %s không thuộc cơ sở của kỳ nhập (dòng Excel %s).", HttpStatus.BAD_REQUEST),

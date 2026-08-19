@@ -84,6 +84,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
     JpaMeterReadingBatchRepository jpaMeterReadingBatchRepository;
     UtilityBillingRunService utilityBillingRunService;
     MeterReadingAnomalyPolicy anomalyPolicy;
+    MeterUsageCalculator meterUsageCalculator;
     JdbcTemplate jdbcTemplate;
 
     @Override
@@ -100,7 +101,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         // Submit electricity reading
         submitMeterValue(room, MeterType.ELECTRICITY, command.electricityValue(), 
                 readingPeriod, command.readingDate(), command.electricityPhotoId(),
-                null, currentUser);
+                command.rolloverCount(), null, currentUser);
         utilityBillingRunService.refreshMonthlyPreviewIfOpen(
                 room.getPropertyId(),
                 MeterReadingPeriod.parse(readingPeriod).toString(),
@@ -142,7 +143,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
             submitMeterValue(room, MeterType.ELECTRICITY, input.electricityValue(), 
                     readingPeriod, command.readingDate(), input.electricityPhotoId(),
-                    batch, currentUser);
+                    input.rolloverCount(), batch, currentUser);
 
         }
         createMonthlyUtilityBillingBatch(batch, currentUser.getId());
@@ -150,13 +151,15 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
     private void submitMeterValue(Room room, MeterType meterType, BigDecimal newValue,
                                   String period, LocalDate readingDate, Long photoId,
-                                  MeterReadingBatch batch, User currentUser) {
-        submitMeterValue(room, meterType, newValue, period, readingDate, photoId, batch, currentUser, ReadingSource.MANUAL);
+                                  Integer rolloverCount, MeterReadingBatch batch, User currentUser) {
+        submitMeterValue(room, meterType, newValue, period, readingDate, photoId, rolloverCount,
+                batch, currentUser, ReadingSource.MANUAL);
     }
 
     private void submitMeterValue(Room room, MeterType meterType, BigDecimal newValue,
                                   String period, LocalDate readingDate, Long photoId,
-                                  MeterReadingBatch batch, User currentUser, ReadingSource source) {
+                                  Integer requestedRolloverCount, MeterReadingBatch batch,
+                                  User currentUser, ReadingSource source) {
         requireMeterValue(newValue);
 
         // Find active meter for the room
@@ -165,11 +168,11 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .orElseThrow(() -> new AppException(ApiErrorCode.METER_NOT_FOUND));
 
         // Get previous value (latest reading currentValue)
-        var latestReadingOpt = meterReadingRepository.findFirstByRoomIdAndMeterTypeOrderByReadingDateDesc(
-                room.getId(), meterType);
+        var latestReadingOpt = meterReadingRepository.findFirstByMeterIdOrderByReadingDateDesc(activeMeter.getId());
         MeterReading previousReading = latestReadingOpt.orElse(null);
         BigDecimal prevValue = previousReading == null ? BigDecimal.ZERO : previousReading.getCurrentValue();
         BigDecimal previousCycleUsage = usageOf(previousReading);
+        requireMeterValueWithinCapacity(newValue, activeMeter.getCounterCapacity());
 
         // Determine next revision number for the period
         int nextRevision = 1;
@@ -193,6 +196,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .createdById(currentUser.getId())
                 .photoFileId(photoId)
                 .build();
+
+        applyUsageCalculation(reading, activeMeter.getCounterCapacity(), requestedRolloverCount);
 
         saveReadingWithReview(reading, meterType, previousCycleUsage, room.getPropertyId());
     }
@@ -243,7 +248,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
     @Override
     @Transactional
-    public void saveProgressiveRoomReading(Long batchId, Long roomId, BigDecimal electricityValue, Long elecPhotoId) {
+    public void saveProgressiveRoomReading(
+            Long batchId, Long roomId, BigDecimal electricityValue, Long elecPhotoId, Integer rolloverCount) {
         User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
 
@@ -264,7 +270,10 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         assertRoomRequiresMeterReading(batch.getPropertyId(), room.getId(), batch.getReadingPeriod());
 
         // Electricity
-        saveOrUpdateMeterValue(room, MeterType.ELECTRICITY, electricityValue, batch, elecPhotoId, currentUser);
+        saveOrUpdateMeterValue(
+                room, MeterType.ELECTRICITY, electricityValue, batch, elecPhotoId, currentUser,
+                rolloverCount, ReadingSource.MANUAL, LocalDate.now()
+        );
         
         refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
         refreshMonthlyPreview(batch, currentUser.getId());
@@ -323,7 +332,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 }
                 throw exception;
             }
-            validatedRows.add(new ValidatedExcelReading(room, row.currentValue()));
+            validatedRows.add(new ValidatedExcelReading(room, row.currentValue(), row.rolloverCount()));
         }
 
         FileMetadata importedFile;
@@ -342,7 +351,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         for (ValidatedExcelReading row : validatedRows) {
             saveOrUpdateMeterValue(
                     row.room(), MeterType.ELECTRICITY, row.currentValue(), batch, null, currentUser,
-                    ReadingSource.EXCEL_IMPORT, readingDate
+                    row.rolloverCount(), ReadingSource.EXCEL_IMPORT, readingDate
             );
         }
         refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
@@ -379,7 +388,10 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 Row row = sheet.getRow(rowIndex);
                 String roomCode = cellText(row == null ? null : row.getCell(columns.roomCodeColumn()), formatter, evaluator).trim();
                 String valueText = cellText(row == null ? null : row.getCell(columns.electricityColumn()), formatter, evaluator).trim();
-                if (roomCode.isBlank() && valueText.isBlank()) continue;
+                String rolloverText = columns.rolloverCountColumn() < 0
+                        ? ""
+                        : cellText(row == null ? null : row.getCell(columns.rolloverCountColumn()), formatter, evaluator).trim();
+                if (roomCode.isBlank() && valueText.isBlank() && rolloverText.isBlank()) continue;
                 int excelRowNumber = rowIndex + 1;
                 if (roomCode.isBlank()) {
                     throw new AppException(ApiErrorCode.METER_READING_EXCEL_ROOM_REQUIRED, excelRowNumber);
@@ -397,7 +409,21 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 if (value.compareTo(BigDecimal.ZERO) < 0) {
                     throw new AppException(ApiErrorCode.METER_READING_EXCEL_VALUE_NEGATIVE, excelRowNumber, roomCode);
                 }
-                rows.add(new ExcelReadingRow(roomCode, value, excelRowNumber));
+                Integer rolloverCount = null;
+                if (!rolloverText.isBlank()) {
+                    try {
+                        BigDecimal parsedRollover = parseExcelNumber(rolloverText);
+                        rolloverCount = parsedRollover.intValueExact();
+                        if (rolloverCount < 0) throw new NumberFormatException();
+                    } catch (ArithmeticException | NumberFormatException exception) {
+                        throw new AppException(
+                                ApiErrorCode.METER_READING_EXCEL_ROLLOVER_COUNT_INVALID,
+                                excelRowNumber,
+                                roomCode
+                        );
+                    }
+                }
+                rows.add(new ExcelReadingRow(roomCode, value, rolloverCount, excelRowNumber));
             }
             if (rows.isEmpty()) throw new AppException(ApiErrorCode.METER_READING_EXCEL_NO_DATA);
             return rows;
@@ -423,6 +449,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             int roomCodeColumn = -1;
             int roomDisplayColumn = -1;
             int electricityColumn = -1;
+            int rolloverCountColumn = -1;
             for (int column = 0; column < header.getLastCellNum(); column++) {
                 String normalized = normalizeHeader(cellText(header.getCell(column), formatter, evaluator));
                 if (Set.of("maphong", "roomcode").contains(normalized)) {
@@ -433,13 +460,16 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 if (Set.of("chisodien", "chisodienmoi", "chisodienhientai", "electricityvalue", "electricity", "currentvalue").contains(normalized)) {
                     electricityColumn = column;
                 }
+                if (Set.of("solanquayvong", "solanquayvongneuco", "rollovercount", "rollover", "resetcount").contains(normalized)) {
+                    rolloverCountColumn = column;
+                }
             }
 
             int resolvedRoomColumn = roomCodeColumn >= 0 ? roomCodeColumn : roomDisplayColumn;
             roomColumnFound |= resolvedRoomColumn >= 0;
             electricityColumnFound |= electricityColumn >= 0;
             if (resolvedRoomColumn >= 0 && electricityColumn >= 0) {
-                return new ExcelImportColumns(rowIndex, resolvedRoomColumn, electricityColumn);
+                return new ExcelImportColumns(rowIndex, resolvedRoomColumn, electricityColumn, rolloverCountColumn);
             }
         }
         if (!roomColumnFound && !electricityColumnFound) {
@@ -510,13 +540,13 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 
-    private record ExcelReadingRow(String roomCode, BigDecimal currentValue, int excelRowNumber) {
+    private record ExcelReadingRow(String roomCode, BigDecimal currentValue, Integer rolloverCount, int excelRowNumber) {
     }
 
-    private record ExcelImportColumns(int headerRowIndex, int roomCodeColumn, int electricityColumn) {
+    private record ExcelImportColumns(int headerRowIndex, int roomCodeColumn, int electricityColumn, int rolloverCountColumn) {
     }
 
-    private record ValidatedExcelReading(Room room, BigDecimal currentValue) {
+    private record ValidatedExcelReading(Room room, BigDecimal currentValue, Integer rolloverCount) {
     }
 
     @Override
@@ -596,18 +626,21 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 batch,
                 null,
                 currentUser,
+                null,
                 ReadingSource.MANUAL,
                 MeterReadingPeriod.parse(batch.getReadingPeriod()).atEndOfMonth()
         );
     }
 
     private void saveOrUpdateMeterValue(Room room, MeterType meterType, BigDecimal newValue, MeterReadingBatch batch, Long photoId, User currentUser) {
-        saveOrUpdateMeterValue(room, meterType, newValue, batch, photoId, currentUser, ReadingSource.MANUAL, LocalDate.now());
+        saveOrUpdateMeterValue(room, meterType, newValue, batch, photoId, currentUser, null,
+                ReadingSource.MANUAL, LocalDate.now());
     }
 
     private void saveOrUpdateMeterValue(
             Room room, MeterType meterType, BigDecimal newValue, MeterReadingBatch batch,
-            Long photoId, User currentUser, ReadingSource source, LocalDate readingDate
+            Long photoId, User currentUser, Integer requestedRolloverCount,
+            ReadingSource source, LocalDate readingDate
     ) {
         if (newValue == null) return;
         requireMeterValue(newValue);
@@ -615,6 +648,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         Meter activeMeter = meterRepository.findFirstByRoomIdAndMeterTypeAndStatus(
                 room.getId(), meterType, MeterStatus.ACTIVE)
                 .orElseThrow(() -> new AppException(ApiErrorCode.METER_NOT_FOUND));
+        requireMeterValueWithinCapacity(newValue, activeMeter.getCounterCapacity());
 
         var existingReadingOpt = meterReadingRepository.findByMeterIdAndBatchId(activeMeter.getId(), batch.getId());
         if (existingReadingOpt.isPresent()) {
@@ -624,6 +658,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             existing.setCurrentValue(newValue);
             existing.setPhotoFileId(photoId);
             existing.setSource(source);
+            applyUsageCalculation(existing, activeMeter.getCounterCapacity(), requestedRolloverCount);
             saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId(), preserveApprovedReview);
             return;
         }
@@ -640,12 +675,12 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             existing.setCurrentValue(newValue);
             existing.setPhotoFileId(photoId);
             existing.setSource(source);
+            applyUsageCalculation(existing, activeMeter.getCounterCapacity(), requestedRolloverCount);
             saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId(), preserveApprovedReview);
             return;
         }
 
-        var latestReadingOpt = meterReadingRepository.findFirstByRoomIdAndMeterTypeOrderByReadingDateDesc(
-                room.getId(), meterType);
+        var latestReadingOpt = meterReadingRepository.findFirstByMeterIdOrderByReadingDateDesc(activeMeter.getId());
         
         MeterReading previousReading = latestReadingOpt.orElse(null);
         BigDecimal prevValue = previousReading == null ? BigDecimal.ZERO : previousReading.getCurrentValue();
@@ -667,6 +702,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .createdById(currentUser.getId())
                 .photoFileId(photoId)
                 .build();
+        applyUsageCalculation(reading, activeMeter.getCounterCapacity(), requestedRolloverCount);
         saveReadingWithReview(reading, meterType, usageOf(previousReading), room.getPropertyId());
     }
 
@@ -680,7 +716,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 && reading.getReviewStatus() == MeterReadingReviewStatus.APPROVED
                 && reading.getCurrentValue() != null
                 && (reading.getPreviousValue() == null
-                || reading.getCurrentValue().compareTo(reading.getPreviousValue()) >= 0)
+                || reading.getCurrentValue().compareTo(reading.getPreviousValue()) >= 0
+                || (reading.getRolloverCount() != null && reading.getRolloverCount() > 0))
                 && reading.getCurrentValue().compareTo(newValue) == 0;
     }
 
@@ -711,6 +748,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                     meterType,
                     reading.getPreviousValue(),
                     reading.getCurrentValue(),
+                    reading.getRolloverCount(),
                     previousCycleUsage
             );
             reading.setReviewStatus(anomalies.isEmpty()
@@ -792,7 +830,29 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         if (reading.getUsageAmount() != null) {
             return reading.getUsageAmount();
         }
-        return safe(reading.getCurrentValue()).subtract(safe(reading.getPreviousValue()));
+        if (reading.getCurrentValue() != null
+                && reading.getPreviousValue() != null
+                && reading.getCurrentValue().compareTo(reading.getPreviousValue()) < 0
+                && (reading.getRolloverCount() == null || reading.getRolloverCount() == 0)) {
+            return null;
+        }
+        return safe(reading.getCurrentValue())
+                .subtract(safe(reading.getPreviousValue()))
+                .add(safe(reading.getCounterCapacitySnapshot())
+                        .multiply(BigDecimal.valueOf(reading.getRolloverCount() == null ? 0 : reading.getRolloverCount())));
+    }
+
+    private void applyUsageCalculation(MeterReading reading, BigDecimal capacity, Integer requestedRolloverCount) {
+        MeterUsageCalculator.Calculation calculation = meterUsageCalculator.calculate(
+                reading.getPreviousValue(),
+                reading.getCurrentValue(),
+                capacity,
+                requestedRolloverCount
+        );
+        reading.setRolloverCount(calculation.valid() ? calculation.rolloverCount() : 0);
+        reading.setCounterCapacitySnapshot(calculation.valid() && calculation.rolloverCount() > 0
+                ? calculation.counterCapacity()
+                : BigDecimal.ZERO);
     }
 
     private BigDecimal safe(BigDecimal value) {
@@ -801,6 +861,12 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
     private void requireMeterValue(BigDecimal newValue) {
         if (newValue == null || newValue.compareTo(BigDecimal.ZERO) < 0) {
+            throw new AppException(ApiErrorCode.INVALID_METER_READING_VALUE);
+        }
+    }
+
+    private void requireMeterValueWithinCapacity(BigDecimal newValue, BigDecimal capacity) {
+        if (capacity != null && capacity.signum() > 0 && newValue.compareTo(capacity) >= 0) {
             throw new AppException(ApiErrorCode.INVALID_METER_READING_VALUE);
         }
     }

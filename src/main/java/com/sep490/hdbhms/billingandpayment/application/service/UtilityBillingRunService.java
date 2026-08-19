@@ -28,6 +28,7 @@ import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingAnomalyEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingBatchEntity;
@@ -98,6 +99,7 @@ public class UtilityBillingRunService {
     JpaUtilityBillingRunRepository runRepository;
     JpaUtilityBillingRunItemRepository itemRepository;
     JpaRoomUtilityBaselineRepository baselineRepository;
+    MeterUsageCalculator meterUsageCalculator;
     JpaInvoiceRepository invoiceRepository;
     JpaInvoiceLineRepository invoiceLineRepository;
     JpaRentOverrideRepository rentOverrideRepository;
@@ -614,8 +616,20 @@ public class UtilityBillingRunService {
                 .map(RoomUtilityBaselineEntity::getLastBilledReading)
                 .orElseGet(() -> safe(reading.getPreviousValue()));
         BigDecimal current = safe(reading.getCurrentValue());
-        BigDecimal usage = current.subtract(previous);
-        if (usage.compareTo(BigDecimal.ZERO) < 0) {
+        BigDecimal counterCapacity = reading.getRolloverCount() != null
+                && reading.getRolloverCount() > 0
+                && reading.getCounterCapacitySnapshot() != null
+                && reading.getCounterCapacitySnapshot().signum() > 0
+                ? reading.getCounterCapacitySnapshot()
+                : reading.getMeter().getCounterCapacity();
+        MeterUsageCalculator.Calculation calculation = meterUsageCalculator.calculate(
+                previous,
+                current,
+                counterCapacity,
+                reading.getRolloverCount()
+        );
+        BigDecimal usage = calculation.usage();
+        if (!calculation.valid()) {
             return new Charge(previous, current, usage, 0, 0L, 0L, "Chỉ số mới thấp hơn chỉ số gốc tính tiền");
         }
 

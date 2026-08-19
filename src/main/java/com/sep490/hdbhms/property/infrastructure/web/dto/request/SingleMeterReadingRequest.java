@@ -33,4 +33,7 @@ public class SingleMeterReadingRequest {
     BigDecimal electricityValue;
 
     Long electricityPhotoId;
+
+    @PositiveOrZero(message = "Rollover count must not be negative")
+    Integer rolloverCount;
 }

@@ -167,16 +167,19 @@ public class GetDashboardService implements GetDashboardUseCase {
         params.add(endExclusive.atDay(1).atStartOfDay());
 
         String sql = """
-                SELECT DATE_FORMAT(invoice.updated_at, '%%Y-%%m') AS period,
-                       COALESCE(SUM(invoice.paid_amount), 0) AS amount
+                SELECT DATE_FORMAT(payment.transaction_time, '%%Y-%%m') AS period,
+                       COALESCE(SUM(allocation.amount), 0) AS amount
                 FROM invoices invoice
+                JOIN payment_allocations allocation
+                  ON allocation.invoice_id = invoice.invoice_id
+                JOIN payment_transactions payment
+                  ON payment.payment_transaction_id = allocation.payment_transaction_id
                 WHERE %s
                   AND invoice.invoice_type <> 'DEPOSIT'
-                  AND invoice.status IN ('PAID', 'PARTIALLY_PAID')
-                  AND invoice.paid_amount > 0
-                  AND invoice.updated_at >= ?
-                  AND invoice.updated_at < ?
-                GROUP BY DATE_FORMAT(invoice.updated_at, '%%Y-%%m')
+                  AND payment.status IN ('MATCHED', 'PARTIALLY_ALLOCATED', 'ALLOCATED')
+                  AND payment.transaction_time >= ?
+                  AND payment.transaction_time < ?
+                GROUP BY DATE_FORMAT(payment.transaction_time, '%%Y-%%m')
                 """.formatted(propertyClause);
 
         List<RevenueBucket> buckets = jdbcTemplate.query(sql, this::mapRevenueBucket, params.toArray());
@@ -246,8 +249,9 @@ public class GetDashboardService implements GetDashboardUseCase {
                 SELECT COALESCE(SUM(remaining_amount), 0)
                 FROM invoices
                 WHERE %s
-                  AND status IN ('OVERDUE', 'PARTIALLY_PAID')
+                  AND status IN ('ISSUED', 'OVERDUE')
                   AND invoice_type IN ('RENT', 'UTILITY')
+                  AND due_date < CURRENT_TIMESTAMP
                   AND remaining_amount > 0
                 """.formatted(inClause("property_id", propertyIds.size())), Long.class, params.toArray());
         return value == null ? 0L : value;
@@ -263,8 +267,9 @@ public class GetDashboardService implements GetDashboardUseCase {
                 SELECT COUNT(DISTINCT room_id)
                 FROM invoices
                 WHERE %s
-                  AND status = 'OVERDUE'
+                  AND status IN ('ISSUED', 'OVERDUE')
                   AND invoice_type IN ('RENT', 'UTILITY')
+                  AND due_date < CURRENT_TIMESTAMP
                   AND remaining_amount > 0
                 """.formatted(inClause("property_id", propertyIds.size())), Long.class, params.toArray());
         return value == null ? 0L : value;
@@ -511,7 +516,7 @@ public class GetDashboardService implements GetDashboardUseCase {
                 LEFT JOIN rooms room
                   ON room.room_id = invoice.room_id
                 WHERE %s
-                  AND invoice.status IN ('PAID', 'PARTIALLY_PAID')
+                  AND invoice.status = 'PAID'
                   AND invoice.paid_amount > 0
                 ORDER BY invoice.updated_at DESC
                 LIMIT 5

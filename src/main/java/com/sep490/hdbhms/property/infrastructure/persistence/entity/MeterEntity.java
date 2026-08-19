@@ -7,6 +7,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -42,6 +43,11 @@ public class MeterEntity {
 
     @Column(name = "meter_code", length = 100)
     String meterCode;
+
+    // The first value after the display reaches its maximum.
+    @Column(name = "counter_capacity", nullable = false, precision = 15, scale = 3)
+    @Builder.Default
+    BigDecimal counterCapacity = BigDecimal.valueOf(100000);
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

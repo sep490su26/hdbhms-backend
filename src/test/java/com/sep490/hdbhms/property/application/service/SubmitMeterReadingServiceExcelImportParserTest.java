@@ -63,6 +63,13 @@ class SubmitMeterReadingServiceExcelImportParserTest {
     }
 
     @Test
+    void parseExcelReadsOptionalRolloverCount() throws Exception {
+        List<?> rows = parseExcel(workbookBytesWithRolloverCount(1));
+
+        assertEquals(1, recordValue(rows.get(0), "rolloverCount"));
+    }
+
+    @Test
     void excelImportDoesNotPreserveApprovedReviewForUnchangedValue() throws Exception {
         MeterReading reading = MeterReading.builder()
                 .previousValue(new BigDecimal("100"))
@@ -121,7 +128,7 @@ class SubmitMeterReadingServiceExcelImportParserTest {
         return new SubmitMeterReadingService(
                 null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null,
-                null, null
+                null, new MeterUsageCalculator(), null
         );
     }
 
@@ -136,6 +143,14 @@ class SubmitMeterReadingServiceExcelImportParserTest {
     }
 
     private byte[] workbookBytes(int titleRows, Object currentReading) throws Exception {
+        return workbookBytes(titleRows, currentReading, null);
+    }
+
+    private byte[] workbookBytesWithRolloverCount(int rolloverCount) throws Exception {
+        return workbookBytes(0, 3, rolloverCount);
+    }
+
+    private byte[] workbookBytes(int titleRows, Object currentReading, Integer rolloverCount) throws Exception {
         try (
                 XSSFWorkbook workbook = new XSSFWorkbook();
                 ByteArrayOutputStream output = new ByteArrayOutputStream()
@@ -152,6 +167,10 @@ class SubmitMeterReadingServiceExcelImportParserTest {
             header.createCell(2).setCellValue("Chỉ số điện kỳ trước");
             header.createCell(3).setCellValue("Chỉ số điện mới");
 
+            if (rolloverCount != null) {
+                header.createCell(4).setCellValue("rolloverCount");
+            }
+
             Row data = sheet.createRow(headerIndex + 1);
             data.createCell(0).setCellValue("P101");
             data.createCell(1).setCellValue("Phòng 101");
@@ -160,6 +179,9 @@ class SubmitMeterReadingServiceExcelImportParserTest {
                 data.createCell(3).setCellValue(number.doubleValue());
             } else {
                 data.createCell(3).setCellValue(String.valueOf(currentReading));
+            }
+            if (rolloverCount != null) {
+                data.createCell(4).setCellValue(rolloverCount);
             }
             sheet.setColumnHidden(0, true);
 

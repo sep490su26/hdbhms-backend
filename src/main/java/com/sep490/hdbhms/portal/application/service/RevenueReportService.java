@@ -127,18 +127,21 @@ public class RevenueReportService {
                                ELSE 'extra'
                            END AS category,
                            CASE
-                               WHEN line.invoice_line_id IS NULL OR COALESCE(invoice.subtotal_amount, 0) <= 0 THEN invoice.paid_amount
-                               ELSE invoice.paid_amount * COALESCE(line.amount, line.unit_price * COALESCE(line.quantity, 1), 0) / invoice.subtotal_amount
+                               WHEN line.invoice_line_id IS NULL OR COALESCE(invoice.subtotal_amount, 0) <= 0 THEN allocation.amount
+                               ELSE allocation.amount * COALESCE(line.amount, line.unit_price * COALESCE(line.quantity, 1), 0) / invoice.subtotal_amount
                            END AS paid_line_amount
                     FROM invoices invoice
+                    JOIN payment_allocations allocation
+                      ON allocation.invoice_id = invoice.invoice_id
+                    JOIN payment_transactions payment
+                      ON payment.payment_transaction_id = allocation.payment_transaction_id
                     LEFT JOIN invoice_lines line
                       ON line.invoice_id = invoice.invoice_id
                     WHERE %s
                       AND invoice.invoice_type <> 'DEPOSIT'
-                      AND invoice.status IN ('PAID', 'PARTIALLY_PAID')
-                      AND invoice.paid_amount > 0
-                      AND invoice.updated_at >= ?
-                      AND invoice.updated_at < ?
+                      AND payment.status IN ('MATCHED', 'PARTIALLY_ALLOCATED', 'ALLOCATED')
+                      AND payment.transaction_time >= ?
+                      AND payment.transaction_time < ?
                 ) bucket
                 GROUP BY bucket.period
                 """.formatted(type.sqlPeriodExpression(), propertyClause);
@@ -261,7 +264,7 @@ public class RevenueReportService {
         MONTH("month") {
             @Override
             String sqlPeriodExpression() {
-                return "DATE_FORMAT(invoice.updated_at, '%Y-%m')";
+                return "DATE_FORMAT(payment.transaction_time, '%Y-%m')";
             }
 
             @Override
@@ -287,7 +290,7 @@ public class RevenueReportService {
         QUARTER("quarter") {
             @Override
             String sqlPeriodExpression() {
-                return "CONCAT(YEAR(invoice.updated_at), '-Q', QUARTER(invoice.updated_at))";
+                return "CONCAT(YEAR(payment.transaction_time), '-Q', QUARTER(payment.transaction_time))";
             }
 
             @Override
@@ -314,7 +317,7 @@ public class RevenueReportService {
         YEAR("year") {
             @Override
             String sqlPeriodExpression() {
-                return "CAST(YEAR(invoice.updated_at) AS CHAR)";
+                return "CAST(YEAR(payment.transaction_time) AS CHAR)";
             }
 
             @Override

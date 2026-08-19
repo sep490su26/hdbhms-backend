@@ -1,25 +1,8 @@
 SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
--- Existing demo data used the removed holder-replacement liquidation branch.
-UPDATE hdbhms.change_requests
-SET title = 'Thanh lý hợp đồng phòng 507',
-    description = 'Yêu cầu thanh lý theo quy trình trả phòng toàn bộ người ở.',
-    request_payload = JSON_SET(
-        JSON_REMOVE(
-            request_payload,
-            '$.liquidationMode',
-            '$.leavingProfileIds',
-            '$.stayingProfileIds',
-            '$.replacementPrimaryTenantProfileId',
-            '$.requiresReplacementContract',
-            '$.roomWillRemainOccupied'
-        ),
-        '$.reason', 'Khách không tiếp tục thuê phòng.'
-    )
-WHERE request_code = 'TLHD_P507_30_07_2026'
-  AND request_type = 'CONTRACT_LIQUIDATION';
-
--- Keep the room amenities screen useful even when a contract has no handover record yet.
+-- Add every standard handover asset to occupied rooms. Existing legacy asset
+-- names remain active so historical handover references are not broken; the
+-- frontend normalizes their aliases into the canonical template rows.
 INSERT INTO hdbhms.room_assets
     (room_id, asset_name, asset_category, quantity, current_condition, description,
      image_file_id, created_at, updated_at, deleted_at)

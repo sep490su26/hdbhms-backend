@@ -463,31 +463,6 @@ public class NotificationTemplateDefaults {
                     "Khoản chênh lệch chuyển phòng [[${invoiceCode}]] của phòng [[${roomCode}]] tại [[${propertyName}]] đã được thanh toán đầy đủ. Hệ thống đã ghi nhận để tiếp tục xử lý chuyển phòng."
             ),
             definitionForChannels(
-                    "INVOICE_PARTIALLY_PAID",
-                    "Hóa đơn thanh toán một phần",
-                    "Gửi cho khách thuê khi hóa đơn được ghi nhận thanh toán một phần.",
-                    "INVOICE",
-                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
-                    variables(
-                            "invoiceId",
-                            "invoiceCode",
-                            "roomCode",
-                            "propertyName",
-                            "paymentAmount",
-                            "remainingAmount"
-                    ),
-                    sampleData(
-                            "invoiceId", 91L,
-                            "invoiceCode", "INV-2026-07-001",
-                            "roomCode", "404",
-                            "propertyName", "Nhà trọ Hải Đăng 2",
-                            "paymentAmount", 500000L,
-                            "remainingAmount", 750000L
-                    ),
-                    "Đã ghi nhận thanh toán một phần",
-                    "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] đã ghi nhận [[${paymentAmount}]] VND. Số tiền còn lại: [[${remainingAmount}]] VND."
-            ),
-            definitionForChannels(
                     "LIQUIDATION_DEPOSIT_REFUND_RECORDED",
                     "Xác nhận nhận hoàn cọc",
                     "Gửi cho khách thuê khi chủ trọ đã duyệt khoản hoàn cọc và khách thuê cần xác nhận đã nhận tiền.",

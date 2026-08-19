@@ -20,6 +20,7 @@ import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingPurpose;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
 import com.sep490.hdbhms.property.application.service.MeterReadingPeriod;
+import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverRecordEntity;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.ContractHandoverItemEntity;
@@ -81,6 +82,7 @@ public class ManageContractHandoverService {
     JpaInvoiceLineRepository invoiceLineRepository;
     JdbcTemplate jdbcTemplate;
     RoomCommitmentChecker roomCommitmentChecker;
+    MeterUsageCalculator meterUsageCalculator;
 
     @Transactional
     public HandoverMeterReadingsResponse createHandoverReadings(Long contractId, HandoverMeterReadingsRequest request, HandoverType handoverType) {
@@ -132,7 +134,20 @@ public class ManageContractHandoverService {
         LocalDate readingDate = input.getReadingDate() != null ? input.getReadingDate() : LocalDate.now();
 
         if (existingReading != null) {
+            MeterUsageCalculator.Calculation usage = meterUsageCalculator.calculate(
+                    existingReading.getPreviousValue(),
+                    input.getCurrentValue(),
+                    activeMeter.getCounterCapacity(),
+                    input.getCurrentValue().compareTo(existingReading.getPreviousValue()) < 0 ? null : 0
+            );
+            if (!usage.valid()) {
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_METER_READING_INVALID);
+            }
             existingReading.setCurrentValue(input.getCurrentValue());
+            existingReading.setRolloverCount(usage.rolloverCount());
+            existingReading.setCounterCapacitySnapshot(usage.rolloverCount() > 0
+                    ? usage.counterCapacity()
+                    : BigDecimal.ZERO);
             existingReading.setReadingDate(readingDate);
             if (input.getPhotoFileId() != null) {
                 existingReading.setPhotoFile(fileMetadataRepository.getReferenceById(input.getPhotoFileId()));
@@ -141,12 +156,20 @@ public class ManageContractHandoverService {
         }
 
         var latestReadingOpt = meterReadingRepository
-                .findFirstByRoom_IdAndMeter_MeterTypeAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
-                        roomId,
-                        meterType,
+                .findFirstByMeter_IdAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                        activeMeter.getId(),
                         ReadingStatus.VOIDED
                 );
         BigDecimal prevValue = latestReadingOpt.map(MeterReadingEntity::getCurrentValue).orElse(BigDecimal.ZERO);
+        MeterUsageCalculator.Calculation usage = meterUsageCalculator.calculate(
+                prevValue,
+                input.getCurrentValue(),
+                activeMeter.getCounterCapacity(),
+                input.getCurrentValue().compareTo(prevValue) < 0 ? null : 0
+        );
+        if (!usage.valid()) {
+            throw new AppException(ApiErrorCode.ROOM_TRANSFER_METER_READING_INVALID);
+        }
 
         String currentPeriod = MeterReadingPeriod.from(readingDate);
         
@@ -169,6 +192,8 @@ public class ManageContractHandoverService {
                 .revisionNo(nextRevision)
                 .previousValue(prevValue)
                 .currentValue(input.getCurrentValue())
+                .rolloverCount(usage.rolloverCount())
+                .counterCapacitySnapshot(usage.rolloverCount() > 0 ? usage.counterCapacity() : BigDecimal.ZERO)
                 .readingDate(readingDate)
                 .purpose(ReadingPurpose.HANDOVER)
                 .status(ReadingStatus.CONFIRMED)

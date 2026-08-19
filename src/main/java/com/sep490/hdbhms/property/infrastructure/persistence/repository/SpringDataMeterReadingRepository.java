@@ -42,6 +42,16 @@ public class SpringDataMeterReadingRepository implements MeterReadingRepository 
     }
 
     @Override
+    public Optional<MeterReading> findFirstByMeterIdOrderByReadingDateDesc(Long meterId) {
+        return jpaMeterReadingRepository
+                .findFirstByMeter_IdAndStatusNotOrderByReadingDateDescCreatedAtDescIdDesc(
+                        meterId,
+                        ReadingStatus.VOIDED
+                )
+                .map(meterReadingPersistenceMapper::toDomain);
+    }
+
+    @Override
     public Optional<MeterReading> findFirstByMeterIdAndReadingPeriodOrderByRevisionNoDesc(Long meterId, String readingPeriod) {
         return jpaMeterReadingRepository.findFirstByMeter_IdAndReadingPeriodOrderByRevisionNoDesc(meterId, readingPeriod)
                 .map(meterReadingPersistenceMapper::toDomain);

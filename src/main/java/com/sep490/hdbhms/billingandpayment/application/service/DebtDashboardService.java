@@ -162,7 +162,7 @@ public class DebtDashboardService {
     private List<InvoiceEntity> findDebtInvoices(Long propertyId) {
         return invoiceRepository.findDebtDashboardInvoices(
                 propertyId,
-                List.of(InvoiceStatus.OVERDUE, InvoiceStatus.PARTIALLY_PAID),
+                List.of(InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE),
                 List.of(InvoiceType.RENT, InvoiceType.UTILITY)
         );
     }
