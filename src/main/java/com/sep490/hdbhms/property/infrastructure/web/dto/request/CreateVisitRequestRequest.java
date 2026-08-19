@@ -6,7 +6,11 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
@@ -17,7 +21,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CreateVisitRequestRequest {
-    @NonNull
+    @NotNull(message = "Vui lòng chọn cơ sở")
     Long propertyId;
     Long roomId;
     @NotBlank(message = "Vui lòng nhập tên người xem")

@@ -148,7 +148,7 @@ public class GlobalExceptionHandler {
             );
             @SuppressWarnings("unchecked")
             T validationData = (T) Map.of("fieldErrors", fieldErrors);
-            String localizedMessage = ApiErrorCode.INVALID_REQUEST.getDetails();
+            String localizedMessage = firstMessage;
 
             return ResponseEntity.badRequest().body(
                     ApiResponse.<T>builder()

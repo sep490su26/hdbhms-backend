@@ -292,7 +292,7 @@ class LeaseContractManagementServiceSignedFileTest {
     }
 
     private static MockMultipartFile pdfFile() {
-        return new MockMultipartFile("file", "signed.pdf", "application/pdf", new byte[]{1, 2, 3});
+        return new MockMultipartFile("file", "HD-2026-H101-9.pdf", "application/pdf", new byte[]{1, 2, 3});
     }
 
     private static void setUser(Long userId, Role role) {
