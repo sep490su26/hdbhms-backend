@@ -16,12 +16,14 @@ import com.sep490.hdbhms.property.application.port.in.usecase.DeletePropertyImag
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetListPropertiesUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetPropertyDetailsUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetPropertyImagesByPropertyIdUseCase;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.domain.model.PropertyImage;
 import com.sep490.hdbhms.property.domain.value_objects.PropertyStatus;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
+import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.UtilityTariffEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaFloorPlanItemRepository;
 import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaPropertyRepository;
@@ -82,6 +84,7 @@ public class PropertyController {
     JpaRoomRepository jpaRoomRepository;
     JpaFloorPlanItemRepository jpaFloorPlanItemRepository;
     JpaUtilityTariffRepository jpaUtilityTariffRepository;
+    RoomCommitmentChecker roomCommitmentChecker;
     JpaRolePromotionRepository jpaRolePromotionRepository;
 
     @GetMapping
@@ -139,10 +142,19 @@ public class PropertyController {
     }
 
     @GetMapping("/{propertyId}/rooms/simple")
-    public ApiResponse<List<RoomSimpleResponse>> getSimpleRoomsByProperty(@PathVariable Long propertyId) {
+    public ApiResponse<List<RoomSimpleResponse>> getSimpleRoomsByProperty(
+            @PathVariable Long propertyId,
+            @RequestParam(defaultValue = "false") boolean availableForViewing
+    ) {
         assertManagerCanAccessProperty(propertyId);
+        List<RoomEntity> rooms = availableForViewing
+                ? jpaRoomRepository.findAllByProperty_IdAndDeletedAtIsNullAndCurrentStatusInOrderBySortOrderAscRoomCodeAsc(
+                        propertyId,
+                        List.of(RoomStatus.VACANT, RoomStatus.SOON_VACANT)
+                )
+                : jpaRoomRepository.findAllByProperty_IdAndDeletedAtIsNullOrderBySortOrderAscRoomCodeAsc(propertyId);
         return ApiResponse.<List<RoomSimpleResponse>>builder()
-                .data(jpaRoomRepository.findAllByProperty_IdAndDeletedAtIsNullOrderBySortOrderAscRoomCodeAsc(propertyId)
+                .data(rooms
                         .stream()
                         .map(room -> RoomSimpleResponse.builder()
                                 .id(room.getId())
@@ -154,9 +166,17 @@ public class PropertyController {
                                 .floorCode(room.getFloor().getFloorCode())
                                 .status(room.getCurrentStatus())
                                 .listedPrice(room.getListedPrice())
+                                .expectedVacantDate(expectedVacantDate(room))
                                 .build())
-                        .toList())
+                .toList())
                 .build();
+    }
+
+    private LocalDate expectedVacantDate(RoomEntity room) {
+        if (room.getCurrentStatus() != RoomStatus.SOON_VACANT) {
+            return null;
+        }
+        return roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId()).orElse(null);
     }
 
     @GetMapping("/{propertyId}/utility-settings")
@@ -453,7 +473,7 @@ public class PropertyController {
     }
 
     private Long defaultServiceFeeWaiveElectricityThreshold(UtilityType utilityType) {
-        return null;
+        return utilityType == UtilityType.SERVICE_FEE ? 100_000L : null;
     }
 
     private Long nonNegative(Long value, Long fallback) {

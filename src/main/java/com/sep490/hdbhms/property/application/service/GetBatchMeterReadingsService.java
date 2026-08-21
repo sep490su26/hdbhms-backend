@@ -139,7 +139,9 @@ public class GetBatchMeterReadingsService {
                     .roomName(room.getName())
                     .electricityPrevious(currElec != null ? currElec.getPreviousValue() : (prevElec != null ? prevElec.getCurrentValue() : null))
                     .electricityCurrent(currElec != null ? currElec.getCurrentValue() : null)
-                    .electricityRolloverCount(currElec != null ? currElec.getRolloverCount() : null)
+                    .electricityRolloverCount(currElec != null
+                            ? currElec.getRolloverCount()
+                            : (prevElec != null ? prevElec.getRolloverCount() : null))
                     .electricityPhotoId(currElec != null && currElec.getPhotoFile() != null ? currElec.getPhotoFile().getId() : null)
                     .status(status)
                     .syncTime(currElec != null ? currElec.getCreatedAt() : null)

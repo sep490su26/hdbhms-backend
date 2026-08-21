@@ -30,4 +30,20 @@ class UtilityBillingRunServiceTest {
                 UtilityBillingRunService.resolveItemStatus(false, true, 1)
         );
     }
+
+    @Test
+    void serviceFeeIsWaivedOnlyBelowTheElectricityThreshold() {
+        assertEquals(
+                true,
+                UtilityBillingRunService.isServiceFeeWaived(99999L, 100000L)
+        );
+        assertEquals(
+                false,
+                UtilityBillingRunService.isServiceFeeWaived(100000L, 100000L)
+        );
+        assertEquals(
+                false,
+                UtilityBillingRunService.isServiceFeeWaived(50000L, null)
+        );
+    }
 }

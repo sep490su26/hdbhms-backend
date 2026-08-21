@@ -1129,6 +1129,19 @@ WHERE excel_room.current_contract_code IS NOT NULL
       WHERE existing_contract.contract_code = excel_room.current_contract_code
   );
 
+-- Room 306 is the active transfer demo. Keep the start date early enough for
+-- the 2/3 tenure rule while keeping the contract active at the seed date.
+UPDATE hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+SET contract.start_date = '2026-01-01',
+    contract.rent_start_date = '2026-01-01',
+    contract.end_date = '2026-11-30'
+WHERE room.property_id = @property_id
+  AND room.room_code = '306'
+  AND contract.deleted_at IS NULL
+  AND contract.contract_code = 'HD-HDD1-306-2026';
+
 -- Align rent and primary profile for the current contract represented in the workbook.
 UPDATE hdbhms.lease_contracts contract
 JOIN tmp_hdd1_excel_rooms excel_room
@@ -1321,10 +1334,13 @@ WHERE room.property_id = @property_id
 UPDATE hdbhms.lease_contracts contract
 JOIN hdbhms.rooms room
   ON room.room_id = contract.room_id
-SET contract.status = 'EXPIRING_SOON',
+SET contract.status = CASE room.room_code
+        WHEN '301' THEN 'ACTIVE'
+        ELSE 'EXPIRING_SOON'
+    END,
     contract.end_date = CASE room.room_code
-        WHEN '301' THEN '2026-11-01'
-        WHEN '302' THEN '2026-10-01'
+        WHEN '301' THEN '2026-12-31'
+        WHEN '302' THEN '2026-10-31'
         WHEN '303' THEN '2026-09-01'
         WHEN '402' THEN '2026-09-15'
     END,
@@ -1338,10 +1354,13 @@ WHERE room.property_id = @property_id
   AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING');
 
 UPDATE hdbhms.rooms
-SET current_status = 'SOON_VACANT',
+SET current_status = CASE room_code
+        WHEN '301' THEN 'OCCUPIED'
+        ELSE 'SOON_VACANT'
+    END,
     public_note = CASE room_code
-        WHEN '301' THEN 'Hợp đồng sắp hết hạn ngày 01/11/2026, còn khoảng 3 tháng, đang chờ khách phản hồi ý định.'
-        WHEN '302' THEN 'Hợp đồng sắp hết hạn ngày 01/10/2026, còn khoảng 2 tháng, đang chờ khách phản hồi ý định.'
+        WHEN '301' THEN NULL
+        WHEN '302' THEN 'Hợp đồng sắp hết hạn ngày 31/10/2026, đang chờ khách phản hồi ý định.'
         WHEN '303' THEN 'Hợp đồng sắp hết hạn ngày 01/09/2026, còn khoảng 1 tháng, đang chờ khách phản hồi ý định.'
         WHEN '402' THEN 'Hợp đồng sắp hết hạn ngày 15/09/2026, đang chờ khách phản hồi ý định.'
     END,
@@ -1964,7 +1983,8 @@ WHERE invoice.property_id = @property_id
   );
 
 -- Vacant rooms and rooms already settled must not leave a second monthly
--- utility invoice in the seed. Keep the invoice record as a voided audit row.
+-- utility charge in the seed. These temporary zero-value rows are cleaned up
+-- by the final V48 overlay below.
 CREATE TEMPORARY TABLE tmp_hdd1_void_utility_invoices
 (
     invoice_id BIGINT UNSIGNED PRIMARY KEY
@@ -2024,14 +2044,14 @@ JOIN tmp_hdd1_void_utility_invoices target
 UPDATE hdbhms.invoices invoice
 JOIN tmp_hdd1_void_utility_invoices target
   ON target.invoice_id = invoice.invoice_id
-SET invoice.status = 'VOIDED',
+SET invoice.status = 'PAID',
     invoice.subtotal_amount = 0,
     invoice.discount_amount = 0,
     invoice.total_amount = 0,
     invoice.paid_amount = 0,
     invoice.remaining_amount = 0,
-    invoice.voided_at = @now,
-invoice.void_reason = 'Phòng trống hoặc đã có hóa đơn chốt kỳ 07/2026.',
+    invoice.voided_at = NULL,
+    invoice.void_reason = NULL,
     invoice.updated_at = @now;
 
 -- Sync the two settlement invoices whose electricity belongs to the July
@@ -2496,15 +2516,18 @@ SET @hdd1_property_id := (
       AND deleted_at IS NULL
     LIMIT 1
 );
-SET @hdd1_seed_now := '2026-08-01 09:00:00';
+SET @hdd1_seed_now := '2026-08-20 09:00:00';
 
 UPDATE hdbhms.lease_contracts contract
 JOIN hdbhms.rooms room
   ON room.room_id = contract.room_id
-SET contract.status = 'EXPIRING_SOON',
+SET contract.status = CASE room.room_code
+        WHEN '301' THEN 'ACTIVE'
+        ELSE 'EXPIRING_SOON'
+    END,
     contract.end_date = CASE room.room_code
-        WHEN '301' THEN '2026-11-01'
-        WHEN '302' THEN '2026-10-01'
+        WHEN '301' THEN '2026-12-31'
+        WHEN '302' THEN '2026-10-31'
         WHEN '303' THEN '2026-09-01'
     END,
     contract.tenant_intention = NULL,
@@ -2513,13 +2536,17 @@ SET contract.status = 'EXPIRING_SOON',
     contract.updated_at = @hdd1_seed_now
 WHERE room.property_id = @hdd1_property_id
   AND room.room_code IN ('301', '302', '303')
-  AND contract.deleted_at IS NULL;
+  AND contract.deleted_at IS NULL
+  AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING');
 
 UPDATE hdbhms.rooms room
-SET room.current_status = 'SOON_VACANT',
+SET room.current_status = CASE room.room_code
+        WHEN '301' THEN 'OCCUPIED'
+        ELSE 'SOON_VACANT'
+    END,
     room.public_note = CASE room.room_code
-        WHEN '301' THEN 'Hợp đồng còn khoảng 3 tháng, hết hạn ngày 01/11/2026.'
-        WHEN '302' THEN 'Hợp đồng còn khoảng 2 tháng, hết hạn ngày 01/10/2026.'
+        WHEN '301' THEN NULL
+        WHEN '302' THEN 'Hợp đồng sắp hết hạn ngày 31/10/2026.'
         WHEN '303' THEN 'Hợp đồng còn khoảng 1 tháng, hết hạn ngày 01/09/2026.'
     END,
     room.internal_note = 'Demo mốc nhắc hợp đồng 3/2/1 tháng của Nguyễn Văn Khải.',
@@ -2879,3 +2906,1171 @@ DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_old_readings;
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_old_batches;
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_contract_code_map;
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_expiry_recipients;
+
+-- Final August availability overlay. Keep this at the end of V48 so the
+-- source seed itself owns the requested room state before repair migrations.
+SET @hdd1_final_property_id := (
+    SELECT property_id
+    FROM hdbhms.properties
+    WHERE property_code = 'HAI_DANG_1'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @hdd1_final_now := '2026-08-20 09:00:00';
+SET @hdd1_final_manager_id := (
+    SELECT user_id
+    FROM hdbhms.users
+    WHERE deleted_at IS NULL
+      AND status = 'ACTIVE'
+      AND email IN (
+          'seed.manager@hdbhms.local',
+          'seed.owner@hdbhms.local',
+          'tranthuhuong90@gmail.com',
+          'nguyenminhquang80@gmail.com'
+      )
+    ORDER BY CASE
+        WHEN email = 'seed.manager@hdbhms.local' THEN 0
+        WHEN email = 'seed.owner@hdbhms.local' THEN 1
+        ELSE 2
+    END, user_id
+    LIMIT 1
+);
+SET @hdd1_final_khai_user_id := (
+    SELECT user_id
+    FROM hdbhms.users
+    WHERE (
+        phone = '0901309001'
+        OR email IN (
+            'nguyen.van.khai@haidang1.local',
+            'nguyenvankhai95@gmail.com'
+        )
+    )
+      AND deleted_at IS NULL
+    ORDER BY CASE WHEN phone = '0901309001' THEN 0 ELSE 1 END, user_id
+    LIMIT 1
+);
+SET @hdd1_final_khai_email := (
+    SELECT email
+    FROM hdbhms.users
+    WHERE user_id = @hdd1_final_khai_user_id
+    LIMIT 1
+);
+SET @hdd1_final_khai_tenant_id := (
+    SELECT tenant_id
+    FROM hdbhms.tenants
+    WHERE user_id = @hdd1_final_khai_user_id
+      AND property_id = @hdd1_final_property_id
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @hdd1_final_khai_profile_id := (
+    SELECT person_profile_id
+    FROM hdbhms.person_profiles
+    WHERE user_id = @hdd1_final_khai_user_id
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_khai_rooms;
+CREATE TEMPORARY TABLE tmp_hdd1_final_khai_rooms
+(
+    room_code VARCHAR(10) NOT NULL PRIMARY KEY
+);
+INSERT INTO tmp_hdd1_final_khai_rooms (room_code)
+VALUES ('306'), ('501');
+
+UPDATE hdbhms.contract_occupants occupant
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = occupant.contract_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_khai_rooms selected_room
+  ON selected_room.room_code = room.room_code
+SET occupant.status = 'MOVED_OUT',
+    occupant.move_out_date = DATE(@hdd1_final_now),
+    occupant.disabled_reason = 'Reassigned to Nguyen Van Khai in the August seed.',
+    occupant.disabled_by = @hdd1_final_manager_id,
+    occupant.disabled_at = @hdd1_final_now
+WHERE room.property_id = @hdd1_final_property_id
+  AND occupant.occupant_role = 'PRIMARY'
+  AND occupant.status = 'ACTIVE'
+  AND occupant.tenant_profile_id <> @hdd1_final_khai_profile_id;
+
+UPDATE hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_khai_rooms selected_room
+  ON selected_room.room_code = room.room_code
+SET contract.primary_tenant_profile_id = @hdd1_final_khai_profile_id,
+    contract.status = 'ACTIVE',
+    contract.end_date = CASE
+        WHEN selected_room.room_code = '306' THEN '2026-11-30'
+        ELSE contract.end_date
+    END,
+    contract.tenant_intention = NULL,
+    contract.expected_vacant_date = NULL,
+    contract.intention_recorded_at = NULL,
+    contract.updated_at = @hdd1_final_now
+WHERE room.property_id = @hdd1_final_property_id
+  AND contract.deleted_at IS NULL
+  AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING');
+
+UPDATE hdbhms.contract_occupants occupant
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = occupant.contract_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_khai_rooms selected_room
+  ON selected_room.room_code = room.room_code
+SET occupant.tenant_id = @hdd1_final_khai_tenant_id,
+    occupant.occupant_role = 'PRIMARY',
+    occupant.move_in_date = DATE(@hdd1_final_now),
+    occupant.move_out_date = NULL,
+    occupant.status = 'ACTIVE',
+    occupant.disabled_reason = NULL,
+    occupant.disabled_by = NULL,
+    occupant.disabled_at = NULL
+WHERE room.property_id = @hdd1_final_property_id
+  AND occupant.tenant_profile_id = @hdd1_final_khai_profile_id;
+
+INSERT INTO hdbhms.contract_occupants
+    (contract_id, tenant_id, tenant_profile_id, occupant_role, move_in_date,
+     move_out_date, status, disabled_reason, disabled_by, disabled_at, created_at)
+SELECT contract.lease_contract_id,
+       @hdd1_final_khai_tenant_id,
+       @hdd1_final_khai_profile_id,
+       'PRIMARY',
+       DATE(@hdd1_final_now),
+       NULL,
+       'ACTIVE',
+       NULL,
+       NULL,
+       NULL,
+       @hdd1_final_now
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_khai_rooms selected_room
+  ON selected_room.room_code = room.room_code
+WHERE room.property_id = @hdd1_final_property_id
+  AND contract.deleted_at IS NULL
+  AND contract.status = 'ACTIVE'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.contract_occupants existing_occupant
+      WHERE existing_occupant.contract_id = contract.lease_contract_id
+        AND existing_occupant.tenant_profile_id = @hdd1_final_khai_profile_id
+  );
+
+UPDATE hdbhms.rooms room
+JOIN tmp_hdd1_final_khai_rooms selected_room
+  ON selected_room.room_code = room.room_code
+SET room.current_status = 'OCCUPIED',
+    room.public_note = 'Current contract assigned to Nguyen Van Khai.',
+    room.internal_note = 'Seed final state: active contract assigned to Nguyen Van Khai.',
+    room.updated_at = @hdd1_final_now
+WHERE room.property_id = @hdd1_final_property_id
+  AND room.deleted_at IS NULL;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_release_rooms;
+CREATE TEMPORARY TABLE tmp_hdd1_final_release_rooms
+(
+    room_code VARCHAR(10) NOT NULL PRIMARY KEY
+);
+INSERT INTO tmp_hdd1_final_release_rooms (room_code)
+VALUES ('101'), ('102'), ('403'), ('405');
+
+UPDATE hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+SET contract.status = 'AUTO_TERMINATED',
+    contract.tenant_intention = 'MOVE_OUT',
+    contract.expected_vacant_date = DATE(@hdd1_final_now),
+    contract.intention_recorded_at = @hdd1_final_now,
+    contract.updated_at = @hdd1_final_now
+WHERE room.property_id = @hdd1_final_property_id
+  AND contract.deleted_at IS NULL
+  AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING');
+
+UPDATE hdbhms.contract_occupants occupant
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = occupant.contract_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+SET occupant.status = 'MOVED_OUT',
+    occupant.move_out_date = DATE(@hdd1_final_now),
+    occupant.disabled_reason = 'Room released in the August seed.',
+    occupant.disabled_by = @hdd1_final_manager_id,
+    occupant.disabled_at = @hdd1_final_now
+WHERE room.property_id = @hdd1_final_property_id
+  AND occupant.status = 'ACTIVE';
+
+INSERT INTO hdbhms.contract_events
+    (contract_id, event_type, event_data, created_by, created_at)
+SELECT contract.lease_contract_id,
+       'AUTO_TERMINATED',
+       CAST(JSON_OBJECT(
+           'source', 'V48_SEED_AUGUST_ROOM_RELEASE',
+           'releasedAt', DATE_FORMAT(@hdd1_final_now, '%Y-%m-%dT%H:%i:%s'),
+           'roomCode', room.room_code
+       ) AS BINARY),
+       @hdd1_final_manager_id,
+       @hdd1_final_now
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+WHERE room.property_id = @hdd1_final_property_id
+  AND contract.status = 'AUTO_TERMINATED'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.contract_events existing_event
+      WHERE existing_event.contract_id = contract.lease_contract_id
+        AND existing_event.event_type = 'AUTO_TERMINATED'
+  );
+
+INSERT INTO hdbhms.room_status_history
+    (room_id, from_status, to_status, reason, changed_by, changed_at)
+SELECT room.room_id,
+       room.current_status,
+       'VACANT',
+       'August seed room release completed.',
+       @hdd1_final_manager_id,
+       @hdd1_final_now
+FROM hdbhms.rooms room
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+WHERE room.property_id = @hdd1_final_property_id
+  AND room.current_status <> 'VACANT'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.room_status_history existing_history
+      WHERE existing_history.room_id = room.room_id
+        AND existing_history.to_status = 'VACANT'
+        AND existing_history.reason = 'August seed room release completed.'
+  );
+
+UPDATE hdbhms.rooms room
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+SET room.current_status = 'VACANT',
+    room.public_note = 'Vacant from August 2026 seed release.',
+    room.internal_note = 'Seed final state: released after contract auto-termination.',
+    room.updated_at = @hdd1_final_now
+WHERE room.property_id = @hdd1_final_property_id
+  AND room.deleted_at IS NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.lease_contracts active_contract
+      WHERE active_contract.room_id = room.room_id
+        AND active_contract.deleted_at IS NULL
+        AND active_contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+  );
+
+DELETE delivery
+FROM hdbhms.notification_deliveries delivery
+JOIN hdbhms.notification_outbox notification
+  ON notification.notification_outbox_id = delivery.outbox_id
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = notification.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+WHERE notification.target_type = 'CONTRACT'
+  AND (
+      notification.event_type LIKE 'LEASE_EXPIRY%'
+      OR notification.event_type = 'CONTRACT_EXPIRING_SOON_REVIEW'
+  );
+
+DELETE notification
+FROM hdbhms.notification_outbox notification
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = notification.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+WHERE notification.target_type = 'CONTRACT'
+  AND (
+      notification.event_type LIKE 'LEASE_EXPIRY%'
+      OR notification.event_type = 'CONTRACT_EXPIRING_SOON_REVIEW'
+  );
+
+DELETE tracker
+FROM hdbhms.reminder_trackers tracker
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = tracker.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_final_release_rooms selected_room
+  ON selected_room.room_code = room.room_code
+WHERE tracker.target_type = 'CONTRACT'
+  AND tracker.reminder_key LIKE 'LEASE_EXPIRY%';
+
+-- Delete the three zero-value utility invoices instead of retaining fake paid
+-- audit rows. July non-zero invoices and their payment allocations are not
+-- touched by this cleanup.
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_zero_invoices;
+CREATE TEMPORARY TABLE tmp_hdd1_final_zero_invoices
+(
+    invoice_id BIGINT UNSIGNED NOT NULL PRIMARY KEY
+);
+INSERT INTO tmp_hdd1_final_zero_invoices (invoice_id)
+SELECT invoice.invoice_id
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+WHERE invoice.property_id = @hdd1_final_property_id
+  AND room.property_id = @hdd1_final_property_id
+  AND room.room_code IN ('404', '502', '504')
+  AND invoice.invoice_code IN (
+      'HD_P404_01_08_2026_DV',
+      'HD_P502_01_08_2026_DV',
+      'HD_P504_01_08_2026_DV'
+  )
+  AND invoice.total_amount = 0;
+
+DELETE delivery
+FROM hdbhms.notification_deliveries delivery
+JOIN hdbhms.notification_outbox notification
+  ON notification.notification_outbox_id = delivery.outbox_id
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = notification.target_id
+WHERE notification.target_type = 'INVOICE';
+DELETE notification
+FROM hdbhms.notification_outbox notification
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = notification.target_id
+WHERE notification.target_type = 'INVOICE';
+DELETE allocation
+FROM hdbhms.payment_allocations allocation
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = allocation.invoice_id;
+UPDATE hdbhms.deposit_batches deposit_batch
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = deposit_batch.invoice_id
+SET deposit_batch.invoice_id = NULL,
+    deposit_batch.updated_at = @hdd1_final_now;
+UPDATE hdbhms.payment_intents payment_intent
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = payment_intent.invoice_id
+SET payment_intent.invoice_id = NULL;
+UPDATE hdbhms.pending_billing_charges pending_charge
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = pending_charge.invoice_id
+SET pending_charge.invoice_id = NULL,
+    pending_charge.status = 'CANCELLED',
+    pending_charge.updated_at = @hdd1_final_now;
+UPDATE hdbhms.room_utility_baselines baseline
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = baseline.last_invoice_id
+SET baseline.last_invoice_id = NULL,
+    baseline.updated_at = @hdd1_final_now;
+UPDATE hdbhms.rule_violations violation
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = violation.invoice_id
+SET violation.invoice_id = NULL,
+    violation.status = CASE
+        WHEN violation.status = 'INVOICED' THEN 'RECORDED'
+        ELSE violation.status
+    END;
+UPDATE hdbhms.utility_billing_run_items item
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = item.invoice_id
+SET item.invoice_id = NULL,
+    item.status = 'SKIPPED',
+    item.adjustment_reason = 'Removed zero-value seed invoice.';
+UPDATE hdbhms.invoices invoice
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = invoice.invoice_id
+SET invoice.status = 'DRAFT',
+    invoice.updated_at = @hdd1_final_now;
+DELETE line
+FROM hdbhms.invoice_lines line
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = line.invoice_id;
+DELETE invoice
+FROM hdbhms.invoices invoice
+JOIN tmp_hdd1_final_zero_invoices target_invoice
+  ON target_invoice.invoice_id = invoice.invoice_id;
+
+UPDATE hdbhms.tenant_account_provisionings provisioning
+SET provisioning.user_id = @hdd1_final_khai_user_id,
+    provisioning.first_contract_id = (
+        SELECT MIN(contract.lease_contract_id)
+        FROM hdbhms.lease_contracts contract
+        JOIN hdbhms.rooms room ON room.room_id = contract.room_id
+        WHERE contract.primary_tenant_profile_id = @hdd1_final_khai_profile_id
+          AND room.property_id = @hdd1_final_property_id
+          AND contract.deleted_at IS NULL
+          AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'SIGNED', 'CONFIRMED')
+    ),
+    provisioning.latest_contract_id = (
+        SELECT MAX(contract.lease_contract_id)
+        FROM hdbhms.lease_contracts contract
+        JOIN hdbhms.rooms room ON room.room_id = contract.room_id
+        WHERE contract.primary_tenant_profile_id = @hdd1_final_khai_profile_id
+          AND room.property_id = @hdd1_final_property_id
+          AND contract.deleted_at IS NULL
+          AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'SIGNED', 'CONFIRMED')
+    ),
+    provisioning.status = 'ACTIVE',
+    provisioning.recipient_email = @hdd1_final_khai_email,
+    provisioning.updated_at = @hdd1_final_now
+WHERE provisioning.tenant_profile_id = @hdd1_final_khai_profile_id;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_zero_invoices;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_release_rooms;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_final_khai_rooms;
+
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+-- Backfill the notification rows that the application would create for the
+-- final Hai Dang July invoice snapshot. Keep this migration additive so it
+-- does not overwrite notifications created manually or by a later flow.
+SET @hdd1_notification_property_id := (
+    SELECT property_id
+    FROM hdbhms.properties
+    WHERE property_code = 'HAI_DANG_1'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @hdd1_notification_now := '2026-08-20 09:00:00';
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_notification_tenant_recipients;
+CREATE TEMPORARY TABLE tmp_hdd1_notification_tenant_recipients
+(
+    invoice_id BIGINT UNSIGNED NOT NULL,
+    recipient_user_id BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (invoice_id, recipient_user_id)
+);
+
+-- This matches the room-based recipient lookup used by invoice issue,
+-- payment-success, and overdue-reminder flows.
+INSERT INTO tmp_hdd1_notification_tenant_recipients (invoice_id, recipient_user_id)
+SELECT DISTINCT
+    invoice.invoice_id,
+    user_account.user_id
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN (
+    SELECT
+        contract.room_id,
+        contract.primary_tenant_profile_id AS tenant_profile_id
+    FROM hdbhms.lease_contracts contract
+    WHERE contract.deleted_at IS NULL
+      AND contract.status IN ('SIGNED', 'ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+    UNION
+    SELECT
+        contract.room_id,
+        occupant.tenant_profile_id
+    FROM hdbhms.contract_occupants occupant
+    JOIN hdbhms.lease_contracts contract
+      ON contract.lease_contract_id = occupant.contract_id
+    WHERE occupant.status = 'ACTIVE'
+      AND occupant.tenant_profile_id IS NOT NULL
+      AND contract.deleted_at IS NULL
+      AND contract.status IN ('SIGNED', 'ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING')
+) occupied
+  ON occupied.room_id = room.room_id
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = occupied.tenant_profile_id
+ AND profile.deleted_at IS NULL
+JOIN hdbhms.users user_account
+  ON user_account.user_id = profile.user_id
+ AND user_account.status = 'ACTIVE'
+ AND user_account.deleted_at IS NULL
+ AND user_account.role = 'TENANT'
+WHERE invoice.property_id = @hdd1_notification_property_id
+  AND invoice.billing_period = '2026-07'
+  AND invoice.status <> 'VOIDED'
+  AND invoice.total_amount > 0;
+
+-- Fill missing INVOICE_ISSUED copies, including active co-occupants. Existing
+-- rows for rooms released after July remain untouched.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'INVOICE_ISSUED',
+    'INVOICE',
+    invoice.invoice_id,
+    recipient.recipient_user_id,
+    channel.channel,
+    CONCAT('Có hóa đơn mới ', invoice.invoice_code),
+    CONCAT(
+        'Hóa đơn ', invoice.invoice_code,
+        ' của phòng ', room.room_code,
+        ' kỳ ', invoice.billing_period,
+        ' đã phát hành. Số tiền cần thanh toán: ', invoice.remaining_amount,
+        ' VND. Hạn thanh toán: ', DATE(invoice.due_date), '.'
+    ),
+    JSON_OBJECT(
+        'invoiceId', invoice.invoice_id,
+        'invoiceCode', invoice.invoice_code,
+        'invoiceType', invoice.invoice_type,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'billingPeriod', invoice.billing_period,
+        'amount', invoice.total_amount,
+        'totalAmount', invoice.total_amount,
+        'remainingAmount', invoice.remaining_amount,
+        'dueDate', DATE(invoice.due_date),
+        'targetRoute', '/payment'
+    ),
+    'SENT',
+    0,
+    3,
+    @hdd1_notification_now,
+    @hdd1_notification_now,
+    @hdd1_notification_now,
+    FALSE
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = invoice.property_id
+JOIN tmp_hdd1_notification_tenant_recipients recipient
+  ON recipient.invoice_id = invoice.invoice_id
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH'
+) channel
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM hdbhms.notification_outbox existing_notification
+    WHERE existing_notification.event_type = 'INVOICE_ISSUED'
+      AND existing_notification.target_type = 'INVOICE'
+      AND existing_notification.target_id = invoice.invoice_id
+      AND existing_notification.recipient_user_id = recipient.recipient_user_id
+      AND existing_notification.channel = channel.channel
+);
+
+-- Manual payment and reconciled payment both publish INVOICE_PAID to the web
+-- and push channels after the invoice becomes fully paid.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'INVOICE_PAID',
+    'INVOICE',
+    invoice.invoice_id,
+    recipient.recipient_user_id,
+    channel.channel,
+    CONCAT('Đã ghi nhận thanh toán hóa đơn ', invoice.invoice_code),
+    CONCAT(
+        'Hóa đơn ', invoice.invoice_code,
+        ' của phòng ', room.room_code,
+        ' đã được thanh toán đủ. Số tiền ghi nhận: ', invoice.paid_amount, ' VND.'
+    ),
+    JSON_OBJECT(
+        'invoiceId', invoice.invoice_id,
+        'invoiceCode', invoice.invoice_code,
+        'invoiceType', invoice.invoice_type,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'billingPeriod', invoice.billing_period,
+        'paymentAmount', invoice.paid_amount,
+        'paidAmount', invoice.paid_amount,
+        'totalAmount', invoice.total_amount,
+        'targetRoute', CONCAT('/dashboard/invoices/', invoice.invoice_id)
+    ),
+    'SENT',
+    0,
+    3,
+    @hdd1_notification_now,
+    @hdd1_notification_now,
+    @hdd1_notification_now,
+    FALSE
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = invoice.property_id
+JOIN tmp_hdd1_notification_tenant_recipients recipient
+  ON recipient.invoice_id = invoice.invoice_id
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH'
+) channel
+WHERE invoice.status = 'PAID'
+  AND invoice.total_amount > 0
+  AND invoice.invoice_type <> 'DEPOSIT'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = 'INVOICE_PAID'
+        AND existing_notification.target_type = 'INVOICE'
+        AND existing_notification.target_id = invoice.invoice_id
+        AND existing_notification.recipient_user_id = recipient.recipient_user_id
+        AND existing_notification.channel = channel.channel
+  );
+
+-- The payment listener uses one preferred contact channel per tenant: EMAIL
+-- when valid, otherwise SMS. Settlement invoices use their specialized event.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    CASE invoice.invoice_type
+        WHEN 'FINAL_SETTLEMENT' THEN 'FINAL_SETTLEMENT_PAYMENT_SUCCESS'
+        WHEN 'TRANSFER_DIFFERENCE' THEN 'TRANSFER_DIFFERENCE_PAYMENT_SUCCESS'
+        ELSE 'INVOICE_PAYMENT_SUCCESS'
+    END,
+    'INVOICE',
+    invoice.invoice_id,
+    recipient.recipient_user_id,
+    CASE
+        WHEN recipient_user.email IS NOT NULL
+         AND TRIM(recipient_user.email) <> ''
+         AND LOWER(recipient_user.email) NOT LIKE '%@tenant.hdbhms.local'
+         AND LOWER(recipient_user.email) NOT LIKE '%tenant.hdbhms.local'
+        THEN 'EMAIL'
+        ELSE 'SMS'
+    END,
+    CASE invoice.invoice_type
+        WHEN 'FINAL_SETTLEMENT' THEN CONCAT('Đã thanh toán tất toán hợp đồng ', invoice.invoice_code)
+        WHEN 'TRANSFER_DIFFERENCE' THEN CONCAT('Thanh toán chênh lệch chuyển phòng thành công - ', invoice.invoice_code)
+        ELSE CONCAT('Thanh toán hóa đơn thành công - ', invoice.invoice_code)
+    END,
+    CONCAT(
+        CASE invoice.invoice_type
+            WHEN 'FINAL_SETTLEMENT' THEN 'Khoản tất toán hợp đồng '
+            ELSE 'Hóa đơn '
+        END,
+        invoice.invoice_code,
+        ' của phòng ', room.room_code,
+        ' tại ', property.name,
+        ' đã được thanh toán đầy đủ. Số tiền ghi nhận: ', invoice.paid_amount, ' VNĐ. Trân trọng.'
+    ),
+    JSON_OBJECT(
+        'invoiceId', invoice.invoice_id,
+        'invoiceCode', invoice.invoice_code,
+        'invoiceType', invoice.invoice_type,
+        'billingPeriod', invoice.billing_period,
+        'period', invoice.billing_period,
+        'propertyId', property.property_id,
+        'propertyName', property.name,
+        'roomId', room.room_id,
+        'roomCode', room.room_code,
+        'amount', invoice.total_amount,
+        'totalAmount', invoice.total_amount,
+        'paymentAmount', invoice.paid_amount,
+        'paidAmount', invoice.paid_amount,
+        'remainingAmount', invoice.remaining_amount,
+        'paidAt', @hdd1_notification_now,
+        'status', invoice.status,
+        'targetRoute', CONCAT('/dashboard/invoices/', invoice.invoice_id)
+    ),
+    'SENT',
+    0,
+    3,
+    @hdd1_notification_now,
+    @hdd1_notification_now,
+    @hdd1_notification_now,
+    FALSE
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = invoice.property_id
+JOIN tmp_hdd1_notification_tenant_recipients recipient
+  ON recipient.invoice_id = invoice.invoice_id
+JOIN hdbhms.users recipient_user
+  ON recipient_user.user_id = recipient.recipient_user_id
+WHERE invoice.status = 'PAID'
+  AND invoice.total_amount > 0
+  AND invoice.invoice_type <> 'DEPOSIT'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM hdbhms.notification_outbox existing_notification
+      WHERE existing_notification.event_type = CASE invoice.invoice_type
+          WHEN 'FINAL_SETTLEMENT' THEN 'FINAL_SETTLEMENT_PAYMENT_SUCCESS'
+          WHEN 'TRANSFER_DIFFERENCE' THEN 'TRANSFER_DIFFERENCE_PAYMENT_SUCCESS'
+          ELSE 'INVOICE_PAYMENT_SUCCESS'
+      END
+        AND existing_notification.target_type = 'INVOICE'
+        AND existing_notification.target_id = invoice.invoice_id
+        AND existing_notification.recipient_user_id = recipient.recipient_user_id
+  );
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_notification_overdue_stages;
+CREATE TEMPORARY TABLE tmp_hdd1_notification_overdue_stages
+(
+    invoice_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+    reminder_stage TINYINT UNSIGNED NOT NULL,
+    reminder_date DATE NOT NULL
+);
+
+-- The scheduler's stage is based on the day after the due date. Only the
+-- currently due stage is seeded; later stages are created by later runs.
+INSERT INTO tmp_hdd1_notification_overdue_stages (invoice_id, reminder_stage, reminder_date)
+SELECT
+    invoice.invoice_id,
+    CASE
+        WHEN DATE(@hdd1_notification_now) < DATE_ADD(DATE(invoice.due_date), INTERVAL 1 DAY) THEN 0
+        WHEN DATE(@hdd1_notification_now) < DATE_ADD(DATE(invoice.due_date), INTERVAL 1 MONTH) THEN 1
+        WHEN DATE(@hdd1_notification_now) < DATE_ADD(DATE(invoice.due_date), INTERVAL 2 MONTH) THEN 2
+        ELSE 3
+    END,
+    DATE_ADD(DATE(invoice.due_date), INTERVAL 1 DAY)
+FROM hdbhms.invoices invoice
+WHERE invoice.property_id = @hdd1_notification_property_id
+  AND invoice.billing_period = '2026-07'
+  AND invoice.status IN ('ISSUED', 'OVERDUE')
+  AND invoice.remaining_amount > 0
+  AND invoice.due_date < @hdd1_notification_now
+  AND invoice.invoice_type IN ('RENT', 'UTILITY');
+
+DELETE FROM tmp_hdd1_notification_overdue_stages
+WHERE reminder_stage = 0;
+
+-- Tenant reminder stage 1/2/3, matching BillingManagementService.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    CONCAT('INVOICE_OVERDUE_REMINDER_', overdue.reminder_stage),
+    'INVOICE',
+    invoice.invoice_id,
+    recipient.recipient_user_id,
+    channel.channel,
+    CONCAT('Nhắc thanh toán hóa đơn ', invoice.invoice_code, ' - đợt ', overdue.reminder_stage),
+    CONCAT(
+        'Hóa đơn ', invoice.invoice_code,
+        ' của phòng ', room.room_code,
+        ' tại ', property.name,
+        ' vẫn còn nợ ', invoice.remaining_amount,
+        ' VND. Đây là lần nhắc thanh toán đợt ', overdue.reminder_stage,
+        ', bắt đầu từ ngày ', overdue.reminder_date, '. Vui lòng thanh toán sớm.'
+    ),
+    JSON_OBJECT(
+        'invoiceId', invoice.invoice_id,
+        'invoiceCode', invoice.invoice_code,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'remainingAmount', invoice.remaining_amount,
+        'dueDate', DATE(invoice.due_date),
+        'reminderStage', overdue.reminder_stage,
+        'reminderDate', overdue.reminder_date,
+        'targetRoute', CONCAT('/dashboard/invoices/', invoice.invoice_id)
+    ),
+    'SENT',
+    0,
+    3,
+    CONCAT(overdue.reminder_date, ' 09:00:00'),
+    CONCAT(overdue.reminder_date, ' 09:00:00'),
+    @hdd1_notification_now,
+    FALSE
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = invoice.property_id
+JOIN tmp_hdd1_notification_overdue_stages overdue
+  ON overdue.invoice_id = invoice.invoice_id
+JOIN tmp_hdd1_notification_tenant_recipients recipient
+  ON recipient.invoice_id = invoice.invoice_id
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH'
+) channel
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM hdbhms.notification_outbox existing_notification
+    WHERE existing_notification.event_type = CONCAT('INVOICE_OVERDUE_REMINDER_', overdue.reminder_stage)
+      AND existing_notification.target_type = 'INVOICE'
+      AND existing_notification.target_id = invoice.invoice_id
+      AND existing_notification.recipient_user_id = recipient.recipient_user_id
+      AND existing_notification.channel = channel.channel
+);
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_notification_owner_recipients;
+CREATE TEMPORARY TABLE tmp_hdd1_notification_owner_recipients
+(
+    recipient_user_id BIGINT UNSIGNED NOT NULL PRIMARY KEY
+);
+
+-- Owner escalation includes every active owner and only active managers
+-- assigned to Hai Dang 1; inactive user accounts are intentionally excluded.
+INSERT INTO tmp_hdd1_notification_owner_recipients (recipient_user_id)
+SELECT DISTINCT user_account.user_id
+FROM hdbhms.users user_account
+LEFT JOIN hdbhms.property_staff_assignments assignment
+  ON assignment.staff_user_id = user_account.user_id
+ AND assignment.property_id = @hdd1_notification_property_id
+ AND assignment.assigned_role = 'MANAGER'
+ AND assignment.assignment_status = 'ACTIVE'
+ AND assignment.ended_at IS NULL
+WHERE user_account.status = 'ACTIVE'
+  AND user_account.deleted_at IS NULL
+  AND (user_account.role = 'OWNER' OR assignment.staff_user_id IS NOT NULL);
+
+-- Owner/manager escalation is only implemented for RENT and UTILITY.
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    CONCAT('INVOICE_OVERDUE_OWNER_STAGE_', overdue.reminder_stage),
+    'INVOICE',
+    invoice.invoice_id,
+    owner_recipient.recipient_user_id,
+    channel.channel,
+    CONCAT('Hóa đơn ', invoice.invoice_code, ' đã quá hạn - đợt ', overdue.reminder_stage),
+    CONCAT(
+        'Chủ trọ/quản lý: hóa đơn ', invoice.invoice_code,
+        ' của phòng ', room.room_code,
+        ' tại ', property.name,
+        ' đã quá hạn sau ngày ', DATE(invoice.due_date),
+        '. Số tiền còn nợ: ', invoice.remaining_amount,
+        ' VND. Vui lòng kiểm tra và xử lý công nợ.'
+    ),
+    JSON_OBJECT(
+        'invoiceId', invoice.invoice_id,
+        'invoiceCode', invoice.invoice_code,
+        'invoiceType', invoice.invoice_type,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'remainingAmount', invoice.remaining_amount,
+        'dueDate', DATE(invoice.due_date),
+        'overdueStage', overdue.reminder_stage,
+        'overdueStageDueDate', overdue.reminder_date,
+        'recipientScope', 'OWNER_MANAGER',
+        'targetRoute', '/dashboard/billing'
+    ),
+    'SENT',
+    0,
+    3,
+    CONCAT(overdue.reminder_date, ' 09:00:00'),
+    CONCAT(overdue.reminder_date, ' 09:00:00'),
+    @hdd1_notification_now,
+    FALSE
+FROM hdbhms.invoices invoice
+JOIN hdbhms.rooms room
+  ON room.room_id = invoice.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = invoice.property_id
+JOIN tmp_hdd1_notification_overdue_stages overdue
+  ON overdue.invoice_id = invoice.invoice_id
+CROSS JOIN tmp_hdd1_notification_owner_recipients owner_recipient
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH'
+) channel
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM hdbhms.notification_outbox existing_notification
+    WHERE existing_notification.event_type = CONCAT('INVOICE_OVERDUE_OWNER_STAGE_', overdue.reminder_stage)
+      AND existing_notification.target_type = 'INVOICE'
+      AND existing_notification.target_id = invoice.invoice_id
+      AND existing_notification.recipient_user_id = owner_recipient.recipient_user_id
+      AND existing_notification.channel = channel.channel
+);
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_notification_owner_recipients;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_notification_overdue_stages;
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_notification_tenant_recipients;
+
+-- Final contract-state alignment: room 301 remains an active Khai contract;
+-- room 302 is the single Khai soon-vacant case used by the expiry workflow.
+SET @hdd1_contract_fix_property_id := (
+    SELECT property_id
+    FROM hdbhms.properties
+    WHERE property_code = 'HAI_DANG_1'
+      AND deleted_at IS NULL
+    LIMIT 1
+);
+SET @hdd1_contract_fix_now := '2026-08-20 09:00:00';
+SET @hdd1_contract_fix_owner_id := (
+    SELECT user_id
+    FROM hdbhms.users
+    WHERE deleted_at IS NULL
+      AND status = 'ACTIVE'
+      AND role = 'OWNER'
+    ORDER BY user_id
+    LIMIT 1
+);
+SET @hdd1_contract_fix_manager_id := (
+    SELECT staff_user_id
+    FROM hdbhms.property_staff_assignments
+    WHERE property_id = @hdd1_contract_fix_property_id
+      AND assigned_role = 'MANAGER'
+      AND assignment_status = 'ACTIVE'
+      AND ended_at IS NULL
+    ORDER BY is_primary DESC, property_staff_assignment_id
+    LIMIT 1
+);
+SET @hdd1_contract_fix_khai_profile_id := (
+    SELECT profile.person_profile_id
+    FROM hdbhms.person_profiles profile
+    JOIN hdbhms.users user_account
+      ON user_account.user_id = profile.user_id
+    WHERE profile.deleted_at IS NULL
+      AND user_account.deleted_at IS NULL
+      AND (
+          user_account.email IN ('nguyenvankhai95@gmail.com', 'nguyen.van.khai@haidang1.local')
+          OR user_account.phone = '0918526407'
+          OR profile.phone = '0918526407'
+      )
+    ORDER BY profile.person_profile_id
+    LIMIT 1
+);
+
+UPDATE hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+SET contract.status = CASE room.room_code
+        WHEN '301' THEN 'ACTIVE'
+        WHEN '302' THEN 'EXPIRING_SOON'
+    END,
+    contract.end_date = CASE room.room_code
+        WHEN '301' THEN '2026-12-31'
+        WHEN '302' THEN '2026-10-31'
+    END,
+    contract.tenant_intention = NULL,
+    contract.expected_vacant_date = NULL,
+    contract.intention_recorded_at = NULL,
+    contract.updated_at = @hdd1_contract_fix_now
+WHERE room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code IN ('301', '302')
+  AND contract.primary_tenant_profile_id = @hdd1_contract_fix_khai_profile_id
+  AND contract.deleted_at IS NULL
+  AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING');
+
+UPDATE hdbhms.rooms room
+SET room.current_status = CASE room.room_code
+        WHEN '301' THEN 'OCCUPIED'
+        WHEN '302' THEN 'SOON_VACANT'
+    END,
+    room.public_note = CASE room.room_code
+        WHEN '301' THEN NULL
+        WHEN '302' THEN 'Contract expires on 31/10/2026; tenant intention is pending.'
+    END,
+    room.internal_note = CASE room.room_code
+        WHEN '301' THEN 'Active Khai contract; not part of the expiry demo.'
+        WHEN '302' THEN 'Expiry demo: first reminder sent; second reminder due on 31/08/2026.'
+    END,
+    room.updated_at = @hdd1_contract_fix_now
+WHERE room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code IN ('301', '302')
+  AND room.deleted_at IS NULL;
+
+DELETE delivery
+FROM hdbhms.notification_deliveries delivery
+JOIN hdbhms.notification_outbox notification
+  ON notification.notification_outbox_id = delivery.outbox_id
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = notification.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+WHERE notification.target_type = 'CONTRACT'
+  AND notification.event_type IN (
+      'CONTRACT_EXPIRING_SOON_REVIEW',
+      'LEASE_EXPIRY_REMINDER_FIRST',
+      'LEASE_EXPIRY_REMINDER_SECOND',
+      'LEASE_EXPIRY_REMINDER_FINAL'
+  )
+  AND room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code IN ('301', '302');
+
+DELETE notification
+FROM hdbhms.notification_outbox notification
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = notification.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+WHERE notification.target_type = 'CONTRACT'
+  AND notification.event_type IN (
+      'CONTRACT_EXPIRING_SOON_REVIEW',
+      'LEASE_EXPIRY_REMINDER_FIRST',
+      'LEASE_EXPIRY_REMINDER_SECOND',
+      'LEASE_EXPIRY_REMINDER_FINAL'
+  )
+  AND room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code IN ('301', '302');
+
+DELETE tracker
+FROM hdbhms.reminder_trackers tracker
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = tracker.target_id
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+WHERE tracker.reminder_key = 'LEASE_EXPIRY_INTENTION'
+  AND tracker.target_type = 'CONTRACT'
+  AND room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code IN ('301', '302');
+
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'CONTRACT_EXPIRING_SOON_REVIEW',
+    'CONTRACT',
+    contract.lease_contract_id,
+    recipient.recipient_user_id,
+    channel.channel,
+    CONCAT('Contract room ', room.room_code, ' is expiring soon'),
+    CONCAT('Contract ', contract.contract_code, ' for room ', room.room_code,
+           ' expires on ', contract.end_date, ' and tenant intention is pending.'),
+    JSON_OBJECT(
+        'contractId', contract.lease_contract_id,
+        'contractCode', contract.contract_code,
+        'roomId', room.room_id,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'endDate', contract.end_date,
+        'targetRoute', CONCAT('/dashboard/contracts/', contract.lease_contract_id)
+    ),
+    'SENT', 0, 3,
+    @hdd1_contract_fix_now,
+    @hdd1_contract_fix_now,
+    @hdd1_contract_fix_now,
+    FALSE
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = room.property_id
+CROSS JOIN (
+    SELECT @hdd1_contract_fix_owner_id AS recipient_user_id
+    UNION
+    SELECT @hdd1_contract_fix_manager_id
+) recipient
+CROSS JOIN (
+    SELECT 'WEB' AS channel
+    UNION ALL
+    SELECT 'PUSH'
+) channel
+WHERE room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code = '302'
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND recipient.recipient_user_id IS NOT NULL;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_contract_fix_recipients;
+CREATE TEMPORARY TABLE tmp_hdd1_contract_fix_recipients
+(
+    recipient_user_id BIGINT UNSIGNED NOT NULL,
+    audience VARCHAR(50) NOT NULL,
+    PRIMARY KEY (recipient_user_id, audience)
+);
+
+INSERT INTO tmp_hdd1_contract_fix_recipients (recipient_user_id, audience)
+SELECT user_account.user_id, 'PRIMARY_TENANT'
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = contract.primary_tenant_profile_id
+JOIN hdbhms.users user_account
+  ON user_account.user_id = profile.user_id
+WHERE contract.room_id = (
+          SELECT room_id FROM hdbhms.rooms
+          WHERE property_id = @hdd1_contract_fix_property_id AND room_code = '302'
+          LIMIT 1
+      )
+  AND contract.status = 'EXPIRING_SOON'
+  AND user_account.status = 'ACTIVE'
+  AND user_account.deleted_at IS NULL
+UNION
+SELECT user_account.user_id, 'CO_OCCUPANT'
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.contract_occupants occupant
+  ON occupant.contract_id = contract.lease_contract_id
+ AND occupant.occupant_role = 'CO_OCCUPANT'
+ AND occupant.status = 'ACTIVE'
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = occupant.tenant_profile_id
+JOIN hdbhms.users user_account
+  ON user_account.user_id = profile.user_id
+WHERE contract.room_id = (
+          SELECT room_id FROM hdbhms.rooms
+          WHERE property_id = @hdd1_contract_fix_property_id AND room_code = '302'
+          LIMIT 1
+      )
+  AND contract.status = 'EXPIRING_SOON'
+  AND user_account.status = 'ACTIVE'
+  AND user_account.deleted_at IS NULL;
+
+INSERT INTO hdbhms.notification_outbox
+    (event_type, target_type, target_id, recipient_user_id, channel, title, body, payload, status,
+     retry_count, max_retries, scheduled_at, sent_at, created_at, is_read)
+SELECT
+    'LEASE_EXPIRY_REMINDER_FIRST',
+    'CONTRACT',
+    contract.lease_contract_id,
+    recipient.recipient_user_id,
+    'PUSH',
+    CONCAT('Contract ', contract.contract_code, ' expires soon'),
+    CONCAT('Room ', room.room_code, ' expires on ', contract.end_date,
+           '. Please choose renewal, transfer, or move-out.'),
+    JSON_OBJECT(
+        'contractId', contract.lease_contract_id,
+        'contractCode', contract.contract_code,
+        'roomId', room.room_id,
+        'roomCode', room.room_code,
+        'propertyName', property.name,
+        'endDate', contract.end_date,
+        'daysRemaining', DATEDIFF(contract.end_date, DATE(@hdd1_contract_fix_now)),
+        'stage', 'FIRST',
+        'targetRoute', '/contract'
+    ),
+    'SENT', 0, 3,
+    DATE_SUB(contract.end_date, INTERVAL 3 MONTH),
+    DATE_SUB(contract.end_date, INTERVAL 3 MONTH),
+    @hdd1_contract_fix_now,
+    FALSE
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.properties property
+  ON property.property_id = room.property_id
+JOIN tmp_hdd1_contract_fix_recipients recipient
+  ON 1 = 1
+WHERE room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code = '302'
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_contract_fix_now);
+
+INSERT INTO hdbhms.reminder_trackers
+    (reminder_key, target_type, target_id, audience, recipient_user_id, status, sent_count,
+     last_sent_at, next_due_at, metadata, created_at, updated_at)
+SELECT
+    'LEASE_EXPIRY_INTENTION',
+    'CONTRACT',
+    contract.lease_contract_id,
+    recipient.audience,
+    recipient.recipient_user_id,
+    'ACTIVE',
+    1,
+    DATE_SUB(contract.end_date, INTERVAL 3 MONTH),
+    DATE_SUB(contract.end_date, INTERVAL 2 MONTH),
+    JSON_OBJECT(
+        'endDate', contract.end_date,
+        'firstReminderDate', DATE_SUB(contract.end_date, INTERVAL 3 MONTH),
+        'lastReminderStage', 'FIRST'
+    ),
+    @hdd1_contract_fix_now,
+    @hdd1_contract_fix_now
+FROM hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN tmp_hdd1_contract_fix_recipients recipient
+  ON 1 = 1
+WHERE room.property_id = @hdd1_contract_fix_property_id
+  AND room.room_code = '302'
+  AND contract.status = 'EXPIRING_SOON'
+  AND contract.tenant_intention IS NULL
+  AND DATE_SUB(contract.end_date, INTERVAL 3 MONTH) <= DATE(@hdd1_contract_fix_now);
+
+DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_contract_fix_recipients;

@@ -4,6 +4,7 @@ import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
@@ -78,6 +79,8 @@ import java.util.Map;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class BillingManagementService {
     static final String INVOICE_OVERDUE_EVENT = "INVOICE_OVERDUE";
+    static final String INVOICE_OVERDUE_REMINDER_EVENT_PREFIX = "INVOICE_OVERDUE_REMINDER_";
+    static final String OWNER_OVERDUE_STAGE_EVENT_PREFIX = "INVOICE_OVERDUE_OWNER_STAGE_";
     static final String INVOICE_TARGET = "INVOICE";
     static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     static final String INVOICE_EXCEL_TEMPLATE = "templates/Template Hai Dang 1 payment notice.xlsx";
@@ -100,6 +103,11 @@ public class BillingManagementService {
             NotificationChannel.WEB,
             NotificationChannel.PUSH
     );
+    static final List<InvoiceType> OWNER_OVERDUE_ESCALATION_INVOICE_TYPES = List.of(
+            InvoiceType.RENT,
+            InvoiceType.UTILITY
+    );
+    static final int OWNER_OVERDUE_MAX_STAGE = 3;
     static final List<LeaseStatus> BILLABLE_CONTRACT_STATUSES = List.of(
             LeaseStatus.ACTIVE,
             LeaseStatus.EXPIRING_SOON,
@@ -503,16 +511,18 @@ public class BillingManagementService {
     @Transactional
     public void sendAutomaticOverdueWarnings() {
         Map<String, Object> result = processOverdueWarnings(null);
-        if (((Number) result.get("outboxCount")).intValue() > 0) {
-            // ponytail: one daily overdue reminder; later move cadence to property billing settings.
+        int outboxCount = ((Number) result.get("outboxCount")).intValue()
+                + ((Number) result.get("ownerManagerOutboxCount")).intValue();
+        if (outboxCount > 0) {
             log.info("Queued overdue invoice notifications: {}", result);
         }
     }
 
     @Transactional
     public Map<String, Object> processOverdueWarnings(Long currentUserId) {
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
         List<InvoiceEntity> invoices = invoiceRepository.findOverdueWarningCandidates(
-                LocalDateTime.now(VIETNAM_ZONE),
+                now,
                 OVERDUE_WARNING_STATUSES
         );
 
@@ -521,6 +531,10 @@ public class BillingManagementService {
         int recipientCount = 0;
         int outboxCount = 0;
         int duplicateCount = 0;
+        int ownerManagerNotifiedInvoiceCount = 0;
+        int ownerManagerRecipientCount = 0;
+        int ownerManagerOutboxCount = 0;
+        int ownerManagerDuplicateCount = 0;
 
         for (InvoiceEntity invoice : invoices) {
             if (invoice.getStatus() != InvoiceStatus.OVERDUE) {
@@ -529,13 +543,33 @@ public class BillingManagementService {
                 markedOverdueCount++;
             }
 
-            WarningResult warningResult = queueOverdueWarning(invoice, currentUserId, false);
+            if (!OWNER_OVERDUE_ESCALATION_INVOICE_TYPES.contains(invoice.getInvoiceType())) {
+                continue;
+            }
+
+            WarningResult warningResult = queueScheduledOverdueReminder(
+                    invoice,
+                    currentUserId,
+                    now.toLocalDate()
+            );
             if (warningResult.outboxCount() > 0) {
                 notifiedInvoiceCount++;
             }
             recipientCount += warningResult.recipientCount();
             outboxCount += warningResult.outboxCount();
             duplicateCount += warningResult.duplicateCount();
+
+            OwnerManagerWarningResult escalationResult = queueOwnerManagerOverdueWarning(
+                    invoice,
+                    now.toLocalDate(),
+                    currentUserId
+            );
+            if (escalationResult.outboxCount() > 0) {
+                ownerManagerNotifiedInvoiceCount++;
+            }
+            ownerManagerRecipientCount += escalationResult.recipientCount();
+            ownerManagerOutboxCount += escalationResult.outboxCount();
+            ownerManagerDuplicateCount += escalationResult.duplicateCount();
         }
 
         return Map.of(
@@ -544,7 +578,11 @@ public class BillingManagementService {
                 "notifiedInvoiceCount", notifiedInvoiceCount,
                 "recipientCount", recipientCount,
                 "outboxCount", outboxCount,
-                "duplicateSkippedCount", duplicateCount
+                "duplicateSkippedCount", duplicateCount,
+                "ownerManagerNotifiedInvoiceCount", ownerManagerNotifiedInvoiceCount,
+                "ownerManagerRecipientCount", ownerManagerRecipientCount,
+                "ownerManagerOutboxCount", ownerManagerOutboxCount,
+                "ownerManagerDuplicateSkippedCount", ownerManagerDuplicateCount
         );
     }
 
@@ -709,6 +747,98 @@ public class BillingManagementService {
         return new ManualPaymentResponse(toInvoiceResponse(invoice), toPaymentHistory(allocation));
     }
 
+    /**
+     * Records the first rent collection made by the owner/manager during activation.
+     * The receipt is linked to the contract, so it does not require a tenant account.
+     */
+    @Transactional
+    public void recordActivationRentPayment(
+            LeaseContractEntity contract,
+            long amount,
+            String payerName,
+            String note,
+            Long currentUserId
+    ) {
+        if (contract == null || contract.getRoom() == null || contract.getRoom().getProperty() == null || amount <= 0) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+
+        LocalDateTime now = LocalDateTime.now(VIETNAM_ZONE);
+        String billingPeriod = YearMonth.from(
+                contract.getRentStartDate() == null ? contract.getStartDate() : contract.getRentStartDate()
+        ).toString();
+        int revision = nextActivationRentRevision(contract.getId(), billingPeriod);
+        InvoiceEntity invoice = invoiceRepository.saveAndFlush(InvoiceEntity.builder()
+                .invoiceCode("INV-RENT-ACT-" + contract.getId() + "-" + billingPeriod.replace("-", "") + "-" + revision)
+                .property(contract.getRoom().getProperty())
+                .room(contract.getRoom())
+                .leastContract(contract)
+                .invoiceType(InvoiceType.RENT)
+                .invoiceReason(InvoiceReason.MANUAL)
+                .revisionNo(revision)
+                .billingPeriod(billingPeriod)
+                .issueDate(now)
+                .dueDate(now)
+                .status(InvoiceStatus.PAID)
+                .subtotalAmount(amount)
+                .discountAmount(0L)
+                .totalAmount(amount)
+                .paidAmount(amount)
+                .remainingAmount(0L)
+                .createdBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId))
+                .issuedAt(now)
+                .build());
+
+        invoiceLineRepository.saveAndFlush(InvoiceLineEntity.builder()
+                .invoice(invoice)
+                .lineType(InvoiceLineType.ROOM_RENT)
+                .description("Tiền phòng kỳ đầu theo hợp đồng " + contract.getContractCode())
+                .quantity(1)
+                .unitPrice(amount)
+                .sourceType("LEASE_CONTRACT_ACTIVATION")
+                .sourceId(contract.getId())
+                .build());
+
+        Instant paymentTime = now.atZone(VIETNAM_ZONE).toInstant();
+        PaymentTransactionEntity transaction = paymentTransactionRepository.saveAndFlush(PaymentTransactionEntity.builder()
+                .provider(TransactionProvider.CASH)
+                .providerTransactionId("ACTIVATION-RENT-INVOICE-" + invoice.getId())
+                .amount(amount)
+                .transactionTime(paymentTime)
+                .payerName(defaultText(
+                        payerName,
+                        contract.getPrimaryTenantProfile() == null ? null : contract.getPrimaryTenantProfile().getFullName()
+                ))
+                .content(defaultText(note, "Xác nhận đã thu tiền phòng kỳ đầu khi kích hoạt hợp đồng."))
+                .status(TransactionStatus.MATCHED)
+                .rawPayload(("activation rent payment contract " + contract.getId()).getBytes(StandardCharsets.UTF_8))
+                .confirmedBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId))
+                .confirmedAt(paymentTime)
+                .build());
+
+        paymentAllocationRepository.saveAndFlush(PaymentAllocationEntity.builder()
+                .paymentTransaction(transaction)
+                .invoice(invoice)
+                .amount(amount)
+                .allocatedBy(currentUserId == null ? null : userRepository.getReferenceById(currentUserId))
+                .build());
+    }
+
+    private int nextActivationRentRevision(Long contractId, String billingPeriod) {
+        Integer maxRevision = jdbcTemplate.queryForObject("""
+                        SELECT COALESCE(MAX(revision_no), 0)
+                        FROM invoices
+                        WHERE lease_contract_id = ?
+                          AND billing_period = ?
+                          AND invoice_type = 'RENT'
+                        """,
+                Integer.class,
+                contractId,
+                billingPeriod
+        );
+        return (maxRevision == null ? 0 : maxRevision) + 1;
+    }
+
     @Transactional
     public Map<String, Object> sendOverdueWarning(Long invoiceId, Long currentUserId) {
         if (invoiceId == null) {
@@ -761,10 +891,213 @@ public class BillingManagementService {
         return new WarningResult(recipients.size(), outboxCount, duplicateCount);
     }
 
+    private WarningResult queueScheduledOverdueReminder(
+            InvoiceEntity invoice,
+            Long senderUserId,
+            LocalDate today
+    ) {
+        int stage = overdueReminderStage(invoice, today);
+        if (stage == 0) {
+            return new WarningResult(0, 0, 0);
+        }
+
+        List<Long> recipients = findInvoiceTenantRecipientIds(invoice);
+        if (recipients.isEmpty()) {
+            return new WarningResult(0, 0, 0);
+        }
+
+        String eventType = INVOICE_OVERDUE_REMINDER_EVENT_PREFIX + stage;
+        Map<String, Object> data = invoiceNotificationData(invoice, senderUserId);
+        LocalDate reminderDate = reminderDate(invoice).plusMonths(stage - 1L);
+        data.put("reminderStage", stage);
+        data.put("reminderDate", reminderDate.toString());
+
+        int outboxCount = 0;
+        int duplicateCount = 0;
+        for (Long recipientId : recipients) {
+            if (overdueReminderExists(invoice.getId(), recipientId, eventType)) {
+                duplicateCount++;
+                continue;
+            }
+            notificationPublisher.publish(eventType, recipientId, INVOICE_TARGET, invoice.getId(), data);
+            outboxCount += OVERDUE_WARNING_CHANNELS.size();
+        }
+
+        return new WarningResult(recipients.size(), outboxCount, duplicateCount);
+    }
+
+    private OwnerManagerWarningResult queueOwnerManagerOverdueWarning(
+            InvoiceEntity invoice,
+            LocalDate today,
+            Long senderUserId
+    ) {
+        int stage = ownerManagerOverdueStage(invoice, today);
+        if (stage == 0) {
+            return OwnerManagerWarningResult.empty();
+        }
+
+        List<Long> recipients = findInvoiceOwnerAndManagerRecipientIds(invoice);
+        if (recipients.isEmpty()) {
+            return OwnerManagerWarningResult.empty();
+        }
+
+        String eventType = OWNER_OVERDUE_STAGE_EVENT_PREFIX + stage;
+        Map<String, Object> data = invoiceNotificationData(invoice, senderUserId);
+        data.put("overdueStage", stage);
+        data.put("overdueStageDueDate", invoice.getDueDate() == null
+                ? null
+                : reminderDate(invoice)
+                .plusMonths(Math.max(stage - 1, 0))
+                .toString());
+        data.put("recipientScope", "OWNER_MANAGER");
+        data.put("targetRoute", "/dashboard/billing");
+
+        int outboxCount = 0;
+        int duplicateCount = 0;
+        for (Long recipientId : recipients) {
+            if (ownerManagerOverdueWarningExists(invoice.getId(), recipientId, eventType)) {
+                duplicateCount++;
+                continue;
+            }
+            notificationPublisher.publish(eventType, recipientId, INVOICE_TARGET, invoice.getId(), data);
+            outboxCount += OVERDUE_WARNING_CHANNELS.size();
+        }
+
+        return new OwnerManagerWarningResult(recipients.size(), outboxCount, duplicateCount);
+    }
+
+    private int ownerManagerOverdueStage(InvoiceEntity invoice, LocalDate today) {
+        if (invoice == null
+                || invoice.getDueDate() == null
+                || invoice.getRemainingAmount() == null
+                || invoice.getRemainingAmount() <= 0
+                || !OWNER_OVERDUE_ESCALATION_INVOICE_TYPES.contains(invoice.getInvoiceType())) {
+            return 0;
+        }
+
+        LocalDate firstReminderDate = reminderDate(invoice);
+        if (today.isBefore(firstReminderDate)) {
+            return 0;
+        }
+        if (today.isBefore(firstReminderDate.plusMonths(1))) {
+            return 1;
+        }
+        if (today.isBefore(firstReminderDate.plusMonths(2))) {
+            return 2;
+        }
+        return OWNER_OVERDUE_MAX_STAGE;
+    }
+
+    private int overdueReminderStage(InvoiceEntity invoice, LocalDate today) {
+        if (invoice == null || invoice.getDueDate() == null || today == null) {
+            return 0;
+        }
+
+        LocalDate firstReminderDate = reminderDate(invoice);
+        if (today.isBefore(firstReminderDate)) {
+            return 0;
+        }
+        if (today.isBefore(firstReminderDate.plusMonths(1))) {
+            return 1;
+        }
+        if (today.isBefore(firstReminderDate.plusMonths(2))) {
+            return 2;
+        }
+        return OWNER_OVERDUE_MAX_STAGE;
+    }
+
+    private LocalDate reminderDate(InvoiceEntity invoice) {
+        return invoice.getDueDate().toLocalDate().plusDays(1);
+    }
+
+    private List<Long> findInvoiceOwnerAndManagerRecipientIds(InvoiceEntity invoice) {
+        if (invoice == null
+                || invoice.getRoom() == null
+                || invoice.getRoom().getId() == null
+                || invoice.getRoom().getProperty() == null
+                || invoice.getRoom().getProperty().getId() == null) {
+            return List.of();
+        }
+
+        return jdbcTemplate.queryForList("""
+                        SELECT DISTINCT u.user_id
+                        FROM users u
+                        LEFT JOIN property_staff_assignments psa
+                          ON psa.staff_user_id = u.user_id
+                         AND psa.property_id = ?
+                         AND psa.assigned_role = 'MANAGER'
+                         AND psa.assignment_status = 'ACTIVE'
+                         AND psa.ended_at IS NULL
+                        WHERE u.status = 'ACTIVE'
+                          AND u.deleted_at IS NULL
+                          AND (u.role = 'OWNER' OR psa.staff_user_id IS NOT NULL)
+                        ORDER BY u.user_id
+                        """,
+                Long.class,
+                invoice.getRoom().getProperty().getId()
+        );
+    }
+
+    private boolean ownerManagerOverdueWarningExists(
+            Long invoiceId,
+            Long recipientId,
+            String eventType
+    ) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(1)
+                        FROM notification_outbox
+                        WHERE event_type = ?
+                          AND target_type = ?
+                          AND target_id = ?
+                          AND recipient_user_id = ?
+                        """,
+                Integer.class,
+                eventType,
+                INVOICE_TARGET,
+                invoiceId,
+                recipientId
+        );
+        return count != null && count > 0;
+    }
+
     private List<Long> findInvoiceTenantRecipientIds(InvoiceEntity invoice) {
         if (invoice == null || invoice.getRoom() == null || invoice.getRoom().getId() == null) {
             return List.of();
         }
+        Long contractId = invoice.getLeastContract() == null
+                ? null
+                : invoice.getLeastContract().getId();
+        if (contractId != null) {
+            return jdbcTemplate.queryForList("""
+                            SELECT DISTINCT u.user_id
+                            FROM users u
+                            JOIN person_profiles pp
+                              ON pp.user_id = u.user_id
+                             AND pp.deleted_at IS NULL
+                            JOIN (
+                                SELECT lc.primary_tenant_profile_id AS tenant_profile_id
+                                FROM lease_contracts lc
+                                WHERE lc.lease_contract_id = ?
+                                  AND lc.deleted_at IS NULL
+                                UNION
+                                SELECT co.tenant_profile_id AS tenant_profile_id
+                                FROM contract_occupants co
+                                WHERE co.contract_id = ?
+                                  AND co.status = 'ACTIVE'
+                                  AND co.tenant_profile_id IS NOT NULL
+                            ) occupied
+                              ON occupied.tenant_profile_id = pp.person_profile_id
+                            WHERE u.status = 'ACTIVE'
+                              AND u.deleted_at IS NULL
+                              AND u.role = 'TENANT'
+                            ORDER BY u.user_id
+                            """,
+                    Long.class,
+                    contractId,
+                    contractId
+            );
+        }
+
         return jdbcTemplate.queryForList("""
                         SELECT DISTINCT u.user_id
                         FROM users u
@@ -819,6 +1152,24 @@ public class BillingManagementService {
                 recipientId,
                 today.atStartOfDay(),
                 today.plusDays(1).atStartOfDay()
+        );
+        return count != null && count > 0;
+    }
+
+    private boolean overdueReminderExists(Long invoiceId, Long recipientId, String eventType) {
+        Integer count = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(1)
+                        FROM notification_outbox
+                        WHERE event_type = ?
+                          AND target_type = ?
+                          AND target_id = ?
+                          AND recipient_user_id = ?
+                        """,
+                Integer.class,
+                eventType,
+                INVOICE_TARGET,
+                invoiceId,
+                recipientId
         );
         return count != null && count > 0;
     }
@@ -1354,5 +1705,11 @@ public class BillingManagementService {
     }
 
     private record WarningResult(int recipientCount, int outboxCount, int duplicateCount) {
+    }
+
+    private record OwnerManagerWarningResult(int recipientCount, int outboxCount, int duplicateCount) {
+        private static OwnerManagerWarningResult empty() {
+            return new OwnerManagerWarningResult(0, 0, 0);
+        }
     }
 }

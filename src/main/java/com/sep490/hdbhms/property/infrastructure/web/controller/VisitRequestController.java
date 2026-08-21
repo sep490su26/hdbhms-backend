@@ -15,9 +15,11 @@ import com.sep490.hdbhms.property.application.port.in.usecase.GetPropertyDetails
 import com.sep490.hdbhms.property.application.port.in.usecase.GetRoomDetailsUseCase;
 import com.sep490.hdbhms.property.application.port.in.usecase.GetVisitRequestDetailsUseCase;
 import com.sep490.hdbhms.property.application.port.out.VisitRequestRepository;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.property.domain.model.Property;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.property.domain.model.VisitRequest;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.property.domain.value_objects.VisitRequestStatus;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.CreateVisitRequestRequest;
 import com.sep490.hdbhms.property.infrastructure.web.dto.request.VisitRequestUpdateRequest;
@@ -41,6 +43,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 
@@ -57,6 +60,7 @@ public class VisitRequestController {
     GetVisitRequestDetailsUseCase getVisitRequestDetailsUseCase;
     VisitRequestRepository visitRequestRepository;
     JpaRolePromotionRepository jpaRolePromotionRepository;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @PostMapping
     public ApiResponse<VisitRequestDetailsResponse> createVisitRequest(
@@ -215,6 +219,10 @@ public class VisitRequestController {
         assertCanAccessVisitRequest(principal, current);
 
         Room room = getRoomOrNull(request.getRoomId());
+        if (room != null && !room.isAvailableForViewing()) {
+            throw new AppException(ApiErrorCode.VISIT_008);
+        }
+        validateViewingDate(room, request.getAppointmentAt());
         if (room != null && !Objects.equals(room.getPropertyId(), request.getPropertyId())) {
             throw new AppException(ApiErrorCode.VISIT_002);
         }
@@ -427,5 +435,17 @@ public class VisitRequestController {
 
     private Room getRoomOrNull(Long roomId) {
         return roomId == null ? null : getRoomDetailsUseCase.execute(new GetRoomDetailsQuery(roomId));
+    }
+
+    private void validateViewingDate(Room room, LocalDateTime appointmentAt) {
+        if (room == null || room.getCurrentStatus() != RoomStatus.SOON_VACANT
+                || appointmentAt == null) {
+            return;
+        }
+
+        LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId()).orElse(null);
+        if (expectedVacantDate != null && !appointmentAt.toLocalDate().isAfter(expectedVacantDate)) {
+            throw new AppException(ApiErrorCode.VISIT_009);
+        }
     }
 }

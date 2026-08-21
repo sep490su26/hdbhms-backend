@@ -7,6 +7,7 @@ import com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContra
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
+import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.RoomEntity;
@@ -16,7 +17,6 @@ import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContract
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +33,7 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
     JpaLeaseContractRepository leaseContractRepository;
     JpaRoomRepository roomRepository;
     LeaseContractWorkflowSupport workflowSupport;
+    RoomCommitmentChecker roomCommitmentChecker;
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
     JdbcTemplate jdbcTemplate;
 
@@ -64,6 +65,46 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
         if (command.endDate() == null || !command.endDate().isAfter(command.startDate())) {
             throw new AppException(ApiErrorCode.LEASE_RENEWAL_DATES_INVALID);
         }
+        RoomEntity room = contract.getRoom();
+        LocalDate currentEndDate = contract.getEndDate();
+        boolean extendsEndDate = currentEndDate == null || command.endDate().isAfter(currentEndDate);
+        if (extendsEndDate
+                && room != null
+                && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED)
+                .contains(contract.getStatus())) {
+            if (workflowSupport.hasOtherActiveContract(room.getId(), contract.getId(), null)) {
+                throw new AppException(ApiErrorCode.LEASE_RENEWAL_ROOM_RESERVED_BY_OTHER_TENANT);
+            }
+
+            RoomCommitmentChecker.Blocker blocker = roomCommitmentChecker.checkRenewBlockers(
+                    room.getId(),
+                    contract.getId(),
+                    currentEndDate
+            );
+            if (blocker != RoomCommitmentChecker.Blocker.NONE) {
+                throwRenewBlocked(blocker);
+            }
+
+            if (room.getCurrentStatus() == RoomStatus.SOON_VACANT) {
+                RoomStatus fromStatus = room.getCurrentStatus();
+                contract.setTenantIntention("RENEW");
+                contract.setExpectedVacantDate(null);
+                contract.setIntentionRecordedAt(java.time.LocalDateTime.now());
+                room.setCurrentStatus(RoomStatus.OCCUPIED);
+                roomRepository.saveAndFlush(room);
+                workflowSupport.appendRoomStatusHistory(
+                        room.getId(),
+                        fromStatus,
+                        RoomStatus.OCCUPIED,
+                        "Gia hạn hợp đồng thuê " + contract.getContractCode()
+                );
+                workflowSupport.appendContractEvent(
+                        contract.getId(),
+                        "RENEWAL_AFTER_MOVE_OUT_INTENT",
+                        "Gia hạn hợp đồng sau khi khách đã báo chuyển đi"
+                );
+            }
+        }
         boolean rentChanged = !Objects.equals(contract.getMonthlyRent(), command.monthlyRent());
 
         contract.setStartDate(command.startDate());
@@ -83,6 +124,13 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
             );
         }
         return getLeaseContractManagementUseCase.findOne(contract.getId());
+    }
+
+    private void throwRenewBlocked(RoomCommitmentChecker.Blocker blocker) {
+        if (blocker == RoomCommitmentChecker.Blocker.ROOM_ALREADY_RESERVED_BY_NEW_TENANT) {
+            throw new AppException(ApiErrorCode.LEASE_ROOM_PREBOOKED_BY_OTHER_TENANT);
+        }
+        throw new AppException(ApiErrorCode.LEASE_RENEWAL_ROOM_RESERVED_BY_OTHER_TENANT);
     }
 
     private void applyLifecycleStatusAfterTermsUpdate(LeaseContractEntity contract, LocalDate today) {

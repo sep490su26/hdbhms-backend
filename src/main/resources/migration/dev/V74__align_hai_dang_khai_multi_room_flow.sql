@@ -90,11 +90,10 @@ VALUES
     ('401', '2026-12-31', 'ACTIVE'),
     ('501', '2026-12-31', 'ACTIVE'),
     ('507', '2026-12-31', 'ACTIVE'),
-    -- These are the three remaining expiring rooms; move their contract
-    -- profiles to Khai so one account can exercise expiry scenarios too.
-    ('402', '2026-09-15', 'EXPIRING_SOON'),
-    ('403', '2026-08-30', 'EXPIRING_SOON'),
-    ('405', '2026-08-30', 'EXPIRING_SOON');
+    -- Keep room 402 as the remaining Khai expiry scenario. Rooms 101, 102,
+    -- 403, and 405 are released by the final V48 August overlay and must not
+    -- be reopened.
+    ('402', '2026-09-15', 'EXPIRING_SOON');
 
 -- Keep the selected current contracts in their intended lifecycle state and
 -- make Khai their primary tenant. Historical/liquidated contracts are
@@ -302,7 +301,7 @@ WHERE (
         FROM hdbhms.rooms payload_room
         WHERE payload_room.property_id = @hdd1_property_id
           AND payload_room.room_code IN (
-              '301', '302', '303', '401', '501', '507', '402', '403', '405'
+               '301', '302', '303', '401', '501', '507', '402'
           )
           AND (
               payload_room.room_code = JSON_UNQUOTE(
@@ -487,9 +486,12 @@ JOIN hdbhms.lease_contracts contract
   ON contract.lease_contract_id = invoice.lease_contract_id
 JOIN hdbhms.rooms room
   ON room.room_id = contract.room_id
+JOIN hdbhms.person_profiles profile
+  ON profile.person_profile_id = contract.primary_tenant_profile_id
 WHERE room.property_id = @hdd1_property_id
   AND room.room_code IN ('301', '302', '303', '402')
   AND contract.deleted_at IS NULL
+  AND profile.email <> 'nguyenvankhai95@gmail.com'
   AND invoice.status IN ('ISSUED', 'PARTIALLY_PAID', 'OVERDUE')
   AND invoice.remaining_amount > 0;
 
@@ -501,7 +503,10 @@ SELECT
     'MANUAL',
     debt.provider_transaction_id,
     debt.outstanding_amount,
-    @hdd1_seed_now,
+    CASE
+        WHEN invoice.billing_period = '2026-07' THEN '2026-07-31 18:00:00'
+        ELSE @hdd1_seed_now
+    END,
     'Dữ liệu mẫu',
     'SEED-CLEAR-DEBT',
     CONCAT('Tất toán công nợ phòng ', debt.room_code, ' - hóa đơn ', invoice.invoice_code),
@@ -513,7 +518,10 @@ SELECT
         'amount', debt.outstanding_amount
     ) AS BINARY),
     @hdd1_manager_id,
-    @hdd1_seed_now,
+    CASE
+        WHEN invoice.billing_period = '2026-07' THEN '2026-07-31 18:00:00'
+        ELSE @hdd1_seed_now
+    END,
     @hdd1_seed_now
 FROM tmp_hdd1_debt_invoices debt
 JOIN hdbhms.invoices invoice

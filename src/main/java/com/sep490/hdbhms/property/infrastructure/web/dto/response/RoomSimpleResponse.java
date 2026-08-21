@@ -4,6 +4,8 @@ import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDate;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,4 +21,5 @@ public class RoomSimpleResponse {
     String floorCode;
     RoomStatus status;
     Long listedPrice;
+    LocalDate expectedVacantDate;
 }

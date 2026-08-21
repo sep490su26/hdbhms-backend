@@ -63,10 +63,12 @@ class SubmitMeterReadingServiceExcelImportParserTest {
     }
 
     @Test
-    void parseExcelReadsOptionalRolloverCount() throws Exception {
+    void parseExcelIgnoresLegacyRolloverCountColumn() throws Exception {
         List<?> rows = parseExcel(workbookBytesWithRolloverCount(1));
 
-        assertEquals(1, recordValue(rows.get(0), "rolloverCount"));
+        assertEquals(1, rows.size());
+        assertEquals("P101", recordValue(rows.get(0), "roomCode"));
+        assertEquals(new BigDecimal("3"), recordValue(rows.get(0), "currentValue"));
     }
 
     @Test

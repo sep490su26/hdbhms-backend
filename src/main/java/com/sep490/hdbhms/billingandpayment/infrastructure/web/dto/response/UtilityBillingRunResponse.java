@@ -35,6 +35,8 @@ public record UtilityBillingRunResponse(
             Integer electricityQuantity,
             Long electricityUnitPrice,
             Long electricityAmount,
+            Boolean electricityWaived,
+            String electricityWaiveReason,
             Long waterReadingId,
             BigDecimal waterPrevious,
             BigDecimal waterCurrent,

@@ -588,13 +588,9 @@ public class ExpenseRequestService {
         String currentReason = sourcePayload.get("depositForfeitureReason") == null
                 ? null
                 : sourcePayload.get("depositForfeitureReason").toString();
-        String currentLiquidationDate = sourcePayload.get("liquidationDate") == null
-                ? null
-                : sourcePayload.get("liquidationDate").toString();
-        String requestedLiquidationDate = liquidationDate == null ? null : liquidationDate.toString();
+        // The handover flow may correct the liquidation date without changing the forfeiture decision.
         boolean sameDecision = currentAmount == forfeitureAmount
-                && Objects.equals(blankToNull(currentReason), blankToNull(forfeitureReason))
-                && Objects.equals(currentLiquidationDate, requestedLiquidationDate);
+                && Objects.equals(blankToNull(currentReason), blankToNull(forfeitureReason));
 
         sourcePayload.put("depositForfeitureAmount", forfeitureAmount);
         sourcePayload.put("depositForfeitureReason", forfeitureReason);

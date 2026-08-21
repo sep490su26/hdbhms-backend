@@ -67,10 +67,9 @@ public class MeterReadingController {
             "Mã phòng",
             "Phòng",
             "Chỉ số điện kỳ trước",
-            "Chỉ số điện mới",
-            "Số lần quay vòng (nếu có)"
+            "Chỉ số điện mới"
     };
-    private static final int[] IMPORT_TEMPLATE_COLUMN_WIDTHS = {16, 28, 22, 20, 25};
+    private static final int[] IMPORT_TEMPLATE_COLUMN_WIDTHS = {16, 28, 22, 20};
     private static final String IMPORT_TEMPLATE_NUMBER_FORMAT = "#,##0";
 
     MeterReadingWebMapper meterReadingWebMapper;
@@ -189,7 +188,7 @@ public class MeterReadingController {
             @Valid @RequestBody ProgressiveRoomReadingRequest request) {
         submitMeterReadingUseCase.saveProgressiveRoomReading(
                 batchId, roomId, 
-                request.getElectricityValue(), request.getElectricityPhotoId(), request.getRolloverCount()
+                request.getElectricityValue(), request.getElectricityPhotoId()
         );
         return ApiResponse.<Void>builder()
                 .message("Lưu tiến độ chỉ số thành công")
@@ -291,9 +290,6 @@ public class MeterReadingController {
                 setTextCell(row, 1, templateRow.roomName(), textStyle);
                 setNumberCell(row, 2, templateRow.previousReading(), numberStyle);
                 setNumberCell(row, 3, templateRow.currentReading(), inputStyle);
-                setNumberCell(row, 4, templateRow.rolloverCount() == null
-                        ? null
-                        : BigDecimal.valueOf(templateRow.rolloverCount()), inputStyle);
             }
 
             for (int column = 0; column < IMPORT_TEMPLATE_COLUMN_WIDTHS.length; column++) {
@@ -319,8 +315,7 @@ public class MeterReadingController {
                         room.getRoomCode(),
                         displayRoomName(room),
                         room.getElectricityPrevious(),
-                        room.getElectricityCurrent(),
-                        room.getElectricityRolloverCount()
+                        room.getElectricityCurrent()
                 ))
                 .toList();
     }
@@ -393,8 +388,7 @@ public class MeterReadingController {
             String roomCode,
             String roomName,
             BigDecimal previousReading,
-            BigDecimal currentReading,
-            Integer rolloverCount
+            BigDecimal currentReading
     ) {
     }
 }

@@ -101,7 +101,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         // Submit electricity reading
         submitMeterValue(room, MeterType.ELECTRICITY, command.electricityValue(), 
                 readingPeriod, command.readingDate(), command.electricityPhotoId(),
-                command.rolloverCount(), null, currentUser);
+                null, currentUser);
         utilityBillingRunService.refreshMonthlyPreviewIfOpen(
                 room.getPropertyId(),
                 MeterReadingPeriod.parse(readingPeriod).toString(),
@@ -143,7 +143,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
             submitMeterValue(room, MeterType.ELECTRICITY, input.electricityValue(), 
                     readingPeriod, command.readingDate(), input.electricityPhotoId(),
-                    input.rolloverCount(), batch, currentUser);
+                    batch, currentUser);
 
         }
         createMonthlyUtilityBillingBatch(batch, currentUser.getId());
@@ -151,14 +151,14 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
 
     private void submitMeterValue(Room room, MeterType meterType, BigDecimal newValue,
                                   String period, LocalDate readingDate, Long photoId,
-                                  Integer rolloverCount, MeterReadingBatch batch, User currentUser) {
-        submitMeterValue(room, meterType, newValue, period, readingDate, photoId, rolloverCount,
+                                  MeterReadingBatch batch, User currentUser) {
+        submitMeterValue(room, meterType, newValue, period, readingDate, photoId,
                 batch, currentUser, ReadingSource.MANUAL);
     }
 
     private void submitMeterValue(Room room, MeterType meterType, BigDecimal newValue,
                                   String period, LocalDate readingDate, Long photoId,
-                                  Integer requestedRolloverCount, MeterReadingBatch batch,
+                                  MeterReadingBatch batch,
                                   User currentUser, ReadingSource source) {
         requireMeterValue(newValue);
 
@@ -197,9 +197,15 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .photoFileId(photoId)
                 .build();
 
-        applyUsageCalculation(reading, activeMeter.getCounterCapacity(), requestedRolloverCount);
+        applyUsageCalculation(reading, activeMeter.getCounterCapacity());
 
-        saveReadingWithReview(reading, meterType, previousCycleUsage, room.getPropertyId());
+        saveReadingWithReview(
+                reading,
+                meterType,
+                previousCycleUsage,
+                room.getPropertyId(),
+                activeMeter.getCounterCapacity()
+        );
     }
 
     @Override
@@ -249,7 +255,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
     @Override
     @Transactional
     public void saveProgressiveRoomReading(
-            Long batchId, Long roomId, BigDecimal electricityValue, Long elecPhotoId, Integer rolloverCount) {
+            Long batchId, Long roomId, BigDecimal electricityValue, Long elecPhotoId) {
         User currentUser = userRepository.findById(AuthUtils.getCurrentAuthenticationId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
 
@@ -272,7 +278,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         // Electricity
         saveOrUpdateMeterValue(
                 room, MeterType.ELECTRICITY, electricityValue, batch, elecPhotoId, currentUser,
-                rolloverCount, ReadingSource.MANUAL, LocalDate.now()
+                ReadingSource.MANUAL, LocalDate.now()
         );
         
         refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
@@ -332,7 +338,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 }
                 throw exception;
             }
-            validatedRows.add(new ValidatedExcelReading(room, row.currentValue(), row.rolloverCount()));
+            validatedRows.add(new ValidatedExcelReading(room, row.currentValue()));
         }
 
         FileMetadata importedFile;
@@ -351,7 +357,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         for (ValidatedExcelReading row : validatedRows) {
             saveOrUpdateMeterValue(
                     row.room(), MeterType.ELECTRICITY, row.currentValue(), batch, null, currentUser,
-                    row.rolloverCount(), ReadingSource.EXCEL_IMPORT, readingDate
+                    ReadingSource.EXCEL_IMPORT, readingDate
             );
         }
         refreshBatchProgress(batch.getId(), batch.getPropertyId(), batch.getReadingPeriod());
@@ -388,10 +394,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 Row row = sheet.getRow(rowIndex);
                 String roomCode = cellText(row == null ? null : row.getCell(columns.roomCodeColumn()), formatter, evaluator).trim();
                 String valueText = cellText(row == null ? null : row.getCell(columns.electricityColumn()), formatter, evaluator).trim();
-                String rolloverText = columns.rolloverCountColumn() < 0
-                        ? ""
-                        : cellText(row == null ? null : row.getCell(columns.rolloverCountColumn()), formatter, evaluator).trim();
-                if (roomCode.isBlank() && valueText.isBlank() && rolloverText.isBlank()) continue;
+                if (roomCode.isBlank() && valueText.isBlank()) continue;
                 int excelRowNumber = rowIndex + 1;
                 if (roomCode.isBlank()) {
                     throw new AppException(ApiErrorCode.METER_READING_EXCEL_ROOM_REQUIRED, excelRowNumber);
@@ -409,21 +412,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 if (value.compareTo(BigDecimal.ZERO) < 0) {
                     throw new AppException(ApiErrorCode.METER_READING_EXCEL_VALUE_NEGATIVE, excelRowNumber, roomCode);
                 }
-                Integer rolloverCount = null;
-                if (!rolloverText.isBlank()) {
-                    try {
-                        BigDecimal parsedRollover = parseExcelNumber(rolloverText);
-                        rolloverCount = parsedRollover.intValueExact();
-                        if (rolloverCount < 0) throw new NumberFormatException();
-                    } catch (ArithmeticException | NumberFormatException exception) {
-                        throw new AppException(
-                                ApiErrorCode.METER_READING_EXCEL_ROLLOVER_COUNT_INVALID,
-                                excelRowNumber,
-                                roomCode
-                        );
-                    }
-                }
-                rows.add(new ExcelReadingRow(roomCode, value, rolloverCount, excelRowNumber));
+                rows.add(new ExcelReadingRow(roomCode, value, excelRowNumber));
             }
             if (rows.isEmpty()) throw new AppException(ApiErrorCode.METER_READING_EXCEL_NO_DATA);
             return rows;
@@ -449,7 +438,6 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             int roomCodeColumn = -1;
             int roomDisplayColumn = -1;
             int electricityColumn = -1;
-            int rolloverCountColumn = -1;
             for (int column = 0; column < header.getLastCellNum(); column++) {
                 String normalized = normalizeHeader(cellText(header.getCell(column), formatter, evaluator));
                 if (Set.of("maphong", "roomcode").contains(normalized)) {
@@ -460,16 +448,13 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 if (Set.of("chisodien", "chisodienmoi", "chisodienhientai", "electricityvalue", "electricity", "currentvalue").contains(normalized)) {
                     electricityColumn = column;
                 }
-                if (Set.of("solanquayvong", "solanquayvongneuco", "rollovercount", "rollover", "resetcount").contains(normalized)) {
-                    rolloverCountColumn = column;
-                }
             }
 
             int resolvedRoomColumn = roomCodeColumn >= 0 ? roomCodeColumn : roomDisplayColumn;
             roomColumnFound |= resolvedRoomColumn >= 0;
             electricityColumnFound |= electricityColumn >= 0;
             if (resolvedRoomColumn >= 0 && electricityColumn >= 0) {
-                return new ExcelImportColumns(rowIndex, resolvedRoomColumn, electricityColumn, rolloverCountColumn);
+                return new ExcelImportColumns(rowIndex, resolvedRoomColumn, electricityColumn);
             }
         }
         if (!roomColumnFound && !electricityColumnFound) {
@@ -540,13 +525,16 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 
-    private record ExcelReadingRow(String roomCode, BigDecimal currentValue, Integer rolloverCount, int excelRowNumber) {
+    private record ExcelReadingRow(String roomCode, BigDecimal currentValue, int excelRowNumber) {
     }
 
-    private record ExcelImportColumns(int headerRowIndex, int roomCodeColumn, int electricityColumn, int rolloverCountColumn) {
+    private record ExcelImportColumns(int headerRowIndex, int roomCodeColumn, int electricityColumn) {
     }
 
-    private record ValidatedExcelReading(Room room, BigDecimal currentValue, Integer rolloverCount) {
+    private record ValidatedExcelReading(Room room, BigDecimal currentValue) {
+    }
+
+    private record ElectricityTariff(long unitPrice, long freeAllowance) {
     }
 
     @Override
@@ -626,20 +614,19 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 batch,
                 null,
                 currentUser,
-                null,
                 ReadingSource.MANUAL,
                 MeterReadingPeriod.parse(batch.getReadingPeriod()).atEndOfMonth()
         );
     }
 
     private void saveOrUpdateMeterValue(Room room, MeterType meterType, BigDecimal newValue, MeterReadingBatch batch, Long photoId, User currentUser) {
-        saveOrUpdateMeterValue(room, meterType, newValue, batch, photoId, currentUser, null,
+        saveOrUpdateMeterValue(room, meterType, newValue, batch, photoId, currentUser,
                 ReadingSource.MANUAL, LocalDate.now());
     }
 
     private void saveOrUpdateMeterValue(
             Room room, MeterType meterType, BigDecimal newValue, MeterReadingBatch batch,
-            Long photoId, User currentUser, Integer requestedRolloverCount,
+            Long photoId, User currentUser,
             ReadingSource source, LocalDate readingDate
     ) {
         if (newValue == null) return;
@@ -658,8 +645,15 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             existing.setCurrentValue(newValue);
             existing.setPhotoFileId(photoId);
             existing.setSource(source);
-            applyUsageCalculation(existing, activeMeter.getCounterCapacity(), requestedRolloverCount);
-            saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId(), preserveApprovedReview);
+            applyUsageCalculation(existing, activeMeter.getCounterCapacity());
+            saveReadingWithReview(
+                    existing,
+                    meterType,
+                    findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()),
+                    room.getPropertyId(),
+                    activeMeter.getCounterCapacity(),
+                    preserveApprovedReview
+            );
             return;
         }
 
@@ -675,8 +669,15 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             existing.setCurrentValue(newValue);
             existing.setPhotoFileId(photoId);
             existing.setSource(source);
-            applyUsageCalculation(existing, activeMeter.getCounterCapacity(), requestedRolloverCount);
-            saveReadingWithReview(existing, meterType, findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()), room.getPropertyId(), preserveApprovedReview);
+            applyUsageCalculation(existing, activeMeter.getCounterCapacity());
+            saveReadingWithReview(
+                    existing,
+                    meterType,
+                    findPreviousCycleUsage(activeMeter.getId(), existing.getReadingDate()),
+                    room.getPropertyId(),
+                    activeMeter.getCounterCapacity(),
+                    preserveApprovedReview
+            );
             return;
         }
 
@@ -702,8 +703,14 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                 .createdById(currentUser.getId())
                 .photoFileId(photoId)
                 .build();
-        applyUsageCalculation(reading, activeMeter.getCounterCapacity(), requestedRolloverCount);
-        saveReadingWithReview(reading, meterType, usageOf(previousReading), room.getPropertyId());
+        applyUsageCalculation(reading, activeMeter.getCounterCapacity());
+        saveReadingWithReview(
+                reading,
+                meterType,
+                usageOf(previousReading),
+                room.getPropertyId(),
+                activeMeter.getCounterCapacity()
+        );
     }
 
     private boolean isApprovedWithUnchangedValue(
@@ -725,9 +732,17 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             MeterReading reading,
             MeterType meterType,
             BigDecimal previousCycleUsage,
-            Long propertyId
+            Long propertyId,
+            BigDecimal counterCapacity
     ) {
-        return saveReadingWithReview(reading, meterType, previousCycleUsage, propertyId, false);
+        return saveReadingWithReview(
+                reading,
+                meterType,
+                previousCycleUsage,
+                propertyId,
+                counterCapacity,
+                false
+        );
     }
 
     private MeterReading saveReadingWithReview(
@@ -735,6 +750,7 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
             MeterType meterType,
             BigDecimal previousCycleUsage,
             Long propertyId,
+            BigDecimal counterCapacity,
             boolean preserveApprovedReview
     ) {
         List<MeterReadingAnomalyPolicy.DetectedAnomaly> anomalies;
@@ -749,7 +765,8 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                     reading.getPreviousValue(),
                     reading.getCurrentValue(),
                     reading.getRolloverCount(),
-                    previousCycleUsage
+                    previousCycleUsage,
+                    electricityAmountForReview(reading, meterType, counterCapacity, propertyId)
             );
             reading.setReviewStatus(anomalies.isEmpty()
                     ? MeterReadingReviewStatus.NONE
@@ -761,6 +778,53 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
         replaceAnomalies(saved, anomalies);
         refreshBatchAnomalyCount(saved.getBatchId());
         return saved;
+    }
+
+    private Long electricityAmountForReview(
+            MeterReading reading,
+            MeterType meterType,
+            BigDecimal counterCapacity,
+            Long propertyId
+    ) {
+        if (meterType != MeterType.ELECTRICITY || reading == null) {
+            return null;
+        }
+
+        MeterUsageCalculator.Calculation calculation = meterUsageCalculator.calculate(
+                reading.getPreviousValue(),
+                reading.getCurrentValue(),
+                counterCapacity,
+                reading.getRolloverCount()
+        );
+        if (!calculation.valid()) {
+            return null;
+        }
+
+        ElectricityTariff tariff = jdbcTemplate.query("""
+                        SELECT unit_price, free_allowance
+                        FROM utility_tariffs
+                        WHERE property_id = ?
+                          AND utility_type = 'ELECTRICITY'
+                          AND effective_from <= ?
+                          AND (effective_to IS NULL OR effective_to >= ?)
+                        ORDER BY effective_from DESC, utility_tariff_id DESC
+                        LIMIT 1
+                        """,
+                (resultSet, rowNum) -> new ElectricityTariff(
+                        resultSet.getLong("unit_price"),
+                        resultSet.getLong("free_allowance")
+                ),
+                propertyId,
+                reading.getReadingDate(),
+                reading.getReadingDate()
+        ).stream().findFirst().orElse(new ElectricityTariff(3500L, 0L));
+
+        BigDecimal billableUsage = calculation.usage()
+                .subtract(BigDecimal.valueOf(tariff.freeAllowance()));
+        int quantity = billableUsage.signum() <= 0
+                ? 0
+                : billableUsage.setScale(0, java.math.RoundingMode.CEILING).intValue();
+        return (long) quantity * tariff.unitPrice();
     }
 
     private void replaceAnomalies(MeterReading reading, List<MeterReadingAnomalyPolicy.DetectedAnomaly> anomalies) {
@@ -842,12 +906,12 @@ public class SubmitMeterReadingService implements SubmitMeterReadingUseCase {
                         .multiply(BigDecimal.valueOf(reading.getRolloverCount() == null ? 0 : reading.getRolloverCount())));
     }
 
-    private void applyUsageCalculation(MeterReading reading, BigDecimal capacity, Integer requestedRolloverCount) {
+    private void applyUsageCalculation(MeterReading reading, BigDecimal capacity) {
         MeterUsageCalculator.Calculation calculation = meterUsageCalculator.calculate(
                 reading.getPreviousValue(),
                 reading.getCurrentValue(),
                 capacity,
-                requestedRolloverCount
+                null
         );
         reading.setRolloverCount(calculation.valid() ? calculation.rolloverCount() : 0);
         reading.setCounterCapacitySnapshot(calculation.valid() && calculation.rolloverCount() > 0

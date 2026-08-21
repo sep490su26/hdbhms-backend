@@ -50,8 +50,7 @@ CREATE TEMPORARY TABLE tmp_hdd1_khai_expiry_stages
 
 INSERT INTO tmp_hdd1_khai_expiry_stages (room_code, end_date)
 VALUES
-    ('301', '2026-11-01'),
-    ('302', '2026-10-01'),
+    ('302', '2026-10-31'),
     ('303', '2026-09-01');
 
 UPDATE hdbhms.lease_contracts contract
@@ -67,7 +66,8 @@ SET contract.end_date = stage.end_date,
     contract.updated_at = @hdd1_seed_now
 WHERE room.property_id = @hdd1_property_id
   AND contract.primary_tenant_profile_id = @hdd1_khai_profile_id
-  AND contract.deleted_at IS NULL;
+  AND contract.deleted_at IS NULL
+  AND contract.status IN ('ACTIVE', 'EXPIRING_SOON', 'TERMINATION_PENDING');
 
 UPDATE hdbhms.rooms room
 JOIN tmp_hdd1_khai_expiry_stages stage

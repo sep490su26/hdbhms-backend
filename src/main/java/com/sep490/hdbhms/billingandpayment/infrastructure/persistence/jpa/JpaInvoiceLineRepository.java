@@ -13,4 +13,6 @@ public interface JpaInvoiceLineRepository extends JpaRepository<InvoiceLineEntit
     Optional<InvoiceLineEntity> findFirstBySourceTypeAndSourceIdOrderByIdDesc(String sourceType, Long sourceId);
 
     Optional<InvoiceLineEntity> findFirstByInvoice_IdAndLineTypeOrderByIdAsc(Long invoiceId, InvoiceLineType lineType);
+
+    List<InvoiceLineEntity> findByMeterReading_IdOrderByIdDesc(Long meterReadingId);
 }

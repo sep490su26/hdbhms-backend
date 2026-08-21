@@ -69,14 +69,19 @@ public class DebtDashboardService {
                             .unresponsiveCount(0)
                             .build());
 
-            // ponytail: MVP treats each daily overdue scan as one unanswered debt notice; replace with tenant notice delivery receipts when that workflow exists.
-            if (tracker.getLastNoticeDate() == null || tracker.getLastNoticeDate().isBefore(today)) {
-                tracker.setUnresponsiveCount(safe(tracker.getUnresponsiveCount()) + 1);
-                tracker.setLastNoticeDate(today);
+            int reminderStage = overdueReminderStage(debt, today);
+            if (reminderStage == 0) {
+                continue;
+            }
+
+            // The tracker follows the three monthly reminders, not the daily scheduler runs.
+            if (safe(tracker.getUnresponsiveCount()) < reminderStage) {
+                tracker.setUnresponsiveCount(reminderStage);
+                tracker.setLastNoticeDate(reminderDate(debt, reminderStage));
                 tracker = debtNoticeTrackerRepository.save(tracker);
             }
 
-            if (safe(tracker.getUnresponsiveCount()) >= DIRECT_VISIT_NOTICE_LIMIT) {
+            if (reminderStage >= DIRECT_VISIT_NOTICE_LIMIT) {
                 taskCount += createOrRemindDirectVisitTask(debt, assignee, today);
             }
         }
@@ -175,6 +180,28 @@ public class DebtDashboardService {
         return value == null ? 0L : value;
     }
 
+    private int overdueReminderStage(DebtSummary debt, LocalDate today) {
+        if (debt == null || debt.oldestDueDate == null || today == null) {
+            return 0;
+        }
+
+        LocalDate firstReminderDate = debt.oldestDueDate.plusDays(1);
+        if (today.isBefore(firstReminderDate)) {
+            return 0;
+        }
+        if (today.isBefore(firstReminderDate.plusMonths(1))) {
+            return 1;
+        }
+        if (today.isBefore(firstReminderDate.plusMonths(2))) {
+            return 2;
+        }
+        return DIRECT_VISIT_NOTICE_LIMIT;
+    }
+
+    private LocalDate reminderDate(DebtSummary debt, int stage) {
+        return debt.oldestDueDate.plusDays(1).plusMonths(stage - 1L);
+    }
+
     private static class DebtSummary {
         Long propertyId;
         String propertyName;
@@ -189,6 +216,7 @@ public class DebtDashboardService {
         Set<String> utilityPeriods = new HashSet<>();
         long totalDebt;
         String debtType = "OTHER";
+        LocalDate oldestDueDate;
 
         static DebtSummary from(InvoiceEntity invoice) {
             RoomEntity room = invoice.getRoom();
@@ -205,6 +233,7 @@ public class DebtDashboardService {
                     || invoice.getLeastContract().getPrimaryTenantProfile() == null
                     ? ""
                     : invoice.getLeastContract().getPrimaryTenantProfile().getFullName();
+            summary.oldestDueDate = invoice.getDueDate() == null ? null : invoice.getDueDate().toLocalDate();
             return summary;
         }
 
@@ -219,6 +248,10 @@ public class DebtDashboardService {
             }
             totalDebt = rentDebt + utilityDebt;
             debtType = resolveDebtType();
+            LocalDate dueDate = invoice.getDueDate() == null ? null : invoice.getDueDate().toLocalDate();
+            if (dueDate != null && (oldestDueDate == null || dueDate.isBefore(oldestDueDate))) {
+                oldestDueDate = dueDate;
+            }
             if (contract == null && invoice.getLeastContract() != null) {
                 contract = invoice.getLeastContract();
             }

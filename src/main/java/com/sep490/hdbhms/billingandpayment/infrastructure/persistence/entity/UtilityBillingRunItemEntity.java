@@ -72,6 +72,13 @@ public class UtilityBillingRunItemEntity {
     @Builder.Default
     Long electricityAmount = 0L;
 
+    @Column(name = "electricity_waived", nullable = false)
+    @Builder.Default
+    Boolean electricityWaived = false;
+
+    @Column(name = "electricity_waive_reason", length = 500)
+    String electricityWaiveReason;
+
     @Column(name = "water_previous", precision = 12, scale = 3)
     BigDecimal waterPrevious;
 

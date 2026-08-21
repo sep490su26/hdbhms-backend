@@ -80,6 +80,8 @@ public enum     ApiErrorCode {
     VISIT_005(40105, "Visit request access denied", "Không có quyền thao tác", HttpStatus.FORBIDDEN),
     VISIT_006(40106, "Missing required visit request field", "Thiếu thông tin bắt buộc", HttpStatus.BAD_REQUEST),
     VISIT_007(40107, "Invalid appointment time", "Ngày giờ hẹn xem phải sau thời gian hiện tại", HttpStatus.BAD_REQUEST),
+    VISIT_008(40108, "Room unavailable for viewing", "Chỉ được chọn phòng đang trống hoặc sắp trống tại thời điểm tạo/sửa lịch xem phòng", HttpStatus.BAD_REQUEST),
+    VISIT_009(40109, "Room viewing date too early", "Ngày xem phòng sắp trống phải sau ngày khách cũ chuyển đi", HttpStatus.BAD_REQUEST),
     DEPOSIT_001(40201, "Invalid deposit occupancy", "Thông tin số người ở không hợp lệ", HttpStatus.BAD_REQUEST),
     HANDOVER_001(40301, "Handover already confirmed", "Biên bản bàn giao đã được xác nhận", HttpStatus.BAD_REQUEST),
 
@@ -407,6 +409,8 @@ public enum     ApiErrorCode {
     LEASE_ROOM_PREBOOKED_BY_OTHER_TENANT(70147, "LEASE_ROOM_PREBOOKED_BY_OTHER_TENANT", "Phòng đang được đặt trước cho người khác. Vui lòng thử lại sau.", HttpStatus.CONFLICT),
     LEASE_RENEWAL_ROOM_RESERVED_BY_OTHER_TENANT(70148, "LEASE_RENEWAL_ROOM_RESERVED_BY_OTHER_TENANT", "Phòng đã có khách khác đặt cọc/giữ chỗ, không thể gia hạn. Vui lòng liên hệ quản lý.", HttpStatus.CONFLICT),
     LEASE_RENEWAL_CONFIRMATION_FORBIDDEN(70149, "LEASE_RENEWAL_CONFIRMATION_FORBIDDEN", "Chỉ chủ trọ hoặc quản lý mới có quyền xác nhận tái ký hợp đồng.", HttpStatus.FORBIDDEN),
+    LEASE_ACTIVATION_INITIAL_RENT_PAYMENT_REQUIRED(70162, "LEASE_ACTIVATION_INITIAL_RENT_PAYMENT_REQUIRED", "Cần xác nhận đã thu tiền phòng kỳ đầu trước khi kích hoạt hợp đồng.", HttpStatus.BAD_REQUEST),
+    LEASE_ACTIVATION_INITIAL_RENT_PAYMENT_INVALID(70163, "LEASE_ACTIVATION_INITIAL_RENT_PAYMENT_INVALID", "Tiền phòng kỳ đầu phải đúng bằng %s VNĐ.", HttpStatus.BAD_REQUEST),
     LEASE_TRANSFER_WORKFLOW_REQUIRED(70150, "LEASE_TRANSFER_WORKFLOW_REQUIRED", "Hợp đồng thuộc yêu cầu chuyển phòng; vui lòng xử lý bàn giao/kích hoạt trong luồng chuyển phòng.", HttpStatus.BAD_REQUEST),
     LEASE_SIGNED_HANDOVER_DOCUMENT_NOT_FOUND(70151, "LEASE_SIGNED_HANDOVER_DOCUMENT_NOT_FOUND", "Chưa có biên bản bàn giao đã ký.", HttpStatus.NOT_FOUND),
     SIGNED_HANDOVER_CONTRACT_NOT_FOUND(70152, "SIGNED_HANDOVER_CONTRACT_NOT_FOUND", "Không tìm thấy biên bản bàn giao đã ký.", HttpStatus.NOT_FOUND),

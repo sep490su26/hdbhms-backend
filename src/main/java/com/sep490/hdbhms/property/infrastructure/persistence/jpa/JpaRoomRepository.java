@@ -40,6 +40,11 @@ public interface JpaRoomRepository extends JpaRepository<RoomEntity, Long>, JpaS
 
     List<RoomEntity> findAllByProperty_IdAndDeletedAtIsNullOrderBySortOrderAscRoomCodeAsc(Long propertyId);
 
+    List<RoomEntity> findAllByProperty_IdAndDeletedAtIsNullAndCurrentStatusInOrderBySortOrderAscRoomCodeAsc(
+            Long propertyId,
+            List<RoomStatus> statuses
+    );
+
     boolean existsByProperty_IdAndDeletedAtIsNull(Long propertyId);
 
     long countByFloor_Id(Long floorId);

@@ -27,6 +27,43 @@ SET @hdd1_owner_id := (
     LIMIT 1
 );
 
+-- Preserve the completed historical liquidation before syncing current
+-- contracts to the workbook tenant assignments. Earlier broad expiry updates
+-- could accidentally reopen this contract and make it eligible for reminders.
+UPDATE hdbhms.lease_contracts contract
+JOIN hdbhms.rooms room
+  ON room.room_id = contract.room_id
+JOIN hdbhms.contract_liquidations liquidation
+  ON liquidation.contract_id = contract.lease_contract_id
+ AND liquidation.status = 'CONFIRMED'
+JOIN hdbhms.person_profiles historical_profile
+  ON historical_profile.email = 'nguyenvanminh01@gmail.com'
+ AND historical_profile.deleted_at IS NULL
+SET contract.primary_tenant_profile_id = historical_profile.person_profile_id,
+    contract.status = 'LIQUIDATED',
+    contract.end_date = liquidation.liquidation_date,
+    contract.tenant_intention = 'MOVE_OUT',
+    contract.expected_vacant_date = liquidation.liquidation_date,
+    contract.intention_recorded_at = '2026-07-20 08:00:00',
+    contract.updated_at = @hdd1_seed_now
+WHERE room.property_id = @hdd1_property_id
+  AND contract.contract_code = 'HDT_P301_01_01_2026'
+  AND contract.deleted_at IS NULL;
+
+UPDATE hdbhms.contract_occupants occupant
+JOIN hdbhms.lease_contracts contract
+  ON contract.lease_contract_id = occupant.contract_id
+JOIN hdbhms.contract_liquidations liquidation
+  ON liquidation.contract_id = contract.lease_contract_id
+ AND liquidation.status = 'CONFIRMED'
+SET occupant.status = 'MOVED_OUT',
+    occupant.move_out_date = liquidation.liquidation_date,
+    occupant.disabled_reason = 'Historical contract liquidation was already confirmed.',
+    occupant.disabled_by = @hdd1_manager_id,
+    occupant.disabled_at = @hdd1_seed_now
+WHERE contract.contract_code = 'HDT_P301_01_01_2026'
+  AND occupant.status = 'ACTIVE';
+
 DROP TEMPORARY TABLE IF EXISTS tmp_hdd1_expected_primary;
 CREATE TEMPORARY TABLE tmp_hdd1_expected_primary
 (
@@ -39,19 +76,19 @@ CREATE TEMPORARY TABLE tmp_hdd1_expected_primary
 INSERT INTO tmp_hdd1_expected_primary
     (room_code, profile_email, desired_status, desired_end_date)
 VALUES
-    ('301', 'nguyenvankhai95@gmail.com', 'EXPIRING_SOON', '2026-11-01'),
-    ('302', 'nguyenvankhai95@gmail.com', 'EXPIRING_SOON', '2026-10-01'),
+    ('301', 'nguyenvankhai95@gmail.com', 'ACTIVE', '2026-12-31'),
+    ('302', 'nguyenvankhai95@gmail.com', 'EXPIRING_SOON', '2026-10-31'),
     ('303', 'nguyenvankhai95@gmail.com', 'EXPIRING_SOON', '2026-09-01'),
     ('401', 'nguyenvanhung95@gmail.com', 'ACTIVE', '2026-12-31'),
     ('402', 'nguyenducthinh96@gmail.com', 'EXPIRING_SOON', '2026-09-15'),
-    ('403', 'nguyenducthinh96.2@gmail.com', 'EXPIRING_SOON', '2026-08-30'),
-    ('405', 'duongminhduc96@gmail.com', 'ACTIVE', '2026-12-31'),
-    ('501', 'levanphuc95@gmail.com', 'ACTIVE', '2026-12-31'),
+    ('306', 'nguyenvankhai95@gmail.com', 'ACTIVE', '2026-11-30'),
+    ('501', 'nguyenvankhai95@gmail.com', 'ACTIVE', '2026-12-31'),
     ('507', 'nguyenminhkhoi98@gmail.com', 'ACTIVE', '2026-12-31');
 
 -- V74 temporarily attached several unrelated rooms to Khai's account. Keep
--- Khai's three expiry milestones, but restore the workbook primary tenant for
--- the other lifecycle rooms.
+-- Khai's expiry milestones and the two additional active rooms, but restore
+-- the workbook primary tenant for the other lifecycle rooms. Rooms 101, 102,
+-- 403, and 405 are intentionally absent because V48 releases them to VACANT.
 UPDATE hdbhms.lease_contracts contract
 JOIN hdbhms.rooms room
   ON room.room_id = contract.room_id
@@ -317,14 +354,14 @@ JOIN tmp_hdd1_pre_start_invoices invalid_invoice
 UPDATE hdbhms.invoices invoice
 JOIN tmp_hdd1_pre_start_invoices invalid_invoice
   ON invalid_invoice.invoice_id = invoice.invoice_id
-SET invoice.status = 'VOIDED',
+SET invoice.status = 'PAID',
     invoice.subtotal_amount = 0,
     invoice.discount_amount = 0,
     invoice.total_amount = 0,
     invoice.paid_amount = 0,
     invoice.remaining_amount = 0,
-    invoice.voided_at = @hdd1_seed_now,
-    invoice.void_reason = 'Utility period predates the contract start date.',
+    invoice.voided_at = NULL,
+    invoice.void_reason = NULL,
     invoice.updated_at = @hdd1_seed_now;
 
 -- The July reading for room 401 is 1960 -> 2261. Repair the old lifecycle

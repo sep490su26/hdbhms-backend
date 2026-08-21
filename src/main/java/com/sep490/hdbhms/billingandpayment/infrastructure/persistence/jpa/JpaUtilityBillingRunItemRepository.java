@@ -13,5 +13,9 @@ public interface JpaUtilityBillingRunItemRepository extends JpaRepository<Utilit
 
     Optional<UtilityBillingRunItemEntity> findByRun_IdAndRoom_Id(Long runId, Long roomId);
 
+    List<UtilityBillingRunItemEntity> findByElectricityReading_Id(Long readingId);
+
+    List<UtilityBillingRunItemEntity> findByWaterReading_Id(Long readingId);
+
     void deleteByRun_Id(Long runId);
 }

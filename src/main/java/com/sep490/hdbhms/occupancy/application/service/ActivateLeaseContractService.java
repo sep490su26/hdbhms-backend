@@ -3,6 +3,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.utils.AuthUtils;
+import com.sep490.hdbhms.billingandpayment.application.service.BillingManagementService;
 
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ActivateLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
@@ -61,6 +62,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
     GetLeaseContractManagementUseCase getLeaseContractManagementUseCase;
     JpaContractHandoverRecordRepository handoverRecordRepository;
     MeterUsageCalculator meterUsageCalculator;
+    BillingManagementService billingManagementService;
 
     @Override
     public LeaseContractManagementResponse execute(
@@ -154,6 +156,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
         if (contract.getRentStartDate() == null) {
             contract.setRentStartDate(workflowSupport.resolveRentStartDate(contract.getStartDate()));
         }
+        recordInitialRentPayment(contract, request);
         // Flush before the JDBC synchronization below so the just-activated
         // contract is visible when checking both transfer contracts.
         leaseContractRepository.saveAndFlush(contract);
@@ -176,6 +179,43 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
             advanceTransferRequestAfterChildActivation(contract.getId());
         }
         return getLeaseContractManagementUseCase.findOne(contract.getId());
+    }
+
+    private void recordInitialRentPayment(
+            LeaseContractEntity contract,
+            ActivateLeaseContractRequest request
+    ) {
+        // Renewals and transfer re-signings do not collect a new first-cycle rent.
+        if (contract.getPreviousContract() != null) {
+            return;
+        }
+        ActivateLeaseContractRequest.InitialRentPayment payment =
+                request == null ? null : request.getInitialRentPayment();
+        if (payment == null || payment.getAmount() == null) {
+            throw new AppException(ApiErrorCode.LEASE_ACTIVATION_INITIAL_RENT_PAYMENT_REQUIRED);
+        }
+
+        long monthlyRent = contract.getMonthlyRent() == null ? 0L : contract.getMonthlyRent();
+        int paymentCycleMonths = contract.getPaymentCycleMonths() == null
+                ? 1
+                : Math.max(contract.getPaymentCycleMonths(), 1);
+        long expectedAmount;
+        try {
+            expectedAmount = Math.multiplyExact(monthlyRent, paymentCycleMonths);
+        } catch (ArithmeticException exception) {
+            throw new AppException(ApiErrorCode.LEASE_ACTIVATION_INITIAL_RENT_PAYMENT_INVALID, monthlyRent);
+        }
+        if (expectedAmount <= 0 || payment.getAmount() != expectedAmount) {
+            throw new AppException(ApiErrorCode.LEASE_ACTIVATION_INITIAL_RENT_PAYMENT_INVALID, expectedAmount);
+        }
+
+        billingManagementService.recordActivationRentPayment(
+                contract,
+                payment.getAmount(),
+                payment.getPayerName(),
+                payment.getNote(),
+                AuthUtils.getCurrentAuthenticationId()
+        );
     }
 
     private void advanceTransferRequestAfterChildActivation(Long leaseContractId) {

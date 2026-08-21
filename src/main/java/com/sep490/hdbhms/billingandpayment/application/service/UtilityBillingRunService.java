@@ -4,6 +4,7 @@ import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceLineType;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceReason;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.InvoiceType;
+import com.sep490.hdbhms.billingandpayment.domain.value_objects.PaymentIntentStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.UtilityBillingRunItemStatus;
 import com.sep490.hdbhms.billingandpayment.domain.value_objects.UtilityBillingRunStatus;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.InvoiceEntity;
@@ -13,6 +14,7 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Uti
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.UtilityBillingRunItemEntity;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceLineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaInvoiceRepository;
+import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaPaymentIntentRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaRoomUtilityBaselineRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaRentOverrideRepository;
 import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.jpa.JpaUtilityBillingRunItemRepository;
@@ -24,6 +26,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
 import com.sep490.hdbhms.notification.application.service.BusinessNotificationPublisher;
 import com.sep490.hdbhms.property.domain.value_objects.AnomalyType;
+import com.sep490.hdbhms.property.domain.value_objects.AnomalySeverity;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.domain.value_objects.MeterType;
 import com.sep490.hdbhms.property.domain.value_objects.ReadingStatus;
@@ -31,6 +34,7 @@ import com.sep490.hdbhms.property.domain.value_objects.UtilityType;
 import com.sep490.hdbhms.property.application.service.MeterUsageCalculator;
 import com.sep490.hdbhms.occupancy.infrastructure.persistence.entity.LeaseContractEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingAnomalyEntity;
+import com.sep490.hdbhms.property.application.service.MeterReadingAnomalyPolicy;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingBatchEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.MeterReadingEntity;
 import com.sep490.hdbhms.property.infrastructure.persistence.entity.PropertyEntity;
@@ -87,6 +91,9 @@ public class UtilityBillingRunService {
     static final String INVOICE_ISSUED_EVENT = "INVOICE_ISSUED";
     static final String UTILITY_BILLING_RUN_TARGET = "UTILITY_BILLING_RUN";
     static final String UTILITY_METER_READING_PERIOD_OPENED_EVENT = "UTILITY_METER_READING_PERIOD_OPENED";
+    static final long DEFAULT_SERVICE_FEE_WAIVE_ELECTRICITY_THRESHOLD =
+            MeterReadingAnomalyPolicy.LOW_ELECTRICITY_AMOUNT_THRESHOLD;
+    static final String ELECTRICITY_WAIVE_REASON = MeterReadingAnomalyPolicy.LOW_ELECTRICITY_AMOUNT_MESSAGE;
     static final DateTimeFormatter LEGACY_PERIOD = DateTimeFormatter.ofPattern("M/uuuu");
     static final DateTimeFormatter METER_READING_PERIOD = DateTimeFormatter.ofPattern("MM-uuuu");
 
@@ -102,6 +109,7 @@ public class UtilityBillingRunService {
     MeterUsageCalculator meterUsageCalculator;
     JpaInvoiceRepository invoiceRepository;
     JpaInvoiceLineRepository invoiceLineRepository;
+    JpaPaymentIntentRepository paymentIntentRepository;
     JpaRentOverrideRepository rentOverrideRepository;
     JpaUserRepository userRepository;
     BusinessNotificationPublisher notificationPublisher;
@@ -510,6 +518,207 @@ public class UtilityBillingRunService {
         return invoiceId;
     }
 
+    /** Applies an approved tenant meter correction to the reading and its generated billing data. */
+    @Transactional
+    public void applyMeterReadingCorrection(
+            Long meterReadingId,
+            Long invoiceId,
+            Long invoiceLineId,
+            BigDecimal correctedCurrentValue
+    ) {
+        if (meterReadingId == null || correctedCurrentValue == null) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_PAYLOAD);
+        }
+
+        MeterReadingEntity reading = meterReadingRepository.findById(meterReadingId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.METER_READING_NOT_FOUND));
+        BigDecimal currentValue = correctedCurrentValue.setScale(3, RoundingMode.HALF_UP);
+        if (currentValue.signum() < 0
+                || reading.getPreviousValue() == null
+                || currentValue.compareTo(reading.getPreviousValue()) < 0) {
+            throw new AppException(ApiErrorCode.BILLING_METER_READING_PROPOSAL_BELOW_PREVIOUS);
+        }
+
+        InvoiceLineEntity line = invoiceLineRepository.findByMeterReading_IdOrderByIdDesc(meterReadingId)
+                .stream()
+                .filter(candidate -> invoiceLineId == null || invoiceLineId.equals(candidate.getId()))
+                .filter(candidate -> invoiceId == null
+                        || candidate.getInvoice() != null && invoiceId.equals(candidate.getInvoice().getId()))
+                .filter(candidate -> candidate.getLineType() == InvoiceLineType.ELECTRICITY
+                        || candidate.getLineType() == InvoiceLineType.WATER)
+                .findFirst()
+                .orElseThrow(() -> new AppException(ApiErrorCode.BILLING_INVOICE_LINE_NOT_FOUND));
+        InvoiceEntity invoice = line.getInvoice();
+        if (invoice == null || invoice.getStatus() == null || invoice.getStatus() == InvoiceStatus.VOIDED
+                || invoice.getStatus() == InvoiceStatus.PAID || safe(invoice.getPaidAmount()) > 0L) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST_STATE);
+        }
+
+        UtilityType utilityType = line.getLineType() == InvoiceLineType.WATER
+                ? UtilityType.WATER
+                : UtilityType.ELECTRICITY;
+        BigDecimal counterCapacity = counterCapacity(reading);
+        MeterUsageCalculator.Calculation calculation = meterUsageCalculator.calculate(
+                reading.getPreviousValue(),
+                currentValue,
+                counterCapacity,
+                reading.getRolloverCount()
+        );
+        if (!calculation.valid()) {
+            throw new AppException(ApiErrorCode.INVALID_METER_READING_VALUE);
+        }
+        UtilityTariffSnapshot tariff = readTariff(
+                reading.getRoom().getProperty().getId(),
+                utilityType,
+                reading.getReadingDate()
+        );
+        int quantity = billableQuantity(calculation.usage(), tariff.freeAllowance());
+        long unitPrice = line.getUnitPrice() == null || line.getUnitPrice() <= 0L
+                ? tariff.unitPrice()
+                : line.getUnitPrice();
+        long amount = (long) quantity * unitPrice;
+
+        InvoiceStatus originalStatus = invoice.getStatus();
+        if (originalStatus != InvoiceStatus.DRAFT) {
+            invoice.setStatus(InvoiceStatus.DRAFT);
+            invoiceRepository.saveAndFlush(invoice);
+        }
+
+        reading.setCurrentValue(currentValue);
+        meterReadingRepository.saveAndFlush(reading);
+
+        line.setQuantity(quantity);
+        line.setUnitPrice(unitPrice);
+        line.setDescription("%s %s: %s -> %s".formatted(
+                utilityType == UtilityType.WATER ? "Water" : "Electricity",
+                invoice.getBillingPeriod(),
+                valueText(reading.getPreviousValue()),
+                valueText(currentValue)
+        ));
+        invoiceLineRepository.saveAndFlush(line);
+
+        updateBillingRunItems(
+                reading,
+                line.getLineType(),
+                calculation.usage(),
+                quantity,
+                unitPrice,
+                amount
+        );
+
+        long subtotal = invoiceLineRepository.findByInvoice_IdOrderByIdAsc(invoice.getId())
+                .stream()
+                .mapToLong(this::persistedLineAmount)
+                .sum();
+        long discount = Math.max(safe(invoice.getDiscountAmount()), 0L);
+        long total = Math.max(subtotal - discount, 0L);
+        long paid = safe(invoice.getPaidAmount());
+        if (paid > total) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        invoice.setSubtotalAmount(subtotal);
+        invoice.setTotalAmount(total);
+        invoice.setRemainingAmount(total - paid);
+        invoice.setStatus(resolveCorrectedInvoiceStatus(originalStatus, invoice, total, paid));
+        invoiceRepository.saveAndFlush(invoice);
+        cancelPendingPaymentIntents(invoice);
+        updateBaselineIfInvoiceIsLatest(reading, invoice);
+    }
+
+    private void updateBillingRunItems(
+            MeterReadingEntity reading,
+            InvoiceLineType lineType,
+            BigDecimal usage,
+            int quantity,
+            long unitPrice,
+            long amount
+    ) {
+        List<UtilityBillingRunItemEntity> items = lineType == InvoiceLineType.WATER
+                ? itemRepository.findByWaterReading_Id(reading.getId())
+                : itemRepository.findByElectricityReading_Id(reading.getId());
+        for (UtilityBillingRunItemEntity item : items) {
+            long previousAmount;
+            if (lineType == InvoiceLineType.WATER) {
+                previousAmount = safe(item.getWaterAmount());
+                item.setWaterPrevious(reading.getPreviousValue());
+                item.setWaterCurrent(reading.getCurrentValue());
+                item.setWaterUsage(usage);
+                item.setWaterQuantity(quantity);
+                item.setWaterUnitPrice(unitPrice);
+                item.setWaterAmount(amount);
+            } else {
+                previousAmount = safe(item.getElectricityAmount());
+                item.setElectricityPrevious(reading.getPreviousValue());
+                item.setElectricityCurrent(reading.getCurrentValue());
+                item.setElectricityUsage(usage);
+                item.setElectricityQuantity(quantity);
+                item.setElectricityUnitPrice(unitPrice);
+                item.setElectricityAmount(amount);
+            }
+            long subtotal = Math.max(safe(item.getSubtotalAmount()) - previousAmount + amount, 0L);
+            long total = Math.max(subtotal - safe(item.getDiscountAmount()), 0L);
+            item.setSubtotalAmount(subtotal);
+            item.setTotalAmount(total);
+            itemRepository.save(item);
+            if (item.getRun() != null && item.getRun().getId() != null) {
+                syncRunTotals(item.getRun().getId());
+            }
+        }
+    }
+
+    private InvoiceStatus resolveCorrectedInvoiceStatus(
+            InvoiceStatus originalStatus,
+            InvoiceEntity invoice,
+            long total,
+            long paid
+    ) {
+        if (originalStatus == InvoiceStatus.DRAFT) {
+            return InvoiceStatus.DRAFT;
+        }
+        if (paid > 0L && paid == total) {
+            return InvoiceStatus.PAID;
+        }
+        return invoice.getDueDate() != null && invoice.getDueDate().isBefore(LocalDateTime.now())
+                ? InvoiceStatus.OVERDUE
+                : InvoiceStatus.ISSUED;
+    }
+
+    private void cancelPendingPaymentIntents(InvoiceEntity invoice) {
+        paymentIntentRepository.findByInvoice_IdAndStatusIn(
+                        invoice.getId(),
+                        List.of(PaymentIntentStatus.CREATED, PaymentIntentStatus.PENDING)
+                )
+                .forEach(paymentIntent -> {
+                    paymentIntent.setStatus(PaymentIntentStatus.CANCELLED);
+                    paymentIntentRepository.save(paymentIntent);
+                });
+    }
+
+    private void updateBaselineIfInvoiceIsLatest(MeterReadingEntity reading, InvoiceEntity invoice) {
+        baselineRepository.findByMeter_Id(reading.getMeter().getId()).ifPresent(baseline -> {
+            Long lastInvoiceId = baseline.getLastInvoice() == null ? null : baseline.getLastInvoice().getId();
+            if (lastInvoiceId == null || lastInvoiceId.equals(invoice.getId())) {
+                baseline.setLastBilledReading(reading.getCurrentValue());
+                baseline.setLastInvoice(invoice);
+                baselineRepository.save(baseline);
+            }
+        });
+    }
+
+    private BigDecimal counterCapacity(MeterReadingEntity reading) {
+        if (reading.getRolloverCount() != null
+                && reading.getRolloverCount() > 0
+                && reading.getCounterCapacitySnapshot() != null
+                && reading.getCounterCapacitySnapshot().signum() > 0) {
+            return reading.getCounterCapacitySnapshot();
+        }
+        return reading.getMeter() == null ? BigDecimal.ZERO : reading.getMeter().getCounterCapacity();
+    }
+
+    private long persistedLineAmount(InvoiceLineEntity line) {
+        return (long) (line.getQuantity() == null ? 0 : line.getQuantity()) * safe(line.getUnitPrice());
+    }
+
     private UtilityBillingRunItemEntity buildItem(
             UtilityBillingRunEntity run,
             RoomEntity room,
@@ -519,7 +728,40 @@ public class UtilityBillingRunService {
         Map<MeterType, MeterReadingEntity> readings = findReadings(room.getId(), period);
 
         MeterReadingEntity electricity = readings.get(MeterType.ELECTRICITY);
+        if (run.getInvoiceReason() == InvoiceReason.MONTHLY) {
+            ensureLowElectricityAnomaly(electricity);
+        }
         return buildItem(run, room, contract, electricity, null, period);
+    }
+
+    private void ensureLowElectricityAnomaly(MeterReadingEntity electricity) {
+        if (electricity == null || electricity.getBatch() == null) {
+            return;
+        }
+
+        Charge charge = buildCharge(electricity, UtilityType.ELECTRICITY);
+        if (!charge.waived()) {
+            return;
+        }
+
+        boolean alreadyDetected = anomalyRepository
+                .findFirstByMeterReading_IdAndAnomalyTypeOrderByIdDesc(
+                        electricity.getId(),
+                        AnomalyType.OTHER
+                )
+                .map(anomaly -> ELECTRICITY_WAIVE_REASON.equals(anomaly.getMessage()))
+                .orElse(false);
+        if (alreadyDetected) {
+            return;
+        }
+
+        anomalyRepository.saveAndFlush(MeterReadingAnomalyEntity.builder()
+                .batch(electricity.getBatch())
+                .meterReading(electricity)
+                .anomalyType(AnomalyType.OTHER)
+                .severity(AnomalySeverity.MEDIUM)
+                .message(ELECTRICITY_WAIVE_REASON)
+                .build());
     }
 
     private UtilityBillingRunItemEntity buildItem(
@@ -541,7 +783,6 @@ public class UtilityBillingRunService {
         if (electricity == null || electricity.getCurrentValue() == null) warnings.add("Thiếu chỉ số điện");
         if (electricityCharge.warning() != null) warnings.add(electricityCharge.warning());
         if (anomalyMessage != null && !anomalyMessage.isBlank()) warnings.add(anomalyMessage);
-
         boolean canInvoice = contract != null
                 && electricity != null
                 && electricity.getCurrentValue() != null
@@ -550,7 +791,12 @@ public class UtilityBillingRunService {
                 ? buildRentCharge(contract, period)
                 : RentCharge.empty();
         ServiceFeeCharge serviceFeeCharge = canInvoice
-                ? buildServiceFeeCharge(contract, room.getProperty().getId(), period)
+                ? buildServiceFeeCharge(
+                contract,
+                room.getProperty().getId(),
+                period,
+                electricityCharge.calculatedAmount()
+        )
                 : ServiceFeeCharge.empty();
         long subtotal = electricityCharge.amount() + rentCharge.amount() + serviceFeeCharge.amount();
         UtilityBillingRunItemStatus status = resolveItemStatus(
@@ -571,6 +817,8 @@ public class UtilityBillingRunService {
                 .electricityQuantity(electricityCharge.quantity())
                 .electricityUnitPrice(electricityCharge.unitPrice())
                 .electricityAmount(electricityCharge.amount())
+                .electricityWaived(electricityCharge.waived())
+                .electricityWaiveReason(electricityCharge.waiveReason())
                 .waterPrevious(null)
                 .waterCurrent(null)
                 .waterUsage(null)
@@ -639,8 +887,28 @@ public class UtilityBillingRunService {
                 reading.getReadingDate()
         );
         int quantity = billableQuantity(usage, tariff.freeAllowance());
-        long amount = quantity * tariff.unitPrice();
-        return new Charge(previous, current, usage, quantity, tariff.unitPrice(), amount, null);
+        long calculatedAmount = (long) quantity * tariff.unitPrice();
+        UtilityTariffSnapshot serviceFeeTariff = readTariff(
+                reading.getRoom().getProperty().getId(),
+                UtilityType.SERVICE_FEE,
+                reading.getReadingDate()
+        );
+        long threshold = serviceFeeTariff.serviceFeeWaiveElectricityThreshold() == null
+                ? DEFAULT_SERVICE_FEE_WAIVE_ELECTRICITY_THRESHOLD
+                : serviceFeeTariff.serviceFeeWaiveElectricityThreshold();
+        boolean waived = utilityType == UtilityType.ELECTRICITY && calculatedAmount < threshold;
+        return new Charge(
+                previous,
+                current,
+                usage,
+                waived ? 0 : quantity,
+                tariff.unitPrice(),
+                waived ? 0L : calculatedAmount,
+                calculatedAmount,
+                waived,
+                waived ? ELECTRICITY_WAIVE_REASON : null,
+                null
+        );
     }
 
     private InvoiceEntity createInvoice(
@@ -1210,7 +1478,8 @@ public class UtilityBillingRunService {
     private ServiceFeeCharge buildServiceFeeCharge(
             LeaseContractEntity contract,
             Long propertyId,
-            YearMonth period
+            YearMonth period,
+            long electricityAmount
     ) {
         if (contract == null) {
             return ServiceFeeCharge.empty();
@@ -1235,6 +1504,15 @@ public class UtilityBillingRunService {
                 && !isPaymentCycleStart(period, YearMonth.from(rentStartDate), paymentCycleMonths)) {
             return ServiceFeeCharge.empty();
         }
+        if (isServiceFeeWaived(electricityAmount, tariff.serviceFeeWaiveElectricityThreshold())) {
+            return new ServiceFeeCharge(
+                    tariff.unitPrice(),
+                    0L,
+                    true,
+                    "Ph\u00ed d\u1ecbch v\u1ee5 \u0111\u01b0\u1ee3c mi\u1ec5n v\u00ec ti\u1ec1n \u0111i\u1ec7n < 100.000\u0111",
+                    true
+            );
+        }
         return new ServiceFeeCharge(
                 tariff.unitPrice(),
                 tariff.unitPrice() * occupantCount * paymentCycleMonths,
@@ -1242,6 +1520,10 @@ public class UtilityBillingRunService {
                 null,
                 true
         );
+    }
+
+    static boolean isServiceFeeWaived(long electricityAmount, Long threshold) {
+        return threshold != null && threshold > 0L && electricityAmount < threshold;
     }
 
     static boolean isServiceFeeDue(YearMonth billingPeriod, YearMonth chargeStartPeriod, int paymentCycleMonths) {
@@ -1346,15 +1628,23 @@ public class UtilityBillingRunService {
                 .orElseGet(() -> switch (utilityType) {
                     case ELECTRICITY -> new UtilityTariffSnapshot(3500L, 0L, null);
                     case WATER -> new UtilityTariffSnapshot(20000L, 6L, null);
-                    case SERVICE_FEE -> new UtilityTariffSnapshot(50000L, 0L, null);
+                    case SERVICE_FEE -> new UtilityTariffSnapshot(
+                            50000L,
+                            0L,
+                            DEFAULT_SERVICE_FEE_WAIVE_ELECTRICITY_THRESHOLD
+                    );
                 });
     }
 
     private UtilityTariffSnapshot toSnapshot(UtilityTariffEntity tariff) {
+        Long waiveThreshold = tariff.getServiceFeeWaiveElectricityThreshold();
+        if (tariff.getUtilityType() == UtilityType.SERVICE_FEE && waiveThreshold == null) {
+            waiveThreshold = DEFAULT_SERVICE_FEE_WAIVE_ELECTRICITY_THRESHOLD;
+        }
         return new UtilityTariffSnapshot(
                 safe(tariff.getUnitPrice()),
                 safe(tariff.getFreeAllowance()),
-                tariff.getServiceFeeWaiveElectricityThreshold()
+                waiveThreshold
         );
     }
 
@@ -1509,6 +1799,8 @@ public class UtilityBillingRunService {
                 item.getElectricityQuantity(),
                 item.getElectricityUnitPrice(),
                 item.getElectricityAmount(),
+                item.getElectricityWaived(),
+                item.getElectricityWaiveReason(),
                 item.getWaterReading() == null ? null : item.getWaterReading().getId(),
                 item.getWaterPrevious(),
                 item.getWaterCurrent(),
@@ -1608,8 +1900,23 @@ public class UtilityBillingRunService {
             int quantity,
             long unitPrice,
             long amount,
+            long calculatedAmount,
+            boolean waived,
+            String waiveReason,
             String warning
     ) {
+        private Charge(
+                BigDecimal previous,
+                BigDecimal current,
+                BigDecimal usage,
+                int quantity,
+                long unitPrice,
+                long amount,
+                String warning
+        ) {
+            this(previous, current, usage, quantity, unitPrice, amount, amount, false, null, warning);
+        }
+
         static Charge empty() {
             return new Charge(null, null, null, 0, 0L, 0L, null);
         }

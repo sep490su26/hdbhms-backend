@@ -51,14 +51,14 @@ class MeterReadingControllerImportTemplateTest {
             assertEquals("Phòng", sheet.getRow(0).getCell(1).getStringCellValue());
             assertEquals("Chỉ số điện kỳ trước", sheet.getRow(0).getCell(2).getStringCellValue());
             assertEquals("Chỉ số điện mới", sheet.getRow(0).getCell(3).getStringCellValue());
-            assertEquals("Số lần quay vòng (nếu có)", sheet.getRow(0).getCell(4).getStringCellValue());
+            assertEquals(4, sheet.getRow(0).getLastCellNum());
+            assertNull(sheet.getRow(0).getCell(4));
 
             assertTrue(sheet.isColumnHidden(0));
             assertEquals(16 * 256, sheet.getColumnWidth(0));
             assertEquals(28 * 256, sheet.getColumnWidth(1));
             assertEquals(22 * 256, sheet.getColumnWidth(2));
             assertEquals(20 * 256, sheet.getColumnWidth(3));
-            assertEquals(25 * 256, sheet.getColumnWidth(4));
 
             assertEquals("P101", sheet.getRow(1).getCell(0).getStringCellValue());
             assertEquals("Phòng 101", sheet.getRow(1).getCell(1).getStringCellValue());

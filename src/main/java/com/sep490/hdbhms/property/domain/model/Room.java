@@ -92,4 +92,8 @@ public class Room {
         this.currentStatus = RoomStatus.OCCUPIED;
         this.updatedAt = LocalDateTime.now();
     }
+
+    public boolean isAvailableForViewing() {
+        return currentStatus == RoomStatus.VACANT || currentStatus == RoomStatus.SOON_VACANT;
+    }
 }

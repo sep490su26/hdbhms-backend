@@ -15,6 +15,7 @@ import com.sep490.hdbhms.property.application.port.out.VisitRequestRepository;
 import com.sep490.hdbhms.property.domain.model.Property;
 import com.sep490.hdbhms.property.domain.model.Room;
 import com.sep490.hdbhms.property.domain.model.VisitRequest;
+import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import lombok.AccessLevel;
@@ -27,6 +28,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 @Transactional
@@ -42,6 +45,7 @@ public class CreateVisitRequestService implements CreateVisitRequestUseCase {
     JpaUserRepository userRepository;
     JpaRolePromotionRepository rolePromotionRepository;
     BusinessNotificationPublisher notificationPublisher;
+    RoomCommitmentChecker roomCommitmentChecker;
 
     @Override
     public VisitRequest execute(CreateVisitRequestCommand command) {
@@ -49,6 +53,10 @@ public class CreateVisitRequestService implements CreateVisitRequestUseCase {
                 ? null
                 : roomRepository.findById(command.roomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
+        if (room != null && !room.isAvailableForViewing()) {
+            throw new AppException(ApiErrorCode.VISIT_008);
+        }
+        validateViewingDate(room, command.preferredStart());
         Long propertyId = room != null && room.getPropertyId() != null
                 ? room.getPropertyId()
                 : command.propertyId();
@@ -68,6 +76,18 @@ public class CreateVisitRequestService implements CreateVisitRequestUseCase {
         VisitRequest saved = visitRequestRepository.save(visitRequest);
         publishVisitRequestCreated(saved, room);
         return saved;
+    }
+
+    private void validateViewingDate(Room room, LocalDateTime preferredStart) {
+        if (room == null || room.getCurrentStatus() != RoomStatus.SOON_VACANT
+                || preferredStart == null) {
+            return;
+        }
+
+        LocalDate expectedVacantDate = roomCommitmentChecker.findExpectedVacantDateForBooking(room.getId()).orElse(null);
+        if (expectedVacantDate != null && !preferredStart.toLocalDate().isAfter(expectedVacantDate)) {
+            throw new AppException(ApiErrorCode.VISIT_009);
+        }
     }
 
     private void publishVisitRequestCreated(VisitRequest visitRequest, Room room) {

@@ -358,6 +358,114 @@ public class NotificationTemplateDefaults {
                     "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] đã được thanh toán đủ. Số tiền ghi nhận: [[${paymentAmount}]] VND."
             ),
             definitionForChannels(
+                    "INVOICE_OVERDUE_OWNER_STAGE_1",
+                    "Cảnh báo công nợ hóa đơn - đợt 1",
+                    "Gửi cho chủ trọ và quản lý ngay sau khi hóa đơn quá hạn thanh toán.",
+                    "INVOICE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "invoiceId",
+                            "invoiceCode",
+                            "invoiceType",
+                            "roomCode",
+                            "propertyName",
+                            "remainingAmount",
+                            "dueDate",
+                            "overdueStage",
+                            "overdueStageDueDate",
+                            "recipientScope",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "invoiceId", 91L,
+                            "invoiceCode", "INV-2026-07-001",
+                            "invoiceType", "RENT",
+                            "roomCode", "404",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "remainingAmount", 3500000L,
+                            "dueDate", "2026-07-05",
+                            "overdueStage", 1,
+                            "overdueStageDueDate", "2026-07-06",
+                            "recipientScope", "OWNER_MANAGER",
+                            "targetRoute", "/dashboard/billing"
+                    ),
+                    "Hóa đơn [[${invoiceCode}]] đã quá hạn - đợt 1",
+                    "Chủ trọ/quản lý: hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] tại [[${propertyName}]] đã quá hạn sau ngày [[${dueDate}]]. Số tiền còn nợ: [[${remainingAmount}]] VND. Vui lòng kiểm tra và xử lý công nợ."
+            ),
+            definitionForChannels(
+                    "INVOICE_OVERDUE_OWNER_STAGE_2",
+                    "Cảnh báo công nợ hóa đơn - đợt 2",
+                    "Gửi cho chủ trọ và quản lý khi hóa đơn tiếp tục chưa được thanh toán sau 1 tháng.",
+                    "INVOICE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "invoiceId",
+                            "invoiceCode",
+                            "invoiceType",
+                            "roomCode",
+                            "propertyName",
+                            "remainingAmount",
+                            "dueDate",
+                            "overdueStage",
+                            "overdueStageDueDate",
+                            "recipientScope",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "invoiceId", 91L,
+                            "invoiceCode", "INV-2026-07-001",
+                            "invoiceType", "RENT",
+                            "roomCode", "404",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "remainingAmount", 3500000L,
+                            "dueDate", "2026-07-05",
+                            "overdueStage", 2,
+                            "overdueStageDueDate", "2026-08-06",
+                            "recipientScope", "OWNER_MANAGER",
+                            "targetRoute", "/dashboard/billing"
+                    ),
+                    "Hóa đơn [[${invoiceCode}]] chưa được thanh toán - đợt 2",
+                    "Chủ trọ/quản lý: hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] đã quá hạn 1 tháng và còn nợ [[${remainingAmount}]] VND. Vui lòng chú ý và xử lý công nợ."
+            ),
+            definitionForChannels(
+                    "INVOICE_OVERDUE_OWNER_STAGE_3",
+                    "Cảnh báo công nợ hóa đơn - đợt 3",
+                    "Gửi cho chủ trọ và quản lý khi hóa đơn tiếp tục chưa được thanh toán sau 2 tháng.",
+                    "INVOICE",
+                    List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                    variables(
+                            "invoiceId",
+                            "invoiceCode",
+                            "invoiceType",
+                            "roomCode",
+                            "propertyName",
+                            "remainingAmount",
+                            "dueDate",
+                            "overdueStage",
+                            "overdueStageDueDate",
+                            "recipientScope",
+                            "targetRoute"
+                    ),
+                    sampleData(
+                            "invoiceId", 91L,
+                            "invoiceCode", "INV-2026-07-001",
+                            "invoiceType", "RENT",
+                            "roomCode", "404",
+                            "propertyName", "Nhà trọ Hải Đăng 2",
+                            "remainingAmount", 3500000L,
+                            "dueDate", "2026-07-05",
+                            "overdueStage", 3,
+                            "overdueStageDueDate", "2026-09-06",
+                            "recipientScope", "OWNER_MANAGER",
+                            "targetRoute", "/dashboard/billing"
+                    ),
+                    "Hóa đơn [[${invoiceCode}]] chưa được thanh toán - đợt 3",
+                    "Chủ trọ/quản lý: hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] đã quá hạn từ 2 tháng. Số tiền còn nợ: [[${remainingAmount}]] VND. Vui lòng thực hiện biện pháp xử lý phù hợp."
+            ),
+            invoiceOverdueReminderDefinition(1),
+            invoiceOverdueReminderDefinition(2),
+            invoiceOverdueReminderDefinition(3),
+            definitionForChannels(
                     "INVOICE_PAYMENT_SUCCESS",
                     "Thanh toán hóa đơn thành công",
                     "Gửi cho khách thuê sau khi một hóa đơn được thanh toán đầy đủ.",
@@ -878,6 +986,41 @@ public class NotificationTemplateDefaults {
                                 .build())
                         .toList())
                 .orElseGet(List::of);
+    }
+
+    private Definition invoiceOverdueReminderDefinition(int stage) {
+        String eventType = "INVOICE_OVERDUE_REMINDER_" + stage;
+        return definitionForChannels(
+                eventType,
+                "Nhắc thanh toán hóa đơn - đợt " + stage,
+                "Gửi cho khách thuê theo lịch nhắc công nợ quá hạn.",
+                "INVOICE",
+                List.of(NotificationChannel.WEB, NotificationChannel.PUSH),
+                variables(
+                        "invoiceId",
+                        "invoiceCode",
+                        "roomCode",
+                        "propertyName",
+                        "remainingAmount",
+                        "dueDate",
+                        "reminderStage",
+                        "reminderDate",
+                        "targetRoute"
+                ),
+                sampleData(
+                        "invoiceId", 91L,
+                        "invoiceCode", "INV-2026-07-001",
+                        "roomCode", "404",
+                        "propertyName", "Nhà trọ Hải Đăng 2",
+                        "remainingAmount", 1250000L,
+                        "dueDate", "2026-08-05",
+                        "reminderStage", stage,
+                        "reminderDate", stage == 1 ? "2026-08-06" : stage == 2 ? "2026-09-06" : "2026-10-06",
+                        "targetRoute", "/dashboard/invoices/91"
+                ),
+                "Nhắc thanh toán hóa đơn [[${invoiceCode}]] - đợt " + stage,
+                "Hóa đơn [[${invoiceCode}]] của phòng [[${roomCode}]] tại [[${propertyName}]] vẫn còn nợ [[${remainingAmount}]] VND. Đây là lần nhắc thanh toán đợt [[${reminderStage}]], bắt đầu từ ngày [[${reminderDate}]]. Vui lòng thanh toán sớm."
+        );
     }
 
     private Definition definition(
