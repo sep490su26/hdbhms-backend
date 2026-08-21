@@ -51,6 +51,15 @@ class MigrationLogicalConflictGuardTest {
     }
 
     @Test
+    void contractEventMigrationSupportsPaymentCycleChanges() throws IOException {
+        String sql = read("migration/dev/V94__add_payment_cycle_changed_to_contract_events.sql");
+
+        assertTrue(sql.contains("'PRICE_CHANGED'"));
+        assertTrue(sql.contains("'PAYMENT_CYCLE_CHANGED'"));
+        assertTrue(sql.contains("MODIFY COLUMN event_type ENUM"));
+    }
+
+    @Test
     void demoSeedUsesNormalizedVietnameseCodesAndCompleteSignerIdentityAssets() throws IOException {
         String v2 = read("migration/dev/V2__seed_initial_property_and_rules.sql");
         String v42 = read("migration/dev/V42__seed_demo_booking_checkout_lifecycle_exports.sql");

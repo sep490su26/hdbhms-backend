@@ -6,6 +6,7 @@ import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.GetLeaseContractManagementUseCase;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.UpdateLeaseContractTermsUseCase;
+import com.sep490.hdbhms.occupancy.domain.value_objects.ContractEventType;
 import com.sep490.hdbhms.occupancy.domain.value_objects.LeaseStatus;
 import com.sep490.hdbhms.property.application.service.RoomCommitmentChecker;
 import com.sep490.hdbhms.property.domain.value_objects.RoomStatus;
@@ -153,7 +154,7 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
         if (paymentCycleChanged) {
             workflowSupport.appendContractEvent(
                     contract.getId(),
-                    "PAYMENT_CYCLE_CHANGED",
+                    ContractEventType.PAYMENT_CYCLE_CHANGED.name(),
                     "Cập nhật chu kỳ đóng tiền thành " + command.paymentCycleMonths() + " tháng/lần"
             );
         }
