@@ -2988,7 +2988,7 @@ JOIN tmp_hdd1_final_khai_rooms selected_room
   ON selected_room.room_code = room.room_code
 SET occupant.status = 'MOVED_OUT',
     occupant.move_out_date = DATE(@hdd1_final_now),
-    occupant.disabled_reason = 'Reassigned to Nguyen Van Khai in the August seed.',
+    occupant.disabled_reason = 'Reassigned to Nguyễn Văn Khải in the August seed.',
     occupant.disabled_by = @hdd1_final_manager_id,
     occupant.disabled_at = @hdd1_final_now
 WHERE room.property_id = @hdd1_final_property_id
@@ -3066,8 +3066,8 @@ UPDATE hdbhms.rooms room
 JOIN tmp_hdd1_final_khai_rooms selected_room
   ON selected_room.room_code = room.room_code
 SET room.current_status = 'OCCUPIED',
-    room.public_note = 'Current contract assigned to Nguyen Van Khai.',
-    room.internal_note = 'Seed final state: active contract assigned to Nguyen Van Khai.',
+    room.public_note = 'Current contract assigned to Nguyễn Văn Khải.',
+    room.internal_note = 'Seed final state: active contract assigned to Nguyễn Văn Khải.',
     room.updated_at = @hdd1_final_now
 WHERE room.property_id = @hdd1_final_property_id
   AND room.deleted_at IS NULL;
