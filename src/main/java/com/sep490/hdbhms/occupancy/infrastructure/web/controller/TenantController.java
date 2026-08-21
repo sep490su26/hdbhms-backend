@@ -38,12 +38,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/tenants")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TenantController {
+    private static final Pattern CCCD_PATTERN = Pattern.compile("^\\d{12}$");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+
     GetMyTenantProfileUseCase getMyTenantProfileUseCase;
     UpdateMyTenantProfileUseCase updateMyTenantProfileUseCase;
     TenantRepository tenantRepository;
@@ -74,11 +83,17 @@ public class TenantController {
             value = "/{tenantId}/me/identity-verification",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
+    @Transactional
     public ApiResponse<IdentityVerificationUploadResponse> uploadIdentityVerification(
             @PathVariable Long tenantId,
             @RequestPart("portraitFile") MultipartFile portraitFile,
             @RequestPart("idCardFrontFile") MultipartFile idCardFrontFile,
-            @RequestPart("idCardBackFile") MultipartFile idCardBackFile
+            @RequestPart("idCardBackFile") MultipartFile idCardBackFile,
+            @RequestPart("docNumber") String docNumber,
+            @RequestPart("issuedDate") String issuedDate,
+            @RequestPart("issuedPlace") String issuedPlace,
+            @RequestPart("permanentAddress") String permanentAddress,
+            @RequestPart("email") String email
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         if (userId == null) {
@@ -91,6 +106,14 @@ public class TenantController {
             throw new AppException(ApiErrorCode.UNAUTHORIZED);
         }
 
+        IdentityMetadata metadata = validateIdentityMetadata(
+                docNumber,
+                issuedDate,
+                issuedPlace,
+                permanentAddress,
+                email
+        );
+
         PersonProfileEntity profile = personProfileRepository.findByUser_IdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND));
 
@@ -99,6 +122,8 @@ public class TenantController {
         FileMetadataEntity backId = uploadIdentityFile(userId, idCardBackFile, FileCategory.ID_CARD);
 
         profile.setPortraitFile(portrait);
+        profile.setPermanentAddress(metadata.permanentAddress());
+        profile.setEmail(metadata.email());
         personProfileRepository.save(profile);
 
         IdentityDocumentEntity identityDocument = identityDocumentRepository
@@ -110,9 +135,12 @@ public class TenantController {
                 .orElseGet(() -> IdentityDocumentEntity.builder()
                         .profile(profile)
                         .docType(DocumentType.CCCD)
-                        .docNumber("PENDING-" + profile.getId())
+                        .docNumber(metadata.docNumber())
                         .status(DocumentStatus.ACTIVE)
                         .build());
+        identityDocument.setDocNumber(metadata.docNumber());
+        identityDocument.setIssuedDate(metadata.issuedDate());
+        identityDocument.setIssuedPlace(metadata.issuedPlace());
         identityDocument.setFrontFile(frontId);
         identityDocument.setBackFile(backId);
         identityDocumentRepository.save(identityDocument);
@@ -137,6 +165,59 @@ public class TenantController {
                 .build();
     }
 
+    private IdentityMetadata validateIdentityMetadata(
+            String docNumber,
+            String issuedDate,
+            String issuedPlace,
+            String permanentAddress,
+            String email
+    ) {
+        String normalizedDocNumber = normalizeRequired(docNumber);
+        if (!CCCD_PATTERN.matcher(normalizedDocNumber).matches()) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+
+        LocalDate normalizedIssuedDate;
+        try {
+            normalizedIssuedDate = LocalDate.parse(normalizeRequired(issuedDate));
+        } catch (DateTimeParseException exception) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (normalizedIssuedDate.isAfter(LocalDate.now())) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+
+        String normalizedIssuedPlace = normalizeRequired(issuedPlace);
+        if (normalizedIssuedPlace.length() > 255) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+
+        String normalizedPermanentAddress = normalizeRequired(permanentAddress);
+        if (normalizedPermanentAddress.length() > 1000) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+
+        String normalizedEmail = normalizeRequired(email).toLowerCase(Locale.ROOT);
+        if (normalizedEmail.length() > 255 || !EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+
+        return new IdentityMetadata(
+                normalizedDocNumber,
+                normalizedIssuedDate,
+                normalizedIssuedPlace,
+                normalizedPermanentAddress,
+                normalizedEmail
+        );
+    }
+
+    private String normalizeRequired(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        return value.trim();
+    }
+
     private FileMetadataEntity uploadIdentityFile(
             Long userId,
             MultipartFile file,
@@ -158,6 +239,15 @@ public class TenantController {
             Long portraitFileId,
             Long idCardFrontFileId,
             Long idCardBackFileId
+    ) {
+    }
+
+    private record IdentityMetadata(
+            String docNumber,
+            LocalDate issuedDate,
+            String issuedPlace,
+            String permanentAddress,
+            String email
     ) {
     }
 }

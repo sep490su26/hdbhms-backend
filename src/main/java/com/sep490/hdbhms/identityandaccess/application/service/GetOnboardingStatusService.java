@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -31,6 +32,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+
     UserRepository userRepository;
     PersonProfileRepository personProfileRepository;
     IdentityDocumentRepository identityDocumentRepository;
@@ -129,7 +132,14 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
         PersonProfile personProfile = personProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         return personProfile.getPortraitFileId() != null
+                && hasRequiredProfileMetadata(personProfile)
                 && hasActiveCccdImages(personProfile.getId());
+    }
+
+    private boolean hasRequiredProfileMetadata(PersonProfile personProfile) {
+        return hasText(personProfile.getPermanentAddress())
+                && hasText(personProfile.getEmail())
+                && EMAIL_PATTERN.matcher(personProfile.getEmail().trim()).matches();
     }
 
     private boolean hasActiveCccdImages(Long profileId) {
@@ -141,11 +151,19 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
                           AND status = 'ACTIVE'
                           AND front_file_id IS NOT NULL
                           AND back_file_id IS NOT NULL
+                          AND doc_number REGEXP '^[0-9]{12}$'
+                          AND issued_date IS NOT NULL
+                          AND issued_place IS NOT NULL
+                          AND TRIM(issued_place) <> ''
                         """,
                 Integer.class,
                 profileId,
                 DocumentType.CCCD.name()
         );
         return count != null && count > 0;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }
