@@ -468,6 +468,7 @@ public class LeaseContractManagementService {
         finalLiquidationDate = liquidationDate != null
                 ? liquidationDate
                 : liquidation.getLiquidationDate() != null ? liquidation.getLiquidationDate() : finalLiquidationDate;
+        validateLiquidationDate(contract, finalLiquidationDate);
         finalReason = reason == null || reason.isBlank()
                 ? liquidation.getReason() != null && !liquidation.getReason().isBlank()
                 ? liquidation.getReason().trim()
@@ -612,6 +613,7 @@ public class LeaseContractManagementService {
         LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
+        validateLiquidationDate(contract, finalLiquidationDate);
         String finalReason = reason == null || reason.isBlank()
                 ? "Khách không tiếp tục thuê phòng."
                 : reason.trim();
@@ -1075,6 +1077,7 @@ public class LeaseContractManagementService {
         LocalDate finalLiquidationDate = liquidationDate != null
                 ? liquidationDate
                 : liquidation.getLiquidationDate() != null ? liquidation.getLiquidationDate() : LocalDate.now();
+        validateLiquidationDate(contract, finalLiquidationDate);
         String finalReason = reason == null || reason.isBlank()
                 ? liquidation.getReason() != null && !liquidation.getReason().isBlank()
                 ? liquidation.getReason().trim()
@@ -1139,6 +1142,22 @@ public class LeaseContractManagementService {
         liquidation.setDepositDeductionAmount(depositSettlement.deductionAmount());
         liquidation.setDepositDeductionReason(depositSettlement.deductionReason());
         liquidation.setDepositRefundAmount(depositSettlement.refundAmount());
+    }
+
+    private void validateLiquidationDate(
+            LeaseContractEntity contract,
+            LocalDate liquidationDate
+    ) {
+        // Keep already expired contracts liquidatable on the current date, but do not
+        // allow a future contract to be liquidated after its contractual end date.
+        if (contract == null
+                || liquidationDate == null
+                || contract.getEndDate() == null
+                || !contract.getEndDate().isAfter(LocalDate.now())
+                || !liquidationDate.isAfter(contract.getEndDate())) {
+            return;
+        }
+        throw new AppException(ApiErrorCode.LEASE_EXPECTED_HANDOVER_DATE_AFTER_CONTRACT_END);
     }
 
     private InvoiceEntity upsertFinalSettlementInvoice(

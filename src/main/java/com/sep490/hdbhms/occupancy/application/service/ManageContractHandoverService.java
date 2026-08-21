@@ -242,6 +242,7 @@ public class ManageContractHandoverService {
         Long roomId = contract.getRoom().getId();
         HandoverType handoverType = request.getHandoverType();
         ensureMoveInHandoverAllowed(contract, handoverType);
+        validateMoveOutHandoverDate(contract, handoverType, request.getHandoverDate());
         // ── 1. Handover record (create or update existing DRAFT) ─────────────
         ContractHandoverRecordEntity record = handoverRecordRepository
                 .findFirstByContract_IdAndHandoverTypeOrderByCreatedAtDesc(contractId, handoverType)
@@ -512,6 +513,21 @@ public class ManageContractHandoverService {
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private void validateMoveOutHandoverDate(
+            LeaseContractEntity contract,
+            HandoverType handoverType,
+            LocalDate handoverDate
+    ) {
+        if (handoverType != HandoverType.MOVE_OUT
+                || handoverDate == null
+                || contract.getEndDate() == null
+                || !contract.getEndDate().isAfter(LocalDate.now())
+                || !handoverDate.isAfter(contract.getEndDate())) {
+            return;
+        }
+        throw new AppException(ApiErrorCode.LEASE_EXPECTED_HANDOVER_DATE_AFTER_CONTRACT_END);
     }
 
     void softDeleteAssets(Long roomId, List<Long> assetIds) {

@@ -86,6 +86,7 @@ public class ContractLifecycleChangeRequestService {
         LeaseContractEntity contract = getContract(leaseContractId);
         assertLifecycleAllowed(contract, RequestType.CONTRACT_LIQUIDATION);
         LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
+        validateLiquidationDate(contract, liquidationDate);
         return createChangeRequest(
                 principal,
                 contract,
@@ -284,6 +285,20 @@ public class ContractLifecycleChangeRequestService {
         payload.put("liquidationDate", liquidationDate == null ? LocalDate.now() : liquidationDate);
         payload.put("reason", reason);
         return payload;
+    }
+
+    private void validateLiquidationDate(
+            LeaseContractEntity contract,
+            LocalDate liquidationDate
+    ) {
+        if (contract == null
+                || liquidationDate == null
+                || contract.getEndDate() == null
+                || !contract.getEndDate().isAfter(LocalDate.now())
+                || !liquidationDate.isAfter(contract.getEndDate())) {
+            return;
+        }
+        throw new AppException(ApiErrorCode.LEASE_EXPECTED_HANDOVER_DATE_AFTER_CONTRACT_END);
     }
 
     private Map<String, Object> renewalPayload(
