@@ -8,6 +8,18 @@ public record UpdateLeaseContractTermsCommand(
         LocalDate endDate,
         Integer paymentCycleMonths,
         Long monthlyRent,
-        Long depositAmount
+        Long depositAmount,
+        boolean allowPostSigningFinancialChange,
+        boolean allowPostSigningDateChange
 ) {
+    public UpdateLeaseContractTermsCommand(
+            Long leaseContractId,
+            LocalDate startDate,
+            LocalDate endDate,
+            Integer paymentCycleMonths,
+            Long monthlyRent,
+            Long depositAmount
+    ) {
+        this(leaseContractId, startDate, endDate, paymentCycleMonths, monthlyRent, depositAmount, false, false);
+    }
 }

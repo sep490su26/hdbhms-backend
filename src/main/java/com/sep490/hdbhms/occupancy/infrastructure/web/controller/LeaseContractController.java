@@ -244,6 +244,8 @@ public class LeaseContractController {
             @PathVariable Long leaseContractId,
             @Valid @RequestBody LeaseContractTermsUpdateRequest request
     ) {
+        assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
+        UserPrincipal principal = currentPrincipal();
         return ApiResponse.<LeaseContractManagementResponse>builder()
                 .data(updateLeaseContractTermsUseCase.execute(new UpdateLeaseContractTermsCommand(
                         leaseContractId,
@@ -251,8 +253,29 @@ public class LeaseContractController {
                         request.endDate(),
                         request.paymentCycleMonths(),
                         request.monthlyRent(),
-                        request.depositAmount()
+                        null,
+                        principal.getRole() == Role.OWNER,
+                        false
                 )))
+                .build();
+    }
+
+    @PostMapping("/{leaseContractId}/financial-terms-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('MANAGER')")
+    public ApiResponse<ChangeRequestResponse> submitFinancialTermsRequest(
+            @PathVariable Long leaseContractId,
+            @Valid @RequestBody LeaseContractFinancialTermsRequest request
+    ) {
+        assertOwnerOrAssignedManagerCanAccessContract(leaseContractId);
+        ChangeRequest changeRequest = contractLifecycleChangeRequestService.submitFinancialTermsRequest(
+                leaseContractId,
+                request.monthlyRent(),
+                request.paymentCycleMonths(),
+                request.note()
+        );
+        return ApiResponse.<ChangeRequestResponse>builder()
+                .data(toChangeRequestResponse(changeRequest))
                 .build();
     }
 
@@ -901,10 +924,7 @@ public class LeaseContractController {
     }
 
     private void assertOwnerOrAssignedManagerCanAccessContract(Long leaseContractId) {
-        var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
-            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
-        }
+        UserPrincipal principal = currentPrincipal();
         if (principal.getRole() == Role.OWNER) {
             return;
         }
@@ -943,6 +963,14 @@ public class LeaseContractController {
         if (count == null || count == 0) {
             throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
         }
+    }
+
+    private UserPrincipal currentPrincipal() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
+        }
+        return principal;
     }
 
     public record LeaseContractLiquidationRequest(
@@ -1038,10 +1066,18 @@ public class LeaseContractController {
             Integer paymentCycleMonths,
             @NotNull(message = "Giá thuê mỗi tháng là bắt buộc.")
             @Positive(message = "Giá thuê mỗi tháng phải lớn hơn 0.")
+            Long monthlyRent
+    ) {
+    }
+
+    public record LeaseContractFinancialTermsRequest(
+            @NotNull(message = "Giá thuê mỗi tháng là bắt buộc.")
+            @Positive(message = "Giá thuê mỗi tháng phải lớn hơn 0.")
             Long monthlyRent,
-            @NotNull(message = "Tiền cọc là bắt buộc.")
-            @PositiveOrZero(message = "Tiền cọc phải lớn hơn hoặc bằng 0.")
-            Long depositAmount
+            @NotNull(message = "Chu kỳ thanh toán là bắt buộc.")
+            Integer paymentCycleMonths,
+            @Size(max = 1000, message = "Ghi chú không được vượt quá 1000 ký tự.")
+            String note
     ) {
     }
 

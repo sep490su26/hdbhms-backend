@@ -3,6 +3,7 @@ package com.sep490.hdbhms.file.application.service;
 import com.sep490.hdbhms.file.application.port.in.query.DownloadFileQuery;
 import com.sep490.hdbhms.file.application.port.in.usecase.DownloadFileUseCase;
 import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
+import com.sep490.hdbhms.file.application.port.out.FileStoragePort;
 import com.sep490.hdbhms.file.infrastructure.web.dto.response.FileDataResponse;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
@@ -16,8 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 @Slf4j
 @Service
@@ -26,6 +25,7 @@ import java.nio.file.Path;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class DownloadFileService implements DownloadFileUseCase {
     FileMetadataRepository fileMetadataRepository;
+    FileStoragePort fileStoragePort;
 
     @Override
     public FileDataResponse execute(DownloadFileQuery command) {
@@ -37,26 +37,26 @@ public class DownloadFileService implements DownloadFileUseCase {
             var data = readFileBytes(file.getStorageKey());
             var resource = new ByteArrayResource(data);
             return new FileDataResponse(file.getMimeType(), resource, file.isSensitive(), file.getOwnerUserId());
-        } catch (IOException e) {
-            throw new AppException(ApiErrorCode.UNDEFINED);
+        } catch (IOException exception) {
+            throw new AppException(ApiErrorCode.FILE_DOWNLOAD_FAILED, exception);
         }
     }
 
     private byte[] readFileBytes(String storageKey) throws IOException {
-        Path storagePath = Path.of(storageKey);
-        if (Files.exists(storagePath)) {
-            return Files.readAllBytes(storagePath);
-        }
+        try {
+            return fileStoragePort.get(storageKey);
+        } catch (IOException storageException) {
+            if (!storageKey.startsWith("room-samples/") && !storageKey.startsWith("identity-samples/")) {
+                throw storageException;
+            }
 
-        if (storageKey.startsWith("room-samples/") || storageKey.startsWith("identity-samples/")) {
             var classpathResource = new ClassPathResource("static/" + storageKey);
             if (classpathResource.exists()) {
                 try (var inputStream = classpathResource.getInputStream()) {
                     return inputStream.readAllBytes();
                 }
             }
+            throw storageException;
         }
-
-        throw new IOException("Tệp đã lưu không tồn tại: " + storageKey);
     }
 }

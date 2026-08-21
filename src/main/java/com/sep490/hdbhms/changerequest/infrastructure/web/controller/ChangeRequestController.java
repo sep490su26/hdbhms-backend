@@ -7,6 +7,7 @@ import com.sep490.hdbhms.changerequest.application.port.in.usecase.ChangeRequest
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestStatus;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.changerequest.infrastructure.web.dto.request.ApproveRequestRequest;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
@@ -185,18 +186,29 @@ public class ChangeRequestController {
         if (request.getRequestType() == RequestType.TENANT_PROFILE_ACCESS) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
-        if (request.getRequestType() != RequestType.PERMISSION_ACCESS
-                && request.getRequestType() != RequestType.CONTRACT_LIQUIDATION
-                && request.getRequestType() != RequestType.CONTRACT_RENEWAL
-                && request.getRequestType() != RequestType.ADD_CO_OCCUPANT) {
-            return;
-        }
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
             throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
-        if (request.getRequestType() == RequestType.CONTRACT_RENEWAL
-                && (principal.getRole() == Role.OWNER || principal.getRole() == Role.MANAGER)) {
+
+        if (request.getRequestType() == RequestType.RENT_PRICE_ADJUSTMENT
+                && request.getTargetType() == TargetType.CONTRACT) {
+            if (principal.getRole() != Role.OWNER) {
+                throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
+            }
+            return;
+        }
+
+        if (request.getRequestType() == RequestType.CONTRACT_RENEWAL) {
+            if (principal.getRole() != Role.OWNER && principal.getRole() != Role.MANAGER) {
+                throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
+            }
+            return;
+        }
+
+        if (request.getRequestType() != RequestType.PERMISSION_ACCESS
+                && request.getRequestType() != RequestType.CONTRACT_LIQUIDATION
+                && request.getRequestType() != RequestType.ADD_CO_OCCUPANT) {
             return;
         }
         if (principal.getRole() != Role.OWNER) {

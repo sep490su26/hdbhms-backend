@@ -191,7 +191,7 @@ public class ChangeRequestNotificationService {
             case METER_READING_CORRECTION -> "Khiếu nại chỉ số điện nước";
             case PERMISSION_ACCESS -> "Yêu cầu cấp quyền";
             case INVOICE_ADJUSTMENT -> "Yêu cầu điều chỉnh hóa đơn";
-            case RENT_PRICE_ADJUSTMENT -> "Yêu cầu điều chỉnh giá thuê";
+            case RENT_PRICE_ADJUSTMENT -> "Yêu cầu điều chỉnh điều khoản tài chính";
             case DEPOSIT_REFUND_REQUEST -> "Yêu cầu xử lý tiền cọc";
             case MOVE_OUT -> "Yêu cầu chuyển đi";
             case COMPLAINT -> "Khiếu nại";

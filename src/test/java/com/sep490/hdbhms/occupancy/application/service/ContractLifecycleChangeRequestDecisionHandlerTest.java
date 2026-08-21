@@ -17,8 +17,10 @@ import java.time.LocalDate;
 
 import static org.mockito.Mockito.mock;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ContractLifecycleChangeRequestDecisionHandlerTest {
 
@@ -61,6 +63,48 @@ class ContractLifecycleChangeRequestDecisionHandlerTest {
         assertEquals(1, captor.getValue().paymentCycleMonths());
         assertEquals(2200000L, captor.getValue().monthlyRent());
         assertEquals(2200000L, captor.getValue().depositAmount());
+    }
+
+    @Test
+    void approvedFinancialAdjustmentChangesOnlyFinancialTerms() {
+        StartLeaseLiquidationProcessingUseCase liquidationUseCase = mock(StartLeaseLiquidationProcessingUseCase.class);
+        AddCoOccupantToContractUseCase addCoOccupantUseCase = mock(AddCoOccupantToContractUseCase.class);
+        UpdateLeaseContractTermsUseCase updateTermsUseCase = mock(UpdateLeaseContractTermsUseCase.class);
+        TenantAccountProvisioningService provisioningService = mock(TenantAccountProvisioningService.class);
+        ContractLifecycleChangeRequestDecisionHandler handler = new ContractLifecycleChangeRequestDecisionHandler(
+                liquidationUseCase,
+                addCoOccupantUseCase,
+                updateTermsUseCase,
+                provisioningService,
+                new ObjectMapper()
+        );
+        ChangeRequest request = ChangeRequest.builder()
+                .requestType(RequestType.RENT_PRICE_ADJUSTMENT)
+                .targetType(TargetType.CONTRACT)
+                .targetId(18L)
+                .requestPayload("""
+                        {
+                          "startDate":"2026-08-01",
+                          "endDate":"2027-08-01",
+                          "monthlyRent":2500000,
+                          "paymentCycleMonths":3
+                        }
+                        """)
+                .build();
+
+        handler.onApproved(request, 40L);
+
+        ArgumentCaptor<UpdateLeaseContractTermsCommand> captor =
+                ArgumentCaptor.forClass(UpdateLeaseContractTermsCommand.class);
+        verify(updateTermsUseCase).execute(captor.capture());
+        UpdateLeaseContractTermsCommand command = captor.getValue();
+        assertEquals(LocalDate.parse("2026-08-01"), command.startDate());
+        assertEquals(LocalDate.parse("2027-08-01"), command.endDate());
+        assertEquals(3, command.paymentCycleMonths());
+        assertEquals(2500000L, command.monthlyRent());
+        assertNull(command.depositAmount());
+        assertTrue(command.allowPostSigningFinancialChange());
+        assertFalse(command.allowPostSigningDateChange());
     }
 
     @Test

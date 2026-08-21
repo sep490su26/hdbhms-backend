@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sep490.hdbhms.changerequest.application.port.out.ChangeRequestDecisionHandler;
 import com.sep490.hdbhms.changerequest.domain.model.ChangeRequest;
 import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
+import com.sep490.hdbhms.changerequest.domain.value_objects.TargetType;
 import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import com.sep490.hdbhms.occupancy.application.port.in.command.AddCoOccupantToContractCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.command.StartLeaseLiquidationProcessingCommand;
@@ -39,7 +40,8 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
     public boolean supports(RequestType requestType) {
         return requestType == RequestType.CONTRACT_LIQUIDATION
                 || requestType == RequestType.CONTRACT_RENEWAL
-                || requestType == RequestType.ADD_CO_OCCUPANT;
+                || requestType == RequestType.ADD_CO_OCCUPANT
+                || requestType == RequestType.RENT_PRICE_ADJUSTMENT;
     }
 
     @Override
@@ -64,13 +66,20 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
             tenantAccountProvisioningService.provisionTenantAccount(request.getTargetId(), tenantProfileId, false);
             return;
         }
+        if (request.getRequestType() == RequestType.RENT_PRICE_ADJUSTMENT
+                && request.getTargetType() != TargetType.CONTRACT) {
+            return;
+        }
+        boolean renewal = request.getRequestType() == RequestType.CONTRACT_RENEWAL;
         updateLeaseContractTermsUseCase.execute(new UpdateLeaseContractTermsCommand(
                 request.getTargetId(),
                 localDate(firstValue(payload, "newStartDate", "startDate")),
                 localDate(firstValue(payload, "newEndDate", "endDate")),
                 intValue(payload.get("paymentCycleMonths")),
                 longValue(payload.get("monthlyRent")),
-                longValue(payload.get("depositAmount"))
+                longValue(payload.get("depositAmount")),
+                true,
+                renewal
         ));
     }
 

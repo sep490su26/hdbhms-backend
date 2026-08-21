@@ -73,6 +73,7 @@ public class ContractLifecycleChangeRequestService {
     ObjectMapper objectMapper;
     ChangeRequestNotificationService changeRequestNotificationService;
     RoomCommitmentChecker roomCommitmentChecker;
+    LeaseContractWorkflowSupport workflowSupport;
     JdbcTemplate jdbcTemplate;
 
     @Transactional
@@ -158,6 +159,55 @@ public class ContractLifecycleChangeRequestService {
                 "Yêu cầu thêm người ở cùng hợp đồng " + contract.getContractCode(),
                 (note == null || note.isBlank()) ? "Thêm người ở cùng: " + occupantName : note,
                 addCoOccupantPayload(contract, profile, moveInDate, note)
+        );
+    }
+
+    @Transactional
+    public ChangeRequest submitFinancialTermsRequest(
+            Long leaseContractId,
+            Long monthlyRent,
+            Integer paymentCycleMonths,
+            String note
+    ) {
+        UserPrincipal principal = currentPrincipal();
+        if (principal.getRole() != Role.MANAGER) {
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
+        }
+        LeaseContractEntity contract = getContract(leaseContractId);
+        boolean signedTerms = List.of(LeaseStatus.SIGNED, LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON).contains(contract.getStatus())
+                || (contract.getStatus() == LeaseStatus.PENDING_SIGNATURE
+                && (contract.getSignedFile() != null || contract.getSignedAt() != null));
+        if (!signedTerms) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (monthlyRent == null || monthlyRent <= 0
+                || !List.of(1, 3).contains(paymentCycleMonths)) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        if (monthlyRent.equals(contract.getMonthlyRent())
+                && paymentCycleMonths.equals(contract.getPaymentCycleMonths())) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
+        workflowSupport.validateContractTerms(
+                contract.getStartDate(),
+                paymentCycleMonths,
+                monthlyRent,
+                contract.getDepositAmount()
+        );
+        Map<String, Object> payload = basePayload("CONTRACT_FINANCIAL_TERMS_ADJUSTMENT", contract);
+        payload.put("monthlyRent", monthlyRent);
+        payload.put("paymentCycleMonths", paymentCycleMonths);
+        payload.put("previousMonthlyRent", contract.getMonthlyRent());
+        payload.put("previousPaymentCycleMonths", contract.getPaymentCycleMonths());
+        payload.put("note", note);
+        return createChangeRequest(
+                principal,
+                contract,
+                RequestType.RENT_PRICE_ADJUSTMENT,
+                "Yêu cầu điều chỉnh điều khoản tài chính " + contract.getContractCode(),
+                note,
+                payload
         );
     }
 

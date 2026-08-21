@@ -40,9 +40,34 @@ public class FileProperties {
         }
 
         String directory;
+        String provider = "local";
+        String keyPrefix = "files";
         int maxConcurrency;
         int maxBatchSize;
         Retry retry = new Retry();
+        R2 r2 = new R2();
+        Supabase supabase = new Supabase();
+    }
+
+    @Getter
+    @Setter
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class R2 {
+        String endpoint;
+        String region = "auto";
+        String bucket;
+        String accessKeyId;
+        String secretAccessKey;
+        boolean pathStyleAccess = true;
+    }
+
+    @Getter
+    @Setter
+    @FieldDefaults(level = AccessLevel.PRIVATE)
+    public static class Supabase {
+        String url;
+        String bucket = "files";
+        String serviceRoleKey;
     }
 
     final Download download = new Download();

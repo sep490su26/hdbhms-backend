@@ -55,12 +55,41 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
                 ? contract
                 : contract.getPreviousContract();
         LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, debtContract.getId());
+        Long effectiveDepositAmount = command.depositAmount() == null
+                ? contract.getDepositAmount()
+                : command.depositAmount();
+        boolean startDateChanged = !Objects.equals(contract.getStartDate(), command.startDate());
+        boolean endDateChanged = !Objects.equals(contract.getEndDate(), command.endDate());
+        boolean paymentCycleChanged = !Objects.equals(contract.getPaymentCycleMonths(), command.paymentCycleMonths());
+        boolean rentChanged = !Objects.equals(contract.getMonthlyRent(), command.monthlyRent());
+        boolean preSigning = List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE).contains(contract.getStatus())
+                && contract.getSignedFile() == null
+                && contract.getSignedAt() == null;
+
+        if ((startDateChanged || endDateChanged)
+                && !preSigning
+                && !command.allowPostSigningDateChange()) {
+            throw new AppException(ApiErrorCode.LEASE_CONTRACT_DATES_UPDATE_NOT_ALLOWED);
+        }
+        if (paymentCycleChanged) {
+            ensurePaymentCycleCanChange(contract, command.allowPostSigningFinancialChange());
+        }
+        if ((paymentCycleChanged || rentChanged)
+                && !preSigning
+                && !command.allowPostSigningFinancialChange()) {
+            throw new AppException(ApiErrorCode.LEASE_SIGNED_TERMS_UPDATE_NOT_ALLOWED);
+        }
+        if ((paymentCycleChanged || rentChanged)
+                && !preSigning
+                && !isPostSigningFinancialStatus(contract, command.allowPostSigningDateChange())) {
+            throw new AppException(ApiErrorCode.LEASE_SIGNED_TERMS_UPDATE_NOT_ALLOWED);
+        }
 
         workflowSupport.validateContractTerms(
                 command.startDate(),
                 command.paymentCycleMonths(),
                 command.monthlyRent(),
-                command.depositAmount()
+                effectiveDepositAmount
         );
         if (command.endDate() == null || !command.endDate().isAfter(command.startDate())) {
             throw new AppException(ApiErrorCode.LEASE_RENEWAL_DATES_INVALID);
@@ -105,14 +134,12 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
                 );
             }
         }
-        boolean rentChanged = !Objects.equals(contract.getMonthlyRent(), command.monthlyRent());
-
         contract.setStartDate(command.startDate());
         contract.setEndDate(command.endDate());
         contract.setRentStartDate(workflowSupport.resolveRentStartDate(command.startDate()));
         contract.setPaymentCycleMonths(command.paymentCycleMonths());
         contract.setMonthlyRent(command.monthlyRent());
-        contract.setDepositAmount(command.depositAmount());
+        contract.setDepositAmount(effectiveDepositAmount);
         applyLifecycleStatusAfterTermsUpdate(contract, LocalDate.now());
         leaseContractRepository.save(contract);
 
@@ -123,6 +150,13 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
                     "Cập nhật giá thuê hằng tháng thành " + command.monthlyRent()
             );
         }
+        if (paymentCycleChanged) {
+            workflowSupport.appendContractEvent(
+                    contract.getId(),
+                    "PAYMENT_CYCLE_CHANGED",
+                    "Cập nhật chu kỳ đóng tiền thành " + command.paymentCycleMonths() + " tháng/lần"
+            );
+        }
         return getLeaseContractManagementUseCase.findOne(contract.getId());
     }
 
@@ -131,6 +165,44 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
             throw new AppException(ApiErrorCode.LEASE_ROOM_PREBOOKED_BY_OTHER_TENANT);
         }
         throw new AppException(ApiErrorCode.LEASE_RENEWAL_ROOM_RESERVED_BY_OTHER_TENANT);
+    }
+
+    private void ensurePaymentCycleCanChange(LeaseContractEntity contract, boolean postSigningFinancialChange) {
+        if (!postSigningFinancialChange
+                && !List.of(LeaseStatus.DRAFT, LeaseStatus.PENDING_SIGNATURE).contains(contract.getStatus())) {
+            throw new AppException(ApiErrorCode.LEASE_PAYMENT_CYCLE_UPDATE_NOT_ALLOWED);
+        }
+        if (!postSigningFinancialChange && (contract.getSignedFile() != null || contract.getSignedAt() != null)) {
+            throw new AppException(ApiErrorCode.LEASE_PAYMENT_CYCLE_UPDATE_NOT_ALLOWED);
+        }
+
+        if (postSigningFinancialChange) {
+            return;
+        }
+
+        Integer invoiceCount = jdbcTemplate.queryForObject("""
+                        SELECT COUNT(*)
+                        FROM invoices
+                        WHERE lease_contract_id = ?
+                          AND status <> 'VOIDED'
+                        """,
+                Integer.class,
+                contract.getId()
+        );
+        if (invoiceCount != null && invoiceCount > 0) {
+            throw new AppException(ApiErrorCode.LEASE_PAYMENT_CYCLE_UPDATE_NOT_ALLOWED);
+        }
+    }
+
+    private boolean isPostSigningFinancialStatus(
+            LeaseContractEntity contract,
+            boolean renewalFlow
+    ) {
+        return List.of(LeaseStatus.SIGNED, LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON)
+                .contains(contract.getStatus())
+                || (contract.getStatus() == LeaseStatus.PENDING_SIGNATURE
+                && (contract.getSignedFile() != null || contract.getSignedAt() != null))
+                || (renewalFlow && contract.getStatus() == LeaseStatus.EXPIRED);
     }
 
     private void applyLifecycleStatusAfterTermsUpdate(LeaseContractEntity contract, LocalDate today) {

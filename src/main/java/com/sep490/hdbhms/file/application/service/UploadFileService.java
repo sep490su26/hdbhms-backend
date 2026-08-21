@@ -3,13 +3,12 @@ package com.sep490.hdbhms.file.application.service;
 import com.sep490.hdbhms.file.application.port.in.command.UploadFileCommand;
 import com.sep490.hdbhms.file.application.port.in.usecase.UploadFileUseCase;
 import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
+import com.sep490.hdbhms.file.application.port.out.FileStoragePort;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
-import com.sep490.hdbhms.file.infrastructure.utils.FileUtils;
 import com.sep490.hdbhms.shared.exception.ApiErrorCode;
 import com.sep490.hdbhms.shared.exception.AppException;
 import com.sep490.hdbhms.shared.utils.HashUtils;
-import com.sep490.hdbhms.shared.utils.ServerInfoUtils;
 import com.sep490.hdbhms.shared.utils.StringUtils;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -20,9 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,55 +29,40 @@ import java.util.UUID;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UploadFileService implements UploadFileUseCase {
     FileProperties fileProperties;
-    ServerInfoUtils serverInfoUtils;
     FileMetadataRepository fileMetadataRepository;
+    FileStoragePort fileStoragePort;
 
     @Override
     public FileMetadata execute(UploadFileCommand query) {
-        Path tempFilePath = null;
-        Path finalPath = null;
-        FileMetadata fileMetadata = null;
+        String storageKey = null;
         try {
             String sha256Checksum = HashUtils.sha256Hex(query.file().getInputStream());
-
             MultipartFile multipartFile = query.file();
             Long ownerId = query.ownerUserId();
-//            if (ownerId == null) {
-//                throw new AppException(ApiErrorCode.UNAUTHENTICATED);
-//            }
-            // Check for duplicate using the unique database constraint
+
             Optional<FileMetadata> duplicate = fileMetadataRepository.findByChecksum(sha256Checksum);
             if (duplicate.isPresent()) {
-                log.info("{}", duplicate.get());
+                log.info("Returning existing file for checksum {}", sha256Checksum);
                 return duplicate.get();
             }
 
             log.info("Uploading file: {}", multipartFile.getOriginalFilename());
-
             String fileName = UUID.randomUUID().toString();
-            // Prepare temporary directory
-            Path tempDirectory = Path.of(fileProperties.getTemp().getDirectory());
-            Files.createDirectories(tempDirectory);
-
             String fileExtension = StringUtils.getFilenameExtension(multipartFile.getOriginalFilename());
-            String localFilename = (fileExtension == null) ? fileName : fileName + "." + fileExtension;
-            String tempFilename = "temp_" + localFilename;
-            tempFilePath = tempDirectory.resolve(tempFilename).normalize().toAbsolutePath();
+            String storedFileName = fileExtension == null ? fileName : fileName + "." + fileExtension;
+            storageKey = buildStorageKey(storedFileName);
 
-            // Copy to temp file
-            try (var is = multipartFile.getInputStream()) {
-                Files.copy(is, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
+            String persistedStorageKey;
+            try (var inputStream = multipartFile.getInputStream()) {
+                persistedStorageKey = fileStoragePort.put(
+                        storageKey,
+                        inputStream,
+                        multipartFile.getSize(),
+                        multipartFile.getContentType()
+                );
             }
-            log.info("Recording file upload by user {}: {}", ownerId, multipartFile.getOriginalFilename());
 
-            Path fileDirectory = Path.of(fileProperties.getStorage().getDirectory());
-            Files.createDirectories(fileDirectory);
-            finalPath = fileDirectory.resolve(localFilename).normalize().toAbsolutePath();
-            Files.move(tempFilePath, finalPath, StandardCopyOption.REPLACE_EXISTING);
-            tempFilePath = null;
-
-            // Build metadata only after the file has a durable storage path.
-            fileMetadata = FileMetadata.of(
+            FileMetadata fileMetadata = FileMetadata.of(
                     ownerId,
                     multipartFile.getOriginalFilename(),
                     multipartFile.getContentType(),
@@ -90,27 +71,37 @@ public class UploadFileService implements UploadFileUseCase {
                     query.category(),
                     query.isSensitive()
             );
-            fileMetadata.setStorageKey(finalPath.toString());
-            log.info(fileMetadata.toString());
+            fileMetadata.setStorageKey(persistedStorageKey);
 
-            fileMetadata = fileMetadataRepository.save(fileMetadata);
-            log.info("{}", fileMetadata);
+            FileMetadata savedMetadata = fileMetadataRepository.save(fileMetadata);
             log.info("File uploaded successfully: {}", multipartFile.getOriginalFilename());
-            return fileMetadata;
+            return savedMetadata;
+        } catch (IOException exception) {
+            cleanupStoredFile(storageKey);
+            throw new AppException(ApiErrorCode.FILE_UPLOAD_FAILED, exception);
+        } catch (RuntimeException exception) {
+            cleanupStoredFile(storageKey);
+            throw exception;
+        }
+    }
 
-        } catch (IOException | AppException | NumberFormatException ex) {
-            FileUtils.cleanupTempFile(tempFilePath);
-            FileUtils.cleanupTempFile(finalPath);
-            // Only delete metadata if it was created but the file wasn't moved
-            if (fileMetadata != null && StringUtils.isEmpty(fileMetadata.getStorageKey()) && fileMetadata.getId() != null) {
-                fileMetadataRepository.deleteById(fileMetadata.getId());
-            }
+    private String buildStorageKey(String fileName) {
+        String keyPrefix = fileProperties.getStorage().getKeyPrefix();
+        if (StringUtils.isEmpty(keyPrefix)) {
+            keyPrefix = "files";
+        }
+        keyPrefix = keyPrefix.trim().replace('\\', '/').replaceAll("^/+|/+$", "");
+        return keyPrefix.isEmpty() ? fileName : keyPrefix + "/" + fileName;
+    }
 
-            throw new AppException(ApiErrorCode.UNDEFINED);
-        } catch (RuntimeException ex) {
-            FileUtils.cleanupTempFile(tempFilePath);
-            FileUtils.cleanupTempFile(finalPath);
-            throw ex;
+    private void cleanupStoredFile(String storageKey) {
+        if (storageKey == null) {
+            return;
+        }
+        try {
+            fileStoragePort.delete(storageKey);
+        } catch (IOException cleanupException) {
+            log.warn("Unable to clean up stored file {} after upload failure", storageKey, cleanupException);
         }
     }
 }

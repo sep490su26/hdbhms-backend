@@ -5,7 +5,7 @@ import com.sep490.hdbhms.file.application.port.out.FileMetadataRepository;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.config.FileProperties;
-import com.sep490.hdbhms.shared.utils.ServerInfoUtils;
+import com.sep490.hdbhms.file.infrastructure.storage.LocalFileStorageAdapter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
@@ -19,7 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 class UploadFileServiceTest {
 
@@ -38,7 +37,7 @@ class UploadFileServiceTest {
             public FileMetadata save(FileMetadata fileMetadata) {
                 saves.incrementAndGet();
                 assertNotNull(fileMetadata.getStorageKey());
-                assertTrue(Files.exists(Path.of(fileMetadata.getStorageKey())));
+                assertTrue(Files.exists(tempRoot.resolve("storage").resolve(fileMetadata.getStorageKey())));
                 return FileMetadata.builder()
                         .id(99L)
                         .ownerUserId(fileMetadata.getOwnerUserId())
@@ -74,8 +73,8 @@ class UploadFileServiceTest {
 
         UploadFileService service = new UploadFileService(
                 fileProperties,
-                mock(ServerInfoUtils.class),
-                repository
+                repository,
+                new LocalFileStorageAdapter(fileProperties)
         );
 
         MockMultipartFile file = new MockMultipartFile(
@@ -92,6 +91,6 @@ class UploadFileServiceTest {
         assertEquals(1, saves.get());
         assertEquals(99L, uploaded.getId());
         assertEquals(FileCategory.MAINTENANCE, uploaded.getCategory());
-        assertTrue(Files.exists(Path.of(uploaded.getStorageKey())));
+        assertTrue(Files.exists(tempRoot.resolve("storage").resolve(uploaded.getStorageKey())));
     }
 }
