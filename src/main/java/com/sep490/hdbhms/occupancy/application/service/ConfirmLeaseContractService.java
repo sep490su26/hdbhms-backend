@@ -2,6 +2,7 @@ package com.sep490.hdbhms.occupancy.application.service;
 
 import com.sep490.hdbhms.identityandaccess.application.port.out.PersonProfileRepository;
 import com.sep490.hdbhms.identityandaccess.domain.model.PersonProfile;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import com.sep490.hdbhms.occupancy.application.port.in.command.ConfirmLeaseContractCommand;
 import com.sep490.hdbhms.occupancy.application.port.in.usecase.ConfirmLeaseContractUseCase;
 import com.sep490.hdbhms.occupancy.application.port.out.LeaseContractRepository;
@@ -27,6 +28,7 @@ public class ConfirmLeaseContractService implements ConfirmLeaseContractUseCase 
     PromoteToTenantPort promoteToTenantPort;
     LeaseContractRepository leaseContractRepository;
     PersonProfileRepository personProfileRepository;
+    TenantAccountProvisioningService tenantAccountProvisioningService;
 
     @Override
     public void execute(ConfirmLeaseContractCommand command) {
@@ -39,6 +41,7 @@ public class ConfirmLeaseContractService implements ConfirmLeaseContractUseCase 
         PersonProfile personProfile = personProfileRepository
                 .findById(leaseContract.getPrimaryTenantProfileId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND));
+        tenantAccountProvisioningService.validateContractAccountIdentity(command.leaseContractId());
         Room room = roomRepository.findById(leaseContract.getRoomId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_NOT_FOUND));
         if (personProfile.getUserId() != null) {

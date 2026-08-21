@@ -533,7 +533,7 @@ public class LeaseContractManagementService {
     int deactivateTenantAccountsWithoutValidContract(Long contractId) {
         return jdbcTemplate.update("""
                 UPDATE users u
-                SET u.status = 'INACTIVE',
+                SET u.status = 'DORMANT',
                     u.updated_at = CURRENT_TIMESTAMP(6)
                 WHERE u.role = 'TENANT'
                   AND u.status = 'ACTIVE'

@@ -60,27 +60,100 @@ public class TenantAccountProvisioningService {
     JpaTenantAccountProvisioningRepository provisioningRepository;
     PlatformTransactionManager transactionManager;
 
+    /**
+     * Validates identity ownership without creating an account or changing a profile.
+     * This is used before payment and again immediately before contract activation.
+     */
+    @Transactional(readOnly = true)
+    public void validateIdentity(String phone, String email) {
+        PersonProfile existingProfile = personProfileRepository.findByPhone(phone).orElse(null);
+        if (existingProfile != null) {
+            validateProfileIdentity(existingProfile.getId(), phone, email);
+            return;
+        }
+        resolveExistingUser(null, phone, email);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateProfileIdentity(Long profileId, String phone, String email) {
+        resolveExistingUser(profileId, phone, email);
+    }
+
+    @Transactional(readOnly = true)
+    public void validateContractAccountIdentity(Long contractId) {
+        List<Long> profileIds = jdbcTemplate.query("""
+                        SELECT lc.primary_tenant_profile_id AS profile_id
+                        FROM lease_contracts lc
+                        WHERE lc.lease_contract_id = ?
+                          AND lc.deleted_at IS NULL
+                        UNION
+                        SELECT co.tenant_profile_id AS profile_id
+                        FROM contract_occupants co
+                        WHERE co.contract_id = ?
+                          AND co.tenant_profile_id IS NOT NULL
+                          AND co.status = 'ACTIVE'
+                        """,
+                (rs, rowNum) -> rs.getLong("profile_id"),
+                contractId,
+                contractId
+        );
+        if (profileIds.isEmpty()) {
+            throw new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND);
+        }
+        for (Long profileId : profileIds) {
+            PersonProfile profile = personProfileRepository.findById(profileId)
+                    .orElseThrow(() -> new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND));
+            validateProfileIdentity(profileId, profile.getPhone(), profile.getEmail());
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<TenantAccountProvisioningResponse> findProvisioningCandidates() {
-        return jdbcTemplate.query("""
-                        SELECT *
-                        FROM (
-                            %s
-                        ) account_candidates
-                        ORDER BY signed_at DESC, contract_id DESC, role_order ASC, full_name
-                        """.formatted(baseCandidateSql()),
-                (rs, rowNum) -> toResponse(rs)
-        );
+        return queryProvisioningCandidates(null);
     }
 
     @Transactional(readOnly = true)
     public PageResponse<TenantAccountProvisioningResponse> findProvisioningCandidates(Pageable pageable) {
-        List<TenantAccountProvisioningResponse> rows = findProvisioningCandidates();
+        return findProvisioningCandidates(pageable, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<TenantAccountProvisioningResponse> findProvisioningCandidates(
+            Pageable pageable,
+            List<Long> propertyIds
+    ) {
+        List<TenantAccountProvisioningResponse> rows = queryProvisioningCandidates(propertyIds);
         List<TenantAccountProvisioningResponse> pageRows = rows.stream()
                 .skip(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .toList();
         return PageResponse.fromPageToPageResponse(new PageImpl<>(pageRows, pageable, rows.size()));
+    }
+
+    private List<TenantAccountProvisioningResponse> queryProvisioningCandidates(List<Long> propertyIds) {
+        if (propertyIds != null && propertyIds.isEmpty()) {
+            return List.of();
+        }
+
+        String propertyFilter = "";
+        Object[] queryArguments = new Object[0];
+        if (propertyIds != null) {
+            String placeholders = String.join(",", propertyIds.stream().map(id -> "?").toList());
+            propertyFilter = "WHERE property_id IN (" + placeholders + ")";
+            queryArguments = propertyIds.toArray();
+        }
+
+        return jdbcTemplate.query("""
+                        SELECT *
+                        FROM (
+                            %s
+                        ) account_candidates
+                        %s
+                        ORDER BY signed_at DESC, contract_id DESC, role_order ASC, full_name
+                        """.formatted(baseCandidateSql(), propertyFilter),
+                (rs, rowNum) -> toResponse(rs),
+                queryArguments
+        );
     }
 
     public TenantAccountProvisioningResponse provisionPrimaryTenantAccount(
@@ -298,7 +371,6 @@ public class TenantAccountProvisioningService {
             }
             if (!List.of(
                     TenantAccountProvisioningStatus.NOT_PROVISIONED,
-                    TenantAccountProvisioningStatus.PENDING,
                     TenantAccountProvisioningStatus.FAILED,
                     TenantAccountProvisioningStatus.SENT
             ).contains(provisioning.getStatus())) {
@@ -313,7 +385,6 @@ public class TenantAccountProvisioningService {
         }
         if (!List.of(
                 TenantAccountProvisioningStatus.NOT_PROVISIONED,
-                TenantAccountProvisioningStatus.PENDING,
                 TenantAccountProvisioningStatus.FAILED
         ).contains(provisioning.getStatus())) {
             return PreparationOutcome.SKIPPED;
@@ -517,8 +588,17 @@ public class TenantAccountProvisioningService {
             TenantAccountProvisioningResponse occupant,
             User user
     ) {
+        boolean changed = false;
+        if (user.getStatus() == AccountStatus.DORMANT
+                || user.getStatus() == AccountStatus.PENDING_CONTRACT) {
+            user.reactivateForContract();
+            changed = true;
+        }
         if (user.getRole() != Role.TENANT) {
             user.assignRole(Role.TENANT);
+            changed = true;
+        }
+        if (changed) {
             userRepository.save(user);
         }
         ensureTenantMembership(occupant.getPropertyId(), user.getId());
@@ -560,7 +640,7 @@ public class TenantAccountProvisioningService {
     ) {
         String temporaryPasswordHash = passwordEncoder.encode(temporaryPassword);
         User user = User.newUser(
-                occupant.getPhone(),
+                normalizePhone(occupant.getPhone()),
                 resolveUserEmail(occupant),
                 temporaryPasswordHash,
                 Role.TENANT
@@ -573,28 +653,59 @@ public class TenantAccountProvisioningService {
             TenantAccountProvisioningResponse occupant,
             Long profileId
     ) {
-        Long linkedUserId = occupant.getUserId();
-        if (linkedUserId == null && profileId != null) {
-            linkedUserId = jdbcTemplate.query("""
-                            SELECT user_id
-                            FROM person_profiles
-                            WHERE person_profile_id = ?
-                              AND deleted_at IS NULL
-                            LIMIT 1
-                            """,
-                    rs -> rs.next() ? getLongOrNull(rs, "user_id") : null,
-                    profileId
-            );
+        return resolveExistingUser(profileId, occupant.getPhone(), resolveUserEmail(occupant));
+    }
+
+    private User resolveExistingUser(Long profileId, String phone, String email) {
+        PersonProfile profile = profileId == null
+                ? null
+                : personProfileRepository.findById(profileId)
+                .orElseThrow(() -> new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND));
+        if (profile != null && profile.getDeletedAt() != null) {
+            throw new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND);
         }
-        if (linkedUserId != null) {
-            return userRepository.findById(linkedUserId)
-                    .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
+        String normalizedPhone = normalizePhone(phone);
+        String normalizedEmail = resolveUserEmail(phone, email);
+
+        // A profile link is authoritative. Contact fields must not silently move it to another account.
+        if (profile != null && profile.getUserId() != null) {
+            User linkedUser = userRepository.findById(profile.getUserId())
+                    .orElseThrow(() -> new AppException(ApiErrorCode.TENANT_ACCOUNT_IDENTITY_CONFLICT));
+            validateReusableUser(linkedUser);
+            return linkedUser;
         }
-        return userRepository.findByPhoneOrEmailAndDeletedAtIsNull(
-                        occupant.getPhone(),
-                        resolveUserEmail(occupant)
-                )
-                .orElse(null);
+
+        User phoneUser = userRepository.findByPhoneAndDeletedAtIsNull(normalizedPhone).orElse(null);
+        User emailUser = userRepository.findByEmailAndDeletedAtIsNull(normalizedEmail).orElse(null);
+        if (phoneUser != null && emailUser != null
+                && !Objects.equals(phoneUser.getId(), emailUser.getId())) {
+            throw new AppException(ApiErrorCode.TENANT_ACCOUNT_IDENTITY_CONFLICT);
+        }
+
+        User candidate = phoneUser != null ? phoneUser : emailUser;
+        if (candidate == null) {
+            return null;
+        }
+        PersonProfile existingProfile = personProfileRepository.findByUserId(candidate.getId()).orElse(null);
+        if (existingProfile != null
+                && !Objects.equals(existingProfile.getId(), profileId)) {
+            throw new AppException(ApiErrorCode.TENANT_ACCOUNT_IDENTITY_CONFLICT);
+        }
+        validateReusableUser(candidate);
+        return candidate;
+    }
+
+    private void validateReusableUser(User user) {
+        if (user.getDeletedAt() != null) {
+            throw new AppException(ApiErrorCode.TENANT_ACCOUNT_IDENTITY_CONFLICT);
+        }
+        if (!List.of(
+                AccountStatus.ACTIVE,
+                AccountStatus.DORMANT,
+                AccountStatus.PENDING_CONTRACT
+        ).contains(user.getStatus())) {
+            throw new AppException(ApiErrorCode.TENANT_ACCOUNT_REACTIVATION_BLOCKED);
+        }
     }
 
     private void ensureTenantMembership(Long propertyId, Long userId) {
@@ -615,14 +726,7 @@ public class TenantAccountProvisioningService {
                 .orElse(null);
         if (existingUserProfile != null
                 && !Objects.equals(existingUserProfile.getId(), profileId)) {
-            log.info(
-                    "Skipping duplicate user profile link during tenant account provisioning. "
-                            + "profileId={}, existingProfileId={}, userId={}",
-                    profileId,
-                    existingUserProfile.getId(),
-                    userId
-            );
-            return;
+            throw new AppException(ApiErrorCode.TENANT_ACCOUNT_IDENTITY_CONFLICT);
         }
         profile.linkUser(userId);
         personProfileRepository.save(profile);
@@ -798,7 +902,7 @@ public class TenantAccountProvisioningService {
                     pp.full_name,
                     pp.phone,
                     pp.email,
-                    COALESCE(NULLIF(pp.email, ''), primary_pp.email, primary_user.email) AS recipient_email,
+                    NULLIF(pp.email, '') AS recipient_email,
                     co.occupant_role AS room_role,
                     co.status AS occupant_status,
                     GREATEST((
@@ -897,9 +1001,6 @@ public class TenantAccountProvisioningService {
                 JOIN person_profiles pp
                     ON pp.person_profile_id = co.tenant_profile_id
                     AND pp.deleted_at IS NULL
-                LEFT JOIN users primary_user
-                    ON primary_user.user_id = primary_pp.user_id
-                    AND primary_user.deleted_at IS NULL
                 LEFT JOIN users u ON u.user_id = pp.user_id AND u.deleted_at IS NULL
                 LEFT JOIN tenant_account_provisionings tap ON tap.tenant_profile_id = pp.person_profile_id
                 WHERE lc.deleted_at IS NULL
@@ -1001,10 +1102,14 @@ public class TenantAccountProvisioningService {
     }
 
     private String resolveUserEmail(TenantAccountProvisioningResponse occupant) {
-        if (!StringUtils.isEmpty(occupant.getEmail())) {
-            return StringUtils.normalize(occupant.getEmail());
+        return resolveUserEmail(occupant.getPhone(), occupant.getEmail());
+    }
+
+    private String resolveUserEmail(String phone, String email) {
+        if (!StringUtils.isEmpty(email)) {
+            return StringUtils.normalize(email);
         }
-        return "tenant-" + normalizePhone(occupant.getPhone()) + "@" + SYNTHETIC_TENANT_EMAIL_DOMAIN;
+        return "tenant-" + normalizePhone(phone) + "@" + SYNTHETIC_TENANT_EMAIL_DOMAIN;
     }
 
     private String normalizePhone(String phone) {

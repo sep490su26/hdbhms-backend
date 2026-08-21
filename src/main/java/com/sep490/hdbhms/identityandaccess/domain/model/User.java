@@ -99,8 +99,16 @@ public class User {
         if (this.status == AccountStatus.ACTIVE) {
             return;
         }
+        if (this.status != AccountStatus.PENDING_CONTRACT
+                && this.status != AccountStatus.DORMANT) {
+            throw new AppException(ApiErrorCode.TENANT_ACCOUNT_REACTIVATION_BLOCKED);
+        }
         this.status = AccountStatus.ACTIVE;
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public void reactivateForContract() {
+        activeAccount();
     }
 
     public void issueTemporaryPassword(String temporaryPasswordHash) {
@@ -109,7 +117,7 @@ public class User {
         }
         this.passwordHash = temporaryPasswordHash;
         this.mustChangePassword = true;
-        this.status = AccountStatus.ACTIVE;
+        reactivateForContract();
         this.updatedAt = LocalDateTime.now();
     }
 

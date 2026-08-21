@@ -30,6 +30,7 @@ import com.sep490.hdbhms.property.infrastructure.persistence.jpa.JpaRoomReposito
 import com.sep490.hdbhms.occupancy.infrastructure.web.dto.response.LeaseContractManagementResponse;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverStatus;
 import com.sep490.hdbhms.occupancy.domain.value_objects.HandoverType;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -63,6 +64,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
     JpaContractHandoverRecordRepository handoverRecordRepository;
     MeterUsageCalculator meterUsageCalculator;
     BillingManagementService billingManagementService;
+    TenantAccountProvisioningService tenantAccountProvisioningService;
 
     @Override
     public LeaseContractManagementResponse execute(
@@ -147,6 +149,7 @@ public class ActivateLeaseContractService implements ActivateLeaseContractUseCas
                 leaseContractRepository.saveAndFlush(previousContract);
             }
         }
+        tenantAccountProvisioningService.validateContractAccountIdentity(contract.getId());
         if (contract.getPreviousContract() == null || transferReSignContract) {
             saveContractStartReading(room, contract, request);
         }

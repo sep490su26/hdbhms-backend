@@ -45,7 +45,7 @@ public class UpdateMyTenantProfileService implements UpdateMyTenantProfileUseCas
             throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
-        PersonProfileEntity profile = personProfileRepository.findByUser_Id(userId)
+        PersonProfileEntity profile = personProfileRepository.findByUser_IdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.UNDEFINED));
 
         // Update Person Profile

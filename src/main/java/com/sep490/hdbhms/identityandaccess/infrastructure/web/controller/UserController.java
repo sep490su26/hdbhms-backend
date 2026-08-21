@@ -11,6 +11,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.PromotionRole;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.RolePromotionStatus;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.RolePromotionEntity;
+import com.sep490.hdbhms.identityandaccess.infrastructure.config.security.UserPrincipal;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.entity.UserEntity;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaRolePromotionRepository;
 import com.sep490.hdbhms.identityandaccess.infrastructure.persistence.jpa.JpaUserRepository;
@@ -38,6 +39,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -114,8 +116,12 @@ public class UserController {
     ApiResponse<PageResponse<TenantAccountProvisioningResponse>> getTenantAccountCandidates(
             @PageableDefault(size = 10) Pageable pageable
     ) {
+        UserPrincipal principal = currentPrincipal();
         return ApiResponse.<PageResponse<TenantAccountProvisioningResponse>>builder()
-                .data(tenantAccountProvisioningService.findProvisioningCandidates(pageable))
+                .data(tenantAccountProvisioningService.findProvisioningCandidates(
+                        pageable,
+                        principal.getRole() == Role.OWNER ? null : managerPropertyIds(principal.getId())
+                ))
                 .build();
     }
 
@@ -125,6 +131,7 @@ public class UserController {
             @PathVariable Long contractId,
             @RequestParam(defaultValue = "false") boolean retry
     ) {
+        assertOwnerOrAssignedManagerCanAccessContract(contractId);
         return ApiResponse.<TenantAccountProvisioningResponse>builder()
                 .message("Đã gửi thông tin tài khoản khách thuê thành công")
                 .data(tenantAccountProvisioningService.provisionPrimaryTenantAccount(contractId, retry))
@@ -138,6 +145,7 @@ public class UserController {
             @PathVariable Long profileId,
             @RequestBody TenantAccountAccessDisableRequest request
     ) {
+        assertOwnerOrAssignedManagerCanAccessContract(contractId);
         return ApiResponse.<TenantAccountProvisioningResponse>builder()
                 .message("Vô hiệu hóa quyền truy cập của người thuê thành công")
                 .data(tenantAccountProvisioningService.disableTenantContext(
@@ -352,6 +360,56 @@ public class UserController {
                         .code(rs.getString("property_code"))
                         .build(),
                 accountId);
+    }
+
+    private void assertOwnerOrAssignedManagerCanAccessContract(Long contractId) {
+        UserPrincipal principal = currentPrincipal();
+        if (principal.getRole() == Role.OWNER) {
+            return;
+        }
+        if (principal.getRole() != Role.MANAGER) {
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
+        }
+
+        Long propertyId = jdbcTemplate.query("""
+                        SELECT r.property_id
+                        FROM lease_contracts lc
+                        JOIN rooms r ON r.room_id = lc.room_id
+                        WHERE lc.lease_contract_id = ?
+                          AND lc.deleted_at IS NULL
+                        LIMIT 1
+                        """,
+                rs -> rs.next() ? rs.getLong("property_id") : null,
+                contractId
+        );
+        if (propertyId == null) {
+            throw new AppException(ApiErrorCode.CONTRACT_NOT_FOUND);
+        }
+        if (!managerPropertyIds(principal.getId()).contains(propertyId)) {
+            throw new AppException(ApiErrorCode.FORBIDDEN_OPERATION);
+        }
+    }
+
+    private UserPrincipal currentPrincipal() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new AppException(ApiErrorCode.UNAUTHENTICATED);
+        }
+        return principal;
+    }
+
+    private List<Long> managerPropertyIds(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return jpaRolePromotionRepository.findActivePropertyIds(
+                        userId,
+                        PromotionRole.MANAGER,
+                        RolePromotionStatus.ACTIVE
+                ).stream()
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
     }
 
     private void assignManagerProperty(Long accountId, Long propertyId) {

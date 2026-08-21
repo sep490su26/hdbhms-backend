@@ -32,6 +32,8 @@ public enum     ApiErrorCode {
     ACCOUNT_IS_NOT_ACTIVE(10507, "Account is not active", "Tài khoản không ở trạng thái hoạt động nên không thể thực hiện thao tác thay đổi.", HttpStatus.FORBIDDEN),
     ACCOUNT_IS_NOT_VERIFIED(10507, "Account is not verified", "Tài khoản chưa được xác thực nên một số thao tác không khả dụng.", HttpStatus.FORBIDDEN),
     ACCOUNT_IS_ALREADY_VERIFIED(10507, "Account is already verified", "Tài khoản đã được xác thực, không thể xác thực lại.", HttpStatus.CONFLICT),
+    TENANT_ACCOUNT_IDENTITY_CONFLICT(10305, "Tenant account identity conflict", "Thông tin phone/email của hồ sơ không xác định được một tài khoản duy nhất hoặc tài khoản đã thuộc hồ sơ khác.", HttpStatus.CONFLICT),
+    TENANT_ACCOUNT_REACTIVATION_BLOCKED(10306, "Tenant account reactivation blocked", "Tài khoản khách thuê đang bị khóa hoặc lưu trữ nên không thể tự động kích hoạt lại.", HttpStatus.FORBIDDEN),
     SAME_USERNAME(10304, "Same newUsername", "Tên đăng nhập mới phải khác tên đăng nhập hiện tại.", HttpStatus.BAD_REQUEST),
     CHANGE_USERNAME_NOT_ALLOWED_YET(10304, "Change username not allowed yet", "Chưa thể đổi tên đăng nhập trong vòng 30 ngày kể từ lần đổi gần nhất.", HttpStatus.BAD_REQUEST),
     CHANGE_EMAIL_NOT_ALLOWED_YET(10304, "Change phone not allowed yet", "Chưa thể đổi số điện thoại trong vòng 48 giờ kể từ lần đổi gần nhất.", HttpStatus.BAD_REQUEST),

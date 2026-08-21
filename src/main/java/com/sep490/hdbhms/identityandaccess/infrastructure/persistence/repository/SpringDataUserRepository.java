@@ -113,6 +113,18 @@ public class SpringDataUserRepository implements UserRepository {
                 .map(userPersistenceMapper::toDomain);
     }
 
+    @Override
+    public Optional<User> findByEmailAndDeletedAtIsNull(String email) {
+        return jpaUserRepository.findByEmailAndDeletedAtIsNull(email)
+                .map(userPersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<User> findByPhoneAndDeletedAtIsNull(String phone) {
+        return jpaUserRepository.findByPhoneAndDeletedAtIsNull(phone)
+                .map(userPersistenceMapper::toDomain);
+    }
+
 
     @Override
     public List<Long> findIdsByFullText(String keyword) {

@@ -13,6 +13,7 @@ import com.sep490.hdbhms.identityandaccess.domain.value_objects.AccountStatus;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.DocumentType;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Role;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import com.sep490.hdbhms.booking.application.port.out.CreateLeadOrAssignTenantPort;
 import com.sep490.hdbhms.booking.application.port.out.DepositAgreementRepository;
 import com.sep490.hdbhms.booking.application.port.out.DepositFormRepository;
@@ -48,6 +49,7 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
     SendPreCreatedAccountPort sendPreCreatedAccountPort;
     DepositAgreementRepository depositAgreementRepository;
     IdentityDocumentRepository identityDocumentRepository;
+    TenantAccountProvisioningService tenantAccountProvisioningService;
 
     @Override
     public void execute(DepositAgreement depositAgreement) {
@@ -60,6 +62,11 @@ public class CreateLeadOrAssignTenantAdapter implements CreateLeadOrAssignTenant
          * Tai khoan chi duoc cap sau khi hop dong thue offline ACTIVE va quan ly bam gui tai khoan.
          */
         PersonProfile personProfile = ensurePersonProfile(depositForm);
+        tenantAccountProvisioningService.validateProfileIdentity(
+                personProfile.getId(),
+                depositForm.getPhone(),
+                depositForm.getEmail()
+        );
         ensureIdentityDocument(personProfile, depositForm);
 
         depositAgreement.setDepositorPersonProfileId(personProfile.getId());

@@ -51,7 +51,7 @@ public class UserEntity {
     Role role = Role.LEAD;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "ENUM('PENDING_CONTRACT','ACTIVE','INACTIVE','REJECTED','CLOSED','ARCHIVED') DEFAULT 'PENDING_CONTRACT'")
+    @Column(nullable = false, columnDefinition = "ENUM('PENDING_CONTRACT','ACTIVE','DORMANT','INACTIVE','REJECTED','CLOSED','ARCHIVED') DEFAULT 'PENDING_CONTRACT'")
     @Builder.Default
     AccountStatus status = AccountStatus.PENDING_CONTRACT;
 

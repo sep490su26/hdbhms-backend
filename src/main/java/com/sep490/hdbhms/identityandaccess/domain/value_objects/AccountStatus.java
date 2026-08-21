@@ -6,6 +6,7 @@ import lombok.Getter;
 public enum AccountStatus {
     PENDING_CONTRACT("Chờ hợp đồng"),
     ACTIVE("Đang hoạt động"),
+    DORMANT("Tạm ngưng do không có hợp đồng"),
     INACTIVE("Ngừng hoạt động"),
     REJECTED("Bị từ chối"),
     CLOSED("Đã đóng"),

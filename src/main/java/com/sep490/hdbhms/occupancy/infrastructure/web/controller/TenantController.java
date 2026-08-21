@@ -91,7 +91,7 @@ public class TenantController {
             throw new AppException(ApiErrorCode.UNAUTHORIZED);
         }
 
-        PersonProfileEntity profile = personProfileRepository.findByUser_Id(userId)
+        PersonProfileEntity profile = personProfileRepository.findByUser_IdAndDeletedAtIsNull(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.USER_PROFILE_NOT_FOUND));
 
         FileMetadataEntity portrait = uploadIdentityFile(userId, portraitFile, FileCategory.PORTRAIT_PHOTO);

@@ -37,7 +37,7 @@ public class SpringDataPersonProfileRepository implements PersonProfileRepositor
 
     @Override
     public Optional<PersonProfile> findByUserId(Long userId) {
-        return jpaPersonProfileRepository.findByUser_Id(userId)
+        return jpaPersonProfileRepository.findByUser_IdAndDeletedAtIsNull(userId)
                 .map(personProfilePersistenceMapper::toDomain);
     }
 

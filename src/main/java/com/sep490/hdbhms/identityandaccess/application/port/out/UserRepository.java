@@ -29,6 +29,10 @@ public interface UserRepository {
 
     Optional<User> findByPhone(String phone);
 
+    Optional<User> findByEmailAndDeletedAtIsNull(String email);
+
+    Optional<User> findByPhoneAndDeletedAtIsNull(String phone);
+
     List<Long> findIdsByFullText(String keyword);
 
     List<Long> findIdsByRolesAndStatus(Collection<Role> roles, AccountStatus status);

@@ -14,6 +14,7 @@ import com.sep490.hdbhms.notification.application.port.out.UserMobileDeviceToken
 import com.sep490.hdbhms.notification.domain.model.NotificationDelivery;
 import com.sep490.hdbhms.notification.domain.model.NotificationOutbox;
 import com.sep490.hdbhms.notification.domain.value_objects.DeliveryStatus;
+import com.sep490.hdbhms.notification.domain.value_objects.OutboxStatus;
 import com.sep490.hdbhms.notification.infrastructure.external.EmailNotificationService;
 import com.sep490.hdbhms.notification.infrastructure.external.PushNotificationService;
 import com.sep490.hdbhms.notification.infrastructure.external.SmsNotificationService;
@@ -69,6 +70,7 @@ public class NotificationOutboxProcessor {
             default      -> log.warn("Unknown channel {} for outbox {}", outbox.getChannel(), outboxId);
         }
 
+        syncProvisioningOnFailure(outbox);
         notificationOutboxRepository.save(outbox);
     }
 
@@ -230,6 +232,30 @@ public class NotificationOutboxProcessor {
             provisioning.setSentAt(sentAt);
             provisioning.setFailedAt(null);
             provisioning.setFailureReason(null);
+            tenantAccountProvisioningRepository.save(provisioning);
+        }
+    }
+
+    private void syncProvisioningOnFailure(NotificationOutbox outbox) {
+        if (!isTenantAccountProvisioningOutbox(outbox)
+                || outbox.getStatus() != OutboxStatus.DEAD_LETTER) {
+            return;
+        }
+
+        LocalDateTime failedAt = LocalDateTime.now();
+        String failureReason = outbox.getLastError();
+        if (failureReason == null || failureReason.isBlank()) {
+            failureReason = "Khong the gui thong tin tai khoan";
+        }
+        failureReason = failureReason.substring(0, Math.min(failureReason.length(), 500));
+
+        for (TenantAccountProvisioningEntity provisioning : resolveProvisionings(outbox)) {
+            if (provisioning.getStatus() != TenantAccountProvisioningStatus.PENDING) {
+                continue;
+            }
+            provisioning.setStatus(TenantAccountProvisioningStatus.FAILED);
+            provisioning.setFailedAt(failedAt);
+            provisioning.setFailureReason(failureReason);
             tenantAccountProvisioningRepository.save(provisioning);
         }
     }

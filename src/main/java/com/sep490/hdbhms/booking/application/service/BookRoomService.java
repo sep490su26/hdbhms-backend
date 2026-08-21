@@ -6,6 +6,7 @@ import com.sep490.hdbhms.billingandpayment.domain.model.PaymentIntent;
 import com.sep490.hdbhms.file.domain.model.FileMetadata;
 import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import com.sep490.hdbhms.booking.application.port.in.command.SendDepositFormCommand;
 import com.sep490.hdbhms.booking.application.port.in.usecase.BookRoomUseCase;
 import com.sep490.hdbhms.booking.application.port.out.CreateRoomHoldTaskPort;
@@ -52,9 +53,11 @@ public class BookRoomService implements BookRoomUseCase {
     CreateRoomHoldTaskPort createRoomHoldTaskPort;
     RoomCommitmentChecker roomCommitmentChecker;
     RoomDepositLockService roomDepositLockService;
+    TenantAccountProvisioningService tenantAccountProvisioningService;
 
     @Override
     public PaymentIntent initDepositForm(SendDepositFormCommand command) {
+        tenantAccountProvisioningService.validateIdentity(command.phone(), command.email());
         ensureRoomAvailableForBooking(command.roomId(), command.expectedMoveInDate(), command.expectedLeaseSignDate());
         try {
             FileMetadata idFrontFileMetadata = uploadIdentityFilePort.execute(command.idFrontFile(), FileCategory.ID_CARD);

@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface JpaPersonProfileRepository extends JpaRepository<PersonProfileEntity, Long> {
-    Optional<PersonProfileEntity> findByUser_Id(Long userId);
+    Optional<PersonProfileEntity> findByUser_IdAndDeletedAtIsNull(Long userId);
     Optional<PersonProfileEntity> findFirstByUser_IdAndDeletedAtIsNullOrderByIdDesc(Long userId);
     Optional<PersonProfileEntity> findFirstByPhoneAndDeletedAtIsNull(String phone);
 }

@@ -138,7 +138,7 @@ class LeaseContractManagementServiceDraftTest {
         var sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbcTemplate).update(sqlCaptor.capture(), eq(99L), eq(99L), eq(99L));
         String sql = sqlCaptor.getValue();
-        assertTrue(sql.contains("SET u.status = 'INACTIVE'"));
+        assertTrue(sql.contains("SET u.status = 'DORMANT'"));
         assertTrue(sql.contains("u.role = 'TENANT'"));
         assertTrue(sql.contains("NOT EXISTS"));
         assertTrue(sql.contains("active_co.status = 'ACTIVE'"));

@@ -22,6 +22,7 @@ import com.sep490.hdbhms.file.domain.value_objects.FileCategory;
 import com.sep490.hdbhms.file.infrastructure.persistence.entity.FileMetadataEntity;
 import com.sep490.hdbhms.file.infrastructure.persistence.jpa.JpaFileMetadataRepository;
 import com.sep490.hdbhms.identityandaccess.application.port.out.OtpCodeGenerator;
+import com.sep490.hdbhms.identityandaccess.application.service.TenantAccountProvisioningService;
 import com.sep490.hdbhms.identityandaccess.domain.value_objects.Gender;
 import com.sep490.hdbhms.booking.application.port.out.CreateRoomHoldTaskPort;
 import com.sep490.hdbhms.booking.application.port.out.EarlyCancelRoomHoldTaskPort;
@@ -88,6 +89,7 @@ public class DepositBatchCheckoutService {
     ObjectMapper objectMapper;
     JdbcTemplate jdbcTemplate;
     RoomCommitmentChecker roomCommitmentChecker;
+    TenantAccountProvisioningService tenantAccountProvisioningService;
 
     @Transactional
     public BatchDepositCheckoutResponse checkout(
@@ -97,6 +99,7 @@ public class DepositBatchCheckoutService {
             MultipartFile portraitFile
     ) {
         validateRequest(request);
+        tenantAccountProvisioningService.validateIdentity(request.getPhone(), request.getEmail());
         List<Long> roomIds = request.getRooms().stream()
                 .map(BatchDepositCheckoutRequest.RoomRequest::getRoomId)
                 .sorted()
