@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 
@@ -51,6 +52,28 @@ public class LeaseContractWorkflowSupport {
         }
         if (depositAmount == null || depositAmount < 0) {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+    }
+
+    void validatePaymentCycleMatchesTerm(
+            LocalDate termStartDate,
+            LocalDate endDate,
+            Integer paymentCycleMonths
+    ) {
+        if (!Objects.equals(paymentCycleMonths, 3)) {
+            return;
+        }
+        if (termStartDate == null || endDate == null || !endDate.isAfter(termStartDate)) {
+            throw new AppException(ApiErrorCode.LEASE_PAYMENT_CYCLE_TERM_INVALID);
+        }
+
+        // Contract end dates are inclusive, so count through the following day.
+        long termMonths = ChronoUnit.MONTHS.between(
+                termStartDate.withDayOfMonth(1),
+                endDate.plusDays(1).withDayOfMonth(1)
+        );
+        if (termMonths <= 0 || termMonths % paymentCycleMonths != 0) {
+            throw new AppException(ApiErrorCode.LEASE_PAYMENT_CYCLE_TERM_INVALID);
         }
     }
 

@@ -115,6 +115,11 @@ public class ContractLifecycleChangeRequestService {
         LeaseContractEntity contract = getContract(leaseContractId);
         assertLifecycleAllowed(contract, RequestType.CONTRACT_RENEWAL);
         LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
+        workflowSupport.validatePaymentCycleMatchesTerm(
+                newStartDate,
+                newEndDate,
+                paymentCycleMonths
+        );
         return createChangeRequest(
                 principal,
                 contract,
@@ -194,6 +199,11 @@ public class ContractLifecycleChangeRequestService {
                 paymentCycleMonths,
                 monthlyRent,
                 contract.getDepositAmount()
+        );
+        workflowSupport.validatePaymentCycleMatchesTerm(
+                resolveRemainingTermStart(contract),
+                contract.getEndDate(),
+                paymentCycleMonths
         );
         Map<String, Object> payload = basePayload("CONTRACT_FINANCIAL_TERMS_ADJUSTMENT", contract);
         payload.put("monthlyRent", monthlyRent);
@@ -296,6 +306,13 @@ public class ContractLifecycleChangeRequestService {
         payload.put("depositAmount", depositAmount);
         payload.put("note", note);
         return payload;
+    }
+
+    private LocalDate resolveRemainingTermStart(LeaseContractEntity contract) {
+        LocalDate today = LocalDate.now();
+        return contract.getStartDate() != null && contract.getStartDate().isAfter(today)
+                ? contract.getStartDate()
+                : today;
     }
 
     private Map<String, Object> addCoOccupantPayload(

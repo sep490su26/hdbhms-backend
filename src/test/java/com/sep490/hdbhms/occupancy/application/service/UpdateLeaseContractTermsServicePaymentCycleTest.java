@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -132,6 +133,26 @@ class UpdateLeaseContractTermsServicePaymentCycleTest {
     }
 
     @Test
+    void rejectsThreeMonthCycleWhenRemainingTermIsNotDivisible() {
+        LeaseContractEntity contract = contract(LeaseStatus.ACTIVE);
+        contract.setEndDate(LocalDate.now().plusMonths(8));
+        UpdateLeaseContractTermsService service = service(contract, 0);
+
+        AppException exception = assertThrows(
+                AppException.class,
+                () -> service.execute(command(
+                        3,
+                        contract.getStartDate(),
+                        contract.getEndDate(),
+                        true,
+                        false
+                ))
+        );
+
+        assertEquals(ApiErrorCode.LEASE_PAYMENT_CYCLE_TERM_INVALID, exception.getApiErrorCode());
+    }
+
+    @Test
     void allowsRenewalFinancialTermsForExpiredContract() {
         LeaseContractEntity contract = contract(LeaseStatus.EXPIRED);
         UpdateLeaseContractTermsService service = service(contract, 0);
@@ -169,6 +190,7 @@ class UpdateLeaseContractTermsServicePaymentCycleTest {
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(11L))).thenReturn(0L);
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class), eq(11L))).thenReturn(invoiceCount);
         doNothing().when(workflowSupport).validateContractTerms(any(), any(), any(), any());
+        doCallRealMethod().when(workflowSupport).validatePaymentCycleMatchesTerm(any(), any(), any());
 
         return new UpdateLeaseContractTermsService(
                 repository,
@@ -203,10 +225,26 @@ class UpdateLeaseContractTermsServicePaymentCycleTest {
             boolean allowPostSigningFinancialChange,
             boolean allowPostSigningDateChange
     ) {
-        return new com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand(
-                11L,
+        return command(
+                paymentCycleMonths,
                 START_DATE,
                 END_DATE,
+                allowPostSigningFinancialChange,
+                allowPostSigningDateChange
+        );
+    }
+
+    private com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand command(
+            int paymentCycleMonths,
+            LocalDate startDate,
+            LocalDate endDate,
+            boolean allowPostSigningFinancialChange,
+            boolean allowPostSigningDateChange
+    ) {
+        return new com.sep490.hdbhms.occupancy.application.port.in.command.UpdateLeaseContractTermsCommand(
+                11L,
+                startDate,
+                endDate,
                 paymentCycleMonths,
                 3_000_000L,
                 3_000_000L,

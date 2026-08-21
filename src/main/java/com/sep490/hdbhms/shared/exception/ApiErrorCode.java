@@ -416,6 +416,7 @@ public enum     ApiErrorCode {
     LEASE_PAYMENT_CYCLE_UPDATE_NOT_ALLOWED(70164, "LEASE_PAYMENT_CYCLE_UPDATE_NOT_ALLOWED", "Chỉ được thay đổi chu kỳ thanh toán khi hợp đồng còn nháp/chờ ký, chưa ký và chưa phát sinh hóa đơn.", HttpStatus.CONFLICT),
     LEASE_SIGNED_TERMS_UPDATE_NOT_ALLOWED(70165, "LEASE_SIGNED_TERMS_UPDATE_NOT_ALLOWED", "Điều khoản tài chính của hợp đồng đã ký chỉ được điều chỉnh bởi chủ trọ hoặc sau khi yêu cầu được chủ trọ phê duyệt.", HttpStatus.CONFLICT),
     LEASE_CONTRACT_DATES_UPDATE_NOT_ALLOWED(70166, "LEASE_CONTRACT_DATES_UPDATE_NOT_ALLOWED", "Ngày bắt đầu và ngày kết thúc chỉ được chỉnh sửa trước khi hợp đồng được ký.", HttpStatus.CONFLICT),
+    LEASE_PAYMENT_CYCLE_TERM_INVALID(70167, "LEASE_PAYMENT_CYCLE_TERM_INVALID", "Thời hạn còn lại của hợp đồng phải là bội số của chu kỳ thanh toán.", HttpStatus.BAD_REQUEST),
     LEASE_TRANSFER_WORKFLOW_REQUIRED(70150, "LEASE_TRANSFER_WORKFLOW_REQUIRED", "Hợp đồng thuộc yêu cầu chuyển phòng; vui lòng xử lý bàn giao/kích hoạt trong luồng chuyển phòng.", HttpStatus.BAD_REQUEST),
     LEASE_SIGNED_HANDOVER_DOCUMENT_NOT_FOUND(70151, "LEASE_SIGNED_HANDOVER_DOCUMENT_NOT_FOUND", "Chưa có biên bản bàn giao đã ký.", HttpStatus.NOT_FOUND),
     SIGNED_HANDOVER_CONTRACT_NOT_FOUND(70152, "SIGNED_HANDOVER_CONTRACT_NOT_FOUND", "Không tìm thấy biên bản bàn giao đã ký.", HttpStatus.NOT_FOUND),

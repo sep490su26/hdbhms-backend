@@ -85,6 +85,16 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
                 && !isPostSigningFinancialStatus(contract, command.allowPostSigningDateChange())) {
             throw new AppException(ApiErrorCode.LEASE_SIGNED_TERMS_UPDATE_NOT_ALLOWED);
         }
+        if (paymentCycleChanged || startDateChanged || endDateChanged) {
+            LocalDate paymentCycleTermStart = preSigning || command.allowPostSigningDateChange()
+                    ? command.startDate()
+                    : resolveRemainingTermStart(contract);
+            workflowSupport.validatePaymentCycleMatchesTerm(
+                    paymentCycleTermStart,
+                    command.endDate(),
+                    command.paymentCycleMonths()
+            );
+        }
 
         workflowSupport.validateContractTerms(
                 command.startDate(),
@@ -204,6 +214,13 @@ public class UpdateLeaseContractTermsService implements UpdateLeaseContractTerms
                 || (contract.getStatus() == LeaseStatus.PENDING_SIGNATURE
                 && (contract.getSignedFile() != null || contract.getSignedAt() != null))
                 || (renewalFlow && contract.getStatus() == LeaseStatus.EXPIRED);
+    }
+
+    private LocalDate resolveRemainingTermStart(LeaseContractEntity contract) {
+        LocalDate today = LocalDate.now();
+        return contract.getStartDate() != null && contract.getStartDate().isAfter(today)
+                ? contract.getStartDate()
+                : today;
     }
 
     private void applyLifecycleStatusAfterTermsUpdate(LeaseContractEntity contract, LocalDate today) {
