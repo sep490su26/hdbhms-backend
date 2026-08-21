@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -32,8 +31,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
-
     UserRepository userRepository;
     PersonProfileRepository personProfileRepository;
     IdentityDocumentRepository identityDocumentRepository;
@@ -137,9 +134,7 @@ public class GetOnboardingStatusService implements GetOnboardingStatusUseCase {
     }
 
     private boolean hasRequiredProfileMetadata(PersonProfile personProfile) {
-        return hasText(personProfile.getPermanentAddress())
-                && hasText(personProfile.getEmail())
-                && EMAIL_PATTERN.matcher(personProfile.getEmail().trim()).matches();
+        return hasText(personProfile.getPermanentAddress());
     }
 
     private boolean hasActiveCccdImages(Long profileId) {

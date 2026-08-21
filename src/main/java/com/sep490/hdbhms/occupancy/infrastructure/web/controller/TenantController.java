@@ -93,7 +93,7 @@ public class TenantController {
             @RequestPart("issuedDate") String issuedDate,
             @RequestPart("issuedPlace") String issuedPlace,
             @RequestPart("permanentAddress") String permanentAddress,
-            @RequestPart("email") String email
+            @RequestPart(value = "email", required = false) String email
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         if (userId == null) {
@@ -123,7 +123,9 @@ public class TenantController {
 
         profile.setPortraitFile(portrait);
         profile.setPermanentAddress(metadata.permanentAddress());
-        profile.setEmail(metadata.email());
+        if (metadata.email() != null) {
+            profile.setEmail(metadata.email());
+        }
         personProfileRepository.save(profile);
 
         IdentityDocumentEntity identityDocument = identityDocumentRepository
@@ -197,10 +199,7 @@ public class TenantController {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
 
-        String normalizedEmail = normalizeRequired(email).toLowerCase(Locale.ROOT);
-        if (normalizedEmail.length() > 255 || !EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
-            throw new AppException(ApiErrorCode.INVALID_REQUEST);
-        }
+        String normalizedEmail = normalizeOptionalEmail(email);
 
         return new IdentityMetadata(
                 normalizedDocNumber,
@@ -216,6 +215,17 @@ public class TenantController {
             throw new AppException(ApiErrorCode.INVALID_REQUEST);
         }
         return value.trim();
+    }
+
+    private String normalizeOptionalEmail(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (normalized.length() > 255 || !EMAIL_PATTERN.matcher(normalized).matches()) {
+            throw new AppException(ApiErrorCode.INVALID_REQUEST);
+        }
+        return normalized;
     }
 
     private FileMetadataEntity uploadIdentityFile(
