@@ -10,30 +10,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LeaseContractDepositForfeiturePolicyTest {
 
     @Test
-    void forfeitsDepositWhenMoveOutIsBeforeEndDateWithLessThanOneMonthRemaining() {
-        assertTrue(LeaseContractManagementService.isShortTermEarlyTermination(
-                LocalDate.of(2026, 8, 31),
+    void forfeitsDepositWhenMoveOutIsLessThanOneMonthAway() {
+        assertTrue(LeaseContractManagementService.isShortNoticeMoveOut(
+                LocalDate.of(2026, 8, 20),
                 LocalDate.of(2026, 8, 1)
         ));
     }
 
     @Test
-    void doesNotForfeitDepositWhenExactlyOneMonthRemains() {
-        assertFalse(LeaseContractManagementService.isShortTermEarlyTermination(
-                LocalDate.of(2026, 8, 31),
-                LocalDate.of(2026, 7, 31)
+    void doesNotForfeitDepositWhenMoveOutIsExactlyOneMonthAway() {
+        assertFalse(LeaseContractManagementService.isShortNoticeMoveOut(
+                LocalDate.of(2026, 8, 20),
+                LocalDate.of(2026, 7, 20)
         ));
     }
 
     @Test
-    void doesNotForfeitDepositWhenMoveOutIsOnOrAfterContractEndDate() {
-        assertFalse(LeaseContractManagementService.isShortTermEarlyTermination(
-                LocalDate.of(2026, 8, 31),
-                LocalDate.of(2026, 8, 31)
+    void doesNotForfeitDepositWhenNoticeIsAfterMoveOutDate() {
+        assertFalse(LeaseContractManagementService.isShortNoticeMoveOut(
+                LocalDate.of(2026, 8, 20),
+                LocalDate.of(2026, 8, 21)
         ));
-        assertFalse(LeaseContractManagementService.isShortTermEarlyTermination(
-                LocalDate.of(2026, 8, 31),
-                LocalDate.of(2026, 9, 1)
+    }
+
+    @Test
+    void doesNotForfeitDepositWhenMoveOutDateIsMissing() {
+        assertFalse(LeaseContractManagementService.isShortNoticeMoveOut(
+                null,
+                LocalDate.of(2026, 8, 1)
         ));
     }
 }

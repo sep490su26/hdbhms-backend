@@ -21,7 +21,8 @@ public class StartLeaseLiquidationProcessingService implements StartLeaseLiquida
         return leaseContractManagementService.startLiquidationProcessing(
                 command.leaseContractId(),
                 command.liquidationDate(),
-                command.reason()
+                command.reason(),
+                command.noticeDate()
         );
     }
 }

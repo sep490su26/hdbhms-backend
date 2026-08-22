@@ -51,7 +51,8 @@ public class ContractLifecycleChangeRequestDecisionHandler implements ChangeRequ
             startLeaseLiquidationProcessingUseCase.execute(new StartLeaseLiquidationProcessingCommand(
                     request.getTargetId(),
                     localDate(payload.get("liquidationDate")),
-                    string(payload.get("reason"))
+                    string(payload.get("reason")),
+                    request.getCreatedAt() == null ? null : request.getCreatedAt().toLocalDate()
             ));
             return;
         }

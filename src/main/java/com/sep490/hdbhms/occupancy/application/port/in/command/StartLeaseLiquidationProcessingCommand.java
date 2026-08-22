@@ -5,6 +5,7 @@ import java.time.LocalDate;
 public record StartLeaseLiquidationProcessingCommand(
         Long leaseContractId,
         LocalDate liquidationDate,
-        String reason
+        String reason,
+        LocalDate noticeDate
 ) {
 }

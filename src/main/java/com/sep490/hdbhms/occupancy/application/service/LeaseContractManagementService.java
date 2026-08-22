@@ -587,7 +587,8 @@ public class LeaseContractManagementService {
     public LeaseContractManagementResponse startLiquidationProcessing(
             Long leaseContractId,
             LocalDate liquidationDate,
-            String reason
+            String reason,
+            LocalDate noticeDate
     ) {
         lockContractAndRoom(leaseContractId);
         LeaseContractEntity contract = leaseContractRepository.findById(leaseContractId)
@@ -609,6 +610,10 @@ public class LeaseContractManagementService {
             throw new AppException(ApiErrorCode.LEASE_ROOM_REQUIRED);
         }
         LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
+
+        if (contract.getIntentionRecordedAt() == null && noticeDate != null) {
+            contract.setIntentionRecordedAt(noticeDate.atStartOfDay());
+        }
 
         LocalDate finalLiquidationDate = liquidationDate != null ? liquidationDate : LocalDate.now();
         validateLiquidationDate(contract, finalLiquidationDate);
@@ -1061,6 +1066,10 @@ public class LeaseContractManagementService {
         }
         LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, contract.getId());
 
+        if (contract.getIntentionRecordedAt() == null) {
+            contract.setIntentionRecordedAt(LocalDateTime.now());
+        }
+
         Long depositAmount = resolveLiquidationDepositAmount(contract);
         ContractLiquidationEntity liquidation = contractLiquidationRepository.findByContract_Id(contract.getId())
                 .orElseGet(() -> ContractLiquidationEntity.builder()
@@ -1386,15 +1395,15 @@ public class LeaseContractManagementService {
         return safe(contract.getDepositAmount());
     }
 
-    static boolean isShortTermEarlyTermination(
-            LocalDate contractEndDate,
-            LocalDate liquidationDate
+    static boolean isShortNoticeMoveOut(
+            LocalDate moveOutDate,
+            LocalDate noticeDate
     ) {
-        if (contractEndDate == null || liquidationDate == null) {
+        if (moveOutDate == null || noticeDate == null) {
             return false;
         }
-        return liquidationDate.isBefore(contractEndDate)
-                && liquidationDate.isAfter(contractEndDate.minusMonths(1));
+        return !noticeDate.isAfter(moveOutDate)
+                && noticeDate.isAfter(moveOutDate.minusMonths(1));
     }
 
     private LiquidationDepositSettlement calculateLiquidationDepositSettlement(
@@ -1410,11 +1419,14 @@ public class LeaseContractManagementService {
         if (depositCarriedForward) {
             return new LiquidationDepositSettlement(safeDepositAmount, 0L, null);
         }
-        if (isShortTermEarlyTermination(contract == null ? null : contract.getEndDate(), liquidationDate)) {
+        LocalDate noticeDate = contract == null || contract.getIntentionRecordedAt() == null
+                ? LocalDate.now()
+                : contract.getIntentionRecordedAt().toLocalDate();
+        if (isShortNoticeMoveOut(liquidationDate, noticeDate)) {
             return new LiquidationDepositSettlement(
                     safeDepositAmount,
                     safeDepositAmount,
-                    "Khách chấm dứt hoặc trả phòng trước hạn khi hợp đồng còn dưới 1 tháng."
+                    "Yêu cầu chuyển đi được gửi trước ngày chuyển đi dưới 1 tháng."
             );
         }
         return new LiquidationDepositSettlement(safeDepositAmount, 0L, null);
