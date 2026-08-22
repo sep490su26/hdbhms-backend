@@ -379,7 +379,7 @@ JOIN hdbhms.meter_readings reading
   ON reading.meter_reading_id = line.meter_reading_id
 SET line.quantity = CAST(CEILING(GREATEST(reading.current_value - reading.previous_value, 0)) AS UNSIGNED),
     line.unit_price = 3500,
-    line.description = 'Electricity room 401 July 2026'
+    line.description = 'Tiền điện phòng 401 kỳ 07/2026'
 WHERE invoice.invoice_code = 'HD_P401_01_07_2026_DV'
   AND line.line_type = 'ELECTRICITY'
   AND reading.reading_period = '2026-07';

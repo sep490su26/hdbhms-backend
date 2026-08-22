@@ -33,10 +33,13 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
     public WebAuthentication execute(RefreshAccessTokenCommand command, HttpServletRequest request, HttpServletResponse response) {
         var sessionId = tokenProvider.getSessionIdFromCookie(request);
         if (sessionId == null || sessionId.isBlank()) {
+            sessionId = command.sessionId();
+        }
+        if (sessionId == null || sessionId.isBlank()) {
             throw new AppException(ApiErrorCode.UNAUTHENTICATED);
         }
 
-        var refreshToken = tokenProvider.getRefreshToken(request, true);
+        var refreshToken = tokenProvider.getRefreshToken(sessionId, true);
         log.info("Refreshing sessionId: {}", refreshToken);
         try {
             tokenProvider.verifyToken(refreshToken, true);
@@ -51,7 +54,7 @@ public class RefreshAccessTokenService implements RefreshAccessTokenUseCase {
             tokenProvider.clearToken(accessToken, false);
         }
 
-        Long userId = tokenProvider.getUserId(request);
+        Long userId = tokenProvider.getUserId(sessionId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.ACCOUNT_NOT_FOUND));
         String newAccessToken = tokenProvider.createAccessToken(

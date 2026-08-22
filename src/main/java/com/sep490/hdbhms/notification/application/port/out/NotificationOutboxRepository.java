@@ -18,10 +18,59 @@ public interface NotificationOutboxRepository {
 
     List<NotificationOutbox> findNextNotificationsCursor(Long userId, NotificationChannel channel, long after, int limit);
 
+    default List<NotificationOutbox> findNextNotificationsCursor(
+            Long userId,
+            NotificationChannel channel,
+            long after,
+            int limit,
+            Long roomId
+    ) {
+        return findNextNotificationsCursor(userId, channel, after, limit);
+    }
+
+    default List<NotificationOutbox> findNextNotificationsCursor(
+            Long userId,
+            NotificationChannel channel,
+            long after,
+            int limit,
+            Long roomId,
+            String roomCode
+    ) {
+        return findNextNotificationsCursor(userId, channel, after, limit, roomId);
+    }
+
     long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel);
+
+    default long countByRecipientUserIdAndChannelAndIsReadFalse(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode
+    ) {
+        return countByRecipientUserIdAndChannelAndIsReadFalse(userId, channel);
+    }
 
     void markAllAsRead(Long userId, NotificationChannel channel);
     void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt);
+
+    default void markAllAsRead(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            LocalDateTime readAt
+    ) {
+        markAllAsRead(userId, channel, readAt);
+    }
+
+    default void markAllAsRead(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode,
+            LocalDateTime readAt
+    ) {
+        markAllAsRead(userId, channel, roomId, readAt);
+    }
     void markAllAsRead(Long userId, LocalDateTime readAt);
 
     void markTargetAsRead(Long userId, String targetType, Long targetId, LocalDateTime readAt);

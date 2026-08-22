@@ -14,5 +14,24 @@ public interface NotificationDeliveryRepository {
 
     void markReadByRecipientUserIdAndChannel(Long userId, NotificationChannel channel, LocalDateTime readAt);
 
+    default void markReadByRecipientUserIdAndChannel(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            LocalDateTime readAt
+    ) {
+        markReadByRecipientUserIdAndChannel(userId, channel, readAt);
+    }
+
+    default void markReadByRecipientUserIdAndChannel(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode,
+            LocalDateTime readAt
+    ) {
+        markReadByRecipientUserIdAndChannel(userId, channel, roomId, readAt);
+    }
+
     void markReadByRecipientUserIdAndTarget(Long userId, String targetType, Long targetId, LocalDateTime readAt);
 }

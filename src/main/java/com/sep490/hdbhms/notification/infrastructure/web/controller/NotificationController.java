@@ -40,11 +40,20 @@ public class NotificationController {
 
     @GetMapping("/unread-count")
     public ApiResponse<Long> getUnreadCount(
-            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
+            @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) String roomCode
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         NotificationChannel channel = resolveChannel(clientType);
-        return ApiResponse.<Long>builder().data(notificationQueryUseCase.getUnreadCount(userId, channel)).build();
+        return ApiResponse.<Long>builder()
+                .data(notificationQueryUseCase.getUnreadCount(
+                        userId,
+                        channel,
+                        normalizeRoomId(roomId),
+                        normalizeRoomCode(roomCode)
+                ))
+                .build();
     }
 
     @GetMapping
@@ -79,12 +88,21 @@ public class NotificationController {
     public ApiResponse<NotificationScrollResponse> getNotificationsMobile(
             @RequestHeader("X-Client-Type") String clientType,
             @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(defaultValue = "0") long after) {
+            @RequestParam(defaultValue = "0") long after,
+            @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) String roomCode) {
 
         Long userId = AuthUtils.getCurrentAuthenticationId();
         NotificationChannel channel = resolveChannel(clientType);
 
-        List<NotificationOutbox> rows = notificationQueryUseCase.getNotificationsMobile(userId, channel, after, limit + 1);
+        List<NotificationOutbox> rows = notificationQueryUseCase.getNotificationsMobile(
+                userId,
+                channel,
+                after,
+                limit + 1,
+                normalizeRoomId(roomId),
+                normalizeRoomCode(roomCode)
+        );
 
         boolean hasMore = rows.size() > limit;
         if (hasMore) {
@@ -107,11 +125,18 @@ public class NotificationController {
 
     @PostMapping("/read-all")
     public ApiResponse<Void> markAllAsRead(
-            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
+            @RequestParam(required = false) Long roomId,
+            @RequestParam(required = false) String roomCode
     ) {
         Long userId = AuthUtils.getCurrentAuthenticationId();
         NotificationChannel channel = resolveChannel(clientType);
-        manageNotificationUseCase.markAllAsRead(userId, channel);
+        manageNotificationUseCase.markAllAsRead(
+                userId,
+                channel,
+                normalizeRoomId(roomId),
+                normalizeRoomCode(roomCode)
+        );
         return ApiResponse.<Void>builder().build();
     }
 
@@ -159,5 +184,13 @@ public class NotificationController {
             return NotificationChannel.PUSH;
         }
         return NotificationChannel.WEB;
+    }
+
+    private Long normalizeRoomId(Long roomId) {
+        return roomId != null && roomId > 0 ? roomId : null;
+    }
+
+    private String normalizeRoomCode(String roomCode) {
+        return roomCode == null || roomCode.isBlank() ? null : roomCode.trim();
     }
 }

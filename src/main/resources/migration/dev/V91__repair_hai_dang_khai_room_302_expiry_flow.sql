@@ -73,11 +73,11 @@ SET room.current_status = CASE room.room_code
     END,
     room.public_note = CASE room.room_code
         WHEN '301' THEN NULL
-        WHEN '302' THEN 'Contract expires on 31/10/2026; tenant intention is pending.'
+        WHEN '302' THEN 'Hợp đồng hết hạn ngày 31/10/2026; đang chờ người thuê phản hồi.'
     END,
     room.internal_note = CASE room.room_code
-        WHEN '301' THEN 'Active Khai contract; not part of the expiry demo.'
-        WHEN '302' THEN 'Expiry demo: first reminder sent; second reminder due on 31/08/2026.'
+        WHEN '301' THEN 'Hợp đồng đang hiệu lực; không thuộc nhóm hợp đồng sắp hết hạn.'
+        WHEN '302' THEN 'Đã gửi nhắc lần đầu; lần nhắc tiếp theo dự kiến ngày 31/08/2026.'
     END,
     room.updated_at = @hdd1_fix_now
 WHERE room.property_id = @hdd1_fix_property_id
@@ -138,9 +138,9 @@ SELECT
     contract.lease_contract_id,
     recipient.recipient_user_id,
     channel.channel,
-    CONCAT('Contract room ', room.room_code, ' is expiring soon'),
-    CONCAT('Contract ', contract.contract_code, ' for room ', room.room_code,
-           ' expires on ', contract.end_date, ' and tenant intention is pending.'),
+    CONCAT('Hợp đồng phòng ', room.room_code, ' sắp hết hạn'),
+    CONCAT('Hợp đồng ', contract.contract_code, ' của phòng ', room.room_code,
+           ' hết hạn ngày ', DATE_FORMAT(contract.end_date, '%d/%m/%Y'), '. Người thuê chưa phản hồi ý định.'),
     JSON_OBJECT(
         'contractId', contract.lease_contract_id,
         'contractCode', contract.contract_code,
@@ -210,9 +210,10 @@ INSERT INTO hdbhms.notification_outbox
 SELECT
     'LEASE_EXPIRY_REMINDER_FIRST', 'CONTRACT', contract.lease_contract_id,
     recipient.recipient_user_id, 'PUSH',
-    CONCAT('Contract ', contract.contract_code, ' expires soon'),
-    CONCAT('Room ', room.room_code, ' expires on ', contract.end_date,
-           '. Please choose renewal, transfer, or move-out.'),
+    CONCAT('Hợp đồng ', contract.contract_code, ' sắp hết hạn'),
+    CONCAT('Phòng ', room.room_code, ' hết hạn hợp đồng ngày ',
+           DATE_FORMAT(contract.end_date, '%d/%m/%Y'),
+           '. Vui lòng chọn gia hạn, chuyển phòng hoặc chuyển đi.'),
     JSON_OBJECT(
         'contractId', contract.lease_contract_id,
         'contractCode', contract.contract_code,

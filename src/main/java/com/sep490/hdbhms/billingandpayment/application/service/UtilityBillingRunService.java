@@ -93,7 +93,7 @@ public class UtilityBillingRunService {
     static final String UTILITY_METER_READING_PERIOD_OPENED_EVENT = "UTILITY_METER_READING_PERIOD_OPENED";
     static final long DEFAULT_SERVICE_FEE_WAIVE_ELECTRICITY_THRESHOLD =
             MeterReadingAnomalyPolicy.LOW_ELECTRICITY_AMOUNT_THRESHOLD;
-    static final String ELECTRICITY_WAIVE_REASON = MeterReadingAnomalyPolicy.LOW_ELECTRICITY_AMOUNT_MESSAGE;
+    static final String LOW_ELECTRICITY_REVIEW_REASON = MeterReadingAnomalyPolicy.LOW_ELECTRICITY_AMOUNT_MESSAGE;
     static final DateTimeFormatter LEGACY_PERIOD = DateTimeFormatter.ofPattern("M/uuuu");
     static final DateTimeFormatter METER_READING_PERIOD = DateTimeFormatter.ofPattern("MM-uuuu");
 
@@ -740,7 +740,7 @@ public class UtilityBillingRunService {
         }
 
         Charge charge = buildCharge(electricity, UtilityType.ELECTRICITY);
-        if (!charge.waived()) {
+        if (charge.warning() != null || charge.amount() >= DEFAULT_SERVICE_FEE_WAIVE_ELECTRICITY_THRESHOLD) {
             return;
         }
 
@@ -749,7 +749,7 @@ public class UtilityBillingRunService {
                         electricity.getId(),
                         AnomalyType.OTHER
                 )
-                .map(anomaly -> ELECTRICITY_WAIVE_REASON.equals(anomaly.getMessage()))
+                .map(anomaly -> LOW_ELECTRICITY_REVIEW_REASON.equals(anomaly.getMessage()))
                 .orElse(false);
         if (alreadyDetected) {
             return;
@@ -760,7 +760,7 @@ public class UtilityBillingRunService {
                 .meterReading(electricity)
                 .anomalyType(AnomalyType.OTHER)
                 .severity(AnomalySeverity.MEDIUM)
-                .message(ELECTRICITY_WAIVE_REASON)
+                .message(LOW_ELECTRICITY_REVIEW_REASON)
                 .build());
     }
 
@@ -795,7 +795,7 @@ public class UtilityBillingRunService {
                 contract,
                 room.getProperty().getId(),
                 period,
-                electricityCharge.calculatedAmount()
+                electricityCharge.amount()
         )
                 : ServiceFeeCharge.empty();
         long subtotal = electricityCharge.amount() + rentCharge.amount() + serviceFeeCharge.amount();
@@ -888,25 +888,15 @@ public class UtilityBillingRunService {
         );
         int quantity = billableQuantity(usage, tariff.freeAllowance());
         long calculatedAmount = (long) quantity * tariff.unitPrice();
-        UtilityTariffSnapshot serviceFeeTariff = readTariff(
-                reading.getRoom().getProperty().getId(),
-                UtilityType.SERVICE_FEE,
-                reading.getReadingDate()
-        );
-        long threshold = serviceFeeTariff.serviceFeeWaiveElectricityThreshold() == null
-                ? DEFAULT_SERVICE_FEE_WAIVE_ELECTRICITY_THRESHOLD
-                : serviceFeeTariff.serviceFeeWaiveElectricityThreshold();
-        boolean waived = utilityType == UtilityType.ELECTRICITY && calculatedAmount < threshold;
         return new Charge(
                 previous,
                 current,
                 usage,
-                waived ? 0 : quantity,
+                quantity,
                 tariff.unitPrice(),
-                waived ? 0L : calculatedAmount,
                 calculatedAmount,
-                waived,
-                waived ? ELECTRICITY_WAIVE_REASON : null,
+                false,
+                null,
                 null
         );
     }
@@ -1509,7 +1499,7 @@ public class UtilityBillingRunService {
                     tariff.unitPrice(),
                     0L,
                     true,
-                    "Ph\u00ed d\u1ecbch v\u1ee5 \u0111\u01b0\u1ee3c mi\u1ec5n v\u00ec ti\u1ec1n \u0111i\u1ec7n < 100.000\u0111",
+                    serviceFeeWaiveReason(tariff.serviceFeeWaiveElectricityThreshold()),
                     true
             );
         }
@@ -1524,6 +1514,12 @@ public class UtilityBillingRunService {
 
     static boolean isServiceFeeWaived(long electricityAmount, Long threshold) {
         return threshold != null && threshold > 0L && electricityAmount < threshold;
+    }
+
+    static String serviceFeeWaiveReason(long threshold) {
+        return "Ph\u00ed d\u1ecbch v\u1ee5 \u0111\u01b0\u1ee3c mi\u1ec5n v\u00ec ti\u1ec1n \u0111i\u1ec7n d\u01b0\u1edbi "
+                + String.format(Locale.ROOT, "%,d", threshold).replace(',', '.')
+                + " VND; ti\u1ec1n \u0111i\u1ec7n v\u1eabn \u0111\u01b0\u1ee3c thu.";
     }
 
     static boolean isServiceFeeDue(YearMonth billingPeriod, YearMonth chargeStartPeriod, int paymentCycleMonths) {
@@ -1900,7 +1896,6 @@ public class UtilityBillingRunService {
             int quantity,
             long unitPrice,
             long amount,
-            long calculatedAmount,
             boolean waived,
             String waiveReason,
             String warning
@@ -1914,7 +1909,7 @@ public class UtilityBillingRunService {
                 long amount,
                 String warning
         ) {
-            this(previous, current, usage, quantity, unitPrice, amount, amount, false, null, warning);
+            this(previous, current, usage, quantity, unitPrice, amount, false, null, warning);
         }
 
         static Charge empty() {

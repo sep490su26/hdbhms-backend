@@ -84,7 +84,7 @@ JOIN tmp_hdd1_khai_additions addition
   ON addition.room_code = room.room_code
 SET occupant.status = 'MOVED_OUT',
     occupant.move_out_date = DATE(@hdd1_seed_now),
-    occupant.disabled_reason = 'Reassigned to Nguyen Van Khai in the August seed.',
+    occupant.disabled_reason = 'Đã thay người đứng tên trong dữ liệu mẫu tháng 08/2026.',
     occupant.disabled_by = @hdd1_manager_id,
     occupant.disabled_at = @hdd1_seed_now
 WHERE room.property_id = @hdd1_property_id
@@ -201,7 +201,7 @@ JOIN tmp_hdd1_release_rooms release_room
   ON release_room.room_code = room.room_code
 SET occupant.status = 'MOVED_OUT',
     occupant.move_out_date = DATE(@hdd1_seed_now),
-    occupant.disabled_reason = 'Room released in the August seed.',
+    occupant.disabled_reason = 'Phòng đã được giải phóng trong dữ liệu mẫu tháng 08/2026.',
     occupant.disabled_by = @hdd1_manager_id,
     occupant.disabled_at = @hdd1_seed_now
 WHERE room.property_id = @hdd1_property_id
@@ -237,7 +237,7 @@ INSERT INTO hdbhms.room_status_history
 SELECT room.room_id,
        room.current_status,
        'VACANT',
-       'August seed room release completed.',
+       'Đã giải phóng phòng trong dữ liệu mẫu tháng 08/2026.',
        @hdd1_manager_id,
        @hdd1_seed_now
 FROM hdbhms.rooms room
@@ -250,7 +250,7 @@ WHERE room.property_id = @hdd1_property_id
       FROM hdbhms.room_status_history existing_history
       WHERE existing_history.room_id = room.room_id
         AND existing_history.to_status = 'VACANT'
-        AND existing_history.reason = 'August seed room release completed.'
+        AND existing_history.reason = 'Đã giải phóng phòng trong dữ liệu mẫu tháng 08/2026.'
   );
 
 UPDATE hdbhms.rooms room

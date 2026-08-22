@@ -18,7 +18,7 @@ import java.util.List;
 public class MeterReadingAnomalyPolicy {
     public static final long LOW_ELECTRICITY_AMOUNT_THRESHOLD = 100_000L;
     public static final String LOW_ELECTRICITY_AMOUNT_MESSAGE =
-            "Ti\u1ec1n \u0111i\u1ec7n t\u00ednh ra d\u01b0\u1edbi 100.000\u0111; c\u1ea7n ki\u1ec3m tra tr\u01b0\u1edbc khi mi\u1ec5n ti\u1ec1n \u0111i\u1ec7n v\u00e0 ph\u00ed d\u1ecbch v\u1ee5.";
+            "Ti\u1ec1n \u0111i\u1ec7n t\u00ednh ra d\u01b0\u1edbi 100.000\u0111; c\u1ea7n ki\u1ec3m tra. Ch\u1ec9 mi\u1ec5n ph\u00ed d\u1ecbch v\u1ee5, ti\u1ec1n \u0111i\u1ec7n v\u1eabn \u0111\u01b0\u1ee3c thu.";
 
     MeterReadingAnomalySettingsProvider settingsProvider;
 

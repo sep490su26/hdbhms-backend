@@ -65,8 +65,45 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
     }
 
     @Override
+    public List<NotificationOutbox> findNextNotificationsCursor(
+            Long userId,
+            com.sep490.hdbhms.notification.domain.value_objects.NotificationChannel channel,
+            long after,
+            int limit,
+            Long roomId,
+            String roomCode
+    ) {
+        return jpaNotificationOutboxRepository.findNextNotificationsCursorByRoomId(
+                        userId,
+                        channel.name(),
+                        after,
+                        roomId,
+                        roomCode,
+                        org.springframework.data.domain.PageRequest.of(0, limit)
+                )
+                .stream()
+                .map(notificationOutboxPersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public long countByRecipientUserIdAndChannelAndIsReadFalse(Long userId, NotificationChannel channel) {
         return jpaNotificationOutboxRepository.countByRecipientUser_IdAndChannelAndIsReadFalse(userId, channel);
+    }
+
+    @Override
+    public long countByRecipientUserIdAndChannelAndIsReadFalse(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode
+    ) {
+        return jpaNotificationOutboxRepository.countByRecipientUser_IdAndChannelAndIsReadFalseByRoom(
+                userId,
+                channel.name(),
+                roomId,
+                roomCode
+        );
     }
 
     @Override
@@ -79,6 +116,24 @@ public class SpringDataNotificationOutboxRepository implements NotificationOutbo
     @Transactional
     public void markAllAsRead(Long userId, NotificationChannel channel, LocalDateTime readAt) {
         jpaNotificationOutboxRepository.markAllAsRead(userId, channel, readAt);
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsRead(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode,
+            LocalDateTime readAt
+    ) {
+        jpaNotificationOutboxRepository.markAllAsReadByRoomId(
+                userId,
+                channel.name(),
+                roomId,
+                roomCode,
+                readAt
+        );
     }
 
     @Override

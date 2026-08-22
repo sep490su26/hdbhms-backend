@@ -158,8 +158,64 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
     }
 
     @Override
+    public List<NotificationOutbox> getNotificationsMobile(
+            Long userId,
+            NotificationChannel channel,
+            long after,
+            int limit,
+            Long roomId
+    ) {
+        if (roomId == null) {
+            return getNotificationsMobile(userId, channel, after, limit);
+        }
+        return outboxRepository.findNextNotificationsCursor(userId, channel, after, limit, roomId);
+    }
+
+    @Override
+    public List<NotificationOutbox> getNotificationsMobile(
+            Long userId,
+            NotificationChannel channel,
+            long after,
+            int limit,
+            Long roomId,
+            String roomCode
+    ) {
+        String normalizedRoomCode = normalizeRoomCode(roomCode);
+        if (roomId == null && normalizedRoomCode == null) {
+            return getNotificationsMobile(userId, channel, after, limit);
+        }
+        return outboxRepository.findNextNotificationsCursor(
+                userId,
+                channel,
+                after,
+                limit,
+                roomId,
+                normalizedRoomCode
+        );
+    }
+
+    @Override
     public long getUnreadCount(Long userId, NotificationChannel channel) {
         return outboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse(userId, channel);
+    }
+
+    @Override
+    public long getUnreadCount(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode
+    ) {
+        String normalizedRoomCode = normalizeRoomCode(roomCode);
+        if (roomId == null && normalizedRoomCode == null) {
+            return getUnreadCount(userId, channel);
+        }
+        return outboxRepository.countByRecipientUserIdAndChannelAndIsReadFalse(
+                userId,
+                channel,
+                roomId,
+                normalizedRoomCode
+        );
     }
 
     @Override
@@ -199,5 +255,41 @@ public class NotificationService implements SendNotificationUseCase, Notificatio
         LocalDateTime readAt = LocalDateTime.now();
         outboxRepository.markAllAsRead(userId, channel, readAt);
         deliveryRepository.markReadByRecipientUserIdAndChannel(userId, channel, readAt);
+    }
+
+    @Override
+    public void markAllAsRead(Long userId, NotificationChannel channel, Long roomId) {
+        if (roomId == null) {
+            markAllAsRead(userId, channel);
+            return;
+        }
+        LocalDateTime readAt = LocalDateTime.now();
+        outboxRepository.markAllAsRead(userId, channel, roomId, readAt);
+        deliveryRepository.markReadByRecipientUserIdAndChannel(userId, channel, roomId, readAt);
+    }
+
+    @Override
+    public void markAllAsRead(Long userId, NotificationChannel channel, Long roomId, String roomCode) {
+        String normalizedRoomCode = normalizeRoomCode(roomCode);
+        if (roomId == null && normalizedRoomCode == null) {
+            markAllAsRead(userId, channel);
+            return;
+        }
+        LocalDateTime readAt = LocalDateTime.now();
+        outboxRepository.markAllAsRead(userId, channel, roomId, normalizedRoomCode, readAt);
+        deliveryRepository.markReadByRecipientUserIdAndChannel(
+                userId,
+                channel,
+                roomId,
+                normalizedRoomCode,
+                readAt
+        );
+    }
+
+    private String normalizeRoomCode(String roomCode) {
+        if (roomCode == null || roomCode.isBlank()) {
+            return null;
+        }
+        return roomCode.trim();
     }
 }

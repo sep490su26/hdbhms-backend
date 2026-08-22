@@ -200,10 +200,16 @@ public class TokenProvider {
                 .forEach(cookie -> log.info("Cookie: {}-{}", cookie.getName(), cookie.getValue())));
         var sessionCookie = CookieUtils.getCookie(request, SESSION_ID_COOKIE_NAME)
                 .map(Cookie::getValue);
-        if (sessionCookie.isEmpty()) {
+        return sessionCookie
+                .map(sessionId -> getRefreshToken(sessionId, updateLastUsedAt))
+                .orElse(null);
+    }
+
+    public String getRefreshToken(String sessionId, boolean updateLastUsedAt) {
+        if (StringUtils.isEmpty(sessionId)) {
             return null;
         }
-        var key = String.format(refreshTokenKeyFormat, sessionCookie.get());
+        var key = String.format(refreshTokenKeyFormat, sessionId);
         var refreshToken = (String) redisTemplate.opsForHash().get(key, tokenKey);
         if (!StringUtils.isEmpty(refreshToken) && updateLastUsedAt) {
             redisTemplate.opsForHash().put(key, "last-used-at", String.valueOf(new Date()));
@@ -230,6 +236,11 @@ public class TokenProvider {
     @SneakyThrows
     public Long getUserId(HttpServletRequest request) {
         var sessionId = getSessionIdFromCookie(request);
+        return getUserId(sessionId);
+    }
+
+    @SneakyThrows
+    public Long getUserId(String sessionId) {
         if (StringUtils.isEmpty(sessionId)) {
             return null;
         }

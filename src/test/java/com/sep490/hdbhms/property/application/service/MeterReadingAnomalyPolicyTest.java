@@ -28,6 +28,9 @@ class MeterReadingAnomalyPolicyTest {
         assertTrue(anomalies.stream().anyMatch(anomaly ->
                 anomaly.type() == AnomalyType.OTHER
                         && anomaly.message().contains("100.000")));
+        assertTrue(anomalies.stream().anyMatch(anomaly ->
+                anomaly.message().contains("Ch\u1ec9 mi\u1ec5n ph\u00ed d\u1ecbch v\u1ee5")
+                        && anomaly.message().contains("ti\u1ec1n \u0111i\u1ec7n v\u1eabn \u0111\u01b0\u1ee3c thu")));
     }
 
     @Test

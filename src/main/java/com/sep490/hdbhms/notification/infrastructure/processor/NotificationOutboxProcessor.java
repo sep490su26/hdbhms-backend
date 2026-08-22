@@ -342,12 +342,13 @@ public class NotificationOutboxProcessor {
     }
 
     private void createDeliveryRecord(NotificationOutbox outbox, String providerMessageId) {
+        LocalDateTime deliveredAt = LocalDateTime.now();
         NotificationDelivery delivery = NotificationDelivery.builder()
                 .outboxId(outbox.getId())
                 .providerMessageId(providerMessageId)
                 .deliveryStatus(DeliveryStatus.SENT)
-                .createdAt(LocalDateTime.now())
-                .deliveredAt(LocalDateTime.now())
+                .createdAt(deliveredAt)
+                .deliveredAt(deliveredAt)
                 .build();
         notificationDeliveryRepository.save(delivery);
     }

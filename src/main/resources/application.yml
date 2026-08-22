@@ -2,14 +2,14 @@ server:
   port: 8080
   forward-headers-strategy: framework
   tomcat:
-    max-swallow-size: 30MB
+    max-swallow-size: 35MB
 spring:
   application:
     name: hdbhms
   servlet:
     multipart:
       max-file-size: 10MB
-      max-request-size: 30MB
+      max-request-size: 35MB
   profiles:
     active: dev
   autoconfigure:

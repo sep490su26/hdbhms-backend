@@ -49,6 +49,24 @@ public class SpringDataNotificationDeliveryRepository implements NotificationDel
 
     @Override
     @Transactional
+    public void markReadByRecipientUserIdAndChannel(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode,
+            LocalDateTime readAt
+    ) {
+        jpaNotificationDeliveryRepository.markReadByRecipientUserIdAndChannelAndRoomId(
+                userId,
+                channel.name(),
+                roomId,
+                roomCode,
+                readAt
+        );
+    }
+
+    @Override
+    @Transactional
     public void markReadByRecipientUserIdAndTarget(
             Long userId,
             String targetType,

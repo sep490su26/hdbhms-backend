@@ -48,6 +48,38 @@ public interface JpaNotificationDeliveryRepository extends JpaRepository<Notific
             JOIN notification_outbox o ON o.notification_outbox_id = d.outbox_id
             SET d.read_at = :readAt
             WHERE o.recipient_user_id = :userId
+              AND o.channel = :channel
+              AND o.status = 'SENT'
+              AND o.sent_at IS NOT NULL
+              AND d.read_at IS NULL
+              AND (
+                    JSON_UNQUOTE(JSON_EXTRACT(o.payload, '$.roomId')) = CAST(:roomId AS CHAR)
+                    OR (
+                        JSON_EXTRACT(o.payload, '$.roomId') IS NULL
+                        AND
+                        :roomCode IS NOT NULL
+                        AND :roomCode <> ''
+                        AND (
+                            JSON_UNQUOTE(JSON_EXTRACT(o.payload, '$.roomCode')) = :roomCode
+                            OR JSON_UNQUOTE(JSON_EXTRACT(o.payload, '$.room_code')) = :roomCode
+                        )
+                    )
+              )
+            """, nativeQuery = true)
+    void markReadByRecipientUserIdAndChannelAndRoomId(
+            @Param("userId") Long userId,
+            @Param("channel") String channel,
+            @Param("roomId") Long roomId,
+            @Param("roomCode") String roomCode,
+            @Param("readAt") LocalDateTime readAt
+    );
+
+    @Modifying
+    @Query(value = """
+            UPDATE notification_deliveries d
+            JOIN notification_outbox o ON o.notification_outbox_id = d.outbox_id
+            SET d.read_at = :readAt
+            WHERE o.recipient_user_id = :userId
               AND o.target_type = :targetType
               AND o.target_id = :targetId
               AND d.read_at IS NULL

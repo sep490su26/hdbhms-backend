@@ -9,4 +9,17 @@ public interface ManageNotificationUseCase {
 
     void markTargetAsRead(Long userId, String targetType, Long targetId);
     void markAllAsRead(Long userId, NotificationChannel channel);
+
+    default void markAllAsRead(Long userId, NotificationChannel channel, Long roomId) {
+        markAllAsRead(userId, channel);
+    }
+
+    default void markAllAsRead(
+            Long userId,
+            NotificationChannel channel,
+            Long roomId,
+            String roomCode
+    ) {
+        markAllAsRead(userId, channel, roomId);
+    }
 }

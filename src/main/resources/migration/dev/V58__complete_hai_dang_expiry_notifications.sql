@@ -502,8 +502,9 @@ SELECT
     contract.lease_contract_id,
     tenant_user.user_id,
     'PUSH',
-    CONCAT('Expiry reminder for contract ', contract.contract_code),
-    CONCAT('Room ', room.room_code, ' expires on ', contract.end_date, '.'),
+    CONCAT('Hợp đồng ', contract.contract_code, ' sắp hết hạn'),
+    CONCAT('Phòng ', room.room_code, ' hết hạn hợp đồng ngày ',
+           DATE_FORMAT(contract.end_date, '%d/%m/%Y'), '.'),
     JSON_OBJECT(
         'contractId', contract.lease_contract_id,
         'contractCode', contract.contract_code,
@@ -554,8 +555,9 @@ SELECT
     contract.lease_contract_id,
     tenant_user.user_id,
     'PUSH',
-    CONCAT('Expiry reminder for contract ', contract.contract_code),
-    CONCAT('Room ', room.room_code, ' expires on ', contract.end_date, '.'),
+    CONCAT('Hợp đồng ', contract.contract_code, ' sắp hết hạn'),
+    CONCAT('Phòng ', room.room_code, ' hết hạn hợp đồng ngày ',
+           DATE_FORMAT(contract.end_date, '%d/%m/%Y'), '.'),
     JSON_OBJECT(
         'contractId', contract.lease_contract_id,
         'contractCode', contract.contract_code,

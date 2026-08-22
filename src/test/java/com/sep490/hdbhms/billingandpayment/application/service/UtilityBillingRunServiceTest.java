@@ -46,4 +46,12 @@ class UtilityBillingRunServiceTest {
                 UtilityBillingRunService.isServiceFeeWaived(50000L, null)
         );
     }
+
+    @Test
+    void serviceFeeWaiveReasonMakesElectricityChargeExplicit() {
+        assertEquals(
+                "Ph\u00ed d\u1ecbch v\u1ee5 \u0111\u01b0\u1ee3c mi\u1ec5n v\u00ec ti\u1ec1n \u0111i\u1ec7n d\u01b0\u1edbi 100.000 VND; ti\u1ec1n \u0111i\u1ec7n v\u1eabn \u0111\u01b0\u1ee3c thu.",
+                UtilityBillingRunService.serviceFeeWaiveReason(100_000L)
+        );
+    }
 }

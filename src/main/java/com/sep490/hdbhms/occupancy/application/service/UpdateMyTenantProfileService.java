@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -50,7 +51,7 @@ public class UpdateMyTenantProfileService implements UpdateMyTenantProfileUseCas
 
         // Update Person Profile
         profile.setPhone(request.phone());
-        profile.setEmail(request.email());
+        profile.setEmail(normalizeOptionalEmail(request.email()));
         profile.setUpdatedAt(LocalDateTime.now());
         personProfileRepository.save(profile);
 
@@ -96,8 +97,6 @@ public class UpdateMyTenantProfileService implements UpdateMyTenantProfileUseCas
                     // Update existing
                     if (dto.imageFileId() != null) {
                         vehicle.setImageFile(fileMetadataRepository.findById(dto.imageFileId()).orElse(null));
-                    } else {
-                        vehicle.setImageFile(null);
                     }
                     if (dto.vehicleType() != null) {
                         vehicle.setVehicleType(VehicleType.valueOf(dto.vehicleType()));
@@ -135,6 +134,13 @@ public class UpdateMyTenantProfileService implements UpdateMyTenantProfileUseCas
         }
 
         vehicleRepository.saveAll(existingVehicles);
+    }
+
+    private String normalizeOptionalEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }
 

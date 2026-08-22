@@ -1961,6 +1961,7 @@ public class MaintenanceTicketController {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("ticketId", ticket.getId());
         data.put("ticketCode", firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()));
+        data.put("roomId", ticket.getRoomId());
         data.put("roomCode", room.roomCode());
         data.put("roomName", firstNonBlank(room.roomName(), room.roomCode(), "phòng thuê"));
         data.put("propertyName", room.propertyName());
@@ -1991,6 +1992,7 @@ public class MaintenanceTicketController {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("ticketId", ticket.getId());
         data.put("ticketCode", firstNonBlank(ticket.getTicketCode(), "#" + ticket.getId()));
+        data.put("roomId", ticket.getRoomId());
         data.put("roomCode", room.roomCode());
         data.put("roomName", firstNonBlank(room.roomName(), room.roomCode(), "phòng thuê"));
         data.put("reason", firstNonBlank(reason, "Không có lý do bổ sung."));
