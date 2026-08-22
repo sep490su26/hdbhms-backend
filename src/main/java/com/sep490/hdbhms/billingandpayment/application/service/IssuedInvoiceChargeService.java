@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -41,6 +42,10 @@ import java.util.Map;
 public class IssuedInvoiceChargeService {
     public static final String SOURCE_MAINTENANCE_TICKET = "MAINTENANCE_TICKET";
     static final DateTimeFormatter CODE_TIME_FORMAT = DateTimeFormatter.ofPattern("MMddHHmmss");
+    static final List<PaymentIntentStatus> REUSABLE_INTENT_STATUSES = List.of(
+            PaymentIntentStatus.CREATED,
+            PaymentIntentStatus.PENDING
+    );
 
     JpaInvoiceRepository invoiceRepository;
     JpaInvoiceLineRepository invoiceLineRepository;
@@ -184,6 +189,15 @@ public class IssuedInvoiceChargeService {
         return issueDraftInvoice(invoiceId, true);
     }
 
+    /**
+     * A transfer difference invoice must remain payable when PayOS is unavailable.
+     * The tenant can retry the checkout from the already persisted invoice later.
+     */
+    @Transactional
+    public IssuedChargeResult issueDraftInvoiceForTransferDifference(Long invoiceId) {
+        return issueDraftInvoice(invoiceId, true);
+    }
+
     private IssuedChargeResult issueDraftInvoice(Long invoiceId, boolean tolerateExternalServiceFailure) {
         InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new AppException(ApiErrorCode.RESOURCE_NOT_FOUND));
@@ -204,7 +218,7 @@ public class IssuedInvoiceChargeService {
                 .orElse(null);
 
         PaymentIntentEntity paymentIntent = paymentIntentRepository
-                .findFirstByInvoice_IdAndStatusOrderByIdDesc(issuedInvoice.getId(), PaymentIntentStatus.PENDING)
+                .findFirstByInvoice_IdAndStatusInOrderByIdDesc(issuedInvoice.getId(), REUSABLE_INTENT_STATUSES)
                 .orElseGet(() -> paymentIntentRepository.save(PaymentIntentEntity.builder()
                         .invoice(issuedInvoice)
                         .amount(issuedInvoice.getRemainingAmount())
@@ -213,6 +227,10 @@ public class IssuedInvoiceChargeService {
                         .status(PaymentIntentStatus.PENDING)
                         .expiresAt(paymentExpiresAt)
                         .build()));
+        if (paymentIntent.getStatus() == PaymentIntentStatus.CREATED) {
+            paymentIntent.setStatus(PaymentIntentStatus.PENDING);
+            paymentIntent = paymentIntentRepository.save(paymentIntent);
+        }
 
         com.sep490.hdbhms.billingandpayment.infrastructure.web.dto.response.PaymentIntent checkout;
         try {
@@ -227,7 +245,7 @@ public class IssuedInvoiceChargeService {
                 throw new AppException(ApiErrorCode.EXTERNAL_SERVICE_ERROR, exception);
             }
             log.warn(
-                    "Could not create PayOS checkout for liquidation invoice; invoice remains issued and can be retried. invoiceId={}, paymentIntentId={}, message={}",
+                    "Could not create PayOS checkout; invoice remains issued and can be retried. invoiceId={}, paymentIntentId={}, message={}",
                     issuedInvoice.getId(),
                     paymentIntent.getId(),
                     exception.getMessage()

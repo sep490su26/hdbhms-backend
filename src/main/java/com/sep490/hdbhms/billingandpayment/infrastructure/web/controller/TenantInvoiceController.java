@@ -87,6 +87,10 @@ public class TenantInvoiceController {
             RequestStatus.UNDER_REVIEW,
             RequestStatus.PROCESSING
     );
+    static final List<PaymentIntentStatus> REUSABLE_INTENT_STATUSES = List.of(
+            PaymentIntentStatus.CREATED,
+            PaymentIntentStatus.PENDING
+    );
 
     JpaInvoiceRepository jpaInvoiceRepository;
     JpaInvoiceLineRepository jpaInvoiceLineRepository;
@@ -270,12 +274,14 @@ public class TenantInvoiceController {
 
     private boolean ensurePayOSCheckouts(List<InvoiceEntity> invoices) {
         boolean refreshed = false;
-        for (InvoiceEntity invoice : invoices) {
+        for (InvoiceEntity listedInvoice : invoices) {
+            InvoiceEntity invoice = jpaInvoiceRepository.findByIdForUpdate(listedInvoice.getId())
+                    .orElse(listedInvoice);
             if (!isPayable(invoice)) {
                 continue;
             }
             PaymentIntentEntity paymentIntent = jpaPaymentIntentRepository
-                    .findFirstByInvoice_IdAndStatusOrderByIdDesc(invoice.getId(), PaymentIntentStatus.PENDING)
+                    .findFirstByInvoice_IdAndStatusInOrderByIdDesc(invoice.getId(), REUSABLE_INTENT_STATUSES)
                     .orElse(null);
             if (paymentIntent == null) {
                 paymentIntent = jpaPaymentIntentRepository.save(PaymentIntentEntity.builder()
@@ -286,6 +292,9 @@ public class TenantInvoiceController {
                         .status(PaymentIntentStatus.PENDING)
                         .expiresAt(LocalDateTime.now().plusDays(7))
                         .build());
+            } else if (paymentIntent.getStatus() == PaymentIntentStatus.CREATED) {
+                paymentIntent.setStatus(PaymentIntentStatus.PENDING);
+                paymentIntent = jpaPaymentIntentRepository.save(paymentIntent);
             } else if (paymentIntent.getProvider() != PaymentIntentProvider.PAYOS
                     || hasUsablePayOSPayload(paymentIntent)) {
                 continue;
@@ -558,7 +567,7 @@ public class TenantInvoiceController {
             return PaymentInfo.empty();
         }
         return jpaPaymentIntentRepository
-                .findFirstByInvoice_IdAndStatusOrderByIdDesc(invoice.getId(), PaymentIntentStatus.PENDING)
+                .findFirstByInvoice_IdAndStatusInOrderByIdDesc(invoice.getId(), REUSABLE_INTENT_STATUSES)
                 .map(this::toPaymentInfo)
                 .orElseGet(PaymentInfo::empty);
     }

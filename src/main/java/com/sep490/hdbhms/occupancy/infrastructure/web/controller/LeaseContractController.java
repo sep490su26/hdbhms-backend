@@ -587,7 +587,7 @@ public class LeaseContractController {
                 : renewBlocker == RoomCommitmentChecker.Blocker.NONE
                 ? null
                 : renewBlockedMessage(renewBlocker));
-        boolean liquidationBlockedByBooking = response.getRoom() != null
+        boolean soonVacantBookingCase = response.getRoom() != null
                 && response.getRoom().getId() != null
                 && roomCommitmentChecker.isSoonVacantBookingCase(
                 response.getRoom().getId(),
@@ -599,22 +599,20 @@ public class LeaseContractController {
                 LeaseStatus.EXPIRING_SOON,
                 LeaseStatus.EXPIRED,
                 LeaseStatus.TERMINATION_PENDING
-        ).contains(response.getStatus()) && !liquidationBlockedByBooking && outstandingDebt == 0);
+        ).contains(response.getStatus()) && outstandingDebt == 0);
         response.setCanLiquidateBlockedReason(debtBlockedReason != null
                 ? debtBlockedReason
-                : liquidationBlockedByBooking
-                ? ApiErrorCode.ROOM_LIQUIDATION_BLOCKED_BY_BOOKING.getDetails()
                 : null);
 
         boolean addCoOccupantAllowedStatus = List.of(
                 LeaseStatus.ACTIVE,
                 LeaseStatus.EXPIRING_SOON
         ).contains(response.getStatus());
-        boolean canAddCoOccupant = addCoOccupantAllowedStatus && !liquidationBlockedByBooking;
+        boolean canAddCoOccupant = addCoOccupantAllowedStatus && !soonVacantBookingCase;
         response.setCanAddCoOccupant(canAddCoOccupant);
         response.setCanAddCoOccupantBlockedReason(!addCoOccupantAllowedStatus
                 ? ApiErrorCode.LEASE_CO_OCCUPANT_ADD_FORBIDDEN.getDetails()
-                : liquidationBlockedByBooking
+                : soonVacantBookingCase
                 ? ApiErrorCode.ROOM_CO_OCCUPANT_ADD_BLOCKED_BY_BOOKING.getDetails()
                 : null);
 

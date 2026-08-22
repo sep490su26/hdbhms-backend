@@ -14,5 +14,10 @@ public interface JpaPaymentIntentRepository extends JpaRepository<PaymentIntentE
 
     Optional<PaymentIntentEntity> findFirstByInvoice_IdAndStatusOrderByIdDesc(Long invoiceId, PaymentIntentStatus status);
 
+    Optional<PaymentIntentEntity> findFirstByInvoice_IdAndStatusInOrderByIdDesc(
+            Long invoiceId,
+            Collection<PaymentIntentStatus> statuses
+    );
+
     List<PaymentIntentEntity> findByInvoice_IdAndStatusIn(Long invoiceId, Collection<PaymentIntentStatus> statuses);
 }

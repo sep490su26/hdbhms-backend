@@ -828,7 +828,7 @@ public class LeaseContractQueryService {
                 && List.of(LeaseStatus.ACTIVE, LeaseStatus.EXPIRING_SOON, LeaseStatus.EXPIRED).contains(status)
                 && renewBlocker == RoomCommitmentChecker.Blocker.NONE
                 && outstandingDebt == 0;
-        boolean liquidationBlockedByBooking = roomCommitmentChecker.isSoonVacantBookingCase(
+        boolean soonVacantBookingCase = roomCommitmentChecker.isSoonVacantBookingCase(
                 rs.getLong("room_id"),
                 rs.getLong("contract_id"),
                 endDate
@@ -838,7 +838,7 @@ public class LeaseContractQueryService {
                 LeaseStatus.EXPIRING_SOON,
                 LeaseStatus.EXPIRED,
                 LeaseStatus.TERMINATION_PENDING
-        ).contains(status) && !liquidationBlockedByBooking && outstandingDebt == 0;
+        ).contains(status) && outstandingDebt == 0;
         String debtBlockedReason = LeaseContractDebtPolicy.blockingReason(outstandingDebt);
         boolean addCoOccupantAllowedStatus = List.of(
                 LeaseStatus.ACTIVE,
@@ -894,16 +894,12 @@ public class LeaseContractQueryService {
                         ? null
                         : renewBlockedReason(renewBlocker),
                 canLiquidate,
-                debtBlockedReason != null
-                        ? debtBlockedReason
-                        : liquidationBlockedByBooking
-                        ? "Phòng sắp trống đã có khách khác đặt hoặc giữ chỗ; không thể thanh lý."
-                        : null,
-                addCoOccupantAllowedStatus && !liquidationBlockedByBooking,
-                addCoOccupantAllowedStatus && liquidationBlockedByBooking
+                debtBlockedReason,
+                addCoOccupantAllowedStatus && !soonVacantBookingCase,
+                addCoOccupantAllowedStatus && soonVacantBookingCase
                         ? "Phòng sắp trống đã có khách khác đặt hoặc giữ chỗ; không thể thêm người ở cùng."
                         : null,
-                liquidationBlockedByBooking,
+                soonVacantBookingCase,
                 accountProvisioning.canSend(),
                 accountProvisioning.status(),
                 fileId != null ? new LeaseContractQueryDetailsResponse.ContractFileInfo(fileId, rs.getString("contract_file_name")) : null,

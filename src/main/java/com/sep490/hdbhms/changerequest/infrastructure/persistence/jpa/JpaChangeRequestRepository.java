@@ -79,6 +79,12 @@ public interface JpaChangeRequestRepository extends JpaRepository<ChangeRequestE
             Collection<RequestStatus> statuses
     );
 
+    boolean existsByRequester_IdAndRequestTypeAndStatusIn(
+            Long requesterId,
+            RequestType requestType,
+            Collection<RequestStatus> statuses
+    );
+
     boolean existsByRequestCode(String requestCode);
 
     Optional<ChangeRequestEntity> findFirstByRequestTypeAndTargetTypeAndTargetIdAndStatusInOrderByCreatedAtDesc(

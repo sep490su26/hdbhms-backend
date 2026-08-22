@@ -86,8 +86,12 @@ public class RoomTransferService implements RoomTransferUseCase {
     );
     static final List<TransferRequestStatus> OPEN_TRANSFER_STATUSES = List.of(
             TransferRequestStatus.REQUESTED,
+            TransferRequestStatus.WAITING_MANAGER_APPROVAL,
             TransferRequestStatus.MANAGER_APPROVED,
             TransferRequestStatus.WAITING_HOLDER_RESPONSE,
+            TransferRequestStatus.WAITING_TARGET_HOLDER_APPROVAL,
+            TransferRequestStatus.WAITING_TENANT_CONFIRMATION,
+            TransferRequestStatus.WAITING_NEW_CONTRACT,
             TransferRequestStatus.WAITING_CONTRACT_CONFIRMATION,
             TransferRequestStatus.WAITING_SIGNING,
             TransferRequestStatus.WAITING_CONTRACT_SIGNING,
@@ -95,7 +99,13 @@ public class RoomTransferService implements RoomTransferUseCase {
             TransferRequestStatus.WAITING_TRANSFER_DATE,
             TransferRequestStatus.WAITING_EXECUTION,
             TransferRequestStatus.READY_FOR_HANDOVER,
-            TransferRequestStatus.WAITING_NEW_CONTRACT
+            TransferRequestStatus.EXECUTED
+    );
+    static final List<RequestStatus> OPEN_CHANGE_REQUEST_STATUSES = List.of(
+            RequestStatus.PENDING,
+            RequestStatus.UNDER_REVIEW,
+            RequestStatus.APPROVED,
+            RequestStatus.PROCESSING
     );
     static final int TRANSFER_RESERVATION_GRACE_DAYS = 1;
     static final int TARGET_HOLDER_APPROVAL_TIMEOUT_DAYS = 7;
@@ -156,6 +166,13 @@ public class RoomTransferService implements RoomTransferUseCase {
         if (!bypassCreateValidation) {
             validateSourceContract(sourceContract, requesterProfile.getId());
             LeaseContractDebtPolicy.requireNoOutstandingDebt(jdbcTemplate, sourceContract.getId());
+            if (changeRequestRepository.existsByRequesterIdAndRequestTypeAndStatusIn(
+                    command.requesterId(),
+                    RequestType.ROOM_TRANSFER,
+                    OPEN_CHANGE_REQUEST_STATUSES
+            )) {
+                throw new AppException(ApiErrorCode.ROOM_TRANSFER_OPEN_REQUEST_EXISTS);
+            }
             if (roomTransferRequestRepository.existsOpenByOldContractId(sourceContract.getId(), OPEN_TRANSFER_STATUSES)) {
                 throw new AppException(ApiErrorCode.ROOM_TRANSFER_OPEN_REQUEST_EXISTS);
             }
@@ -2929,7 +2946,7 @@ public class RoomTransferService implements RoomTransferUseCase {
                 .sourceType("ROOM_TRANSFER")
                 .sourceId(request.getId())
                 .build());
-        issuedInvoiceChargeService.issueDraftInvoice(invoice.getId());
+        issuedInvoiceChargeService.issueDraftInvoiceForTransferDifference(invoice.getId());
         return invoiceRepository.findById(invoice.getId())
                 .orElseThrow(() -> new AppException(ApiErrorCode.ROOM_TRANSFER_INVOICE_NOT_FOUND));
     }

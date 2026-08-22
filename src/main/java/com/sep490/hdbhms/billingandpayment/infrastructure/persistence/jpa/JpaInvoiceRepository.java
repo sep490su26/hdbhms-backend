@@ -6,6 +6,8 @@ import com.sep490.hdbhms.billingandpayment.infrastructure.persistence.entity.Inv
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -51,6 +53,10 @@ public interface JpaInvoiceRepository extends JpaRepository<InvoiceEntity, Long>
     );
 
     boolean existsByIdAndLeastContract_PrimaryTenantProfile_User_Id(Long invoiceId, Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select invoice from InvoiceEntity invoice where invoice.id = :invoiceId")
+    Optional<InvoiceEntity> findByIdForUpdate(@Param("invoiceId") Long invoiceId);
 
     @Query("""
             SELECT DISTINCT invoice

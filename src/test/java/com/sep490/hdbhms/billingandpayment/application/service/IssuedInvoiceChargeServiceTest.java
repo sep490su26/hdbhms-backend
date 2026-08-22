@@ -129,6 +129,45 @@ class IssuedInvoiceChargeServiceTest {
         assertNull(result.checkout());
     }
 
+    @Test
+    void transferDifferenceIssueKeepsInvoiceAndPaymentIntentWhenPayOsIsUnavailable() {
+        InvoiceEntity invoice = InvoiceEntity.builder()
+                .id(18L)
+                .invoiceCode("INV-TR-5-202608")
+                .status(InvoiceStatus.DRAFT)
+                .remainingAmount(450_000L)
+                .build();
+        JpaInvoiceRepository invoiceRepository = proxy(JpaInvoiceRepository.class, (method, arguments) -> {
+            if ("findById".equals(method.getName())) {
+                return Optional.of(invoice);
+            }
+            if ("save".equals(method.getName())) {
+                return arguments[0];
+            }
+            return defaultValue(method.getReturnType());
+        });
+        ExternalPaymentPort unavailablePayOs = proxy(ExternalPaymentPort.class, (method, arguments) -> {
+            if ("createCheckoutRequest".equals(method.getName())) {
+                throw new IllegalStateException("PayOS is unavailable");
+            }
+            return null;
+        });
+        IssuedInvoiceChargeService service = new IssuedInvoiceChargeService(
+                invoiceRepository,
+                passthroughRepository(JpaInvoiceLineRepository.class),
+                passthroughRepository(JpaPaymentIntentRepository.class),
+                unavailablePayOs,
+                new ObjectMapper()
+        );
+
+        IssuedInvoiceChargeService.IssuedChargeResult result =
+                service.issueDraftInvoiceForTransferDifference(invoice.getId());
+
+        assertEquals(InvoiceStatus.ISSUED, result.invoice().getStatus());
+        assertEquals(PaymentIntentStatus.PENDING, result.paymentIntent().getStatus());
+        assertNull(result.checkout());
+    }
+
     private static <T> T passthroughRepository(Class<T> type) {
         return proxy(type, (method, arguments) -> {
             if ("save".equals(method.getName()) && arguments != null && arguments.length == 1) {

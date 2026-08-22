@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.Optional;
 import java.util.List;
+import java.util.Collection;
 
 public interface ChangeRequestRepository {
     ChangeRequest save(ChangeRequest changeRequest);
@@ -16,4 +17,5 @@ public interface ChangeRequestRepository {
     Page<ChangeRequest> findFiltered(RequestType type, RequestStatus status, String search, Pageable pageable);
     Page<ChangeRequest> findFilteredByRequester(Long requesterId, RequestType type, RequestStatus status, String search, Pageable pageable);
     boolean existsByRequestCode(String requestCode);
+    boolean existsByRequesterIdAndRequestTypeAndStatusIn(Long requesterId, RequestType requestType, Collection<RequestStatus> statuses);
 }

@@ -16,6 +16,7 @@ import com.sep490.hdbhms.changerequest.domain.value_objects.RequestType;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 @Repository
 @RequiredArgsConstructor
@@ -61,5 +62,18 @@ public class SpringDataChangeRequestRepository implements ChangeRequestRepositor
     @Override
     public boolean existsByRequestCode(String requestCode) {
         return jpaChangeRequestRepository.existsByRequestCode(requestCode);
+    }
+
+    @Override
+    public boolean existsByRequesterIdAndRequestTypeAndStatusIn(
+            Long requesterId,
+            RequestType requestType,
+            Collection<RequestStatus> statuses
+    ) {
+        return jpaChangeRequestRepository.existsByRequester_IdAndRequestTypeAndStatusIn(
+                requesterId,
+                requestType,
+                statuses
+        );
     }
 }
